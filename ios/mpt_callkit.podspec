@@ -30,6 +30,10 @@ A new Flutter plugin project.
     'OTHER_LDFLAGS' => '$(inherited) -ObjC'
   }
 
+      s.preserve_paths = 'SDK/PortSIPVoIPSDK.xcframework'
+          s.xcconfig = { 'OTHER_LDFLAGS' => '-framework PortSIPVoIPSDK' }
+          s.vendored_frameworks = 'SDK/PortSIPVoIPSDK.xcframework'
+
   s.info_plist = {
   'NSCameraUsageDescription' => 'For video call',
   'NSMicrophoneUsageDescription' => 'For audio call',
