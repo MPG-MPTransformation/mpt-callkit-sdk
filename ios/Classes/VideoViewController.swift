@@ -3,16 +3,20 @@ import PortSIPVoIPSDK
 
 class VideoViewController: UIViewController {
     var mCameraDeviceId: Int = 1 // 1 - FrontCamera 0 - BackCamera
+    var speakState: Int = 0 // 1 - Headphone 0 - mic
+    
+    var muteState: Bool = true
     var mLocalVideoWidth: Int = 352
     var mLocalVideoHeight: Int = 288
     var isStartVideo = false
     var isInitVideo = false
     var sessionId: Int = 0
-    let centerButtonSize: CGFloat = 70
-    let otherButtonSize: CGFloat = 60
+    var centerButtonSize: CGFloat = 70
+    var otherButtonSize: CGFloat = 60
+    var leftRightSpacing: CGFloat = 20
+    var spacing: CGFloat = 10
     var sendState: Bool = true
-    var muteState: Bool = false
-    var speakState: Int = 0 // 1 - Headphone 0 - mic
+    let deviceWidth = UIScreen.main.bounds.width
     var portSIPSDK: PortSIPSDK!
     
     // Create video render views and buttons programmatically
@@ -33,11 +37,14 @@ class VideoViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
         // Initialize the views
+        centerButtonSize = (70 / 430) * deviceWidth
+        otherButtonSize = (60 / 430) * deviceWidth
+        leftRightSpacing = (20 / 430) * deviceWidth
+        spacing = (10 / 430) * deviceWidth
+        
         initVideoViews()
         initButtons()
-        
         // Check if the outlets are properly initialized
         isInitVideo = true
         
@@ -50,7 +57,6 @@ class VideoViewController: UIViewController {
         viewRemoteVideoSmall.addGestureRecognizer(tapGesture)
         
         updateLocalVideoPosition(UIScreen.main.bounds.size)
-        let appDelegate = MptCallkitPlugin.shared
     }
     
     func initVideoViews() {
@@ -73,14 +79,9 @@ class VideoViewController: UIViewController {
             viewRemoteVideo.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
             viewRemoteVideo.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
             
-            viewRemoteVideo.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            viewRemoteVideo.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            viewRemoteVideo.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
-            viewRemoteVideo.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
-            
             // Constraints for the local video (custom size) - change the size here
-            viewLocalVideo.widthAnchor.constraint(equalToConstant: 150),  // Adjust width
-            viewLocalVideo.heightAnchor.constraint(equalToConstant: 200), // Adjust height
+            viewLocalVideo.widthAnchor.constraint(equalToConstant: 150),
+            viewLocalVideo.heightAnchor.constraint(equalToConstant: 200),
             viewLocalVideo.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
             viewLocalVideo.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10),
             
@@ -93,36 +94,6 @@ class VideoViewController: UIViewController {
     }
     
     func initButtons() {
-        //        // Conference button
-        //        buttonConference = UIButton(type: .system)
-        //        buttonConference.setTitle("Conference", for: .normal)
-        //        buttonConference.frame = CGRect(x: 10, y: 450, width: 150, height: 40)
-        //        buttonConference.addTarget(self, action: #selector(onConference(_:)), for: .touchUpInside)
-        //        self.view.addSubview(buttonConference)
-        //
-        //        // Speaker button
-        //        buttonSpeaker = UIButton(type: .system)
-        //        buttonSpeaker.setTitle("Speaker", for: .normal)
-        //        buttonSpeaker.frame = CGRect(x: 10, y: 500, width: 150, height: 40)
-        //        buttonSpeaker.addTarget(self, action: #selector(onSwitchSpeakerClick(_:)), for: .touchUpInside)
-        //        self.view.addSubview(buttonSpeaker)
-        //
-        //        // Sending video button
-        //        buttonSendingVideo = UIButton(type: .system)
-        //        buttonSendingVideo.setTitle("PauseSending", for: .normal)
-        //        buttonSendingVideo.frame = CGRect(x: 10, y: 550, width: 150, height: 40)
-        //        buttonSendingVideo.addTarget(self, action: #selector(onSendingVideoClick(_:)), for: .touchUpInside)
-        //        self.view.addSubview(buttonSendingVideo)
-        //
-        //        // Camera switch button
-        //        buttonCamera = UIButton(type: .system)
-        //        buttonCamera.setTitle("FrontCamera", for: .normal)
-        //        buttonCamera.frame = CGRect(x: 10, y: 600, width: 150, height: 40)
-        //        buttonCamera.addTarget(self, action: #selector(onSwitchCameraClick(_:)), for: .touchUpInside)
-        //        self.view.addSubview(buttonCamera)
-        //
-        // Camera switch button
-        
         addBackButton()
         hangUpButton()
         swapUIButton()
@@ -130,19 +101,19 @@ class VideoViewController: UIViewController {
         sendingVideo()
         initMuteButton()
         // Create a horizontal stack view to hold the buttons
-        let buttonStackView = UIStackView(arrangedSubviews: [buttonSendingVideo ,swapButton, hangupButton, buttonSpeaker, muteButton])
+        let buttonStackView = UIStackView(arrangedSubviews: [buttonSendingVideo, swapButton, hangupButton, buttonSpeaker, muteButton])
         buttonStackView.axis = .horizontal
         buttonStackView.distribution = .equalSpacing
         buttonStackView.alignment = .center
-        buttonStackView.spacing = 10  // Adjust spacing between buttons if needed
+        buttonStackView.spacing = spacing  // Adjust spacing between buttons if needed
         
         buttonStackView.translatesAutoresizingMaskIntoConstraints = false
         self.view.addSubview(buttonStackView)
         
         // Set constraints for the stack view directly to the main view with padding
         NSLayoutConstraint.activate([
-            buttonStackView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: 20), // Left padding
-            buttonStackView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -20), // Right padding
+            buttonStackView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: leftRightSpacing),
+            buttonStackView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -leftRightSpacing),
             buttonStackView.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor, constant: -40), // Bottom padding
             buttonStackView.heightAnchor.constraint(equalToConstant: centerButtonSize) // Set height for stack view
         ])
@@ -160,10 +131,10 @@ class VideoViewController: UIViewController {
         self.view.addSubview(backButton)
         
         NSLayoutConstraint.activate([
-            backButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 10),  // 10 points from the left edge
-            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),  // 10 points from the top edge
-            backButton.widthAnchor.constraint(equalToConstant: 44),  // Set width for the button
-            backButton.heightAnchor.constraint(equalToConstant: 44)  // Set height for the button
+            backButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 10),
+            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            backButton.widthAnchor.constraint(equalToConstant: 44),
+            backButton.heightAnchor.constraint(equalToConstant: 44)
         ])
     }
     
@@ -173,7 +144,6 @@ class VideoViewController: UIViewController {
         hangupButton.tintColor = .white
         hangupButton.backgroundColor = .red
         
-        
         hangupButton.frame = CGRect(x: 0, y: 0, width: centerButtonSize, height: centerButtonSize)
         hangupButton.layer.cornerRadius = centerButtonSize / 2
         hangupButton.translatesAutoresizingMaskIntoConstraints = false
@@ -182,7 +152,6 @@ class VideoViewController: UIViewController {
         hangupButton.imageView?.contentMode = .scaleAspectFit
         hangupButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
         hangupButton.addTarget(self, action: #selector(hangup(_:)), for: .touchUpInside)
-        
     }
     
     func swapUIButton() {
@@ -191,16 +160,13 @@ class VideoViewController: UIViewController {
         swapButton.tintColor = .white
         swapButton.backgroundColor = UIColor.gray.withAlphaComponent(0.5)
         
-        // Change the swap button's size (background size) here
         swapButton.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
-        swapButton.layer.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
         swapButton.layer.cornerRadius = otherButtonSize / 2
         swapButton.addTarget(self, action: #selector(onSwitchCameraClick(_:)), for: .touchUpInside)
         
         swapButton.translatesAutoresizingMaskIntoConstraints = false
         swapButton.widthAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
         swapButton.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
-        
         swapButton.imageView?.contentMode = .scaleAspectFit
         swapButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
     }
@@ -211,16 +177,13 @@ class VideoViewController: UIViewController {
         muteButton.tintColor = .white
         muteButton.backgroundColor = UIColor.gray.withAlphaComponent(0.5)
         
-        // Change the swap button's size (background size) here
         muteButton.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
-        muteButton.layer.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
         muteButton.layer.cornerRadius = otherButtonSize / 2
         muteButton.addTarget(self, action: #selector(onMuteClick(_:)), for: .touchUpInside)
         
         muteButton.translatesAutoresizingMaskIntoConstraints = false
         muteButton.widthAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
         muteButton.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
-        
         muteButton.imageView?.contentMode = .scaleAspectFit
         muteButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
     }
@@ -231,44 +194,35 @@ class VideoViewController: UIViewController {
         buttonSpeaker.tintColor = .white
         buttonSpeaker.backgroundColor = UIColor.gray.withAlphaComponent(0.5)
         
-        // Change the swap button's size (background size) here
         buttonSpeaker.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
-        buttonSpeaker.layer.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
         buttonSpeaker.layer.cornerRadius = otherButtonSize / 2
-        buttonSpeaker.addTarget(self, action: #selector(onMuteClick(_:)), for: .touchUpInside)
+        buttonSpeaker.addTarget(self, action: #selector(onSwitchSpeakerClick(_:)), for: .touchUpInside)
         
         buttonSpeaker.translatesAutoresizingMaskIntoConstraints = false
         buttonSpeaker.widthAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
         buttonSpeaker.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
-        
         buttonSpeaker.imageView?.contentMode = .scaleAspectFit
         buttonSpeaker.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
-        
     }
+    
     func sendingVideo() {
         buttonSendingVideo = UIButton(type: .system)
         buttonSendingVideo.setImage(UIImage(systemName: "video.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         buttonSendingVideo.tintColor = .white
         buttonSendingVideo.backgroundColor = UIColor.gray.withAlphaComponent(0.5)
         
-        // Change the swap button's size (background size) here
         buttonSendingVideo.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
-        buttonSendingVideo.layer.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
         buttonSendingVideo.layer.cornerRadius = otherButtonSize / 2
         buttonSendingVideo.addTarget(self, action: #selector(onSendingVideoClick(_:)), for: .touchUpInside)
         
         buttonSendingVideo.translatesAutoresizingMaskIntoConstraints = false
         buttonSendingVideo.widthAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
         buttonSendingVideo.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
-        
         buttonSendingVideo.imageView?.contentMode = .scaleAspectFit
         buttonSendingVideo.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
-        
     }
     
-    
     @objc func onSwitchSpeakerClick(_ sender: AnyObject) {
-        
         if speakState == 0 {
             speakState = 1
             self.portSIPSDK.setLoudspeakerStatus(false)
@@ -294,8 +248,6 @@ class VideoViewController: UIViewController {
         }
     }
     
-    
-    
     @objc func onSwichShareScreenClick(action: UITapGestureRecognizer) {
         self.shareInSmallWindow = !self.shareInSmallWindow
         checkDisplayVideo()
@@ -311,24 +263,20 @@ class VideoViewController: UIViewController {
             portSIPSDK.sendVideo(sessionId, sendState: sendState)
             buttonSendingVideo.setImage(UIImage(systemName: "video.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         }
-    }   
+    }
     
     @objc func onMuteClick(_ sender: AnyObject) {
-        if !muteState {
-            muteState = true
-            if speakState == 0 {
-                portSIPSDK.muteSpeaker(muteState)
-            } else {
-                portSIPSDK.muteMicrophone(muteState)
-            }
+        let sessionId = MptCallkitPlugin.shared.activeSessionid
+        if (sessionId == nil) {
+            return
+        }
+        if muteState {
+            muteState = false
+            portSIPSDK.muteSession(sessionId!, muteIncomingAudio: true, muteOutgoingAudio: true, muteIncomingVideo: false, muteOutgoingVideo: false)
             muteButton.setImage(UIImage(systemName: "speaker.slash.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         } else {
             muteState = true
-            if speakState == 0 {
-                portSIPSDK.muteSpeaker(muteState)
-            } else {
-                portSIPSDK.muteMicrophone(muteState)
-            }
+            portSIPSDK.muteSession(sessionId!, muteIncomingAudio: false, muteOutgoingAudio: false, muteIncomingVideo: false, muteOutgoingVideo: false)
             muteButton.setImage(UIImage(systemName: "speaker.2.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         }
     }
@@ -450,11 +398,10 @@ class VideoViewController: UIViewController {
     
     func onClearState() {
         if isStartVideo {
-               portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
-               portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
-               portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
-           }
-           portSIPSDK.sendVideo(sessionId, sendState: false)
-           
+            portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
+            portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
+            portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
+        }
+        portSIPSDK.sendVideo(sessionId, sendState: false)
     }
 }
