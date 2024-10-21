@@ -12,7 +12,7 @@ A new Flutter plugin project.
   s.homepage         = 'http://example.com'
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'Your Company' => 'email@example.com' }
-  s.source           = { :path => '.', :http => 'file:///SDK/PortSIPVoIPSDK.xcframework.zip', :flatten => false}
+  s.source           = { :http => 'https://github.com/MPG-MPTransformation/mpt-callkit-sdk/raw/main/ios/SDK/PortSIPVoIPSDK.xcframework.zip', :flatten => false }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
   s.platform         = :ios, '13.0'
