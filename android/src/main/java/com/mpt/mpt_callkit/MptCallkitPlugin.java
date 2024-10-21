@@ -1,0 +1,246 @@
+package com.mpt.mpt_callkit;
+
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Build;
+import android.widget.Toast;
+import androidx.annotation.NonNull;
+
+import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.plugin.common.MethodCall;
+import io.flutter.plugin.common.MethodChannel;
+import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
+import io.flutter.plugin.common.MethodChannel.Result;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
+import android.content.Context;
+import com.portsip.PortSipEnumDefine;
+import com.portsip.PortSipErrorcode;
+import com.portsip.PortSipSdk;
+import com.portsip.OnPortSIPEvent;
+import android.Manifest;
+import android.app.Activity;
+import android.content.pm.PackageManager;
+import androidx.core.app.ActivityCompat;
+import com.mpt.mpt_callkit.util.CallManager;
+import com.mpt.mpt_callkit.util.Session;
+import com.mpt.mpt_callkit.util.Engine;
+import com.mpt.mpt_callkit.util.Ring;
+
+/** PortsipFlutterPlugin */
+public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
+  /// The MethodChannel that will the communication between Flutter and native Android
+  ///
+  /// This local reference serves to register the plugin with the Flutter Engine and unregister it
+  /// when the Flutter Engine is detached from the Activity
+  private MethodChannel channel;
+  public Context context;
+  public Activity activity;
+  public String pushToken = "e3TKpdmDSJqzW20HYsDe9h:APA91bFdWS9ALxW1I7Zuq7uXsYTL6-8F-A3AARhcrLMY6pB6ecUbWX7RbABnLrzCGjGBWIxJ8QaCQkwkOjrv2BOJjEGfFgIGjlIekFqKQR-dtutszyRLZy1Im6KXNIqDzicWIGKdbcWD";
+  public String APPID = "com.portsip.sipsample";
+  public PortMessageReceiver receiver = null;
+
+  @Override
+  public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
+    System.out.println("quanth: onAttachedToEngine");
+    channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "port_sip_sdk");
+    channel.setMethodCallHandler(this);
+    context = flutterPluginBinding.getApplicationContext();
+    Engine.Instance().setEngine(new PortSipSdk(context));
+    receiver = new PortMessageReceiver();
+  }
+
+  @Override
+  public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
+    System.out.println("quanth: onMethodCall");
+    switch (call.method) {
+      case "getPlatformVersion":
+        result.success("Android " + android.os.Build.VERSION.RELEASE);
+        break;
+      case "initSipConnection":
+        String username = call.argument("username");
+        String password = call.argument("password");
+        String domain = call.argument("domain");
+        String sipServer = call.argument("sipServer");
+        String port = call.argument("port") + "";
+        if(CallManager.Instance().online){
+          Toast.makeText(activity,"Please OffLine First",Toast.LENGTH_SHORT).show();
+        } else {
+          Intent onLineIntent = new Intent(activity, PortSipService.class);
+          onLineIntent.setAction(PortSipService.ACTION_SIP_REGIEST);
+          onLineIntent.putExtra("username", username);
+          onLineIntent.putExtra("password", password);
+          onLineIntent.putExtra("domain", domain);
+          onLineIntent.putExtra("sipServer", sipServer);
+          onLineIntent.putExtra("port", port);
+          PortSipService.startServiceCompatibility(context, onLineIntent);
+          System.out.println("quanth: RegisterServer..");
+        }
+        break;
+      case "unregisterConnection":
+        Intent offLineIntent = new Intent(activity, PortSipService.class);
+        offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
+        PortSipService.startServiceCompatibility(activity, offLineIntent);
+        System.out.println("quanth: UnregisterServer..");
+        break;
+      case "call":
+        String phoneNumber = call.argument("phoneNumber");
+        makeCall(phoneNumber);
+        break;
+      case "hangup":
+        hangup();
+        break;
+      case "startActivity":
+        Intent myIntent = new Intent(activity, MainActivity.class);
+        myIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        activity.startActivity(myIntent);
+        break;
+      default:
+        result.notImplemented();
+    }
+  }
+
+  @Override
+  public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
+    Engine.Instance().setEngine(null);
+    channel.setMethodCallHandler(null);
+  }
+
+  @Override
+  public void onAttachedToActivity(ActivityPluginBinding activityPluginBinding) {
+    // TODO: your plugin is now attached to an Activity
+    System.out.println("quanth: onAttachedToActivity");
+    activity = activityPluginBinding.getActivity();
+    requestPermissions(activity);
+    IntentFilter filter = new IntentFilter();
+    filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
+    filter.addAction(PortSipService.CALL_CHANGE_ACTION);
+    filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
+    filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
+
+    if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.TIRAMISU) {
+      activity.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
+    } else {
+      activity.registerReceiver(receiver, filter);
+    }
+    receiver.broadcastReceiver = new PortMessageReceiver.BroadcastListener() {
+      @Override
+      public void onBroadcastReceiver(Intent intent) {
+        String action = intent == null ? "" : intent.getAction();
+        if (PortSipService.CALL_CHANGE_ACTION.equals(action))
+        {
+          long sessionId = intent.getLongExtra(PortSipService.EXTRA_CALL_SEESIONID, Session.INVALID_SESSION_ID);
+          String status = intent.getStringExtra(PortSipService.EXTRA_CALL_DESCRIPTION);
+          Session session = CallManager.Instance().findSessionBySessionID(sessionId);
+          System.out.println("quanth: broadcast - session.state = "+session.state);
+          if (session != null)
+          {
+            switch (session.state)
+            {
+              case INCOMING:
+                break;
+              case TRYING:
+                break;
+              case CONNECTED:
+              case FAILED:
+              case CLOSED:
+                System.out.println("quanth: broadcast - CONNECTED");
+                break;
+
+            }
+          }
+        } else if (PortSipService.REGISTER_CHANGE_ACTION.equals(action)) {
+          System.out.println("quanth: REGISTER_CHANGE_ACTION - Plugin");
+          channel.invokeMethod("registrationStateStream", true);
+        }
+      }
+    };
+  }
+
+  @Override
+  public void onDetachedFromActivityForConfigChanges() {
+    // TODO: the Activity your plugin was attached to was
+    // destroyed to change configuration.
+    // This call will be followed by onReattachedToActivityForConfigChanges().
+    System.out.println("quanth: onDetachedFromActivityForConfigChanges");
+  }
+
+  @Override
+  public void onReattachedToActivityForConfigChanges(ActivityPluginBinding activityPluginBinding) {
+    // TODO: your plugin is now attached to a new Activity
+    // after a configuration change.
+    System.out.println("quanth: onReattachedToActivityForConfigChanges");
+  }
+
+  @Override
+  public void onDetachedFromActivity() {
+    // TODO: your plugin is no longer associated with an Activity.
+    // Clean up references.
+    System.out.println("quanth: onDetachedFromActivity");
+  }
+
+  public void requestPermissions(Activity activity) {
+    // Check if we have write permission
+    if(	PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity, Manifest.permission.CAMERA)
+            ||PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO))
+    {
+      System.out.println("quanth: request permission");
+      ActivityCompat.requestPermissions(activity,new String[]{
+                      Manifest.permission.CAMERA,Manifest.permission.RECORD_AUDIO},
+              REQ_DANGERS_PERMISSION);
+    }
+    System.out.println("quanth: no need request permission");
+  }
+
+  private final int REQ_DANGERS_PERMISSION = 2;
+
+  void makeCall(String phoneNumber){
+    Session currentLine = CallManager.Instance().getCurrentSession();
+    String callTo = phoneNumber;
+    if (!currentLine.IsIdle()) {
+      System.out.println("quanth: Current line is busy now, please switch a line.");
+      return;
+    }
+
+    // Ensure that we have been added one audio codec at least
+    if (Engine.Instance().getEngine().isAudioCodecEmpty()) {
+      System.out.println("quanth: Audio Codec Empty,add audio codec at first");
+      return;
+    }
+
+    // Usually for 3PCC need to make call without SDP
+    long sessionId = Engine.Instance().getEngine().call(callTo, true, true);
+    if (sessionId <= 0) {
+      System.out.println("quanth: Call failure");
+      return;
+    }
+    //default send video
+    Engine.Instance().getEngine().sendVideo(sessionId, true);
+
+    currentLine.remote = callTo;
+
+    currentLine.sessionID = sessionId;
+    currentLine.state = Session.CALL_STATE_FLAG.TRYING;
+    currentLine.hasVideo = true;
+    System.out.println("quanth: line= "+currentLine.lineName + ": Calling...");
+  }
+
+  void hangup(){
+    Session currentLine = CallManager.Instance().getCurrentSession();
+    Ring.getInstance(activity).stop();
+    switch (currentLine.state) {
+      case INCOMING:
+        Engine.Instance().getEngine().rejectCall(currentLine.sessionID, 486);
+        System.out.println("quanth: lineName= " + currentLine.lineName + ": Rejected call");
+        break;
+      case CONNECTED:
+      case TRYING:
+        Engine.Instance().getEngine().hangUp(currentLine.sessionID);
+        System.out.println("quanth: lineName= " + currentLine.lineName + ": Hang up");
+        break;
+    }
+    currentLine.Reset();
+  }
+
+}

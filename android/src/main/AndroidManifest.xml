@@ -1,0 +1,89 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+
+    <uses-permission android:name="android.permission.BLUETOOTH"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!--keep app alive in background-->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <!-- ====================================================================== -->
+    <!-- Permissions for accessing the device microphone                        -->
+    <!-- ====================================================================== -->
+    <eat-comment/>
+
+    <!-- Allows an application to record audio.
+         <p>Protection level: dangerous
+    -->
+    <permission android:name="android.permission.RECORD_AUDIO"
+                android:permissionGroup="android.permission-group.MICROPHONE"
+                android:label="@string/permlab_recordAudio"
+                android:description="@string/permdesc_recordAudio"
+                android:protectionLevel="dangerous"/>
+
+    <!-- ====================================================================== -->
+    <!-- Permissions for accessing the device camera                            -->
+    <!-- ====================================================================== -->
+    <eat-comment/>
+
+    <!-- Required to be able to access the camera device.
+         <p>This will automatically enforce the <a
+         href="{@docRoot}guide/topics/manifest/uses-feature-element.html">
+         <uses-feature>}</a> manifest element for <em>all</em> camera features.
+         If you do not require all camera features or can properly operate if a camera
+         is not available, then you must modify your manifest as appropriate in order to
+         install on devices that don't support all camera features.</p>
+         <p>Protection level: dangerous
+    -->
+    <permission android:name="android.permission.CAMERA"
+                android:permissionGroup="android.permission-group.CAMERA"
+                android:label="@string/permlab_camera"
+                android:description="@string/permdesc_camera"
+                android:protectionLevel="dangerous"/>
+
+    <uses-permission android:name="android.permission.VIBRATE"/>
+
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD"/>
+    <uses-permission android:name="android.permission.RAISED_THREAD_PRIORITY"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.GET_TASKS"/>
+
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.full" android:required="false"/>
+    <uses-feature android:name="android.hardware.telephony" android:required="false"/>
+
+    <application>
+        <activity
+                android:name=".MainActivity"
+                android:theme="@style/NoActionBar"
+                android:launchMode="singleInstance"
+                android:windowSoftInputMode="stateHidden"
+                android:exported="true">
+        </activity>
+        <activity
+                android:name=".IncomingActivity"
+                android:launchMode="singleInstance"
+                android:noHistory="true"/>
+        <meta-data
+                android:name="flutterEmbedding"
+                android:value="2"/>
+        <service
+                android:name=".PortSipService"
+                android:foregroundServiceType="microphone|camera|mediaPlayback">
+        </service>
+    </application>
+</manifest>
