@@ -31,6 +31,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     var activeSessionid: CLong!
     var lineSessions: [CLong] = []
     var phone: String = ""
+    var displayName: String = ""
     var isVideoCall: Bool = true
     
     var _VoIPPushToken: NSString!
@@ -890,7 +891,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             return CLong(INVALID_SESSION_ID)
         }
         
-        let sessionId = _callManager.makeCall(callee: callee, displayName: callee, videoCall: videoCall)
+        let sessionId = _callManager.makeCall(callee: callee, displayName: displayName, videoCall: videoCall)
         
         if sessionId >= 0 {
             activeSessionid = sessionId
@@ -1145,8 +1146,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                let transportType = args["transportType"] as? Int,
                let isVideo = args["isVideoCall"] as? Bool,
                let srtpType = args["srtpType"] as? Int {
-                self.loginViewController!.onLine(username:username, displayName: username, authName: "", password: password, userDomain: userDomain, sipServer: sipServer, sipServerPort: sipServerPort, transportType: transportType, srtpType: srtpType)
+                self.loginViewController!.onLine(username:username, displayName: displayName, authName: username, password: password, userDomain: userDomain, sipServer: sipServer, sipServerPort: sipServerPort, transportType: transportType, srtpType: srtpType)
                 phone = phoneNumber
+                self.displayName = displayName
                 isVideoCall = isVideo
                 print("isVideoCall: \(isVideo)")
                 result(true)

@@ -37,7 +37,7 @@ class _MyHomePageState extends State<MyHomePage> {
     MptCallKitController().initSdk(
       apiKey: "0c16d4aa-abe7-4098-b47a-7b914f9b7444",
       baseUrl: "https://crm-dev-v2.metechvn.com",
-      userPhoneNumber: "200011",
+      userPhoneNumber: "0912345678",
     );
   }
 
@@ -48,7 +48,7 @@ class _MyHomePageState extends State<MyHomePage> {
         onPressed: () {
           MptCallKitController().makeCall(
             context: context,
-            phoneNumber: "200010",
+            phoneNumber: "99999999",
             isVideoCall: true,
           );
         },

@@ -76,7 +76,7 @@ class LoginViewController {
             print("Initialize failure ErrorCode = \(ret)")
             return
         }
-        let retUser = portSIPSDK.setUser(username, displayName:"", authName: "", password: password, userDomain: userDomain, sipServer: sipServer, sipServerPort: sipServerPort, stunServer: "", stunServerPort: 0, outboundServer: "", outboundServerPort: 0)
+        let retUser = portSIPSDK.setUser(username, displayName:displayName, authName: authName, password: password, userDomain: userDomain, sipServer: sipServer, sipServerPort: sipServerPort, stunServer: "", stunServerPort: 0, outboundServer: "", outboundServerPort: 0)
         
         if retUser != 0 {
             print("Set user failure ErrorCode = \(retUser)")
