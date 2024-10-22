@@ -44,7 +44,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
   @Override
   public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
     System.out.println("quanth: onAttachedToEngine");
-    channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "port_sip_sdk");
+    channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "mpt_callkit");
     channel.setMethodCallHandler(this);
     context = flutterPluginBinding.getApplicationContext();
     Engine.Instance().setEngine(new PortSipSdk(context));
@@ -58,27 +58,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
       case "getPlatformVersion":
         result.success("Android " + android.os.Build.VERSION.RELEASE);
         break;
-      case "initSipConnection":
-        String username = call.argument("username");
-        String password = call.argument("password");
-        String domain = call.argument("domain");
-        String sipServer = call.argument("sipServer");
-        String port = call.argument("port") + "";
-        if(CallManager.Instance().online){
-          Toast.makeText(activity,"Please OffLine First",Toast.LENGTH_SHORT).show();
-        } else {
-          Intent onLineIntent = new Intent(activity, PortSipService.class);
-          onLineIntent.setAction(PortSipService.ACTION_SIP_REGIEST);
-          onLineIntent.putExtra("username", username);
-          onLineIntent.putExtra("password", password);
-          onLineIntent.putExtra("domain", domain);
-          onLineIntent.putExtra("sipServer", sipServer);
-          onLineIntent.putExtra("port", port);
-          PortSipService.startServiceCompatibility(context, onLineIntent);
-          System.out.println("quanth: RegisterServer..");
-        }
-        break;
-      case "unregisterConnection":
+      case "Offline":
         Intent offLineIntent = new Intent(activity, PortSipService.class);
         offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
         PortSipService.startServiceCompatibility(activity, offLineIntent);
@@ -86,7 +66,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         break;
       case "call":
         String phoneNumber = call.argument("phoneNumber");
-        makeCall(phoneNumber);
+        boolean callResult = makeCall(phoneNumber);
+        result.success(callResult);
         break;
       case "hangup":
         hangup();
@@ -95,6 +76,31 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         Intent myIntent = new Intent(activity, MainActivity.class);
         myIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         activity.startActivity(myIntent);
+        break;
+      case "Login":
+        String username = call.argument("username");
+        String displayName = call.argument("displayName") + "";
+        String authName = call.argument("authName") + "";
+        String password = call.argument("password");
+        String userDomain = call.argument("userDomain");
+        String sipServer = call.argument("sipServer");
+        String transportType = call.argument("transportType") + "";
+        String srtpType = call.argument("srtpType") + "";
+        String isVideoCall = call.argument("isVideoCall") + "";
+        String sipServerPort = call.argument("sipServerPort") + "";
+        if(CallManager.Instance().online){
+          Toast.makeText(activity,"Please OffLine First",Toast.LENGTH_SHORT).show();
+        } else {
+          Intent onLineIntent = new Intent(activity, PortSipService.class);
+          onLineIntent.setAction(PortSipService.ACTION_SIP_REGIEST);
+          onLineIntent.putExtra("username", username);
+          onLineIntent.putExtra("password", password);
+          onLineIntent.putExtra("domain", userDomain);
+          onLineIntent.putExtra("sipServer", sipServer);
+          onLineIntent.putExtra("port", sipServerPort);
+          PortSipService.startServiceCompatibility(context, onLineIntent);
+          System.out.println("quanth: RegisterServer..");
+        }
         break;
       default:
         result.notImplemented();
@@ -118,6 +124,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     filter.addAction(PortSipService.CALL_CHANGE_ACTION);
     filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
     filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
+    filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
 
     if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.TIRAMISU) {
       activity.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
@@ -153,7 +160,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         } else if (PortSipService.REGISTER_CHANGE_ACTION.equals(action)) {
           System.out.println("quanth: REGISTER_CHANGE_ACTION - Plugin");
           channel.invokeMethod("registrationStateStream", true);
-        }
+        } else if (PortSipService.ACTION_HANGOUT_SUCCESS.equals(action)){
+        System.out.println("quanth: HANGOUT_SUCCESS - Plugin");
+        channel.invokeMethod("releaseExtension", true);
+      }
       }
     };
   }
@@ -195,25 +205,25 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
   private final int REQ_DANGERS_PERMISSION = 2;
 
-  void makeCall(String phoneNumber){
+  boolean makeCall(String phoneNumber){
     Session currentLine = CallManager.Instance().getCurrentSession();
     String callTo = phoneNumber;
     if (!currentLine.IsIdle()) {
       System.out.println("quanth: Current line is busy now, please switch a line.");
-      return;
+      return false;
     }
 
     // Ensure that we have been added one audio codec at least
     if (Engine.Instance().getEngine().isAudioCodecEmpty()) {
       System.out.println("quanth: Audio Codec Empty,add audio codec at first");
-      return;
+      return false;
     }
 
     // Usually for 3PCC need to make call without SDP
     long sessionId = Engine.Instance().getEngine().call(callTo, true, true);
     if (sessionId <= 0) {
       System.out.println("quanth: Call failure");
-      return;
+      return false;
     }
     //default send video
     Engine.Instance().getEngine().sendVideo(sessionId, true);
@@ -224,6 +234,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     currentLine.state = Session.CALL_STATE_FLAG.TRYING;
     currentLine.hasVideo = true;
     System.out.println("quanth: line= "+currentLine.lineName + ": Calling...");
+    return true;
   }
 
   void hangup(){

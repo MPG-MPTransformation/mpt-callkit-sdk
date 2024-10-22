@@ -42,6 +42,7 @@ public class MainActivity extends Activity {
         filter.addAction(PortSipService.CALL_CHANGE_ACTION);
         filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
         filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
+        filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
 
         if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
