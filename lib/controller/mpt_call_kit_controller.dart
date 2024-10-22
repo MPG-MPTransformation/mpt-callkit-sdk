@@ -174,7 +174,7 @@ class MptCallKitController {
             if(call.arguments == true){
               final bool callResult = await channel.invokeMethod('call',
                 <String, dynamic>{
-                  'phoneNumber': "99999999",
+                  'phoneNumber': phoneNumber,
                 },
               );
               if(callResult) {
