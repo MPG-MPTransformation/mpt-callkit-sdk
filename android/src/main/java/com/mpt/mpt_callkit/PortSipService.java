@@ -81,6 +81,9 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     public static final String USER_DISPALYNAME = "user dispalay";
     public static final String USER_AUTHNAME = "user authname";
 
+    public static final String ACTION_HANGOUT_SUCCESS = "PortSip.AndroidSample.Test.ACTION_HANGOUT";
+    public static final String HANGOUT_SUCCESS = "PortSip.AndroidSample.Test.HANGOUT_SUCCESS";
+
     public Context context;
     private String pushToken;
     private final String APPID = "com.mpt.mpt_callkit";
@@ -233,6 +236,9 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                     registerToServer(username, password, domain, sipServer, port);
                 }
             } else if (ACTION_SIP_UNREGIEST.equals(intent.getAction())) {
+                Intent broadIntent = new Intent(ACTION_HANGOUT_SUCCESS);
+                sendPortSipMessage("tipMessage", broadIntent);
+                System.out.println("quanth: HANGOUT_SUCCESS has sent");
                 unregisterToServer();
             }
             /*else if (ACTION_PUSH_TOKEN.equals(intent.getAction())) {

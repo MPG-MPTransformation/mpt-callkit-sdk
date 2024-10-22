@@ -6,6 +6,7 @@ import 'package:mpt_callkit/camera_view.dart';
 import 'package:mpt_callkit/models/extension_model.dart';
 import 'package:mpt_callkit/models/release_extension_model.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
+import 'dart:io';
 
 class MptCallKitController {
   String apiKey = '';
@@ -57,7 +58,15 @@ class MptCallKitController {
           srtpType: 0,
           phoneNumber: phoneNumber,
           isVideoCall: isVideoCall,
-        );
+          onBusy: (){
+          const snackBar = SnackBar(
+            content: Text('Current line is busy now, please switch a line.'),
+          );
+          // Find the ScaffoldMessenger in the widget tree
+          // and use it to show a SnackBar.
+          ScaffoldMessenger.of(context).showSnackBar(snackBar);
+        }
+    );
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -154,8 +163,38 @@ class MptCallKitController {
     required int srtpType,
     required String phoneNumber,
     bool isVideoCall = false,
+    void Function()? onBusy,
   }) async {
     try {
+      if(Platform.isAndroid) {
+        channel.setMethodCallHandler((call) async {
+          /// lắng nghe kết quả register
+          if(call.method == 'registrationStateStream'){
+            /// nếu thành công thì call luôn
+            if(call.arguments == true){
+              final bool callResult = await channel.invokeMethod('call',
+                <String, dynamic>{
+                  'phoneNumber': '200010',
+                },
+              );
+              if(callResult) {
+                /// nếu thành công thì mở màn hình video call luôn
+                channel.invokeMethod('startActivity');
+              } else {
+                onBusy?.call();
+                print('quanth: call has failed');
+                await offline();
+              }
+            } else {
+              print('quanth: registration has failed');
+            }
+          } else if(call.method == 'releaseExtension') {
+            print('quanth: releaseExtension has started');
+            await releaseExtension();
+            print('quanth: releaseExtension has done');
+          }
+        });
+      }
       final bool result = await channel.invokeMethod(
         MptCallKitConstants.login,
         {
