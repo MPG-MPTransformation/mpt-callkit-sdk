@@ -31,10 +31,13 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+
+  late MptCallKitController _callKitController;
+
   @override
   void initState() {
     super.initState();
-    MptCallKitController().initSdk(
+    _callKitController = MptCallKitController()..initSdk(
       apiKey: "0c16d4aa-abe7-4098-b47a-7b914f9b7444",
       baseUrl: "https://crm-dev-v2.metechvn.com",
       userPhoneNumber: "0912345678",
@@ -46,7 +49,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          MptCallKitController().makeCall(
+          _callKitController.makeCall(
             context: context,
             phoneNumber: "99999999",
             isVideoCall: true,
