@@ -220,6 +220,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         String domain = intent.getStringExtra("domain");
         String sipServer = intent.getStringExtra("sipServer");
         String port = intent.getStringExtra("port");
+        String displayName = intent.getStringExtra("displayName");
         int result = super.onStartCommand(intent, flags, startId);
         if (intent != null) {
             /*if(ACTION_PUSH_MESSAGE.equals(intent.getAction())){
@@ -233,7 +234,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             if (ACTION_SIP_REGIEST.equals(intent.getAction())) {
                 if (!CallManager.Instance().online) {
                     initialSDK();
-                    registerToServer(username, password, domain, sipServer, port);
+                    registerToServer(username, password, domain, sipServer, port, displayName);
                 }
             } else if (ACTION_SIP_UNREGIEST.equals(intent.getAction())) {
                 Intent broadIntent = new Intent(ACTION_HANGOUT_SUCCESS);
@@ -254,18 +255,12 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             String password,
             String userDomain,
             String sipServer,
-            String serverPort
+            String serverPort,
+            String displayName
     ) {
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         int srtpType = preferences.getInt(SRTP, 0);
-//        String userName = "200011";
-//        String password = "Test@1#$";
-        String displayName = "";
         String authName = "";
-//        String userDomain = "voice.omicx.vn";
-
-//        String sipServer = "portsip.omicx.vn";
-//        String serverPort = "5060";
         String stunServer = "";
         String stunPort = "3478";
 

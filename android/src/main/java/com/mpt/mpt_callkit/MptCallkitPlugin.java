@@ -98,6 +98,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
           onLineIntent.putExtra("domain", userDomain);
           onLineIntent.putExtra("sipServer", sipServer);
           onLineIntent.putExtra("port", sipServerPort);
+          onLineIntent.putExtra("displayName", displayName);
           PortSipService.startServiceCompatibility(context, onLineIntent);
           System.out.println("quanth: RegisterServer..");
         }
