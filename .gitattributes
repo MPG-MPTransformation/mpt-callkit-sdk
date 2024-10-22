@@ -1,2 +1,0 @@
-ios/SDK/PortSIPVoIPSDK.xcframework/ios-arm64_x86_64-simulator/PortSIPVoIPSDK.framework/PortSIPVoIPSDK filter=lfs diff=lfs merge=lfs -text
-ios/SDK/PortSIPVoIPSDK.xcframework/ios-arm64/PortSIPVoIPSDK.framework/PortSIPVoIPSDK filter=lfs diff=lfs merge=lfs -text

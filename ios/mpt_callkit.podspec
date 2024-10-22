@@ -12,7 +12,7 @@ A new Flutter plugin project.
   s.homepage         = 'http://example.com'
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'Your Company' => 'email@example.com' }
-  s.source           = { :http => 'https://github.com/MPG-MPTransformation/mpt-callkit-sdk/raw/main/ios/SDK/PortSIPVoIPSDK.xcframework.zip', :flatten => false }
+  s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
   s.platform         = :ios, '13.0'
@@ -30,9 +30,20 @@ A new Flutter plugin project.
     'OTHER_LDFLAGS' => '$(inherited) -ObjC'
   }
 
-      s.preserve_paths = 'SDK/PortSIPVoIPSDK.xcframework'
-          s.xcconfig = { 'OTHER_LDFLAGS' => '-framework PortSIPVoIPSDK' }
-          s.vendored_frameworks = 'SDK/PortSIPVoIPSDK.xcframework'
+  s.preserve_paths = 'SDK/PortSIPVoIPSDK.xcframework/**/*'
+  s.xcconfig = { 'OTHER_LDFLAGS' => '-framework PortSIPVoIPSDK' }
+  s.vendored_frameworks = 'SDK/PortSIPVoIPSDK.xcframework'
+  s.prepare_command = <<-CMD
+    mkdir -p SDK
+    if [ ! -d "SDK/PortSIPVoIPSDK.xcframework" ]; then
+      echo "PortSIPVoIPSDK.xcframework not found in SDK. Downloading..."
+      curl -L -o SDK/PortSIPVoIPSDK.xcframework.zip https://github.com/MPG-MPTransformation/mpt-callkit-sdk/raw/fb102827230b617c3b2fd2bfa491818bdfb65534/ios/SDK/PortSIPVoIPSDK.xcframework.zip
+      unzip SDK/PortSIPVoIPSDK.xcframework.zip -d SDK
+      rm SDK/PortSIPVoIPSDK.xcframework.zip
+    else
+      echo "PortSIPVoIPSDK.xcframework already exists in SDK."
+    fi
+  CMD
 
   s.info_plist = {
   'NSCameraUsageDescription' => 'For video call',
