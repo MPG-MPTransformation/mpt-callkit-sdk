@@ -241,11 +241,8 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                 sendPortSipMessage("tipMessage", broadIntent);
                 System.out.println("quanth: HANGOUT_SUCCESS has sent");
                 unregisterToServer();
+                context.stopService(new Intent(this, PortSipService.class));
             }
-            /*else if (ACTION_PUSH_TOKEN.equals(intent.getAction())) {
-                pushToken = intent.getStringExtra(EXTRA_PUSHTOKEN);
-                refreshPushToken();
-            }*/
         }
         return result;
     }
@@ -1001,22 +998,22 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     //--------------------
     public void sendPortSipMessage(String message, Intent broadIntent) {
-        Intent intent = new Intent(this, MainActivity.class);
-        PendingIntent contentIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+//        Intent intent = new Intent(this, MainActivity.class);
+//        PendingIntent contentIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
 
-        Notification.Builder builder;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            builder = new Notification.Builder(this, channelID);
-        } else {
-            builder = new Notification.Builder(this);
-        }
-        builder.setSmallIcon(R.drawable.icon)
-                .setContentTitle("Sip Notify")
-                .setContentText(message)
-                .setContentIntent(contentIntent)
-                .build();// getNotification()
-
-        mNotificationManager.notify(1, builder.build());
+//        Notification.Builder builder;
+//        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+//            builder = new Notification.Builder(this, channelID);
+//        } else {
+//            builder = new Notification.Builder(this);
+//        }
+//        builder.setSmallIcon(R.drawable.icon)
+//                .setContentTitle("Sip Notify")
+//                .setContentText(message)
+//                .setContentIntent(contentIntent)
+//                .build();// getNotification()
+//
+//        mNotificationManager.notify(1, builder.build());
 
         sendBroadcast(broadIntent);
     }
