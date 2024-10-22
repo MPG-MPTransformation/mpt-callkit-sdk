@@ -11,6 +11,7 @@ class MptCallKitController {
   String apiKey = '';
   String userPhoneNumber = '';
   String baseUrl = '';
+  String extension = '';
 
   static const MethodChannel channel = MethodChannel('mpt_callkit');
 
@@ -46,7 +47,7 @@ class MptCallKitController {
       if (result != null) {
         await online(
           username: result.username ?? "",
-          displayName: result.username ?? "",
+          displayName: phoneNumber,
           authName: '',
           password: result.password!,
           userDomain: result.domain!,
@@ -95,6 +96,7 @@ class MptCallKitController {
       final message = result.message ?? '';
 
       if (result.success ?? false) {
+        this.extension = result.data?.username ?? '';
         return result.data;
       } else {
         if (retryCount > 2) {
@@ -114,6 +116,7 @@ class MptCallKitController {
   Future<bool> releaseExtension() async {
     final url = Uri.parse('$baseUrl/integration/extension/release');
     try {
+      if (this.extension.isEmpty) return true;
       final response = await http.post(
         url,
         headers: {
@@ -121,12 +124,13 @@ class MptCallKitController {
           'Authorization': 'Bearer $apiKey',
         },
         body: json.encode({
-          "extension": userPhoneNumber,
+          "extension": this.extension,
         }),
       );
 
       final data = json.decode(response.body);
       final result = ReleaseExtensionModel.fromJson(data);
+      this.extension = '';
       if (result.success ?? false) {
         return true;
       } else {
@@ -156,7 +160,7 @@ class MptCallKitController {
         MptCallKitConstants.login,
         {
           'username': username,
-          'displayName': displayName,
+          'displayName': this.userPhoneNumber,
           'authName': authName,
           'password': password,
           'userDomain': userDomain,
