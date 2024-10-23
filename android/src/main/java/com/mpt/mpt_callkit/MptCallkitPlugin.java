@@ -34,21 +34,19 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
   ///
   /// This local reference serves to register the plugin with the Flutter Engine and unregister it
   /// when the Flutter Engine is detached from the Activity
-  private MethodChannel channel;
   public Context context;
   public Activity activity;
   public String pushToken = "e3TKpdmDSJqzW20HYsDe9h:APA91bFdWS9ALxW1I7Zuq7uXsYTL6-8F-A3AARhcrLMY6pB6ecUbWX7RbABnLrzCGjGBWIxJ8QaCQkwkOjrv2BOJjEGfFgIGjlIekFqKQR-dtutszyRLZy1Im6KXNIqDzicWIGKdbcWD";
   public String APPID = "com.portsip.sipsample";
-  public PortMessageReceiver receiver = null;
 
   @Override
   public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
     System.out.println("quanth: onAttachedToEngine");
-    channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "mpt_callkit");
-    channel.setMethodCallHandler(this);
+    Engine.Instance().setMethodChannel(new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "mpt_callkit"));
+    Engine.Instance().getMethodChannel().setMethodCallHandler(this);
     context = flutterPluginBinding.getApplicationContext();
     Engine.Instance().setEngine(new PortSipSdk(context));
-    receiver = new PortMessageReceiver();
+    Engine.Instance().setReceiver(new PortMessageReceiver());
   }
 
   @Override
@@ -111,7 +109,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
   @Override
   public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
     Engine.Instance().setEngine(null);
-    channel.setMethodCallHandler(null);
+    Engine.Instance().getMethodChannel().setMethodCallHandler(null);
   }
 
   @Override
@@ -128,45 +126,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
 
     if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.TIRAMISU) {
-      activity.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
+      activity.registerReceiver(Engine.Instance().getReceiver(), filter, Context.RECEIVER_NOT_EXPORTED);
     } else {
-      activity.registerReceiver(receiver, filter);
+      activity.registerReceiver(Engine.Instance().getReceiver(), filter);
     }
-    receiver.broadcastReceiver = new PortMessageReceiver.BroadcastListener() {
-      @Override
-      public void onBroadcastReceiver(Intent intent) {
-        String action = intent == null ? "" : intent.getAction();
-        if (PortSipService.CALL_CHANGE_ACTION.equals(action))
-        {
-          long sessionId = intent.getLongExtra(PortSipService.EXTRA_CALL_SEESIONID, Session.INVALID_SESSION_ID);
-          String status = intent.getStringExtra(PortSipService.EXTRA_CALL_DESCRIPTION);
-          Session session = CallManager.Instance().findSessionBySessionID(sessionId);
-          System.out.println("quanth: broadcast - session.state = "+session.state);
-          if (session != null)
-          {
-            switch (session.state)
-            {
-              case INCOMING:
-                break;
-              case TRYING:
-                break;
-              case CONNECTED:
-              case FAILED:
-              case CLOSED:
-                System.out.println("quanth: broadcast - CONNECTED");
-                break;
-
-            }
-          }
-        } else if (PortSipService.REGISTER_CHANGE_ACTION.equals(action)) {
-          System.out.println("quanth: REGISTER_CHANGE_ACTION - Plugin");
-          channel.invokeMethod("registrationStateStream", true);
-        } else if (PortSipService.ACTION_HANGOUT_SUCCESS.equals(action)){
-        System.out.println("quanth: HANGOUT_SUCCESS - Plugin");
-        channel.invokeMethod("releaseExtension", true);
-      }
-      }
-    };
   }
 
   @Override

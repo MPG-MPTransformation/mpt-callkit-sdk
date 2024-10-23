@@ -237,11 +237,11 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                     registerToServer(username, password, domain, sipServer, port, displayName);
                 }
             } else if (ACTION_SIP_UNREGIEST.equals(intent.getAction())) {
-                Intent broadIntent = new Intent(ACTION_HANGOUT_SUCCESS);
-                sendPortSipMessage("tipMessage", broadIntent);
-                System.out.println("quanth: HANGOUT_SUCCESS has sent");
+                System.out.println("quanth: service is doing unregisterToServer...");
                 unregisterToServer();
+                Engine.Instance().getMethodChannel().invokeMethod("releaseExtension", true);
                 context.stopService(new Intent(this, PortSipService.class));
+                System.out.println("quanth: service unregisterToServer done");
             }
         }
         return result;
@@ -444,6 +444,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);
 //        sendPortSipMessage("onRegisterSuccess", broadIntent);
         keepCpuRun(true);
+        Engine.Instance().getMethodChannel().invokeMethod("registrationStateStream", true);
     }
 
     @Override
