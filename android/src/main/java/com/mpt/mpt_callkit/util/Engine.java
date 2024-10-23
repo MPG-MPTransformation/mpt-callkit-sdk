@@ -2,6 +2,8 @@ package com.mpt.mpt_callkit.util;
 import android.text.TextUtils;
 import com.portsip.PortSipSdk;
 import com.portsip.PortSipEnumDefine;
+import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
+import io.flutter.plugin.common.MethodChannel;
 
 public class Engine {
     private static Engine mInstance;
@@ -9,6 +11,24 @@ public class Engine {
     public boolean mConference= false;
     private static Object locker = new Object();
     public boolean mUseFrontCamera= false;
+    private PortMessageReceiver receiver;
+    private MethodChannel channel;
+
+    public void setMethodChannel(MethodChannel obj){
+        channel = obj;
+    }
+
+    public MethodChannel getMethodChannel() {
+        return channel;
+    }
+
+    public void setReceiver(PortMessageReceiver obj){
+        receiver = obj;
+    }
+
+    public PortMessageReceiver getReceiver() {
+        return receiver;
+    }
 
     public static Engine Instance()
     {

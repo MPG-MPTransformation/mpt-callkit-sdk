@@ -22,6 +22,7 @@ import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
 import com.mpt.mpt_callkit.PortSipService;
 import com.mpt.mpt_callkit.util.CallManager;
 import com.mpt.mpt_callkit.util.Session;
+import com.mpt.mpt_callkit.util.Engine;
 
 import static com.mpt.mpt_callkit.PortSipService.EXTRA_REGISTER_STATE;
 
@@ -47,6 +48,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         System.out.println("quanth: video onCreateView");
         super.onCreateView(inflater, container, savedInstanceState);
         activity = (MainActivity) getActivity();
+        Engine.Instance().getReceiver().broadcastReceiver = this;
 
         return inflater.inflate(R.layout.video, container, false);
     }
@@ -113,7 +115,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             stopVideo(Engine.Instance().getEngine());
         } else {
             updateVideo(Engine.Instance().getEngine());
-            activity.receiver.broadcastReceiver = this;
+            Engine.Instance().getReceiver().broadcastReceiver = this;
             localRenderScreen.setVisibility(View.VISIBLE);
 
         }
@@ -252,7 +254,8 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
     }
 
     public void onBroadcastReceiver(Intent intent) {
-        System.out.println("quanth: video onBroadcastReceiver");
+        PortSipSdk portSipLib = Engine.Instance().getEngine();
+        Session currentLine = CallManager.Instance().getCurrentSession();
         String action = intent == null ? "" : intent.getAction();
         if (PortSipService.CALL_CHANGE_ACTION.equals(action)) {
             long sessionId = intent.getLongExtra(PortSipService.EXTRA_CALL_SEESIONID, Session.INVALID_SESSION_ID);
@@ -260,13 +263,23 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             Session session = CallManager.Instance().findSessionBySessionID(sessionId);
             if (session != null) {
                 switch (session.state) {
+                    case CLOSED:
+                        System.out.println("quanth: video onBroadcastReceiver CLOSED");
+                        /// Tat cuoc goi
+                        portSipLib.hangUp(currentLine.sessionID);
+                        /// logout
+                        Intent offLineIntent = new Intent(getActivity(), PortSipService.class);
+                        offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
+                        PortSipService.startServiceCompatibility(getActivity(), offLineIntent);
+                        /// ve man hinh chinh
+                        activity.finishAndRemoveTask();
+                        break;
                     case INCOMING:
                         break;
                     case TRYING:
                         break;
                     case CONNECTED:
                     case FAILED:
-                    case CLOSED:
                         updateVideo(Engine.Instance().getEngine());
                         break;
                 }
