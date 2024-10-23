@@ -272,7 +272,7 @@ class VideoViewController: UIViewController {
         if speakState == 0 {
             speakState = 1
             self.portSIPSDK.setLoudspeakerStatus(false)
-            self.buttonSpeaker.setImage(UIImage(systemName: "headphones", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+            self.buttonSpeaker.setImage(UIImage(systemName: "mic.slash.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         } else {
             speakState = 0
             self.portSIPSDK.setLoudspeakerStatus(true)
@@ -305,11 +305,11 @@ class VideoViewController: UIViewController {
         if !sendState {
             sendState = true
             portSIPSDK.sendVideo(sessionId, sendState: sendState)
-            buttonSendingVideo.setImage(UIImage(systemName: "video.slash.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+            buttonSendingVideo.setImage(UIImage(systemName: "video.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         } else {
             sendState = false
             portSIPSDK.sendVideo(sessionId, sendState: sendState)
-            buttonSendingVideo.setImage(UIImage(systemName: "video.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+            buttonSendingVideo.setImage(UIImage(systemName: "video.slash.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         }
     }   
     
@@ -448,13 +448,22 @@ class VideoViewController: UIViewController {
         self.dismiss(animated: true, completion: nil)
     }
     
-    func onClearState() {
-        if isStartVideo {
-               portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
-               portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
-               portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
-           }
-           portSIPSDK.sendVideo(sessionId, sendState: false)
-           
+func onClearState() {
+    if isStartVideo {
+        portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
+        portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
+        portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
+
+        // Stop sending video
+        portSIPSDK.sendVideo(sessionId, sendState: false)
+    }
+
+    // Remove the video views from the screen
+    viewLocalVideo.removeFromSuperview()
+    viewRemoteVideo.removeFromSuperview()
+    viewRemoteVideoSmall.removeFromSuperview()
+
+    isStartVideo = false
+    isInitVideo = false
     }
 }
