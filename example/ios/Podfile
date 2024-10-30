@@ -4,14 +4,12 @@ platform :ios, '13.0'
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
-# Define the project configurations for various build types
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
   'Release' => :release,
 }
 
-# A method to find the Flutter root by reading the Generated.xcconfig file
 def flutter_root
   generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
   unless File.exist?(generated_xcode_build_settings_path)
@@ -22,68 +20,25 @@ def flutter_root
     matches = line.match(/FLUTTER_ROOT\=(.*)/)
     return matches[1].strip if matches
   end
-
   raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
 end
 
-# Require Flutter pod helper script to set up necessary configurations
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
 
-# Call the Flutter iOS pod setup
 flutter_ios_podfile_setup
 
-# Define target for the 'Runner' application
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  # Install Flutter iOS pods
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-
-  # Define target for the Runner's tests
   target 'RunnerTests' do
     inherit! :search_paths
   end
 end
 
-# Post-install script to download, unzip, and clean up the framework
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
-  end
-
-  # Correct URL to download the raw zip file
-  framework_url = "https://github.com/MPG-MPTransformation/mpt-callkit-sdk/raw/main/ios/SDK/PortSIPVoIPSDK.xcframework.zip"
-
-  # Define paths for the zip file and its destination
-  framework_zip_path = File.join(Dir.pwd, '.symlinks/plugins/mpt_callkit/ios/SDK/PortSIPVoIPSDK.xcframework.zip')
-  framework_destination_path = File.join(Dir.pwd, '.symlinks/plugins/mpt_callkit/ios/SDK')
-
-  # Download the framework zip if it doesn't already exist
-  unless File.exist?(framework_zip_path)
-    puts "Downloading PortSIPVoIPSDK.xcframework.zip from #{framework_url}"
-    system("curl -L #{framework_url} -o #{framework_zip_path}")
-  else
-    puts "PortSIPVoIPSDK.xcframework.zip already exists."
-  end
-
-  # Unzip the framework if the zip file exists
-  if File.exist?(framework_zip_path)
-    system("unzip -o #{framework_zip_path} -d #{framework_destination_path}")
-    if $?.exitstatus == 0
-      puts "Unzipping successful, deleting the zip file."
-      File.delete(framework_zip_path)
-
-      # Remove the unnecessary __MACOSX folder
-      macosx_folder = File.join(framework_destination_path, '__MACOSX')
-      if Dir.exist?(macosx_folder)
-        puts "Removing __MACOSX folder"
-        FileUtils.rm_rf(macosx_folder)
-      end
-    else
-      puts "Unzipping failed, zip file will not be deleted."
-    end
-  else
-    puts "PortSIPVoIPSDK.xcframework.zip not found at #{framework_zip_path}."
   end
 end

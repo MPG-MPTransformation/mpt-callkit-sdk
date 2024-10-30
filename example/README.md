@@ -1,6 +1,6 @@
-# mpt_callkit_example
+# example
 
-Demonstrates how to use the mpt_callkit plugin.
+A new Flutter project.
 
 ## Getting Started
 
