@@ -965,7 +965,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         sdk.setReliableProvisional(0);
 
-        String resolution = "CIF";
+        String resolution = "720P";
         int width = 352;
         int height = 288;
         if (resolution.equals("QCIF")) {

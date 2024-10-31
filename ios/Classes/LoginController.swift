@@ -98,12 +98,12 @@ class LoginViewController {
         portSIPSDK.addAudioCodec(AUDIOCODEC_DTMF)
         
         portSIPSDK.addVideoCodec(VIDEO_CODEC_H264)
-        // portSIPSDK.addVideoCodec(VIDEO_CODEC_VP8);
-        // portSIPSDK.addVideoCodec(VIDEO_CODEC_VP9);
+        portSIPSDK.addVideoCodec(VIDEO_CODEC_VP8);
+        portSIPSDK.addVideoCodec(VIDEO_CODEC_VP9);
         
-        portSIPSDK.setVideoBitrate(-1, bitrateKbps: 500) // video send bitrate,500kbps
-        portSIPSDK.setVideoFrameRate(-1, frameRate: 10)
-        portSIPSDK.setVideoResolution(352, height: 288)
+        portSIPSDK.setVideoBitrate(-1, bitrateKbps: 512) // video send bitrate,500kbps
+        portSIPSDK.setVideoFrameRate(-1, frameRate: 20)
+        portSIPSDK.setVideoResolution(480, height: 640)
         portSIPSDK.setAudioSamples(20, maxPtime: 60) // ptime 20
         
         // 1 - FrontCamra 0 - BackCamra
