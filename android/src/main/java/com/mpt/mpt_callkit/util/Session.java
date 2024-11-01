@@ -14,6 +14,9 @@ public class Session
 	public boolean bEarlyMedia;
 	public String lineName;
 	public CALL_STATE_FLAG state;
+	public boolean bMuteAudioInComing = false;
+	public boolean bMuteAudioOutGoing = false;
+	public boolean bMuteVideo = false;
 
 	public boolean IsIdle()
 	{

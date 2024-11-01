@@ -158,13 +158,23 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             remoteRenderScreen.setScalingType(scalingType);
             updateVideo(portSipLib);
         } else if (v.getId() == R.id.ibmicon) {
-            System.out.println("quanth: isMicOn before: "+isMicOn);
-            isMicOn = !isMicOn;
-            System.out.println("quanth: isMicOn after: "+isMicOn);
-            if(isMicOn) {
-                imgMicOn.setImageResource(R.drawable.mic_on);
-            } else {
+            currentLine.bMuteAudioOutGoing = !currentLine.bMuteAudioOutGoing;
+            System.out.println("quanth: mute ================================");
+            System.out.println("quanth: mute currentLine.bMuteAudioInComing = " + currentLine.bMuteAudioInComing);
+            System.out.println("quanth: mute currentLine.bMuteAudioOutGoing = " + currentLine.bMuteAudioOutGoing);
+            System.out.println("quanth: mute currentLine.bMuteVideo = " + currentLine.bMuteVideo);
+            // long sessionId, boolean muteIncomingAudio, boolean muteOutgoingAudio, boolean muteIncomingVideo, boolean muteOutgoingVideo
+            portSipLib.muteSession(
+                    currentLine.sessionID,
+                    currentLine.bMuteAudioInComing,
+                    currentLine.bMuteAudioOutGoing,
+                    false,
+                    currentLine.bMuteVideo
+            );
+            if (currentLine.bMuteAudioOutGoing) {
                 imgMicOn.setImageResource(R.drawable.mic_off);
+            } else {
+                imgMicOn.setImageResource(R.drawable.mic_on);
             }
         } else if (v.getId() == R.id.ibhangout) {
             /// Tat cuoc goi
@@ -178,25 +188,43 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                 activity.finishAndRemoveTask();
             }
         } else if (v.getId() == R.id.mute) {
-            if (currentLine.bMute) {
-                portSipLib.muteSession(currentLine.sessionID, false,
-                        false, false, false);
-                currentLine.bMute = false;
+            currentLine.bMuteAudioInComing = !currentLine.bMuteAudioInComing;
+            System.out.println("quanth: mute ================================");
+            System.out.println("quanth: mute currentLine.bMuteAudioInComing = " + currentLine.bMuteAudioInComing);
+            System.out.println("quanth: mute currentLine.bMuteAudioOutGoing = " + currentLine.bMuteAudioOutGoing);
+            System.out.println("quanth: mute currentLine.bMuteVideo = " + currentLine.bMuteVideo);
+            // long sessionId, boolean muteIncomingAudio, boolean muteOutgoingAudio, boolean muteIncomingVideo, boolean muteOutgoingVideo
+            portSipLib.muteSession(
+                currentLine.sessionID,
+                currentLine.bMuteAudioInComing,
+                currentLine.bMuteAudioOutGoing,
+                false,
+                currentLine.bMuteVideo
+            );
+            if (currentLine.bMuteAudioInComing) {
                 imgMute.setImageResource(R.drawable.volume_off);
             } else {
-                portSipLib.muteSession(currentLine.sessionID, true,
-                        true, true, true);
-                currentLine.bMute = true;
                 imgMute.setImageResource(R.drawable.volume_on);
             }
         } else if(v.getId() == R.id.ibvideo){
-            System.out.println("quanth: isVideoOn before: "+isVideoOn);
-            isVideoOn = !isVideoOn;
-            System.out.println("quanth: isVideoOn after: "+isVideoOn);
-            if(isVideoOn) {
-                imgVideo.setImageResource(R.drawable.camera_on);
-            } else {
+            currentLine.bMuteVideo = !currentLine.bMuteVideo;
+            System.out.println("quanth: mute ================================");
+            System.out.println("quanth: mute currentLine.bMuteAudioInComing = " + currentLine.bMuteAudioInComing);
+            System.out.println("quanth: mute currentLine.bMuteAudioOutGoing = " + currentLine.bMuteAudioOutGoing);
+            System.out.println("quanth: mute currentLine.bMuteVideo = " + currentLine.bMuteVideo);
+            // long sessionId, boolean muteIncomingAudio, boolean muteOutgoingAudio, boolean muteIncomingVideo, boolean muteOutgoingVideo
+            portSipLib.muteSession(
+                    currentLine.sessionID,
+                    currentLine.bMuteAudioInComing,
+                    currentLine.bMuteAudioOutGoing,
+                    currentLine.bMuteVideo,
+                    currentLine.bMuteVideo
+
+            );
+            if (currentLine.bMuteVideo) {
                 imgVideo.setImageResource(R.drawable.camera_off);
+            } else {
+                imgVideo.setImageResource(R.drawable.camera_on);
             }
         } else if(v.getId() == R.id.ibback) {
             AlertDialog dialog = getAlertDialog();
