@@ -2,6 +2,7 @@ package com.mpt.mpt_callkit;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.os.Build;
 import android.widget.Button;
 import android.widget.Toast;
 import com.mpt.mpt_callkit.util.Engine;
@@ -149,7 +150,6 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                 imgScaleType.setImageResource(R.drawable.aspect_balanced);
                 scalingType = PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_BALANCED;
             } else {
-
                 imgScaleType.setImageResource(R.drawable.fullscreen_off);
                 scalingType = PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FIT;
             }
@@ -174,7 +174,9 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
             PortSipService.startServiceCompatibility(getActivity(), offLineIntent);
             /// ve man hinh chinh
-            activity.finishAndRemoveTask();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                activity.finishAndRemoveTask();
+            }
         } else if (v.getId() == R.id.mute) {
             if (currentLine.bMute) {
                 portSipLib.muteSession(currentLine.sessionID, false,
@@ -221,7 +223,9 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                         offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
                         PortSipService.startServiceCompatibility(getActivity(), offLineIntent);
                         /// ve man hinh chinh
-                        activity.finishAndRemoveTask();
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            activity.finishAndRemoveTask();
+                        }
                         dialog.cancel();
                     }
                 });
