@@ -99,8 +99,9 @@
                     android:layout_width="50dp"
                     android:layout_height="50dp"
                     android:scaleType="fitXY"
-                    android:padding="6dp"
-                    android:background="@drawable/round_button_black"
+                    android:padding="8dp"
+                    android:tint="@color/text_default"
+                    android:background="@drawable/round_button_white"
                     android:src="@drawable/fullscreen_off"/>
             </LinearLayout>
 
@@ -116,8 +117,9 @@
                     android:layout_width="50dp"
                     android:layout_height="50dp"
                     android:scaleType="fitXY"
-                    android:padding="6dp"
-                    android:background="@drawable/round_button_black"
+                    android:padding="8dp"
+                    android:tint="@color/text_default"
+                    android:background="@drawable/round_button_white"
                     android:src="@drawable/camera_on"/>
             </LinearLayout>
 
@@ -133,8 +135,9 @@
                     android:layout_width="50dp"
                     android:layout_height="50dp"
                     android:scaleType="fitXY"
-                    android:padding="6dp"
-                    android:background="@drawable/round_button_black"
+                    android:padding="8dp"
+                    android:tint="@color/text_default"
+                    android:background="@drawable/round_button_white"
                     android:src="@drawable/volume_on"/>
 
             </LinearLayout>
@@ -151,9 +154,9 @@
                     android:layout_width="50dp"
                     android:layout_height="50dp"
                     android:scaleType="fitXY"
-                    android:padding="6dp"
-                    android:layout_marginStart="10dp"
-                    android:background="@drawable/round_button_black"
+                    android:padding="8dp"
+                    android:tint="@color/text_default"
+                    android:background="@drawable/round_button_white"
                     android:src="@drawable/mic_on"/>
 
             </LinearLayout>
@@ -170,7 +173,7 @@
                     android:layout_width="50dp"
                     android:layout_height="50dp"
                     android:scaleType="fitXY"
-                    android:padding="6dp"
+                    android:padding="8dp"
                     android:layout_marginLeft="10dp"
                     android:layout_marginRight="10dp"
                     android:background="@drawable/round_button"
