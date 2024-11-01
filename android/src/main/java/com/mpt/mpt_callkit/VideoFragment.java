@@ -1,5 +1,7 @@
 package com.mpt.mpt_callkit;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.widget.Button;
 import android.widget.Toast;
 import com.mpt.mpt_callkit.util.Engine;
@@ -38,9 +40,12 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
     private ImageButton imgMicOn = null;
     private ImageButton imgHangOut = null;
     private ImageButton imgMute = null;
+    private ImageButton imgVideo = null;
+    private ImageButton imgBack = null;
     private boolean shareInSmall = true;
     private boolean isMicOn = true;
     private boolean isVolumeOn = true;
+    private boolean isVideoOn = true;
 
     @Nullable
     @Override
@@ -62,12 +67,16 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         imgMicOn = (ImageButton) view.findViewById(R.id.ibmicon);
         imgHangOut = (ImageButton) view.findViewById(R.id.ibhangout);
         imgMute = (ImageButton) view.findViewById(R.id.mute);
+        imgVideo = (ImageButton) view.findViewById(R.id.ibvideo);
+        imgBack = (ImageButton) view.findViewById(R.id.ibback);
 
         imgScaleType.setOnClickListener(this);
         imgSwitchCamera.setOnClickListener(this);
         imgMicOn.setOnClickListener(this);
         imgHangOut.setOnClickListener(this);
         imgMute.setOnClickListener(this);
+        imgVideo.setOnClickListener(this);
+        imgBack.setOnClickListener(this);
 
         localRenderScreen = (PortSIPVideoRenderer) view.findViewById(R.id.local_video_view);
         remoteRenderScreen = (PortSIPVideoRenderer) view.findViewById(R.id.remote_video_view);
@@ -178,7 +187,54 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                 currentLine.bMute = true;
                 imgMute.setImageResource(R.drawable.volume_on);
             }
+        } else if(v.getId() == R.id.ibvideo){
+            System.out.println("quanth: isVideoOn before: "+isVideoOn);
+            isVideoOn = !isVideoOn;
+            System.out.println("quanth: isVideoOn after: "+isVideoOn);
+            if(isVideoOn) {
+                imgVideo.setImageResource(R.drawable.camera_on);
+            } else {
+                imgVideo.setImageResource(R.drawable.camera_off);
+            }
+        } else if(v.getId() == R.id.ibback) {
+            AlertDialog dialog = getAlertDialog();
+            dialog.show();
         }
+    }
+
+    private AlertDialog getAlertDialog() {
+        PortSipSdk portSipLib = Engine.Instance().getEngine();
+        Session currentLine = CallManager.Instance().getCurrentSession();
+        AlertDialog.Builder builder = new AlertDialog.Builder(activity);
+        builder.setMessage("Bạn có muốn dừng cuộc gọi?");
+        builder.setCancelable(true);
+
+        builder.setPositiveButton(
+                "Có",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        activity.setAllowBack(true);
+                        /// Tat cuoc goi
+                        portSipLib.hangUp(currentLine.sessionID);
+                        /// logout
+                        Intent offLineIntent = new Intent(getActivity(), PortSipService.class);
+                        offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
+                        PortSipService.startServiceCompatibility(getActivity(), offLineIntent);
+                        /// ve man hinh chinh
+                        activity.finishAndRemoveTask();
+                        dialog.cancel();
+                    }
+                });
+
+        builder.setNegativeButton(
+                "Không",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        dialog.cancel();
+                    }
+                });
+
+        return builder.create();
     }
 
     private void SetCamera(PortSipSdk portSipLib, boolean userFront) {
