@@ -102,6 +102,26 @@ public class MainActivity extends Activity {
         }
     }
 
+    boolean allowBack = false;
+
+    public boolean isAllowBack() {
+        return allowBack;
+    }
+
+    public void setAllowBack(boolean allowBack) {
+        this.allowBack = allowBack;
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (isAllowBack()) {
+            super.onBackPressed();
+        } else {
+            // do something;
+        }
+    }
+
+
     private void switchContent(@IdRes int fragmentId) {
         Fragment fragment = getFragmentManager().findFragmentById(fragmentId);
         Fragment video_fragment = getFragmentManager().findFragmentById(R.id.video_fragment);
