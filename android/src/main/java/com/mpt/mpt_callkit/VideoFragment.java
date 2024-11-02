@@ -137,8 +137,14 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         PortSipSdk portSipLib = Engine.Instance().getEngine();
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (v.getId() == R.id.ibcamera) {
+            //
             Engine.Instance().mUseFrontCamera = !Engine.Instance().mUseFrontCamera;
             SetCamera(portSipLib, Engine.Instance().mUseFrontCamera);
+            if (Engine.Instance().mUseFrontCamera) {
+                imgSwitchCamera.setImageResource(R.drawable.flip_camera);
+            } else {
+                imgSwitchCamera.setImageResource(R.drawable.flip_camera_behind);
+            }
         } else if (v.getId() == R.id.share_video_view) {
             shareInSmall = !shareInSmall;
             updateVideo(portSipLib);

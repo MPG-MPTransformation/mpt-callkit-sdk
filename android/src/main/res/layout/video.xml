@@ -32,7 +32,7 @@
                 android:layout_height="50dp"
                 android:scaleType="fitXY"
                 android:layout_marginStart="20dp"
-                android:padding="6dp"
+                android:padding="10dp"
                 android:layout_alignParentStart="true"
                 android:background="@drawable/round_button_black"
                 android:src="@drawable/back"/>
@@ -41,11 +41,11 @@
             android:id="@+id/ibcamera"
             android:layout_width="50dp"
             android:layout_height="50dp"
-            android:scaleType="fitXY"
-            android:padding="6dp"
+            android:scaleType="centerInside"
+            android:padding="10dp"
             android:layout_marginEnd="10dp"
             android:layout_alignParentEnd="true"
-            android:background="@drawable/round_button_black"
+            android:background="@drawable/round_button_gray"
             android:src="@drawable/flip_camera"/>
 
     </RelativeLayout>
@@ -92,6 +92,7 @@
                 android:layout_height="wrap_content"
                 android:gravity="center"
                 android:layout_weight="1"
+                android:visibility="gone"
                 android:orientation="horizontal">
 
                 <ImageButton
@@ -116,8 +117,8 @@
                     android:id="@+id/ibvideo"
                     android:layout_width="50dp"
                     android:layout_height="50dp"
-                    android:scaleType="fitXY"
-                    android:padding="8dp"
+                    android:scaleType="centerInside"
+                    android:padding="10dp"
                     android:tint="@color/text_default"
                     android:background="@drawable/round_button_white"
                     android:src="@drawable/camera_on"/>
@@ -134,8 +135,8 @@
                     android:id="@+id/mute"
                     android:layout_width="50dp"
                     android:layout_height="50dp"
-                    android:scaleType="fitXY"
-                    android:padding="8dp"
+                    android:scaleType="centerInside"
+                    android:padding="10dp"
                     android:tint="@color/text_default"
                     android:background="@drawable/round_button_white"
                     android:src="@drawable/volume_on"/>
@@ -153,8 +154,8 @@
                     android:id="@+id/ibmicon"
                     android:layout_width="50dp"
                     android:layout_height="50dp"
-                    android:scaleType="fitXY"
-                    android:padding="8dp"
+                    android:scaleType="centerInside"
+                    android:padding="10dp"
                     android:tint="@color/text_default"
                     android:background="@drawable/round_button_white"
                     android:src="@drawable/mic_on"/>
@@ -172,8 +173,8 @@
                     android:id="@+id/ibhangout"
                     android:layout_width="50dp"
                     android:layout_height="50dp"
-                    android:scaleType="fitXY"
-                    android:padding="8dp"
+                    android:scaleType="centerInside"
+                    android:padding="10dp"
                     android:layout_marginLeft="10dp"
                     android:layout_marginRight="10dp"
                     android:background="@drawable/round_button"
@@ -188,9 +189,8 @@
                 android:layout_width="60dp"
                 android:layout_height="60dp"
                 android:layout_below="@id/llLocalView"
-                android:layout_alignParentRight="true"
-                android:layout_marginTop="2dp"
-                android:layout_weight="1"/>
+                android:layout_alignParentEnd="true"
+                android:layout_marginTop="2dp" />
         </RelativeLayout>
 
     </LinearLayout>
