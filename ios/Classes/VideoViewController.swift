@@ -362,8 +362,21 @@ class VideoViewController: UIViewController {
     func onStartVideo(_ sessionID: Int) {
         DispatchQueue.main.async {
             self.isStartVideo = true
+            self.isInitVideo = true
             self.sessionId = sessionID
             self.shareInSmallWindow = true
+            
+            // Ensure video views are visible
+            self.viewLocalVideo.isHidden = false
+            self.viewRemoteVideo.isHidden = false
+            self.viewRemoteVideoSmall.isHidden = false
+            
+            // Reinitialize the video rendering views
+            self.viewLocalVideo.initVideoRender()
+            self.viewRemoteVideo.initVideoRender()
+            self.viewRemoteVideoSmall.initVideoRender()
+            
+            // Display local video and set remote video windows
             self.checkDisplayVideo()
         }
     }
@@ -396,22 +409,25 @@ class VideoViewController: UIViewController {
         self.dismiss(animated: true, completion: nil)
     }
     
-func onClearState() {
-    if isStartVideo {
-        portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
-        portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
-        portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
-
-        // Stop sending video
+    func onClearState() {
+        if isStartVideo {
+            portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
+            portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
+            portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
+            
+            // Hide video views (do not set isInitVideo to false here)
+            viewLocalVideo.isHidden = true
+            viewRemoteVideo.isHidden = true
+            viewRemoteVideoSmall.isHidden = true
+        }
         portSIPSDK.sendVideo(sessionId, sendState: false)
+        
+        // Reset video-related states
+        isStartVideo = false
+        sessionId = 0
+        
+        // Dismiss the view controller after clearing the state
+        self.dismiss(animated: true, completion: nil)
     }
 
-    // Remove the video views from the screen
-    viewLocalVideo.removeFromSuperview()
-    viewRemoteVideo.removeFromSuperview()
-    viewRemoteVideoSmall.removeFromSuperview()
-
-    isStartVideo = false
-    isInitVideo = false
-    }
 }
