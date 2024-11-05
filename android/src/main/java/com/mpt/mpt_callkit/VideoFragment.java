@@ -185,6 +185,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         } else if (v.getId() == R.id.ibhangout) {
             /// Tat cuoc goi
             portSipLib.hangUp(currentLine.sessionID);
+            currentLine.Reset();
             /// logout
             Intent offLineIntent = new Intent(getActivity(), PortSipService.class);
             offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
@@ -252,6 +253,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                         activity.setAllowBack(true);
                         /// Tat cuoc goi
                         portSipLib.hangUp(currentLine.sessionID);
+                        currentLine.Reset();
                         /// logout
                         Intent offLineIntent = new Intent(getActivity(), PortSipService.class);
                         offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
@@ -361,6 +363,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                         System.out.println("quanth: video onBroadcastReceiver CLOSED");
                         /// Tat cuoc goi
                         portSipLib.hangUp(currentLine.sessionID);
+                        currentLine.Reset();
                         /// logout
                         Intent offLineIntent = new Intent(getActivity(), PortSipService.class);
                         offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
