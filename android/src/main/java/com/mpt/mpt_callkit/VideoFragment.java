@@ -379,6 +379,8 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                     case INCOMING:
                         break;
                     case TRYING:
+                        System.out.println("quanth: video updateVideo TRYING");
+                        updateVideo(Engine.Instance().getEngine());
                         break;
                     case CONNECTED:
                         llWaitingView.setVisibility(View.GONE);
