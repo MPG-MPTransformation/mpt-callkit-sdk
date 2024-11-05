@@ -11,7 +11,6 @@ class VideoViewController: UIViewController {
     var isStartVideo = false
     var isInitVideo = false
     var sessionId: Int = 0
-    var centerButtonSize: CGFloat = 70
     var otherButtonSize: CGFloat = 60
     var leftRightSpacing: CGFloat = 20
     var spacing: CGFloat = 10
@@ -38,8 +37,7 @@ class VideoViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // Initialize the views
-        centerButtonSize = (70 / 430) * deviceWidth
-        otherButtonSize = (60 / 430) * deviceWidth
+        otherButtonSize = (70 / 430) * deviceWidth
         leftRightSpacing = (20 / 430) * deviceWidth
         spacing = (10 / 430) * deviceWidth
         
@@ -67,6 +65,8 @@ class VideoViewController: UIViewController {
         viewLocalVideo = PortSIPVideoRenderView()
         viewLocalVideo.translatesAutoresizingMaskIntoConstraints = false
         viewLocalVideo.backgroundColor = .darkGray
+        viewLocalVideo.layer.cornerRadius = 10
+        viewLocalVideo.layer.masksToBounds = true
         self.view.addSubview(viewLocalVideo)
         viewRemoteVideoSmall = PortSIPVideoRenderView()
         viewRemoteVideoSmall.translatesAutoresizingMaskIntoConstraints = false
@@ -80,9 +80,9 @@ class VideoViewController: UIViewController {
             viewRemoteVideo.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
             
             // Constraints for the local video (custom size) - change the size here
-            viewLocalVideo.widthAnchor.constraint(equalToConstant: 150),
-            viewLocalVideo.heightAnchor.constraint(equalToConstant: 200),
-            viewLocalVideo.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            viewLocalVideo.widthAnchor.constraint(equalToConstant: 130),
+            viewLocalVideo.heightAnchor.constraint(equalToConstant: 180),
+            viewLocalVideo.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor, constant: (-70 / 430) * deviceWidth - otherButtonSize),
             viewLocalVideo.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10),
             
             // Constraints for the small remote video (top right corner)
@@ -94,48 +94,69 @@ class VideoViewController: UIViewController {
     }
     
     func initButtons() {
+        // Initialize backButton and swapButton
         addBackButton()
-        hangUpButton()
         swapUIButton()
+        hangUpButton()
         speakButton()
         sendingVideo()
         initMuteButton()
-        // Create a horizontal stack view to hold the buttons
-        let buttonStackView = UIStackView(arrangedSubviews: [buttonSendingVideo, swapButton, hangupButton, buttonSpeaker, muteButton])
+        
+        // Create a stack view for backButton and swapButton
+        let topButtonStackView = UIStackView(arrangedSubviews: [backButton, swapButton])
+        topButtonStackView.axis = .horizontal
+        topButtonStackView.alignment = .center
+        topButtonStackView.spacing = 20  // Adjust spacing between buttons if needed
+        topButtonStackView.distribution = .equalCentering
+        
+        topButtonStackView.translatesAutoresizingMaskIntoConstraints = false
+        self.view.addSubview(topButtonStackView)
+        
+        // Constraints for the stack view to position it at the top
+        NSLayoutConstraint.activate([
+                backButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 10),
+                backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+                backButton.widthAnchor.constraint(equalToConstant: otherButtonSize),
+                backButton.heightAnchor.constraint(equalToConstant: otherButtonSize),
+                
+                swapButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10),
+                swapButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+                swapButton.widthAnchor.constraint(equalToConstant: (50 / 430) * deviceWidth),
+                swapButton.heightAnchor.constraint(equalToConstant: (50 / 430) * deviceWidth)
+            ])
+        
+        // Create a stack view for the bottom row of buttons
+        let buttonStackView = UIStackView(arrangedSubviews: [muteButton, buttonSendingVideo, buttonSpeaker, hangupButton])
         buttonStackView.axis = .horizontal
         buttonStackView.distribution = .equalSpacing
         buttonStackView.alignment = .center
-        buttonStackView.spacing = spacing  // Adjust spacing between buttons if needed
+        buttonStackView.spacing = spacing
         
         buttonStackView.translatesAutoresizingMaskIntoConstraints = false
         self.view.addSubview(buttonStackView)
         
-        // Set constraints for the stack view directly to the main view with padding
+        // Constraints for the bottom row of buttons
         NSLayoutConstraint.activate([
             buttonStackView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: leftRightSpacing),
             buttonStackView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -leftRightSpacing),
-            buttonStackView.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor, constant: -40), // Bottom padding
-            buttonStackView.heightAnchor.constraint(equalToConstant: centerButtonSize) // Set height for stack view
+            buttonStackView.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor, constant: (-40 / 430) * deviceWidth),
+            buttonStackView.heightAnchor.constraint(equalToConstant: otherButtonSize)
         ])
     }
+
     
     func addBackButton() {
-        let backButton = UIButton(type: .system)
-        backButton.setImage(UIImage(systemName: "arrow.left", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+        backButton = UIButton(type: .system)
+        backButton.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         backButton.tintColor = .white
-        
-        backButton.addTarget(self, action: #selector(backButtonTapped), for: .touchUpInside)
+        backButton.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
+        backButton.addTarget(self, action: #selector(onSwitchCameraClick(_:)), for: .touchUpInside)
         
         backButton.translatesAutoresizingMaskIntoConstraints = false
-        
-        self.view.addSubview(backButton)
-        
-        NSLayoutConstraint.activate([
-            backButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 10),
-            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            backButton.widthAnchor.constraint(equalToConstant: 44),
-            backButton.heightAnchor.constraint(equalToConstant: 44)
-        ])
+        backButton.widthAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
+        backButton.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
+        backButton.imageView?.contentMode = .scaleAspectFit
+        backButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
     }
     
     func hangUpButton() {
@@ -144,11 +165,11 @@ class VideoViewController: UIViewController {
         hangupButton.tintColor = .white
         hangupButton.backgroundColor = .red
         
-        hangupButton.frame = CGRect(x: 0, y: 0, width: centerButtonSize, height: centerButtonSize)
-        hangupButton.layer.cornerRadius = centerButtonSize / 2
+        hangupButton.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
+        hangupButton.layer.cornerRadius = otherButtonSize / 2
         hangupButton.translatesAutoresizingMaskIntoConstraints = false
-        hangupButton.widthAnchor.constraint(equalToConstant: CGFloat(centerButtonSize)).isActive = true
-        hangupButton.heightAnchor.constraint(equalToConstant: centerButtonSize).isActive = true
+        hangupButton.widthAnchor.constraint(equalToConstant: CGFloat(otherButtonSize)).isActive = true
+        hangupButton.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
         hangupButton.imageView?.contentMode = .scaleAspectFit
         hangupButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
         hangupButton.addTarget(self, action: #selector(hangup(_:)), for: .touchUpInside)
@@ -156,19 +177,19 @@ class VideoViewController: UIViewController {
     
     func swapUIButton() {
         swapButton = UIButton(type: .system)
-        swapButton.setImage(UIImage(systemName: "camera.rotate", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+        swapButton.setImage(UIImage(systemName: "arrow.trianglehead.2.clockwise.rotate.90", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         swapButton.tintColor = .white
-        swapButton.backgroundColor = UIColor.gray.withAlphaComponent(0.5)
+        swapButton.backgroundColor = UIColor.white.withAlphaComponent(0.3)
         
         swapButton.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
-        swapButton.layer.cornerRadius = otherButtonSize / 2
+        swapButton.layer.cornerRadius = (50 / 430) * deviceWidth / 2
         swapButton.addTarget(self, action: #selector(onSwitchCameraClick(_:)), for: .touchUpInside)
         
         swapButton.translatesAutoresizingMaskIntoConstraints = false
         swapButton.widthAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
         swapButton.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
         swapButton.imageView?.contentMode = .scaleAspectFit
-        swapButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        swapButton.contentEdgeInsets = UIEdgeInsets(top: 4, left: 4, bottom: 4, right: 4)
     }
     
     func initMuteButton() {
