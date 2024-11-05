@@ -2,8 +2,10 @@ package com.mpt.mpt_callkit;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.opengl.Visibility;
 import android.os.Build;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 import com.mpt.mpt_callkit.util.Engine;
 import com.portsip.PortSipEnumDefine;
@@ -43,6 +45,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
     private ImageButton imgMute = null;
     private ImageButton imgVideo = null;
     private ImageButton imgBack = null;
+    private LinearLayout llWaitingView = null;
     private boolean shareInSmall = true;
     private boolean isMicOn = true;
     private boolean isVolumeOn = true;
@@ -70,6 +73,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         imgMute = (ImageButton) view.findViewById(R.id.mute);
         imgVideo = (ImageButton) view.findViewById(R.id.ibvideo);
         imgBack = (ImageButton) view.findViewById(R.id.ibback);
+        llWaitingView = (LinearLayout) view.findViewById(R.id.llWaitingView);
 
         imgScaleType.setOnClickListener(this);
         imgSwitchCamera.setOnClickListener(this);
@@ -86,6 +90,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         scalingType = PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FIT;//
         remoteRenderScreen.setScalingType(scalingType);
         PortSipSdk portSipLib = Engine.Instance().getEngine();
+        System.out.println("quanth: video updateVideo onViewCreated");
         updateVideo(portSipLib);
     }
 
@@ -124,6 +129,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             remoteRenderSmallScreen.setVisibility(View.INVISIBLE);
             stopVideo(Engine.Instance().getEngine());
         } else {
+            System.out.println("quanth: video updateVideo onHiddenChanged");
             updateVideo(Engine.Instance().getEngine());
             Engine.Instance().getReceiver().broadcastReceiver = this;
             localRenderScreen.setVisibility(View.VISIBLE);
@@ -297,7 +303,6 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
     }
 
     public void updateVideo(PortSipSdk portSipLib) {
-        System.out.println("quanth: video updateVideo");
         CallManager callManager = CallManager.Instance();
         Session cur = CallManager.Instance().getCurrentSession();
         if (Engine.Instance().mConference) {
@@ -376,7 +381,12 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                     case TRYING:
                         break;
                     case CONNECTED:
+                        llWaitingView.setVisibility(View.GONE);
+                        System.out.println("quanth: video updateVideo CONNECTED");
+                        updateVideo(Engine.Instance().getEngine());
+                        break;
                     case FAILED:
+                        System.out.println("quanth: video updateVideo FAILED");
                         updateVideo(Engine.Instance().getEngine());
                         break;
                 }
