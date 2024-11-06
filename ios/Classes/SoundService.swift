@@ -1,56 +1,37 @@
 import AVFoundation
-// private implementation
-//
+import AudioToolbox
+
 class SoundService {
     var playerRingBackTone: AVAudioPlayer!
-    var playerRingTone: AVAudioPlayer!
     var speakerOn: Bool!
+    var ringToneSoundID: SystemSoundID = 0
 
-    func initPlayerWithPath(_ path: String) -> AVAudioPlayer {
-        let url = URL(fileURLWithPath: Bundle.main.path(forResource: path, ofType: nil)!)
-
-        var player: AVAudioPlayer!
-        do {
-            player = try AVAudioPlayer(contentsOf: url)
-        } catch {}
-
-        return player
+    init() {
+        // Set default ringing sound to a system sound, such as the default "new mail" sound
+        ringToneSoundID = 1007 // Choose a sound ID from Apple’s system sounds list
     }
 
     func unInit() {
-        if playerRingBackTone != nil {
-            if playerRingBackTone.isPlaying {
-                playerRingBackTone.stop()
-            }
-        }
-
-        if playerRingTone != nil {
-            if playerRingTone.isPlaying {
-                playerRingTone.stop()
-            }
+        if playerRingBackTone != nil, playerRingBackTone.isPlaying {
+            playerRingBackTone.stop()
         }
     }
 
-    //
-    // SoundService
-    //
     func speakerEnabled(_ enabled: Bool) {
         let session = AVAudioSession.sharedInstance()
         var options = session.categoryOptions
 
         if enabled {
-            options.insert(AVAudioSession.CategoryOptions.defaultToSpeaker)
+            options.insert(.defaultToSpeaker)
         } else {
-            options.remove(AVAudioSession.CategoryOptions.defaultToSpeaker)
+            options.remove(.defaultToSpeaker)
         }
         do {
-            try session.setCategory(AVAudioSession.Category.playAndRecord, options: options)
+            try session.setCategory(.playAndRecord, options: options)
             NSLog("Playback OK")
         } catch {
-            NSLog("ERROR: CANNOT speakerEnabled. Message from code: \"\(error)\"")
+            NSLog("ERROR: CANNOT enable speaker. Message from code: \"\(error)\"")
         }
-        
-        
     }
 
     func isSpeakerEnabled() -> Bool {
@@ -58,29 +39,27 @@ class SoundService {
     }
 
     func playRingTone() -> Bool {
-//        if playerRingTone == nil {
-//            playerRingTone = initPlayerWithPath("ringtone.mp3")
-//        }
-        if playerRingTone != nil {
-            playerRingTone.numberOfLoops = -1
+        // Use system sound for ringing
+        if ringToneSoundID != 0 {
             speakerEnabled(true)
-            playerRingTone.play()
+            AudioServicesPlaySystemSound(ringToneSoundID)
             return true
         }
         return false
     }
 
     func stopRingTone() -> Bool {
-        if playerRingTone != nil, playerRingTone.isPlaying {
-            playerRingTone.stop()
-            speakerEnabled(true)
+        // Stop the ringtone by disposing of the sound
+        if ringToneSoundID != 0 {
+            AudioServicesDisposeSystemSoundID(ringToneSoundID)
         }
+        speakerEnabled(true)
         return true
     }
 
     func playRingBackTone() -> Bool {
 //        if playerRingBackTone == nil {
-//            playerRingBackTone = initPlayerWithPath("ringtone.mp3")
+//            playerRingBackTone = initPlayerWithPath("ringbacktone.mp3")
 //        }
         if playerRingBackTone != nil {
             playerRingBackTone.numberOfLoops = -1
@@ -88,7 +67,6 @@ class SoundService {
             playerRingBackTone.play()
             return true
         }
-
         return false
     }
 
@@ -98,5 +76,23 @@ class SoundService {
             speakerEnabled(true)
         }
         return true
+    }
+
+    private func initPlayerWithPath(_ path: String) -> AVAudioPlayer? {
+        guard let path = Bundle.main.path(forResource: path, ofType: nil) else {
+            NSLog("ERROR: Could not find audio file.")
+            return nil
+        }
+        
+        let url = URL(fileURLWithPath: path)
+        var player: AVAudioPlayer?
+        
+        do {
+            player = try AVAudioPlayer(contentsOf: url)
+        } catch {
+            NSLog("ERROR: Could not initialize AVAudioPlayer. \(error.localizedDescription)")
+        }
+
+        return player
     }
 }

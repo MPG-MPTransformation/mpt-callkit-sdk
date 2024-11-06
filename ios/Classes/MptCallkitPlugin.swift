@@ -1083,11 +1083,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     func onMuteCall(sessionId: CLong, muted _: Bool) {
         let result = _callManager.findCallBySessionID(sessionId)
         if result != nil {
-            // update Mute status
+           print("onMuteCall")
         }
     }
     
     func onHoldCall(sessionId: CLong, onHold: Bool) {
+        print("onHoldCall")
         let result = _callManager.findCallBySessionID(sessionId)
         if result != nil, sessionId == activeSessionid {
             if onHold {
