@@ -230,7 +230,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                     currentLine.sessionID,
                     currentLine.bMuteAudioInComing,
                     currentLine.bMuteAudioOutGoing,
-                    currentLine.bMuteVideo,
+                    false,
                     currentLine.bMuteVideo
 
             );
