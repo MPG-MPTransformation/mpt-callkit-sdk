@@ -7,7 +7,7 @@
 
 
     <LinearLayout
-            android:id="@+id/llLocalView"
+            android:id="@+id/llRemoteView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center"
@@ -75,7 +75,7 @@
         android:layout_gravity="bottom">
 
         <LinearLayout
-            android:id="@+id/llRemoteView"
+            android:id="@+id/llLocalView"
             android:layout_width="72dp"
             android:layout_height="100dp"
             android:layout_marginBottom="20dp"
@@ -85,7 +85,7 @@
             <com.portsip.PortSIPVideoRenderer
                 android:id="@+id/local_video_view"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"/>
+                android:layout_height="match_parent" />
 
         </LinearLayout>
 
