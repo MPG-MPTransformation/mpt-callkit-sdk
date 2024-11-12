@@ -46,6 +46,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
     private ImageButton imgVideo = null;
     private ImageButton imgBack = null;
     private LinearLayout llWaitingView = null;
+    private LinearLayout llLocalView = null;
     private boolean shareInSmall = true;
     private boolean isMicOn = true;
     private boolean isVolumeOn = true;
@@ -74,6 +75,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         imgVideo = (ImageButton) view.findViewById(R.id.ibvideo);
         imgBack = (ImageButton) view.findViewById(R.id.ibback);
         llWaitingView = (LinearLayout) view.findViewById(R.id.llWaitingView);
+        llLocalView = (LinearLayout) view.findViewById(R.id.llLocalView);
 
         imgScaleType.setOnClickListener(this);
         imgSwitchCamera.setOnClickListener(this);
@@ -236,8 +238,10 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             );
             if (currentLine.bMuteVideo) {
                 imgVideo.setImageResource(R.drawable.camera_off);
+                llLocalView.setVisibility(View.GONE);
             } else {
                 imgVideo.setImageResource(R.drawable.camera_on);
+                llLocalView.setVisibility(View.VISIBLE);
             }
         } else if(v.getId() == R.id.ibback) {
             AlertDialog dialog = getAlertDialog();
