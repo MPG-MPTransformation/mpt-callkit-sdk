@@ -279,10 +279,22 @@ class VideoViewController: UIViewController {
     }
     
     @objc func backButtonTapped() {
-        onClearState()
-        MptCallkitPlugin.shared.hungUpCall()
-        MptCallkitPlugin.shared.loginViewController.unRegister()
-        self.dismiss(animated: true, completion: nil)
+             let alert = UIAlertController(title: "Kết thúc cuộc gọi", message: "Bạn có muốn dừng cuộc gọi không?", preferredStyle: UIAlertController.Style.alert)
+        // Add "Cancel" action
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel) { action in
+            print("Cancel button tapped")
+        }
+        alert.addAction(cancelAction)
+        
+        // Add a custom action
+        let customAction = UIAlertAction(title: "OK", style: .destructive) { action in
+            self.onClearState()
+            MptCallkitPlugin.shared.hungUpCall()
+            MptCallkitPlugin.shared.loginViewController.unRegister()
+            self.dismiss(animated: true, completion: nil)
+        }
+        alert.addAction(customAction)
+        present(alert, animated: true, completion: nil)
     }
     
     @objc func onSwitchCameraClick(_ sender: AnyObject) {
