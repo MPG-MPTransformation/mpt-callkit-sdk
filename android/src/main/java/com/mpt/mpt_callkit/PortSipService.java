@@ -603,7 +603,16 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     }
 
     @Override
-    public void onInviteUpdated(long sessionId, String audioCodecs, String videoCodecs, String screenCodecs, boolean existsAudio, boolean existsVideo, boolean existsScreen, String sipMessage) {
+    public void onInviteUpdated(
+        long sessionId,
+        String audioCodecs,
+        String videoCodecs,
+        String screenCodecs,
+        boolean existsAudio,
+        boolean existsVideo,
+        boolean existsScreen,
+        String sipMessage
+    ) {
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 
         if (session != null) {

@@ -1,10 +1,12 @@
 package com.mpt.mpt_callkit;
 
 import android.app.AlertDialog;
+import android.app.PictureInPictureParams;
 import android.content.DialogInterface;
 import android.opengl.Visibility;
 import android.os.Build;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 import com.mpt.mpt_callkit.util.Engine;
@@ -30,6 +32,7 @@ import com.mpt.mpt_callkit.util.Session;
 import com.mpt.mpt_callkit.util.Engine;
 
 import static com.mpt.mpt_callkit.PortSipService.EXTRA_REGISTER_STATE;
+import android.util.Rational;
 
 public class VideoFragment extends BaseFragment implements View.OnClickListener, PortMessageReceiver.BroadcastListener {
     MainActivity activity;
@@ -47,10 +50,14 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
     private ImageButton imgBack = null;
     private LinearLayout llWaitingView = null;
     private LinearLayout llLocalView = null;
+    private FrameLayout flVideoView = null;
+    private FrameLayout flSmallVideoView = null;
     private boolean shareInSmall = true;
     private boolean isMicOn = true;
     private boolean isVolumeOn = true;
     private boolean isVideoOn = true;
+
+    private ImageButton imgPiP = null;
 
     @Nullable
     @Override
@@ -76,6 +83,8 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         imgBack = (ImageButton) view.findViewById(R.id.ibback);
         llWaitingView = (LinearLayout) view.findViewById(R.id.llWaitingView);
         llLocalView = (LinearLayout) view.findViewById(R.id.llLocalView);
+        flVideoView = (FrameLayout) view.findViewById(R.id.video_view);
+        flSmallVideoView = (FrameLayout) view.findViewById(R.id.small_video_view);
 
         imgScaleType.setOnClickListener(this);
         imgSwitchCamera.setOnClickListener(this);
@@ -84,6 +93,8 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         imgMute.setOnClickListener(this);
         imgVideo.setOnClickListener(this);
         imgBack.setOnClickListener(this);
+        flSmallVideoView.setOnClickListener(this);
+        flVideoView.setOnClickListener(this);
 
         localRenderScreen = (PortSIPVideoRenderer) view.findViewById(R.id.local_video_view);
         remoteRenderScreen = (PortSIPVideoRenderer) view.findViewById(R.id.remote_video_view);
@@ -115,6 +126,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         }
 
         CallManager.Instance().setShareVideoWindow(Engine.Instance().getEngine(), -1, null);//set
+        System.out.println("quanth: remoteRenderSmallScreen 4 release");
         if (remoteRenderSmallScreen != null) {
             remoteRenderSmallScreen.release();
         }
@@ -127,6 +139,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         super.onHiddenChanged(hidden);
 
         if (hidden) {
+            System.out.println("quanth: remoteRenderSmallScreen 3 View.INVISIBLE");
             localRenderScreen.setVisibility(View.INVISIBLE);
             remoteRenderSmallScreen.setVisibility(View.INVISIBLE);
             stopVideo(Engine.Instance().getEngine());
@@ -153,9 +166,6 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             } else {
                 imgSwitchCamera.setImageResource(R.drawable.flip_camera_behind);
             }
-        } else if (v.getId() == R.id.share_video_view) {
-            shareInSmall = !shareInSmall;
-            updateVideo(portSipLib);
         } else if (v.getId() == R.id.ibscale) {
             if (scalingType == PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FIT) {
                 imgScaleType.setImageResource(R.drawable.fullscreen_on);
@@ -221,7 +231,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             } else {
                 imgMute.setImageResource(R.drawable.volume_on);
             }
-        } else if(v.getId() == R.id.ibvideo){
+        } else if(v.getId() == R.id.ibvideo) {
             currentLine.bMuteVideo = !currentLine.bMuteVideo;
             System.out.println("quanth: mute ================================");
             System.out.println("quanth: mute currentLine.bMuteAudioInComing = " + currentLine.bMuteAudioInComing);
@@ -246,6 +256,21 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         } else if(v.getId() == R.id.ibback) {
             AlertDialog dialog = getAlertDialog();
             dialog.show();
+        } else if (v.getId() == R.id.share_video_view) {
+//            shareInSmall = !shareInSmall;
+//            updateVideo(portSipLib);
+        } else if(v.getId() == R.id.video_view) {
+//            flSmallVideoView.setVisibility(View.VISIBLE);
+//            flVideoView.setVisibility(View.GONE);
+            if (Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                activity.enterPictureInPictureMode(
+                        new PictureInPictureParams.Builder()
+                                .setAspectRatio(new Rational(9, 16))
+                                .build());
+            }
+        } else if(v.getId() == R.id.small_video_view) {
+//            flSmallVideoView.setVisibility(View.GONE);
+//            flVideoView.setVisibility(View.VISIBLE);
         }
     }
 
@@ -321,6 +346,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                     localRenderScreen.setVisibility(View.VISIBLE);
                     remoteRenderScreen.setVisibility(View.VISIBLE);
                     if (cur.bScreenShare) {
+                        System.out.println("quanth: remoteRenderSmallScreen 2 View.VISIBLE");
                         remoteRenderSmallScreen.setVisibility(View.VISIBLE);
                         callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, null);
                         callManager.setShareVideoWindow(portSipLib, cur.sessionID, null);
@@ -333,6 +359,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                             callManager.setShareVideoWindow(portSipLib, cur.sessionID, remoteRenderScreen);
                         }
                     } else {
+                        System.out.println("quanth: remoteRenderSmallScreen 1 View.GONE");
                         remoteRenderSmallScreen.setVisibility(View.GONE);
                         callManager.setShareVideoWindow(portSipLib, cur.sessionID, null);
                         callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderScreen);
@@ -340,6 +367,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                     portSipLib.displayLocalVideo(true, true, localRenderScreen); // display Local video
                     portSipLib.sendVideo(cur.sessionID, true);
                 } else {
+                    System.out.println("quanth: remoteRenderSmallScreen 2 View.GONE");
                     remoteRenderSmallScreen.setVisibility(View.GONE);
                     localRenderScreen.setVisibility(View.GONE);
                     remoteRenderScreen.setVisibility(View.VISIBLE);
@@ -351,6 +379,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                     }
                 }
             } else {
+                System.out.println("quanth: remoteRenderSmallScreen 5 View.GONE");
                 remoteRenderSmallScreen.setVisibility(View.GONE);
                 portSipLib.displayLocalVideo(false, false, null);
                 callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, null);
@@ -378,7 +407,9 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                         offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
                         PortSipService.startServiceCompatibility(getActivity(), offLineIntent);
                         /// ve man hinh chinh
-                        activity.finishAndRemoveTask();
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            activity.finishAndRemoveTask();
+                        }
                         break;
                     case INCOMING:
                         break;
