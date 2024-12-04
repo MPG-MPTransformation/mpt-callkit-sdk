@@ -1,12 +1,16 @@
 package com.mpt.mpt_callkit;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.pm.PackageManager;
 import android.opengl.Visibility;
 import android.os.Build;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
+
+import com.mpt.mpt_callkit.adapter.AudioDeviceAdapter;
 import com.mpt.mpt_callkit.util.Engine;
 import com.portsip.PortSipEnumDefine;
 import com.portsip.PortSipErrorcode;
@@ -30,6 +34,7 @@ import com.mpt.mpt_callkit.util.Session;
 import com.mpt.mpt_callkit.util.Engine;
 
 import static com.mpt.mpt_callkit.PortSipService.EXTRA_REGISTER_STATE;
+import androidx.core.app.ActivityCompat;
 
 public class VideoFragment extends BaseFragment implements View.OnClickListener, PortMessageReceiver.BroadcastListener {
     MainActivity activity;
@@ -51,6 +56,15 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
     private boolean isMicOn = true;
     private boolean isVolumeOn = true;
     private boolean isVideoOn = true;
+    AudioDeviceAdapter audioDeviceAdapter;
+    final PortSipEnumDefine.AudioDevice[] audioDevices = new PortSipEnumDefine.AudioDevice[]
+    {
+        PortSipEnumDefine.AudioDevice.EARPIECE,
+        PortSipEnumDefine.AudioDevice.SPEAKER_PHONE,
+        PortSipEnumDefine.AudioDevice.BLUETOOTH,
+//        PortSipEnumDefine.AudioDevice.WIRED_HEADSET
+    };
+    private PortSipEnumDefine.AudioDevice currentAudioDevice = PortSipEnumDefine.AudioDevice.SPEAKER_PHONE;
 
     @Nullable
     @Override
@@ -84,6 +98,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         imgMute.setOnClickListener(this);
         imgVideo.setOnClickListener(this);
         imgBack.setOnClickListener(this);
+        audioDeviceAdapter = new AudioDeviceAdapter(audioDevices);
 
         localRenderScreen = (PortSIPVideoRenderer) view.findViewById(R.id.local_video_view);
         remoteRenderScreen = (PortSIPVideoRenderer) view.findViewById(R.id.remote_video_view);
@@ -203,24 +218,30 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                 activity.finishAndRemoveTask();
             }
         } else if (v.getId() == R.id.mute) {
-            currentLine.bMuteAudioInComing = !currentLine.bMuteAudioInComing;
-            System.out.println("quanth: mute ================================");
-            System.out.println("quanth: mute currentLine.bMuteAudioInComing = " + currentLine.bMuteAudioInComing);
-            System.out.println("quanth: mute currentLine.bMuteAudioOutGoing = " + currentLine.bMuteAudioOutGoing);
-            System.out.println("quanth: mute currentLine.bMuteVideo = " + currentLine.bMuteVideo);
-            // long sessionId, boolean muteIncomingAudio, boolean muteOutgoingAudio, boolean muteIncomingVideo, boolean muteOutgoingVideo
-            portSipLib.muteSession(
-                currentLine.sessionID,
-                currentLine.bMuteAudioInComing,
-                currentLine.bMuteAudioOutGoing,
-                false,
-                currentLine.bMuteVideo
-            );
-            if (currentLine.bMuteAudioInComing) {
-                imgMute.setImageResource(R.drawable.volume_off);
-            } else {
-                imgMute.setImageResource(R.drawable.volume_on);
+            if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.S
+                    && ActivityCompat.checkSelfPermission(getContext(), android.Manifest.permission.BLUETOOTH_CONNECT)!= PackageManager.PERMISSION_GRANTED){
+                Toast.makeText(getContext(),"BLUETOOTH_CONNECT permission is required for BLUETOOTH Device",Toast.LENGTH_SHORT).show();
+                ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.BLUETOOTH_CONNECT}, 100);
             }
+
+            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+            builder.setCancelable(true);
+            audioDeviceAdapter.setSelectalbeAudioDevice(CallManager.Instance().getSelectableAudioDevice());
+            audioDeviceAdapter.notifyDataSetChanged();
+            builder.setAdapter(audioDeviceAdapter, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    CallManager.Instance().setAudioDevice(portSipLib, audioDevices[which]);
+                    currentAudioDevice = audioDevices[which];
+                    if (currentAudioDevice == PortSipEnumDefine.AudioDevice.EARPIECE) {
+                        imgMute.setImageResource(R.drawable.headphones);
+                    } else if (currentAudioDevice == PortSipEnumDefine.AudioDevice.BLUETOOTH) {
+                        imgMute.setImageResource(R.drawable.bluetooth);
+                    } else {
+                        imgMute.setImageResource(R.drawable.volume_on);
+                    }
+                }
+            }).create().show();
         } else if(v.getId() == R.id.ibvideo){
             currentLine.bMuteVideo = !currentLine.bMuteVideo;
             System.out.println("quanth: mute ================================");
