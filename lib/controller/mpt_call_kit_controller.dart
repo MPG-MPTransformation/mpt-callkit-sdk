@@ -175,6 +175,7 @@ class MptCallKitController {
               final bool callResult = await channel.invokeMethod('call',
                 <String, dynamic>{
                   'phoneNumber': phoneNumber,
+                  'isVideoCall': isVideoCall
                 },
               );
               if(callResult) {

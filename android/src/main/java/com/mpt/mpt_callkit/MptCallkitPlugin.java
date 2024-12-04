@@ -64,7 +64,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         break;
       case "call":
         String phoneNumber = call.argument("phoneNumber");
-        boolean callResult = makeCall(phoneNumber);
+        boolean hasVideoCall = call.argument("isVideoCall");
+        boolean callResult = makeCall(phoneNumber, hasVideoCall);
         result.success(callResult);
         break;
       case "hangup":
@@ -84,7 +85,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         String sipServer = call.argument("sipServer");
         String transportType = call.argument("transportType") + "";
         String srtpType = call.argument("srtpType") + "";
-        String isVideoCall = call.argument("isVideoCall") + "";
+        boolean isVideoCall = call.argument("isVideoCall");
         String sipServerPort = call.argument("sipServerPort") + "";
         if(CallManager.Instance().online){
           Toast.makeText(activity,"Please OffLine First",Toast.LENGTH_SHORT).show();
@@ -169,7 +170,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
   private final int REQ_DANGERS_PERMISSION = 2;
 
-  boolean makeCall(String phoneNumber){
+  boolean makeCall(String phoneNumber, boolean isVideoCall){
     Session currentLine = CallManager.Instance().getCurrentSession();
     String callTo = phoneNumber;
     if (!currentLine.IsIdle()) {
@@ -196,7 +197,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     currentLine.sessionID = sessionId;
     currentLine.state = Session.CALL_STATE_FLAG.TRYING;
-    currentLine.hasVideo = true;
+    currentLine.hasVideo = isVideoCall;
     System.out.println("quanth: line= "+currentLine.lineName + ": Calling...");
     return true;
   }
