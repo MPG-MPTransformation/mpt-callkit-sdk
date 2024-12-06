@@ -73,6 +73,10 @@ public class AudioDeviceAdapter extends BaseAdapter
         return textView;
     }
 
+    public boolean isActiveAudioDevice(PortSipEnumDefine.AudioDevice device){
+        return audioDeviceAvailable.contains(device);
+    }
+
 }
 
 

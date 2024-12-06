@@ -2,6 +2,7 @@ package com.mpt.mpt_callkit;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.bluetooth.BluetoothAdapter;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.opengl.Visibility;
@@ -231,6 +232,10 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             builder.setAdapter(audioDeviceAdapter, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
+                    // Nếu k connect bluetooth thì k cho chọn bluetooth
+                    if(!audioDeviceAdapter.isActiveAudioDevice(audioDevices[which])){
+                        return;
+                    }
                     CallManager.Instance().setAudioDevice(portSipLib, audioDevices[which]);
                     currentAudioDevice = audioDevices[which];
                     if (currentAudioDevice == PortSipEnumDefine.AudioDevice.EARPIECE) {
