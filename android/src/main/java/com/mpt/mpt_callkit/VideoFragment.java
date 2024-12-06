@@ -404,7 +404,9 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                         offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
                         PortSipService.startServiceCompatibility(getActivity(), offLineIntent);
                         /// ve man hinh chinh
-                        activity.finishAndRemoveTask();
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            activity.finishAndRemoveTask();
+                        }
                         break;
                     case INCOMING:
                         break;
@@ -419,7 +421,17 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                         break;
                     case FAILED:
                         System.out.println("quanth: video updateVideo FAILED");
-                        updateVideo(Engine.Instance().getEngine());
+                        /// tắt cuộc gọi nếu người dùng cúp máy không nghe
+                        portSipLib.hangUp(currentLine.sessionID);
+                        currentLine.Reset();
+                        /// logout
+                        Intent logoutIntent = new Intent(getActivity(), PortSipService.class);
+                        logoutIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
+                        PortSipService.startServiceCompatibility(getActivity(), logoutIntent);
+                        /// ve man hinh chinh
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            activity.finishAndRemoveTask();
+                        }
                         break;
                 }
             }
