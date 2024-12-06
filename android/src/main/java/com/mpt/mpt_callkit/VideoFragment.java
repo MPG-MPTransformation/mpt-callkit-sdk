@@ -7,6 +7,7 @@ import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.opengl.Visibility;
 import android.os.Build;
+import android.os.CountDownTimer;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
@@ -67,6 +68,35 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
     };
     private PortSipEnumDefine.AudioDevice currentAudioDevice = PortSipEnumDefine.AudioDevice.SPEAKER_PHONE;
 
+    private CountDownTimer countDownTimer;
+    private void startTimer(PortSipSdk portSipLib, Session currentLine){
+        countDownTimer = new CountDownTimer(30000, 1000)
+        {
+
+            public void onTick(long millisUntilFinished)
+            {
+                System.out.println("quanth: seconds remaining: " + millisUntilFinished / 1000);
+            }
+
+            public void onFinish()
+            {
+                Toast.makeText(activity, "Người dùng không nghe máy",
+                        Toast.LENGTH_LONG).show();
+                /// tắt cuộc gọi nếu người dùng cúp máy không nghe
+                portSipLib.hangUp(currentLine.sessionID);
+                currentLine.Reset();
+                /// logout
+                Intent logoutIntent = new Intent(getActivity(), PortSipService.class);
+                logoutIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
+                PortSipService.startServiceCompatibility(getActivity(), logoutIntent);
+                /// ve man hinh chinh
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    activity.finishAndRemoveTask();
+                }
+            }
+        }.start();
+    }
+
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, Bundle savedInstanceState) {
@@ -108,8 +138,10 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         scalingType = PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FIT;//
         remoteRenderScreen.setScalingType(scalingType);
         PortSipSdk portSipLib = Engine.Instance().getEngine();
+        Session currentLine = CallManager.Instance().getCurrentSession();
         System.out.println("quanth: video updateVideo onViewCreated");
         updateVideo(portSipLib);
+        startTimer(portSipLib, currentLine);
     }
 
     @Override
@@ -415,6 +447,8 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                         updateVideo(Engine.Instance().getEngine());
                         break;
                     case CONNECTED:
+                        /// Nếu nhấc máy thì cancel countdown
+                        countDownTimer.cancel();
                         llWaitingView.setVisibility(View.GONE);
                         System.out.println("quanth: video updateVideo CONNECTED");
                         updateVideo(Engine.Instance().getEngine());

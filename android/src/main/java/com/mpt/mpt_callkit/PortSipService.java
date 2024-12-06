@@ -559,6 +559,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                                  boolean existsAudio,
                                  boolean existsVideo,
                                  String sipMessage) {
+        System.out.println("quanth: onInviteAnswered");
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 
         if (session != null) {
@@ -585,6 +586,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                                 String reason,
                                 int code,
                                 String sipMessage) {
+        System.out.println("quanth: onInviteFailure");
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 
         if (session != null) {
@@ -604,6 +606,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onInviteUpdated(long sessionId, String audioCodecs, String videoCodecs, String screenCodecs, boolean existsAudio, boolean existsVideo, boolean existsScreen, String sipMessage) {
+        System.out.println("quanth: onInviteUpdated");
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 
         if (session != null) {
@@ -622,6 +625,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onInviteConnected(long sessionId) {
+        System.out.println("quanth: onInviteConnected");
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
         if (session != null) {
             session.state = Session.CALL_STATE_FLAG.CONNECTED;
@@ -648,6 +652,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onInviteClosed(long sessionId, String sipMessage) {
+        System.out.println("quanth: onInviteClosed");
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
         if (session != null) {
             session.state = Session.CALL_STATE_FLAG.CLOSED;
@@ -666,26 +671,27 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onDialogStateUpdated(String s, String s1, String s2, String s3) {
-
+        System.out.println("quanth: onDialogStateUpdated");
     }
 
     @Override
     public void onRemoteHold(long l) {
-
+        System.out.println("quanth: onRemoteHold");
     }
 
     @Override
     public void onRemoteUnHold(long l, String s, String s1, boolean b, boolean b1) {
-
+        System.out.println("quanth: onRemoteUnHold");
     }
 
     @Override
     public void onReceivedRefer(long l, long l1, String s, String s1, String s2) {
-
+        System.out.println("quanth: onReceivedRefer");
     }
 
     @Override
     public void onReferAccepted(long sessionId) {
+        System.out.println("quanth: onReferAccepted");
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
         if (session != null) {
             session.state = Session.CALL_STATE_FLAG.CLOSED;
@@ -703,21 +709,22 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onReferRejected(long l, String s, int i) {
-
+        System.out.println("quanth: onReferRejected");
     }
 
     @Override
     public void onTransferTrying(long l) {
-
+        System.out.println("quanth: onTransferTrying");
     }
 
     @Override
     public void onTransferRinging(long l) {
-
+        System.out.println("quanth: onTransferRinging");
     }
 
     @Override
     public void onACTVTransferSuccess(long sessionId) {
+        System.out.println("quanth: onACTVTransferSuccess");
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
         if (session != null) {
             session.state = Session.CALL_STATE_FLAG.CLOSED;
@@ -736,6 +743,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onACTVTransferFailure(long sessionId, String reason, int code) {
+        System.out.println("quanth: onACTVTransferFailure");
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
         if (session != null) {
             Intent broadIntent = new Intent(CALL_CHANGE_ACTION);
@@ -750,22 +758,22 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onReceivedSignaling(long l, String s) {
-
+        System.out.println("quanth: onReceivedSignaling");
     }
 
     @Override
     public void onSendingSignaling(long l, String s) {
-
+        System.out.println("quanth: onSendingSignaling");
     }
 
     @Override
     public void onWaitingVoiceMessage(String s, int i, int i1, int i2, int i3) {
-
+        System.out.println("quanth: onWaitingVoiceMessage");
     }
 
     @Override
     public void onWaitingFaxMessage(String s, int i, int i1, int i2, int i3) {
-
+        System.out.println("quanth: onWaitingFaxMessage");
     }
 
     @Override
@@ -793,6 +801,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                                         String fromDisplayName,
                                         String from,
                                         String subject) {
+        System.out.println("quanth: onPresenceRecvSubscribe");
         Contact contact = ContactManager.Instance().findContactBySipAddr(from);
         if (contact == null) {
             contact = new Contact();
@@ -821,6 +830,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onPresenceOnline(String fromDisplayName, String from, String stateText) {
+        System.out.println("quanth: onPresenceOnline");
         Contact contact = ContactManager.Instance().findContactBySipAddr(from);
         if (contact == null) {
 
@@ -926,6 +936,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onNetworkChange(int netMobile) {
+        System.out.println("quanth: onNetworkChange");
         if (netMobile == -1) {
             //invaluable
         } else {
