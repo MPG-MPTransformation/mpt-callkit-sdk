@@ -145,7 +145,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         imgHangOut2.setOnClickListener(this);
         imgMute2.setOnClickListener(this);
         imgBack2.setOnClickListener(this);
-        
+
         audioDeviceAdapter = new AudioDeviceAdapter(audioDevices);
 
         localRenderScreen = (PortSIPVideoRenderer) view.findViewById(R.id.local_video_view);
@@ -251,9 +251,9 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                     currentLine.bMuteVideo
             );
             if (currentLine.bMuteAudioOutGoing) {
-                imgMicOn.setImageResource(R.drawable.mic_off);
+                ((v.getId() == R.id.ibmicon) ? imgMicOn: imgMicOn2).setImageResource(R.drawable.mic_off);
             } else {
-                imgMicOn.setImageResource(R.drawable.mic_on);
+                ((v.getId() == R.id.ibmicon) ? imgMicOn: imgMicOn2).setImageResource(R.drawable.mic_on);
             }
         } else if (v.getId() == R.id.ibhangout || v.getId() == R.id.ibhangout2) {
             /// Tat cuoc goi
@@ -288,11 +288,11 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                     CallManager.Instance().setAudioDevice(portSipLib, audioDevices[which]);
                     currentAudioDevice = audioDevices[which];
                     if (currentAudioDevice == PortSipEnumDefine.AudioDevice.EARPIECE) {
-                        imgMute.setImageResource(R.drawable.headphones);
+                        ((v.getId() == R.id.mute) ? imgMute: imgMute2).setImageResource(R.drawable.headphones);
                     } else if (currentAudioDevice == PortSipEnumDefine.AudioDevice.BLUETOOTH) {
-                        imgMute.setImageResource(R.drawable.bluetooth);
+                        ((v.getId() == R.id.mute) ? imgMute: imgMute2).setImageResource(R.drawable.bluetooth);
                     } else {
-                        imgMute.setImageResource(R.drawable.volume_on);
+                        ((v.getId() == R.id.mute) ? imgMute: imgMute2).setImageResource(R.drawable.volume_on);
                     }
                 }
             }).create().show();
