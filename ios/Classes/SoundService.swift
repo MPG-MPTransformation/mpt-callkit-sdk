@@ -58,9 +58,9 @@ class SoundService {
     }
 
     func playRingBackTone() -> Bool {
-//        if playerRingBackTone == nil {
-//            playerRingBackTone = initPlayerWithPath("ringbacktone.mp3")
-//        }
+        if playerRingBackTone == nil {
+            playerRingBackTone = initPlayerWithPath("ringbacktone.mp3", fromPlugin: true)
+        }
         if playerRingBackTone != nil {
             playerRingBackTone.numberOfLoops = -1
             speakerEnabled(false)
@@ -78,15 +78,29 @@ class SoundService {
         return true
     }
 
-    private func initPlayerWithPath(_ path: String) -> AVAudioPlayer? {
-        guard let path = Bundle.main.path(forResource: path, ofType: nil) else {
-            NSLog("ERROR: Could not find audio file.")
-            return nil
+    private func initPlayerWithPath(_ fileName: String, fromPlugin: Bool = false) -> AVAudioPlayer? {
+        let bundle: Bundle
+        if fromPlugin {
+            // Replace `PluginClassName` with an actual class from your plugin
+            guard let pluginBundle = Bundle(for: MptCallkitPlugin.self).url(forResource: "mpt_callkit", withExtension: "bundle"),
+                  let resourceBundle = Bundle(url: pluginBundle) else {
+                NSLog("ERROR: Could not locate plugin bundle.")
+                return nil
+            }
+            bundle = resourceBundle
+        } else {
+            bundle = Bundle.main
         }
         
+        // Fetch the file path
+        guard let path = bundle.path(forResource: fileName, ofType: nil) else {
+            NSLog("ERROR: Could not find audio file \(fileName).")
+            return nil
+        }
+
         let url = URL(fileURLWithPath: path)
         var player: AVAudioPlayer?
-        
+
         do {
             player = try AVAudioPlayer(contentsOf: url)
         } catch {

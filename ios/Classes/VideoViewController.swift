@@ -36,8 +36,7 @@ class VideoViewController: UIViewController {
     
     var shareInSmallWindow = true
     
-    override func viewDidLoad() {
-        super.viewDidLoad()
+    override func viewWillAppear(_ animated: Bool) {
         // Initialize the views
         otherButtonSize = (70 / 430) * deviceWidth
         leftRightSpacing = (20 / 430) * deviceWidth
@@ -92,6 +91,9 @@ class VideoViewController: UIViewController {
             viewRemoteVideo.initVideoRender()
             viewRemoteVideo.contentMode = .scaleAspectFit
             viewRemoteVideoSmall.initVideoRender()
+            updateLocalVideoPosition(UIScreen.main.bounds.size)
+
+            portSIPSDK.displayLocalVideo(true, mirror: mCameraDeviceId == 0, localVideoWindow: viewLocalVideo)
             
             let tapGesture = UITapGestureRecognizer(target: self, action: #selector(onSwichShareScreenClick(action:)))
             viewRemoteVideoSmall.addGestureRecognizer(tapGesture)
@@ -460,8 +462,6 @@ class VideoViewController: UIViewController {
                         portSIPSDK.setConferenceVideoWindow(nil)
                     }
                 }
-                
-                portSIPSDK.displayLocalVideo(true, mirror: mCameraDeviceId == 0, localVideoWindow: viewLocalVideo)
                 portSIPSDK.sendVideo(sessionId, sendState: true)
             } else {
                 self.viewRemoteVideoSmall.isHidden = true
@@ -529,7 +529,6 @@ class VideoViewController: UIViewController {
     
     func initializeVideoViews() {
         // Remove previous views if they exist (in case cleanup wasn’t complete)
-        viewLocalVideo?.removeFromSuperview()
         viewRemoteVideo?.removeFromSuperview()
         viewRemoteVideoSmall?.removeFromSuperview()
         
@@ -540,32 +539,28 @@ class VideoViewController: UIViewController {
         isInitVideo = true
         callingLabel.isHidden = true
         
-        viewLocalVideo.initVideoRender()
+    
         viewRemoteVideo.initVideoRender()
         viewRemoteVideo.contentMode = .scaleAspectFit
         viewRemoteVideoSmall.initVideoRender()
         
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(onSwichShareScreenClick(action:)))
-        viewRemoteVideoSmall.addGestureRecognizer(tapGesture)
-        
-        updateLocalVideoPosition(UIScreen.main.bounds.size)
-        viewLocalVideo.isHidden = false
         viewRemoteVideo.isHidden = false
         viewRemoteVideoSmall.isHidden = false
     }
     
     func onClearState() {
+        portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
+        viewLocalVideo.releaseVideoRender()
         if isStartVideo {
-            portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
             portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
             portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
             
             // Hide video views (do not set isInitVideo to false here)
-            viewLocalVideo.releaseVideoRender()
             viewRemoteVideo.releaseVideoRender()
             viewRemoteVideoSmall.releaseVideoRender()
             
-            //            viewLocalVideo.removeFromSuperview()
+            //viewLocalVideo.removeFromSuperview()
             viewRemoteVideo.removeFromSuperview()
             viewRemoteVideoSmall.removeFromSuperview()
         }

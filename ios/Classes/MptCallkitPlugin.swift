@@ -494,6 +494,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     public func onInviteRinging(_ sessionId: Int, statusText: String!, statusCode: Int32, sipMessage: String!) {
         NSLog("onInviteRinging...")
         let index = findSession(sessionid: sessionId)
+        
         if index == -1 {
             return
         }
