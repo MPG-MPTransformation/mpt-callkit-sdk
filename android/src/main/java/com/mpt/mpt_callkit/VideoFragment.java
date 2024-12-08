@@ -80,18 +80,22 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
 
             public void onFinish()
             {
-                Toast.makeText(activity, "Người dùng không nghe máy",
-                        Toast.LENGTH_LONG).show();
-                /// tắt cuộc gọi nếu người dùng cúp máy không nghe
-                portSipLib.hangUp(currentLine.sessionID);
-                currentLine.Reset();
-                /// logout
-                Intent logoutIntent = new Intent(getActivity(), PortSipService.class);
-                logoutIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
-                PortSipService.startServiceCompatibility(getActivity(), logoutIntent);
-                /// ve man hinh chinh
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    activity.finishAndRemoveTask();
+                try {
+                    Toast.makeText(activity, "Người dùng không nghe máy",
+                            Toast.LENGTH_LONG).show();
+                    /// tắt cuộc gọi nếu người dùng cúp máy không nghe
+                    portSipLib.hangUp(currentLine.sessionID);
+                    currentLine.Reset();
+                    /// logout
+                    Intent logoutIntent = new Intent(getActivity(), PortSipService.class);
+                    logoutIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
+                    PortSipService.startServiceCompatibility(getActivity(), logoutIntent);
+                    /// ve man hinh chinh
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        activity.finishAndRemoveTask();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
             }
         }.start();
@@ -166,6 +170,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         if (remoteRenderSmallScreen != null) {
             remoteRenderSmallScreen.release();
         }
+        countDownTimer.cancel();
     }
 
     @Override
@@ -239,6 +244,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                 imgMicOn.setImageResource(R.drawable.mic_on);
             }
         } else if (v.getId() == R.id.ibhangout) {
+            countDownTimer.cancel();
             /// Tat cuoc goi
             portSipLib.hangUp(currentLine.sessionID);
             currentLine.Reset();
