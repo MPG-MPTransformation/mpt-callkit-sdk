@@ -57,6 +57,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
     private ImageButton imgHangOut2 = null;
     private ImageButton imgMute2 = null;
     private ImageButton imgBack2 = null;
+    private ImageButton imgHangOut3 = null;
     private RelativeLayout llWaitingView = null;
     private LinearLayout llLocalView = null;
     private boolean shareInSmall = true;
@@ -134,6 +135,8 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         imgMute2 = (ImageButton) view.findViewById(R.id.mute2);
         imgBack2 = (ImageButton) view.findViewById(R.id.ibback2);
 
+        imgHangOut3 = (ImageButton) view.findViewById(R.id.ibhangout3);
+
         llWaitingView = (RelativeLayout) view.findViewById(R.id.llWaitingView);
         llLocalView = (LinearLayout) view.findViewById(R.id.llLocalView);
 
@@ -149,6 +152,8 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         imgHangOut2.setOnClickListener(this);
         imgMute2.setOnClickListener(this);
         imgBack2.setOnClickListener(this);
+
+        imgHangOut3.setOnClickListener(this);
 
         audioDeviceAdapter = new AudioDeviceAdapter(audioDevices);
 
@@ -260,7 +265,9 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             } else {
                 ((v.getId() == R.id.ibmicon) ? imgMicOn: imgMicOn2).setImageResource(R.drawable.mic_on);
             }
-        } else if (v.getId() == R.id.ibhangout || v.getId() == R.id.ibhangout2) {
+        } else if (v.getId() == R.id.ibhangout
+                || v.getId() == R.id.ibhangout2
+                || v.getId() == R.id.ibhangout3) {
             countDownTimer.cancel();
             /// Tat cuoc goi
             portSipLib.hangUp(currentLine.sessionID);
