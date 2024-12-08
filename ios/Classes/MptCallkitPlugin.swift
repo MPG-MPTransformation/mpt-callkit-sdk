@@ -429,7 +429,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     
     // Call Event
     public func onInviteIncoming(_ sessionId: Int, callerDisplayName: String!, caller: String!, calleeDisplayName: String!, callee: String!, audioCodecs: String!, videoCodecs: String!, existsAudio: Bool, existsVideo: Bool, sipMessage: String!) {
-        
+        NSLog("onInviteIncoming...")
         let num = _callManager.getConnectCallNum()
         let index = findIdleLine()
         if num >= MAX_LINES || index < 0 {
@@ -456,6 +456,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onInviteTrying(_ sessionId: Int) {
+        NSLog("onInviteTrying...")
         let index = findSession(sessionid: sessionId)
         if index == -1 {
             return
@@ -464,6 +465,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onInviteSessionProgress(_ sessionId: Int, audioCodecs: String!, videoCodecs: String!, existsEarlyMedia: Bool, existsAudio: Bool, existsVideo: Bool, sipMessage: String!) {
+        NSLog("onInviteSessionProgress...")
         let index = findSession(sessionid: sessionId)
         if index == -1 {
             return
@@ -490,6 +492,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onInviteRinging(_ sessionId: Int, statusText: String!, statusCode: Int32, sipMessage: String!) {
+        NSLog("onInviteRinging...")
         let index = findSession(sessionid: sessionId)
         if index == -1 {
             return
@@ -501,6 +504,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onInviteAnswered(_ sessionId: Int, callerDisplayName: String!, caller: String!, calleeDisplayName: String!, callee: String!, audioCodecs: String!, videoCodecs: String!, existsAudio: Bool, existsVideo: Bool, sipMessage: String!) {
+        NSLog("onInviteAnswered...")
         guard let result = _callManager.findCallBySessionID(sessionId) else {
             print("Not exist this SessionId = \(sessionId)")
             return
@@ -528,6 +532,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onInviteFailure(_ sessionId: Int, callerDisplayName: String!, caller: String!, calleeDisplayName: String!, callee: String!, reason: String!, code: Int32, sipMessage: String!) {
+        NSLog("onInviteFailure...")
         if(sessionId==INVALID_SESSION_ID){
             NSLog("This is an invalidate session from \(caller!).reason=\(reason!)");
             return
@@ -567,7 +572,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     
   
     public func onInviteUpdated(_ sessionId: Int, audioCodecs: String!, videoCodecs: String!, screenCodecs: String!, existsAudio: Bool, existsVideo: Bool, existsScreen: Bool, sipMessage: String!) {
-
+        NSLog("onInviteUpdated...")
         guard let result = _callManager.findCallBySessionID(sessionId) else {
             return ;
         }
@@ -601,10 +606,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onInviteBeginingForward(_ forwardTo: String) {
+        NSLog("onInviteBeginingForward...")
         print("Call has been forward to:\(forwardTo)")
     }
     
     public func onInviteClosed(_ sessionId: Int, sipMessage: String) {
+        NSLog("onInviteClosed...")
         let result = _callManager.findCallBySessionID(sessionId)
         if result != nil {
             _callManager.endCall(sessionid: sessionId)
@@ -628,6 +635,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onRemoteHold(_ sessionId: Int) {
+        NSLog("onRemoteHold...")
         let index = findSession(sessionid: sessionId)
         if index == -1 {
             return
@@ -636,7 +644,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onRemoteUnHold(_ sessionId: Int, audioCodecs: String!, videoCodecs: String!, existsAudio: Bool, existsVideo: Bool) {
-        
+        NSLog("onRemoteUnHold...")
         let index = findSession(sessionid: sessionId)
         if index == -1 {
             return
@@ -648,7 +656,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     
     public func onReceivedRefer(_ sessionId: Int, referId: Int, to: String!, from: String!, referSipMessage: String!) {
         
-        
+        NSLog("onReceivedRefer...")
         guard _callManager.findCallBySessionID(sessionId) != nil else {
             portSIPSDK.rejectRefer(referId)
             return
@@ -687,6 +695,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onReferAccepted(_ sessionId: Int) {
+        NSLog("onReferAccepted...")
         let index = findSession(sessionid: sessionId)
         if index == -1 {
             return
@@ -695,7 +704,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onReferRejected(_ sessionId: Int, reason: String!, code: Int32) {
-        
+        NSLog("onReferRejected...")
         let index = findSession(sessionid: sessionId)
         if index == -1 {
             return
@@ -704,6 +713,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onTransferTrying(_ sessionId: Int) {
+        NSLog("onTransferTrying...")
         let index = findSession(sessionid: sessionId)
         if index == -1 {
             return
@@ -711,6 +721,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onTransferRinging(_ sessionId: Int) {
+        NSLog("onTransferRinging...")
         let index = findSession(sessionid: sessionId)
         if index == -1 {
             return
@@ -718,6 +729,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onACTVTransferSuccess(_ sessionId: Int) {
+        NSLog("onACTVTransferSuccess...")
         let index = findSession(sessionid: sessionId)
         if index == -1 {
             return
@@ -728,7 +740,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onACTVTransferFailure(_ sessionId: Int, reason: String!, code: Int32) {
-        
+        NSLog("onACTVTransferFailure...")
         if sessionId == -1 {
             return
         }
@@ -738,24 +750,24 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     // Signaling Event
     
     public func onReceivedSignaling(_ sessionId: Int, message: String!) {
-        
+        NSLog("onReceivedSignaling...")
         // This event will be fired when the SDK received a SIP message
         // you can use signaling to access the SIP message.
     }
     
     public func onSendingSignaling(_ sessionId: Int, message: String!) {
-        
+        NSLog("onSendingSignaling...")
         // This event will be fired when the SDK sent a SIP message
         // you can use signaling to access the SIP message.
     }
     
     public func onWaitingVoiceMessage(_ messageAccount: String!, urgentNewMessageCount: Int32, urgentOldMessageCount: Int32, newMessageCount: Int32, oldMessageCount: Int32) {
-        
+        NSLog("onWaitingVoiceMessage...")
         
     }
     
     public func onWaitingFaxMessage(_ messageAccount: String!, urgentNewMessageCount: Int32, urgentOldMessageCount: Int32, newMessageCount: Int32, oldMessageCount: Int32) {
-        
+        NSLog("onWaitingFaxMessage...")
     }
     
     public func onRecvDtmfTone(_ sessionId: Int, tone: Int32) {
@@ -782,16 +794,18 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     // Instant Message/Presence Event
     
     public func onPresenceRecvSubscribe(_ subscribeId: Int, fromDisplayName: String!, from: String!, subject: String!) {
+        NSLog("onPresenceRecvSubscribe...")
     }
     public func onPresenceOnline(_ fromDisplayName: String!, from: String!, stateText: String!) {
-        
+        NSLog("onPresenceOnline...")
     }
     
     public func onPresenceOffline(_ fromDisplayName: String!, from: String!) {
+        NSLog("onPresenceOffline...")
     }
     
     public func onRecvMessage(_ sessionId: Int, mimeType: String!, subMimeType: String!, messageData: UnsafeMutablePointer<UInt8>!, messageDataLength: Int32) {
-        
+        NSLog("onRecvMessage...")
         let index = findSession(sessionid: sessionId)
         if index == -1 {
             return
@@ -808,11 +822,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onRTPPacketCallback(_ sessionId: Int, mediaType: Int32, direction: DIRECTION_MODE, rtpPacket RTPPacket: UnsafeMutablePointer<UInt8>!, packetSize: Int32) {
-        
+        NSLog("onRTPPacketCallback...")
     }
     
     public func onRecvOutOfDialogMessage(_ fromDisplayName: String!, from: String!, toDisplayName: String!, to: String!, mimeType: String!, subMimeType: String!, messageData: UnsafeMutablePointer<UInt8>!, messageDataLength: Int32, sipMessage: String!) {
-        
+        NSLog("onRecvOutOfDialogMessage...")
         
         if mimeType == "text", subMimeType == "plain" {
             let strMessageData = String(cString: messageData)
@@ -824,12 +838,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     public func onSendOutOfDialogMessageSuccess(_ messageId: Int, fromDisplayName: String!, from: String!, toDisplayName: String!, to: String!, sipMessage: String!) {
+        NSLog("onSendOutOfDialogMessageSuccess...")
     }
     
     public func onSendMessageFailure(_ sessionId: Int, messageId: Int, reason: String!, code: Int32, sipMessage: String!) {
+        NSLog("onSendMessageFailure...")
     }
     
     public func onSendMessageSuccess(_ sessionId: Int, messageId: Int, sipMessage: String!) {
+        NSLog("onSendMessageSuccess...")
     }
     
     public func onPlayFileFinished(_ sessionId: Int, fileName: String!) {
@@ -906,6 +923,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     func hungUpCall() {
+        NSLog("hungUpCall")
         if activeSessionid != CLong(INVALID_SESSION_ID) {
             _ = mSoundService.stopRingTone()
             _ = mSoundService.stopRingBackTone()
@@ -915,6 +933,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     func holdCall() {
+        NSLog("holdCall")
         if activeSessionid != CLong(INVALID_SESSION_ID) {
             _callManager.holdCall(sessionid: activeSessionid, onHold: true)
         }
@@ -925,6 +944,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     func unholdCall() {
+        NSLog("unholdCall")
         if activeSessionid != CLong(INVALID_SESSION_ID) {
             _callManager.holdCall(sessionid: activeSessionid, onHold: false)
         }
@@ -935,6 +955,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     func referCall(_ referTo: String) {
+        NSLog("referCall")
         let result = _callManager.findCallBySessionID(activeSessionid)
         if result == nil || !result!.session.sessionState {
             return
@@ -946,6 +967,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     func muteCall(_ mute: Bool) {
+        NSLog("muteCall")
         if activeSessionid != CLong(INVALID_SESSION_ID) {
             _callManager.muteCall(sessionid: activeSessionid, muted: mute)
         }
@@ -984,6 +1006,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     //    #pragma mark - CallManager delegate
     
     func onIncomingCallWithoutCallKit(_ sessionId: CLong, existsVideo: Bool, remoteParty: String, remoteDisplayName: String) {
+        NSLog("onIncomingCallWithoutCallKit")
         guard _callManager.findCallBySessionID(sessionId) != nil else {
             return
         }
@@ -1031,10 +1054,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     func onNewOutgoingCall(sessionid: CLong) {
+        NSLog("onNewOutgoingCall")
         lineSessions[_activeLine] = sessionid
     }
     
     func onAnsweredCall(sessionId: CLong) {
+        NSLog("onAnsweredCall")
         let result = _callManager.findCallBySessionID(sessionId)
         
         if result != nil {
@@ -1061,6 +1086,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     
     
     func onCloseCall(sessionId: CLong) {
+        NSLog("onCloseCall")
         freeLine(sessionid: sessionId)
         
         let result = _callManager.findCallBySessionID(sessionId)
@@ -1084,6 +1110,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     func onMuteCall(sessionId: CLong, muted _: Bool) {
+        NSLog("onMuteCall")
         let result = _callManager.findCallBySessionID(sessionId)
         if result != nil {
            print("onMuteCall")
@@ -1091,7 +1118,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     func onHoldCall(sessionId: CLong, onHold: Bool) {
-        print("onHoldCall")
+        NSLog("onHoldCall")
         let result = _callManager.findCallBySessionID(sessionId)
         if result != nil, sessionId == activeSessionid {
             if onHold {

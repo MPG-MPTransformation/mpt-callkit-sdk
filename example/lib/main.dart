@@ -54,7 +54,7 @@ class _MyHomePageState extends State<MyHomePage> {
           MptCallKitController().makeCall(
             context: context,
             phoneNumber: _callTo.text,
-            isVideoCall: false,
+            isVideoCall: true,
           );
         },
         child: const Icon(Icons.call),
