@@ -40,7 +40,7 @@ class MptCallKitController {
   Future<void> makeCall({
     required BuildContext context,
     required String phoneNumber,
-    bool isVideoCall = true,
+    bool isVideoCall = false,
     Function(String?)? onError,
   }) async {
     try {

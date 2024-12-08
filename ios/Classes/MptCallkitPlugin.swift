@@ -32,7 +32,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     var lineSessions: [CLong] = []
     var phone: String = ""
     var displayName: String = ""
-    var isVideoCall: Bool = true
+    var isVideoCall: Bool = false
     
     var _VoIPPushToken: NSString!
     var _APNsPushToken: NSString!
@@ -591,8 +591,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
         print("The call is connected on line \(findSession(sessionid: sessionId))")
         if result.session.videoState {
+            videoViewController.onStartVideo(sessionId)
             setLoudspeakerStatus(true)
         } else {
+            videoViewController.onStartVoiceCall(sessionId)
             setLoudspeakerStatus(false)
         }
         NSLog("onInviteConnected...")
@@ -1040,6 +1042,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 videoViewController.onStartVideo(sessionId)
                 setLoudspeakerStatus(true)
             } else {
+                videoViewController.onStartVoiceCall(sessionId)
                 setLoudspeakerStatus(false)
             }
             let line = findSession(sessionid: sessionId)
