@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mpt_callkit/camera_view.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 
 void main() {
@@ -38,7 +39,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     _phoneController.text = "200011";
-    _callTo.text = "200010";
+    _callTo.text = "20015";
   }
 
   @override
@@ -54,7 +55,7 @@ class _MyHomePageState extends State<MyHomePage> {
           MptCallKitController().makeCall(
             context: context,
             phoneNumber: _callTo.text,
-            isVideoCall: false,
+            isVideoCall: true,
           );
         },
         child: const Icon(Icons.call),
