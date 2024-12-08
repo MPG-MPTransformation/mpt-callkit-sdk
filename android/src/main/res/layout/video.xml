@@ -6,210 +6,371 @@
              android:orientation="vertical">
 
 
-    <LinearLayout
+    <FrameLayout
+        android:id="@+id/llRemoteVideoView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <LinearLayout
             android:id="@+id/llRemoteView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center"
             android:orientation="vertical">
 
-        <com.portsip.PortSIPVideoRenderer
+            <com.portsip.PortSIPVideoRenderer
                 android:id="@+id/remote_video_view"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"/>
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/llWaitingView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center"
-        android:background="@android:color/darker_gray">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:text="Đang gọi..."
-            android:textSize="30sp"
-            android:textColor="@android:color/black"/>
-
-    </LinearLayout>
-
-    <RelativeLayout
-        android:layout_gravity="top"
-        android:layout_marginTop="30dp"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/transparent">
-
-        <ImageButton
-            android:id="@+id/ibback"
-            android:layout_width="50dp"
-            android:layout_height="50dp"
-            android:scaleType="fitXY"
-            android:layout_marginStart="20dp"
-            android:padding="10dp"
-            android:layout_alignParentStart="true"
-            android:background="@drawable/round_button_black"
-            android:src="@drawable/back"/>
-
-        <ImageButton
-            android:id="@+id/ibcamera"
-            android:layout_width="50dp"
-            android:layout_height="50dp"
-            android:scaleType="centerInside"
-            android:padding="10dp"
-            android:layout_marginEnd="10dp"
-            android:layout_alignParentEnd="true"
-            android:background="@drawable/round_button_gray"
-            android:src="@drawable/flip_camera"/>
-
-    </RelativeLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/transparent"
-        android:orientation="vertical"
-        android:layout_gravity="bottom">
+        </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/llLocalView"
-            android:layout_width="72dp"
-            android:layout_height="100dp"
-            android:layout_marginBottom="20dp"
-            android:layout_marginRight="10dp"
-            android:layout_gravity="right">
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/transparent"
+            android:orientation="vertical"
+            android:layout_gravity="bottom">
 
-            <com.portsip.PortSIPVideoRenderer
-                android:id="@+id/local_video_view"
+            <LinearLayout
+                android:id="@+id/llLocalView"
+                android:layout_width="72dp"
+                android:layout_height="100dp"
+                android:layout_marginBottom="20dp"
+                android:layout_marginRight="10dp"
+                android:layout_gravity="right">
+
+                <com.portsip.PortSIPVideoRenderer
+                    android:id="@+id/local_video_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+            </LinearLayout>
+
+            <RelativeLayout
+                android:id="@+id/layout_bottom"
+                android:layout_gravity="bottom"
+                android:layout_marginBottom="30dp"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+                android:layout_height="wrap_content"
+                android:background="@color/transparent">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:layout_weight="1"
+                        android:visibility="gone"
+                        android:orientation="horizontal">
+
+                        <ImageButton
+                            android:id="@+id/ibscale"
+                            android:layout_width="50dp"
+                            android:layout_height="50dp"
+                            android:scaleType="fitXY"
+                            android:padding="8dp"
+                            android:tint="@color/text_default"
+                            android:background="@drawable/round_button_white"
+                            android:src="@drawable/fullscreen_off"/>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:layout_weight="1"
+                        android:orientation="horizontal">
+
+                        <ImageButton
+                            android:id="@+id/ibvideo"
+                            android:layout_width="50dp"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/round_button_white"
+                            android:padding="10dp"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/camera_on"
+                            android:tint="@color/text_default" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:layout_weight="1"
+                        android:orientation="horizontal">
+
+                        <ImageButton
+                            android:id="@+id/mute"
+                            android:layout_width="50dp"
+                            android:layout_height="50dp"
+                            android:scaleType="centerInside"
+                            android:padding="10dp"
+                            android:tint="@color/text_default"
+                            android:background="@drawable/round_button_white"
+                            android:src="@drawable/volume_on"/>
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:layout_weight="1"
+                        android:orientation="horizontal">
+
+                        <ImageButton
+                            android:id="@+id/ibmicon"
+                            android:layout_width="50dp"
+                            android:layout_height="50dp"
+                            android:scaleType="centerInside"
+                            android:padding="10dp"
+                            android:tint="@color/text_default"
+                            android:background="@drawable/round_button_white"
+                            android:src="@drawable/mic_on"/>
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:layout_weight="1"
+                        android:orientation="horizontal">
+
+                        <ImageButton
+                            android:id="@+id/ibhangout"
+                            android:layout_width="50dp"
+                            android:layout_height="50dp"
+                            android:scaleType="centerInside"
+                            android:padding="10dp"
+                            android:layout_marginLeft="10dp"
+                            android:layout_marginRight="10dp"
+                            android:background="@drawable/round_button"
+                            android:src="@drawable/call_end"/>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <com.portsip.PortSIPVideoRenderer
+                    android:id="@+id/share_video_view"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:layout_below="@id/llLocalView"
+                    android:layout_alignParentEnd="true"
+                    android:layout_marginTop="2dp" />
+            </RelativeLayout>
 
         </LinearLayout>
 
         <RelativeLayout
-            android:id="@+id/layout_bottom"
-            android:layout_gravity="bottom"
-            android:layout_marginBottom="30dp"
+            android:layout_gravity="top"
+            android:layout_marginTop="30dp"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@color/transparent">
 
+            <ImageButton
+                android:id="@+id/ibback"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:scaleType="fitXY"
+                android:layout_marginStart="20dp"
+                android:padding="10dp"
+                android:layout_alignParentStart="true"
+                android:background="@drawable/round_button_black"
+                android:src="@drawable/back"/>
+
+            <ImageButton
+                android:id="@+id/ibcamera"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:scaleType="centerInside"
+                android:padding="10dp"
+                android:layout_marginEnd="10dp"
+                android:layout_alignParentEnd="true"
+                android:background="@drawable/round_button_gray"
+                android:src="@drawable/flip_camera"/>
+
+        </RelativeLayout>
+
+    </FrameLayout>
+
+    <RelativeLayout
+        android:id="@+id/llWaitingView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/my_gradient">
+
+        <LinearLayout
+            android:layout_marginTop="100dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <RelativeLayout
+                android:layout_width="235dp"
+                android:layout_height="235dp">
+                <ImageView
+                    android:layout_centerInParent="true"
+                    android:layout_height="235dp"
+                    android:layout_width="235dp"
+                    android:background="@drawable/ic_border_avatar"/>
+                <ImageView
+                    android:layout_centerInParent="true"
+                    android:layout_height="120dp"
+                    android:layout_width="120dp"
+                    android:background="@drawable/ic_example_receipent"/>
+            </RelativeLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="10dp"
+                android:textSize="25sp"
+                android:textColor="@android:color/white"
+                android:text="Dược sỹ Đặng Khánh Vy"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="10dp"
+                android:textSize="20sp"
+                android:textColor="@android:color/white"
+                android:text="00:01"/>
+
+        </LinearLayout>
+
+        <ImageView
+            android:layout_alignParentBottom="true"
+            android:layout_height="200dp"
+            android:layout_width="match_parent"
+            android:background="@drawable/ic_longchau"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:orientation="vertical"
+            android:layout_marginBottom="30dp">
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:layout_weight="1"
+                    android:visibility="gone"
+                    android:orientation="horizontal">
+
+                    <ImageButton
+                        android:id="@+id/ibscale"
+                        android:layout_width="50dp"
+                        android:layout_height="50dp"
+                        android:scaleType="fitXY"
+                        android:padding="8dp"
+                        android:tint="@color/text_default"
+                        android:background="@drawable/round_button_white"
+                        android:src="@drawable/fullscreen_off"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:layout_weight="1"
+                    android:orientation="horizontal">
+
+                    <ImageButton
+                        android:id="@+id/mute2"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:scaleType="centerInside"
+                        android:padding="16dp"
+                        android:tint="@color/text_default"
+                        android:background="@drawable/round_button_white"
+                        android:src="@drawable/volume_on"/>
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:layout_weight="1"
+                    android:orientation="horizontal">
+
+                    <ImageButton
+                        android:id="@+id/ibhangout2"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:scaleType="centerInside"
+                        android:padding="16dp"
+                        android:layout_marginLeft="10dp"
+                        android:layout_marginRight="10dp"
+                        android:background="@drawable/round_button"
+                        android:src="@drawable/call_end"/>
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="start"
+                    android:layout_weight="1"
+                    android:orientation="horizontal">
+
+                    <ImageButton
+                        android:id="@+id/ibmicon2"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:scaleType="centerInside"
+                        android:padding="16dp"
+                        android:tint="@color/text_default"
+                        android:background="@drawable/round_button_white"
+                        android:src="@drawable/mic_on"/>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <RelativeLayout
+            android:layout_gravity="top"
+            android:layout_marginTop="30dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/transparent">
+
+            <ImageButton
+                android:id="@+id/ibback2"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:scaleType="fitXY"
+                android:layout_marginStart="20dp"
+                android:padding="10dp"
                 android:layout_alignParentStart="true"
-                android:gravity="center"
-                android:orientation="horizontal">
+                android:background="@drawable/round_button_black"
+                android:src="@drawable/back"/>
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:layout_weight="1"
-                android:visibility="gone"
-                android:orientation="horizontal">
-
-                <ImageButton
-                    android:id="@+id/ibscale"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
-                    android:scaleType="fitXY"
-                    android:padding="8dp"
-                    android:tint="@color/text_default"
-                    android:background="@drawable/round_button_white"
-                    android:src="@drawable/fullscreen_off"/>
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:layout_weight="1"
-                android:orientation="horizontal">
-
-                <ImageButton
-                    android:id="@+id/ibvideo"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
-                    android:scaleType="centerInside"
-                    android:padding="10dp"
-                    android:tint="@color/text_default"
-                    android:background="@drawable/round_button_white"
-                    android:src="@drawable/camera_on"/>
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:layout_weight="1"
-                android:orientation="horizontal">
-
-                <ImageButton
-                    android:id="@+id/mute"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
-                    android:scaleType="centerInside"
-                    android:padding="10dp"
-                    android:tint="@color/text_default"
-                    android:background="@drawable/round_button_white"
-                    android:src="@drawable/volume_on"/>
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:layout_weight="1"
-                android:orientation="horizontal">
-
-                <ImageButton
-                    android:id="@+id/ibmicon"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
-                    android:scaleType="centerInside"
-                    android:padding="10dp"
-                    android:tint="@color/text_default"
-                    android:background="@drawable/round_button_white"
-                    android:src="@drawable/mic_on"/>
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:layout_weight="1"
-                android:orientation="horizontal">
-
-                <ImageButton
-                    android:id="@+id/ibhangout"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
-                    android:scaleType="centerInside"
-                    android:padding="10dp"
-                    android:layout_marginLeft="10dp"
-                    android:layout_marginRight="10dp"
-                    android:background="@drawable/round_button"
-                    android:src="@drawable/call_end"/>
-
-            </LinearLayout>
-
-            </LinearLayout>
-
-            <com.portsip.PortSIPVideoRenderer
-                android:id="@+id/share_video_view"
-                android:layout_width="60dp"
-                android:layout_height="60dp"
-                android:layout_below="@id/llLocalView"
-                android:layout_alignParentEnd="true"
-                android:layout_marginTop="2dp" />
         </RelativeLayout>
 
-    </LinearLayout>
+    </RelativeLayout>
 
 </FrameLayout>

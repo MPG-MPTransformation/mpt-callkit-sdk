@@ -10,6 +10,7 @@ import android.os.Build;
 import android.os.CountDownTimer;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import com.mpt.mpt_callkit.adapter.AudioDeviceAdapter;
@@ -52,7 +53,11 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
     private ImageButton imgMute = null;
     private ImageButton imgVideo = null;
     private ImageButton imgBack = null;
-    private LinearLayout llWaitingView = null;
+    private ImageButton imgMicOn2 = null;
+    private ImageButton imgHangOut2 = null;
+    private ImageButton imgMute2 = null;
+    private ImageButton imgBack2 = null;
+    private RelativeLayout llWaitingView = null;
     private LinearLayout llLocalView = null;
     private boolean shareInSmall = true;
     private boolean isMicOn = true;
@@ -119,7 +124,13 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         imgMute = (ImageButton) view.findViewById(R.id.mute);
         imgVideo = (ImageButton) view.findViewById(R.id.ibvideo);
         imgBack = (ImageButton) view.findViewById(R.id.ibback);
-        llWaitingView = (LinearLayout) view.findViewById(R.id.llWaitingView);
+
+        imgMicOn2 = (ImageButton) view.findViewById(R.id.ibmicon2);
+        imgHangOut2 = (ImageButton) view.findViewById(R.id.ibhangout2);
+        imgMute2 = (ImageButton) view.findViewById(R.id.mute2);
+        imgBack2 = (ImageButton) view.findViewById(R.id.ibback2);
+
+        llWaitingView = (RelativeLayout) view.findViewById(R.id.llWaitingView);
         llLocalView = (LinearLayout) view.findViewById(R.id.llLocalView);
 
         imgScaleType.setOnClickListener(this);
@@ -129,6 +140,12 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         imgMute.setOnClickListener(this);
         imgVideo.setOnClickListener(this);
         imgBack.setOnClickListener(this);
+
+        imgMicOn2.setOnClickListener(this);
+        imgHangOut2.setOnClickListener(this);
+        imgMute2.setOnClickListener(this);
+        imgBack2.setOnClickListener(this);
+        
         audioDeviceAdapter = new AudioDeviceAdapter(audioDevices);
 
         localRenderScreen = (PortSIPVideoRenderer) view.findViewById(R.id.local_video_view);
@@ -219,7 +236,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             localRenderScreen.setScalingType(scalingType);
             remoteRenderScreen.setScalingType(scalingType);
             updateVideo(portSipLib);
-        } else if (v.getId() == R.id.ibmicon) {
+        } else if (v.getId() == R.id.ibmicon || v.getId() == R.id.ibmicon2) {
             currentLine.bMuteAudioOutGoing = !currentLine.bMuteAudioOutGoing;
             System.out.println("quanth: mute ================================");
             System.out.println("quanth: mute currentLine.bMuteAudioInComing = " + currentLine.bMuteAudioInComing);
@@ -238,7 +255,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             } else {
                 imgMicOn.setImageResource(R.drawable.mic_on);
             }
-        } else if (v.getId() == R.id.ibhangout) {
+        } else if (v.getId() == R.id.ibhangout || v.getId() == R.id.ibhangout2) {
             /// Tat cuoc goi
             portSipLib.hangUp(currentLine.sessionID);
             currentLine.Reset();
@@ -250,7 +267,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 activity.finishAndRemoveTask();
             }
-        } else if (v.getId() == R.id.mute) {
+        } else if (v.getId() == R.id.mute || v.getId() == R.id.mute2) {
             if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.S
                     && ActivityCompat.checkSelfPermission(getContext(), android.Manifest.permission.BLUETOOTH_CONNECT)!= PackageManager.PERMISSION_GRANTED){
                 Toast.makeText(getContext(),"BLUETOOTH_CONNECT permission is required for BLUETOOTH Device",Toast.LENGTH_SHORT).show();
@@ -301,7 +318,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                 imgVideo.setImageResource(R.drawable.camera_on);
                 llLocalView.setVisibility(View.VISIBLE);
             }
-        } else if(v.getId() == R.id.ibback) {
+        } else if(v.getId() == R.id.ibback || v.getId() == R.id.ibback2) {
             AlertDialog dialog = getAlertDialog();
             dialog.show();
         }
