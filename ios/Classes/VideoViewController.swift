@@ -33,6 +33,7 @@ class VideoViewController: UIViewController {
     var swapButton: UIButton!
     var backButton: UIButton!
     var muteButton: UIButton!
+    var smallVideoCallButton: UIButton!
     
     var shareInSmallWindow = true
     
@@ -127,6 +128,8 @@ class VideoViewController: UIViewController {
         addBackButton()
         if (isVideoCall) {
             swapUIButton()
+        } else {
+            videoCallButton()
         }
         hangUpButton()
         speakButton()
@@ -175,8 +178,8 @@ class VideoViewController: UIViewController {
                 buttonStackView.heightAnchor.constraint(equalToConstant: otherButtonSize)
             ])
         } else {
-            // Create a stack view for backButton and swapButton
-            let topButtonStackView = UIStackView(arrangedSubviews: [backButton])
+            // Create a stack view for backButton and smallVideoCallButton
+            let topButtonStackView = UIStackView(arrangedSubviews: [backButton, smallVideoCallButton])
             topButtonStackView.axis = .horizontal
             topButtonStackView.alignment = .center
             topButtonStackView.spacing = 20  // Adjust spacing between buttons if needed
@@ -191,6 +194,11 @@ class VideoViewController: UIViewController {
                 backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
                 backButton.widthAnchor.constraint(equalToConstant: otherButtonSize),
                 backButton.heightAnchor.constraint(equalToConstant: otherButtonSize),
+                
+                swapButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10),
+                swapButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+                swapButton.widthAnchor.constraint(equalToConstant: (50 / 430) * deviceWidth),
+                swapButton.heightAnchor.constraint(equalToConstant: (50 / 430) * deviceWidth)
             ])
             
             // Create a stack view for the bottom row of buttons
@@ -259,6 +267,23 @@ class VideoViewController: UIViewController {
         swapButton.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
         swapButton.imageView?.contentMode = .scaleAspectFit
         swapButton.contentEdgeInsets = UIEdgeInsets(top: 4, left: 4, bottom: 4, right: 4)
+    }
+    
+    func videoCallButton() {
+        smallVideoCallButton = UIButton(type: .system)
+        smallVideoCallButton.setImage(UIImage(systemName: "video.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+        smallVideoCallButton.tintColor = .white
+        smallVideoCallButton.backgroundColor = UIColor.white.withAlphaComponent(0.3)
+        
+        smallVideoCallButton.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
+        smallVideoCallButton.layer.cornerRadius = (50 / 430) * deviceWidth / 2
+        smallVideoCallButton.addTarget(self, action: #selector(activeVideoCall(_:)), for: .touchUpInside)
+        
+        smallVideoCallButton.translatesAutoresizingMaskIntoConstraints = false
+        smallVideoCallButton.widthAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
+        smallVideoCallButton.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
+        smallVideoCallButton.imageView?.contentMode = .scaleAspectFit
+        smallVideoCallButton.contentEdgeInsets = UIEdgeInsets(top: 4, left: 4, bottom: 4, right: 4)
     }
     
     func initMuteButton() {
@@ -497,6 +522,18 @@ class VideoViewController: UIViewController {
             // Display local video and set remote video windows
             self.checkDisplayVideo()
         }
+    }
+    
+    @objc func activeVideoCall(_ sender: AnyObject) {
+        let appDelegate = MptCallkitPlugin.shared
+        guard let result = appDelegate._callManager.findCallBySessionID(sessionId) else {
+            return
+        }
+        if (result.session.videoState) {
+            return
+        }
+        appDelegate.isVideoCall = true
+        onStartVideo(sessionId)
     }
     
     func onStartVoiceCall(_ sessionID: Int) {

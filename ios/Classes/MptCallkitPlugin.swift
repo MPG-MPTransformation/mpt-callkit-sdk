@@ -598,11 +598,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         print("The call is connected on line \(findSession(sessionid: sessionId))")
         if result.session.videoState {
             videoViewController.onStartVideo(sessionId)
-            setLoudspeakerStatus(true)
         } else {
             videoViewController.onStartVoiceCall(sessionId)
-            setLoudspeakerStatus(false)
         }
+        setLoudspeakerStatus(true)
         NSLog("onInviteConnected...")
     }
     
@@ -916,7 +915,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         if sessionId >= 0 {
             activeSessionid = sessionId
             print("makeCall------------------ \(String(describing: activeSessionid))")
-            
             return activeSessionid
         } else {
             return sessionId
@@ -1066,11 +1064,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         if result != nil {
             if result!.session.videoState {
                 videoViewController.onStartVideo(sessionId)
-                setLoudspeakerStatus(true)
             } else {
                 videoViewController.onStartVoiceCall(sessionId)
-                setLoudspeakerStatus(false)
             }
+            setLoudspeakerStatus(true)
             let line = findSession(sessionid: sessionId)
             if line >= 0 {
                 didSelectLine(line)

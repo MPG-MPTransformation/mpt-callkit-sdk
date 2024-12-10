@@ -63,7 +63,6 @@ class VideoManager {
     }
 
     func toggleConference(isConferenceActive: Bool) -> Bool {
-        print("131231")
         if isConferenceActive {
             portSIPSDK.setConferenceVideoWindow(nil)
             portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
