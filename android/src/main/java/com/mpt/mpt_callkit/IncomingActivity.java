@@ -13,6 +13,7 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -34,7 +35,7 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
 
     public PortMessageReceiver receiver = null;
     TextView tvTips;
-    Button btnVideo;
+    ImageButton btnVideo;
     long sessionId;
 
     @Override
