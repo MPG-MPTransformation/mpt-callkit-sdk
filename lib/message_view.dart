@@ -8,6 +8,7 @@ class MessageView extends StatelessWidget {
 
   final String phoneNumber;
 
+  /// add comment
   @override
   Widget build(BuildContext context) {
     return Scaffold(
