@@ -45,28 +45,48 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          MptCallKitController().initSdk(
-            apiKey: "0c16d4aa-abe7-4098-b47a-7b914f9b7444",
-            baseUrl: "https://crm-dev-v2.metechvn.com",
-            userPhoneNumber: _phoneController.text,
-          );
-          MptCallKitController().makeCall(
-            context: context,
-            phoneNumber: _callTo.text,
-            isVideoCall: true,
-            onError: (errorMessage){
-              if(errorMessage == null) return;
-              var snackBar = SnackBar(
-                content: Text(errorMessage),
-                backgroundColor: Colors.grey,
+      floatingActionButton: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: () {
+              MptCallKitController().initSdk(
+                apiKey: "0c16d4aa-abe7-4098-b47a-7b914f9b7444",
+                baseUrl: "https://crm-dev-v2.metechvn.com",
+                userPhoneNumber: _phoneController.text,
               );
-              ScaffoldMessenger.of(context).showSnackBar(snackBar);
-            }
-          );
-        },
-        child: const Icon(Icons.call),
+              MptCallKitController().makeConversation(
+                context: context,
+                phoneNumber: _callTo.text,
+              );
+            },
+            child: const Icon(Icons.message),
+          ),
+          const SizedBox(width: 20),
+          FloatingActionButton(
+            onPressed: () {
+              MptCallKitController().initSdk(
+                apiKey: "0c16d4aa-abe7-4098-b47a-7b914f9b7444",
+                baseUrl: "https://crm-dev-v2.metechvn.com",
+                userPhoneNumber: _phoneController.text,
+              );
+              MptCallKitController().makeCall(
+                  context: context,
+                  phoneNumber: _callTo.text,
+                  isVideoCall: true,
+                  onError: (errorMessage){
+                    if(errorMessage == null) return;
+                    var snackBar = SnackBar(
+                      content: Text(errorMessage),
+                      backgroundColor: Colors.grey,
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+                  }
+              );
+            },
+            child: const Icon(Icons.call),
+          ),
+        ],
       ),
       body: Center(
         child: Column(

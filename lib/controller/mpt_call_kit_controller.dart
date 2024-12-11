@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:mpt_callkit/camera_view.dart';
+import 'package:mpt_callkit/message_view.dart';
 import 'package:mpt_callkit/models/extension_model.dart';
 import 'package:mpt_callkit/models/release_extension_model.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
@@ -35,6 +36,18 @@ class MptCallKitController {
     this.baseUrl = baseUrl != null && baseUrl.isNotEmpty
         ? baseUrl
         : "https://crm-dev-v2.metechvn.com";
+  }
+
+  void makeConversation({
+    required BuildContext context,
+    required String phoneNumber,
+  }) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MessageView(phoneNumber: phoneNumber),
+      ),
+    );
   }
 
   Future<void> makeCall({
