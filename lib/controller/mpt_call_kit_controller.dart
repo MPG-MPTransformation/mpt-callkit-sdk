@@ -73,6 +73,8 @@ class MptCallKitController {
             builder: (context) => const CameraView(),
           ),
         );
+      } else {
+        onError?.call('Tổng đài bận, liên hệ hỗ trợ');
       }
     } on Exception catch (e) {
       onError?.call(e.toString());

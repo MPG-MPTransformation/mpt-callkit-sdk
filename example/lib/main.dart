@@ -56,6 +56,14 @@ class _MyHomePageState extends State<MyHomePage> {
             context: context,
             phoneNumber: _callTo.text,
             isVideoCall: true,
+            onError: (errorMessage){
+              if(errorMessage == null) return;
+              var snackBar = SnackBar(
+                content: Text(errorMessage),
+                backgroundColor: Colors.grey,
+              );
+              ScaffoldMessenger.of(context).showSnackBar(snackBar);
+            }
           );
         },
         child: const Icon(Icons.call),
