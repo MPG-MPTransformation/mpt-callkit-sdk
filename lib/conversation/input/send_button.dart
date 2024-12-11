@@ -16,13 +16,13 @@ class SendButtonWidget extends StatelessWidget {
         }
       },
       child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+        padding: const EdgeInsets.fromLTRB(10, 6, 16, 6),
         color: Colors.white,
         child: Image.asset(
           'packages/mpt_callkit/lib/assets/images/send.png',
           // (blur ?? true) ? Icons.send : Icons.send_and_archive,
-          width: 40,
-          height: 40,
+          width: 24,
+          height: 24,
           color: (blur ?? true) ? Colors.grey : Colors.blue,
         )
       ),

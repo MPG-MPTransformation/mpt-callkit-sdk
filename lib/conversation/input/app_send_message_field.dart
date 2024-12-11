@@ -34,68 +34,88 @@ class _AppSendMessageFieldState extends State<AppSendMessageField> {
         padding: const EdgeInsets.fromLTRB(16, 0, 0, 0),
         child: Row(
           children: [
+            Container(
+                padding: const EdgeInsets.fromLTRB(0, 6, 10, 6),
+                color: Colors.white,
+                child: Image.asset(
+                  'packages/mpt_callkit/lib/assets/images/camera.png',
+                  // (blur ?? true) ? Icons.send : Icons.send_and_archive,
+                  width: 24,
+                  height: 24,
+                )),
             Expanded(
               child: Container(
-                /*decoration: BoxDecoration(
-                  borderRadius: BorderRadius.all(Radius.circular(16 * 3 / 2)),
-                  border: Border.all(
-                      color: Theme.of(Get.context!).colorScheme.lightGrey,
-                      width: 1),
-                  color: Colors.white,
-                ),*/
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: FlutterMentions(
-                  maxLength: 1000,
-                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                  appendSpaceOnAdd: false,
-                  onChanged: _onTextChanged,
-                  key: widget.mentionsKey,
-                  enableSuggestions: false,
-                  hideSuggestionList: true,
-                  scrollPadding: const EdgeInsets.all(0),
-                  suggestionPosition: SuggestionPosition.Bottom,
-                  maxLines: 5,
-                  minLines: 1,
-                  style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.withOpacity(0.9)),
-                  decoration: InputDecoration(
-                    counterText: "",
-                    hintText: 'Nhắn gì đó',
-                    hintStyle: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.withOpacity(0.5)),
-                    border: const UnderlineInputBorder(borderSide: BorderSide.none),
-                    enabledBorder:
-                        const UnderlineInputBorder(borderSide: BorderSide.none),
-                    focusedBorder:
-                        const UnderlineInputBorder(borderSide: BorderSide.none),
-                  ),
-                  mentions: [
-                    Mention(
-                        trigger: '@',
-                        style: const TextStyle(
-                          color: Colors.blue,
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.all(Radius.circular(12)),
+                  border: Border.all(color: const Color(0xffedf0f3), width: 1),
+                  color: const Color(0xffedf0f3),
+                ),
+                padding: const EdgeInsets.only(right: 16),
+                child: Row(
+                  children: [
+                    Container(
+                        padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+                        color: Colors.transparent,
+                        child: Image.asset(
+                          'packages/mpt_callkit/lib/assets/images/emoji.png',
+                          // (blur ?? true) ? Icons.send : Icons.send_and_archive,
+                          width: 24,
+                          height: 24,
+                        )),
+                    Expanded(
+                      child: FlutterMentions(
+                        maxLength: 1000,
+                        maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                        appendSpaceOnAdd: false,
+                        onChanged: _onTextChanged,
+                        key: widget.mentionsKey,
+                        enableSuggestions: false,
+                        hideSuggestionList: true,
+                        scrollPadding: const EdgeInsets.all(0),
+                        suggestionPosition: SuggestionPosition.Bottom,
+                        maxLines: 5,
+                        minLines: 1,
+                        style: TextStyle(
+                            fontSize: 14, color: Colors.grey.withOpacity(0.9)),
+                        decoration: InputDecoration(
+                          counterText: "",
+                          hintText: 'Gửi thắc mắc',
+                          hintStyle: TextStyle(
+                              fontSize: 14, color: Colors.grey.withOpacity(0.5)),
+                          border:
+                              const UnderlineInputBorder(borderSide: BorderSide.none),
+                          enabledBorder:
+                              const UnderlineInputBorder(borderSide: BorderSide.none),
+                          focusedBorder:
+                              const UnderlineInputBorder(borderSide: BorderSide.none),
                         ),
-                        data: [],
-                        matchAll: false,
-                        markupBuilder:
-                            (String trigger, String mention, String value) {
-                          return "$trigger[$value]($mention)";
-                        },
-                        suggestionBuilder: (data) {
-                          return Container();
-                        }),
+                        mentions: [
+                          Mention(
+                              trigger: '@',
+                              style: const TextStyle(
+                                color: Colors.blue,
+                              ),
+                              data: [],
+                              matchAll: false,
+                              markupBuilder:
+                                  (String trigger, String mention, String value) {
+                                return "$trigger[$value]($mention)";
+                              },
+                              suggestionBuilder: (data) {
+                                return Container();
+                              }),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
             SendButtonWidget(
-                onPressed: (){
+                onPressed: () {
                   widget.onSendPressed();
                 },
-                blur: !obscureText
-            ),
+                blur: !obscureText),
           ],
         ),
       ),
