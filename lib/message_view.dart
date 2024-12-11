@@ -14,17 +14,15 @@ class MessageView extends StatelessWidget {
       body: Center(
         child: Column(
           children: [
-            Text(phoneNumber),
-            Expanded(
-              child: AppSendMessageField(
-                mentionsKey: mentionsKey,
-                onTextChange: (String text) {
-                  // AppToast.showWarning(message: text);
-                },
-                onSendPressed: () {
-                  /// do something here
-                },
-              ),
+            Expanded(child: Text(phoneNumber)),
+            AppSendMessageField(
+              mentionsKey: mentionsKey,
+              onTextChange: (String text) {
+                // AppToast.showWarning(message: text);
+              },
+              onSendPressed: () {
+                /// do something here
+              },
             )
           ],
         ),
