@@ -31,7 +31,7 @@ class _AppSendMessageFieldState extends State<AppSendMessageField> {
     return Portal(
       child: Container(
         color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(16, 0, 0, 0),
+        padding: const EdgeInsets.fromLTRB(16, 10, 0, 10),
         child: Row(
           children: [
             Container(
