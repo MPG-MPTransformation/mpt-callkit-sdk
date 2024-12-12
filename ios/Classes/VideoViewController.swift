@@ -19,6 +19,9 @@ class VideoViewController: UIViewController {
     let deviceWidth = UIScreen.main.bounds.width
     var portSIPSDK: PortSIPSDK!
     var callingLabel: UILabel!
+    var phoneLabel: UILabel!
+    var callTimer: Timer?
+    var callDuration: Int = 0
     
     // Create video render views and buttons programmatically
     var viewLocalVideo: PortSIPVideoRenderView!
@@ -50,7 +53,7 @@ class VideoViewController: UIViewController {
     func initVideoViews() {
         ///Khởi tạo với isVideoCall = true
         let appDelegate = MptCallkitPlugin.shared
-        print(appDelegate.isVideoCall)
+        NSLog("isVideoCall init: \(appDelegate.isVideoCall)")
         if (appDelegate.isVideoCall) {
             viewRemoteVideo = PortSIPVideoRenderView()
             viewRemoteVideo.translatesAutoresizingMaskIntoConstraints = false
@@ -104,121 +107,165 @@ class VideoViewController: UIViewController {
         }
     }
     
+    func initRemoteVideo() {
+        ///Khởi tạo với isVideoCall = true
+        let appDelegate = MptCallkitPlugin.shared
+        print(appDelegate.isVideoCall)
+        if (appDelegate.isVideoCall) {
+            viewRemoteVideo = PortSIPVideoRenderView()
+            viewRemoteVideo.translatesAutoresizingMaskIntoConstraints = false
+            viewRemoteVideo.backgroundColor = .black
+            self.view.addSubview(viewRemoteVideo)
+            viewRemoteVideoSmall = PortSIPVideoRenderView()
+            viewRemoteVideoSmall.translatesAutoresizingMaskIntoConstraints = false
+            self.view.addSubview(viewRemoteVideoSmall)
+            self.view.addSubview(viewLocalVideo)
+            NSLayoutConstraint.activate([
+                // Constraints for the remote video (full screen)
+                viewRemoteVideo.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+                viewRemoteVideo.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+                viewRemoteVideo.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+                viewRemoteVideo.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+                
+                // Constraints for the local video (custom size) - change the size here
+                viewLocalVideo.widthAnchor.constraint(equalToConstant: 130),
+                viewLocalVideo.heightAnchor.constraint(equalToConstant: 180),
+                viewLocalVideo.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor, constant: (-70 / 430) * deviceWidth - otherButtonSize),
+                viewLocalVideo.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10),
+                
+                // Constraints for the small remote video (top right corner)
+                viewRemoteVideoSmall.widthAnchor.constraint(equalToConstant: 144),
+                viewRemoteVideoSmall.heightAnchor.constraint(equalTo: viewRemoteVideoSmall.widthAnchor),
+                viewRemoteVideoSmall.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+                viewRemoteVideoSmall.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10)
+            ])
+            // Check if the outlets are properly initialized
+            isInitVideo = true
+            
+            viewRemoteVideo.initVideoRender()
+            viewRemoteVideo.contentMode = .scaleAspectFit
+            viewRemoteVideoSmall.initVideoRender()
+            updateLocalVideoPosition(UIScreen.main.bounds.size)
+            
+            let tapGesture = UITapGestureRecognizer(target: self, action: #selector(onSwichShareScreenClick(action:)))
+            viewRemoteVideoSmall.addGestureRecognizer(tapGesture)
+            
+            updateLocalVideoPosition(UIScreen.main.bounds.size)
+            return;
+        }
+    }
+    
     func initCallingLabel() {
+        let appDelegate = MptCallkitPlugin.shared
+        
+        // Initialize phoneLabel
+        phoneLabel = UILabel()
+        phoneLabel.text = appDelegate.phone
+        phoneLabel.textColor = .white
+        phoneLabel.font = UIFont.boldSystemFont(ofSize: 26)
+        phoneLabel.textAlignment = .center
+        phoneLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        // Initialize callingLabel
         callingLabel = UILabel()
-        callingLabel.text = "Calling..."
+        callingLabel.text = "Đang kết nối..."
         callingLabel.textColor = .white
-        callingLabel.font = UIFont.boldSystemFont(ofSize: 24)
+        callingLabel.font = UIFont.systemFont(ofSize: 18, weight: .regular)
         callingLabel.textAlignment = .center
         callingLabel.translatesAutoresizingMaskIntoConstraints = false
         
+        // Add labels to the view
+        view.addSubview(phoneLabel)
         view.addSubview(callingLabel)
         
-        // Center the label in the view
+        // Constraints
         NSLayoutConstraint.activate([
+            // Center phoneLabel horizontally and align it to the top with some padding
+            phoneLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            phoneLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 70),
+            // Center callingLabel horizontally and place it below phoneLabel with a smaller gap
             callingLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            callingLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+            callingLabel.topAnchor.constraint(equalTo: phoneLabel.bottomAnchor, constant: 20) // Reduced spacing
         ])
     }
     
     func initButtons() {
         let appDelegate = MptCallkitPlugin.shared
         let isVideoCall = appDelegate.isVideoCall
-        // Initialize backButton and swapButton
+        
+        // Initialize Back Button
         addBackButton()
-        if (isVideoCall) {
+        
+        // Initialize Swap Button (Only if Video Call)
+        if isVideoCall {
             swapUIButton()
-        } else {
+        }
+        
+        // Initialize Small Video Call Button (Only if Audio Call)
+        if !isVideoCall {
             videoCallButton()
         }
+        
+        // Initialize Other Buttons
         hangUpButton()
         speakButton()
-        sendingVideo()
+        if isVideoCall {
+            sendingVideo()
+        }
         initMuteButton()
         
-        if (isVideoCall) {
-            // Create a stack view for backButton and swapButton
-            let topButtonStackView = UIStackView(arrangedSubviews: [backButton, swapButton])
-            topButtonStackView.axis = .horizontal
-            topButtonStackView.alignment = .center
-            topButtonStackView.spacing = 20  // Adjust spacing between buttons if needed
-            topButtonStackView.distribution = .equalCentering
-            
-            topButtonStackView.translatesAutoresizingMaskIntoConstraints = false
-            self.view.addSubview(topButtonStackView)
-            
-            // Constraints for the stack view to position it at the top
-            NSLayoutConstraint.activate([
-                backButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 10),
-                backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-                backButton.widthAnchor.constraint(equalToConstant: otherButtonSize),
-                backButton.heightAnchor.constraint(equalToConstant: otherButtonSize),
-                
-                swapButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10),
-                swapButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-                swapButton.widthAnchor.constraint(equalToConstant: (50 / 430) * deviceWidth),
-                swapButton.heightAnchor.constraint(equalToConstant: (50 / 430) * deviceWidth)
-            ])
-            
-            // Create a stack view for the bottom row of buttons
-            let buttonStackView = UIStackView(arrangedSubviews: [muteButton, buttonSendingVideo, buttonSpeaker, hangupButton])
-            buttonStackView.axis = .horizontal
-            buttonStackView.distribution = .equalSpacing
-            buttonStackView.alignment = .center
-            buttonStackView.spacing = spacing
-            
-            buttonStackView.translatesAutoresizingMaskIntoConstraints = false
-            self.view.addSubview(buttonStackView)
-            
-            // Constraints for the bottom row of buttons
-            NSLayoutConstraint.activate([
-                buttonStackView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: leftRightSpacing),
-                buttonStackView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -leftRightSpacing),
-                buttonStackView.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor, constant: (-40 / 430) * deviceWidth),
-                buttonStackView.heightAnchor.constraint(equalToConstant: otherButtonSize)
-            ])
+        // Top Button Stack View
+        var topButtonStackView: UIStackView
+        if isVideoCall {
+            // Create stack view with backButton and swapButton
+            topButtonStackView = UIStackView(arrangedSubviews: [backButton, swapButton])
         } else {
-            // Create a stack view for backButton and smallVideoCallButton
-            let topButtonStackView = UIStackView(arrangedSubviews: [backButton, smallVideoCallButton])
-            topButtonStackView.axis = .horizontal
-            topButtonStackView.alignment = .center
-            topButtonStackView.spacing = 20  // Adjust spacing between buttons if needed
-            topButtonStackView.distribution = .equalCentering
-            
-            topButtonStackView.translatesAutoresizingMaskIntoConstraints = false
-            self.view.addSubview(topButtonStackView)
-            
-            // Constraints for the stack view to position it at the top
-            NSLayoutConstraint.activate([
-                backButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 10),
-                backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-                backButton.widthAnchor.constraint(equalToConstant: otherButtonSize),
-                backButton.heightAnchor.constraint(equalToConstant: otherButtonSize),
-                
-                swapButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10),
-                swapButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-                swapButton.widthAnchor.constraint(equalToConstant: (50 / 430) * deviceWidth),
-                swapButton.heightAnchor.constraint(equalToConstant: (50 / 430) * deviceWidth)
-            ])
-            
-            // Create a stack view for the bottom row of buttons
-            let buttonStackView = UIStackView(arrangedSubviews: [muteButton, hangupButton, buttonSpeaker])
-            buttonStackView.axis = .horizontal
-            buttonStackView.distribution = .equalSpacing
-            buttonStackView.alignment = .center
-            buttonStackView.spacing = spacing
-            
-            buttonStackView.translatesAutoresizingMaskIntoConstraints = false
-            self.view.addSubview(buttonStackView)
-            
-            // Constraints for the bottom row of buttons
-            NSLayoutConstraint.activate([
-                buttonStackView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: 60),
-                buttonStackView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -60),
-                buttonStackView.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor, constant: (-40 / 430) * deviceWidth),
-                buttonStackView.heightAnchor.constraint(equalToConstant: otherButtonSize)
-            ])
+            // Create stack view with backButton and smallVideoCallButton
+            topButtonStackView = UIStackView(arrangedSubviews: [backButton, smallVideoCallButton])
         }
+        
+        topButtonStackView.axis = .horizontal
+        topButtonStackView.alignment = .center
+        topButtonStackView.spacing = 20
+        topButtonStackView.distribution = .equalCentering
+        topButtonStackView.translatesAutoresizingMaskIntoConstraints = false
+        self.view.addSubview(topButtonStackView)
+        
+        // Constraints for the Top Button Stack View
+        NSLayoutConstraint.activate([
+            backButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 10),
+            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            backButton.widthAnchor.constraint(equalToConstant: otherButtonSize),
+            backButton.heightAnchor.constraint(equalToConstant: otherButtonSize),
+            
+            (isVideoCall ? swapButton.trailingAnchor : smallVideoCallButton.trailingAnchor).constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10),
+            (isVideoCall ? swapButton.topAnchor : smallVideoCallButton.topAnchor).constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            (isVideoCall ? swapButton.widthAnchor : smallVideoCallButton.widthAnchor).constraint(equalToConstant: (50 / 430) * deviceWidth),
+            (isVideoCall ? swapButton.heightAnchor : smallVideoCallButton.heightAnchor).constraint(equalToConstant: (50 / 430) * deviceWidth)
+        ])
+        
+        // Bottom Button Stack View
+        let bottomButtonStackView: UIStackView
+        if isVideoCall {
+            bottomButtonStackView = UIStackView(arrangedSubviews: [muteButton, buttonSendingVideo, buttonSpeaker, hangupButton])
+        } else {
+            bottomButtonStackView = UIStackView(arrangedSubviews: [muteButton, hangupButton, buttonSpeaker])
+        }
+        
+        bottomButtonStackView.axis = .horizontal
+        bottomButtonStackView.distribution = .equalSpacing
+        bottomButtonStackView.alignment = .center
+        bottomButtonStackView.spacing = spacing
+        bottomButtonStackView.translatesAutoresizingMaskIntoConstraints = false
+        self.view.addSubview(bottomButtonStackView)
+        
+        // Constraints for the Bottom Button Stack View
+        NSLayoutConstraint.activate([
+            bottomButtonStackView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: isVideoCall ? leftRightSpacing : 60),
+            bottomButtonStackView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: isVideoCall ? -leftRightSpacing : -60),
+            bottomButtonStackView.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor, constant: (-40 / 430) * deviceWidth),
+            bottomButtonStackView.heightAnchor.constraint(equalToConstant: otherButtonSize)
+        ])
     }
     
     
@@ -490,7 +537,6 @@ class VideoViewController: UIViewController {
                 portSIPSDK.sendVideo(sessionId, sendState: true)
             } else {
                 self.viewRemoteVideoSmall.isHidden = true
-                portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
                 portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
                 portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
             }
@@ -503,19 +549,13 @@ class VideoViewController: UIViewController {
             self.isInitVideo = true
             self.sessionId = sessionID
             self.shareInSmallWindow = true
-            
             // Hide calling label when remote video starts
-            self.callingLabel.isHidden = true
-            
-            // Ensure video views are visible
-            self.viewLocalVideo.isHidden = false
+            self.callingLabel.isHidden = false
+            self.startCallTimer()
             self.viewRemoteVideo.isHidden = false
             self.viewRemoteVideoSmall.isHidden = false
             
             self.initializeVideoViews()
-            
-            // Reinitialize the video rendering views
-            self.viewLocalVideo.initVideoRender()
             self.viewRemoteVideo.initVideoRender()
             self.viewRemoteVideoSmall.initVideoRender()
             
@@ -525,20 +565,18 @@ class VideoViewController: UIViewController {
     }
     
     @objc func activeVideoCall(_ sender: AnyObject) {
+        NSLog("updateCall...")
         let appDelegate = MptCallkitPlugin.shared
-        guard let result = appDelegate._callManager.findCallBySessionID(sessionId) else {
-            return
-        }
-        if (result.session.videoState) {
-            return
-        }
         appDelegate.isVideoCall = true
-        onStartVideo(sessionId)
+        initVideoViews()
+        initButtons()
+        appDelegate.updateCall()
     }
     
     func onStartVoiceCall(_ sessionID: Int) {
         DispatchQueue.main.async {
-            self.callingLabel.isHidden = true
+            self.callingLabel.isHidden = false
+            self.startCallTimer()
         }
     }
     
@@ -570,7 +608,7 @@ class VideoViewController: UIViewController {
         viewRemoteVideoSmall?.removeFromSuperview()
         
         // Re-add and initialize views
-        initVideoViews() // This will reset and add constraints
+        initRemoteVideo() // This will reset and add constraints
         initButtons()
         // Check if the outlets are properly initialized
         isInitVideo = true
@@ -587,27 +625,57 @@ class VideoViewController: UIViewController {
     }
     
     func onClearState() {
-        portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
-        viewLocalVideo.releaseVideoRender()
-        if isStartVideo {
-            portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
-            portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
+        stopCallTimer() // Stop the timer
+
+        let appDelegate = MptCallkitPlugin.shared
+        let isVideoCall = appDelegate.isVideoCall
+        if isVideoCall {
+            portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
+            viewLocalVideo.releaseVideoRender()
+            if isStartVideo {
+                portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
+                portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
+                
+                viewRemoteVideo.releaseVideoRender()
+                viewRemoteVideoSmall.releaseVideoRender()
+                
+                viewRemoteVideo.removeFromSuperview()
+                viewRemoteVideoSmall.removeFromSuperview()
+            }
+            portSIPSDK.sendVideo(sessionId, sendState: false)
             
-            // Hide video views (do not set isInitVideo to false here)
-            viewRemoteVideo.releaseVideoRender()
-            viewRemoteVideoSmall.releaseVideoRender()
-            
-            //viewLocalVideo.removeFromSuperview()
-            viewRemoteVideo.removeFromSuperview()
-            viewRemoteVideoSmall.removeFromSuperview()
+            isStartVideo = false
+            sessionId = 0
         }
-        portSIPSDK.sendVideo(sessionId, sendState: false)
         
-        // Reset video-related states
-        isStartVideo = false
-        sessionId = 0
-        
-        // Dismiss the view controller after clearing the state
         self.dismiss(animated: true, completion: nil)
+    }
+    
+    func startCallTimer() {
+        // Reset duration
+        callDuration = 0
+        
+        // Invalidate existing timer
+        callTimer?.invalidate()
+        
+        // Create a new timer
+        callTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            self.callDuration += 1
+            
+            // Calculate hours, minutes, and seconds
+            let hours = self.callDuration / 3600
+            let minutes = (self.callDuration % 3600) / 60
+            let seconds = self.callDuration % 60
+            
+            // Format duration as HH:MM:SS
+            self.callingLabel.text = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        }
+    }
+
+    func stopCallTimer() {
+        callTimer?.invalidate()
+        callTimer = nil
     }
 }
