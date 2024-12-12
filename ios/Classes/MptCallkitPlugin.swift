@@ -582,7 +582,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         result.session.screenShare = existsScreen;
         
         if existsVideo {
+            if (!isVideoCall) {
+                isVideoCall = true
+                videoViewController.initVideoViews()
+                videoViewController.initButtons()
+            }
             videoViewController.onStartVideo(sessionId)
+            setLoudspeakerStatus(true)
         }
         if existsAudio {}
 
@@ -603,7 +609,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             videoViewController.onStartVoiceCall(sessionId)
             setLoudspeakerStatus(false)
         }
-        setLoudspeakerStatus(true)
     }
     
     public func onInviteBeginingForward(_ forwardTo: String) {
@@ -920,6 +925,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         } else {
             return sessionId
         }
+    }
+    
+    func updateCall() {
+        portSIPSDK.updateCall(activeSessionid, enableAudio: false, enableVideo: true)
     }
     
     func hungUpCall() {
