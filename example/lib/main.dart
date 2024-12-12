@@ -55,7 +55,7 @@ class _MyHomePageState extends State<MyHomePage> {
           MptCallKitController().makeCall(
             context: context,
             phoneNumber: _callTo.text,
-            isVideoCall: false,
+            isVideoCall: true,
             onError: (errorMessage){
               if(errorMessage == null) return;
               var snackBar = SnackBar(

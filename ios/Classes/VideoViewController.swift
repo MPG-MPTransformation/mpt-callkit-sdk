@@ -19,6 +19,9 @@ class VideoViewController: UIViewController {
     let deviceWidth = UIScreen.main.bounds.width
     var portSIPSDK: PortSIPSDK!
     var callingLabel: UILabel!
+    var phoneLabel: UILabel!
+    var callTimer: Timer?
+    var callDuration: Int = 0
     
     // Create video render views and buttons programmatically
     var viewLocalVideo: PortSIPVideoRenderView!
@@ -153,19 +156,36 @@ class VideoViewController: UIViewController {
     }
     
     func initCallingLabel() {
+        let appDelegate = MptCallkitPlugin.shared
+        
+        // Initialize phoneLabel
+        phoneLabel = UILabel()
+        phoneLabel.text = appDelegate.phone
+        phoneLabel.textColor = .white
+        phoneLabel.font = UIFont.boldSystemFont(ofSize: 26)
+        phoneLabel.textAlignment = .center
+        phoneLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        // Initialize callingLabel
         callingLabel = UILabel()
-        callingLabel.text = "Calling..."
+        callingLabel.text = "Đang kết nối..."
         callingLabel.textColor = .white
-        callingLabel.font = UIFont.boldSystemFont(ofSize: 24)
+        callingLabel.font = UIFont.systemFont(ofSize: 18, weight: .regular)
         callingLabel.textAlignment = .center
         callingLabel.translatesAutoresizingMaskIntoConstraints = false
         
+        // Add labels to the view
+        view.addSubview(phoneLabel)
         view.addSubview(callingLabel)
         
-        // Center the label in the view
+        // Constraints
         NSLayoutConstraint.activate([
+            // Center phoneLabel horizontally and align it to the top with some padding
+            phoneLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            phoneLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 70),
+            // Center callingLabel horizontally and place it below phoneLabel with a smaller gap
             callingLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            callingLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+            callingLabel.topAnchor.constraint(equalTo: phoneLabel.bottomAnchor, constant: 20) // Reduced spacing
         ])
     }
     
@@ -530,7 +550,8 @@ class VideoViewController: UIViewController {
             self.sessionId = sessionID
             self.shareInSmallWindow = true
             // Hide calling label when remote video starts
-            self.callingLabel.isHidden = true
+            self.callingLabel.isHidden = false
+            self.startCallTimer()
             self.viewRemoteVideo.isHidden = false
             self.viewRemoteVideoSmall.isHidden = false
             
@@ -554,7 +575,8 @@ class VideoViewController: UIViewController {
     
     func onStartVoiceCall(_ sessionID: Int) {
         DispatchQueue.main.async {
-            self.callingLabel.isHidden = true
+            self.callingLabel.isHidden = false
+            self.startCallTimer()
         }
     }
     
@@ -603,31 +625,57 @@ class VideoViewController: UIViewController {
     }
     
     func onClearState() {
+        stopCallTimer() // Stop the timer
+
         let appDelegate = MptCallkitPlugin.shared
         let isVideoCall = appDelegate.isVideoCall
-        if (isVideoCall) {
+        if isVideoCall {
             portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
             viewLocalVideo.releaseVideoRender()
             if isStartVideo {
                 portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
                 portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
                 
-                // Hide video views (do not set isInitVideo to false here)
                 viewRemoteVideo.releaseVideoRender()
                 viewRemoteVideoSmall.releaseVideoRender()
                 
-                //viewLocalVideo.removeFromSuperview()
                 viewRemoteVideo.removeFromSuperview()
                 viewRemoteVideoSmall.removeFromSuperview()
             }
             portSIPSDK.sendVideo(sessionId, sendState: false)
             
-            // Reset video-related states
             isStartVideo = false
             sessionId = 0
         }
-    
-        // Dismiss the view controller after clearing the state
+        
         self.dismiss(animated: true, completion: nil)
+    }
+    
+    func startCallTimer() {
+        // Reset duration
+        callDuration = 0
+        
+        // Invalidate existing timer
+        callTimer?.invalidate()
+        
+        // Create a new timer
+        callTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            self.callDuration += 1
+            
+            // Calculate hours, minutes, and seconds
+            let hours = self.callDuration / 3600
+            let minutes = (self.callDuration % 3600) / 60
+            let seconds = self.callDuration % 60
+            
+            // Format duration as HH:MM:SS
+            self.callingLabel.text = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        }
+    }
+
+    func stopCallTimer() {
+        callTimer?.invalidate()
+        callTimer = nil
     }
 }
