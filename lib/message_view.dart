@@ -1,9 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_mentions/flutter_mentions.dart';
+import 'package:mpt_callkit/conversation/cubit/message_cubit.dart';
 import 'package:mpt_callkit/conversation/input/app_bar_widget.dart';
 import 'package:mpt_callkit/conversation/input/app_send_message_field.dart';
 import 'package:mpt_callkit/conversation/messages/list_message.dart';
 import 'package:mpt_callkit/conversation/models/message.dart';
+
+class MessageViewWrapper extends StatelessWidget {
+  const MessageViewWrapper({required this.phoneNumber, super.key});
+
+  final String phoneNumber;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => MessageCubit()..fetchMessage(),
+      child: MessageView(phoneNumber: phoneNumber),
+    );
+  }
+
+}
 
 class MessageView extends StatelessWidget {
   const MessageView({required this.phoneNumber, super.key});
@@ -15,124 +32,140 @@ class MessageView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xffedf0f3),
-      body: Stack(
-        children: [
-          Positioned(
-            child: Align(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 100, horizontal: 10),
-                child: ListMessageWidget(
-                  messages: [
-                    Message(
-                      id: '1',
-                      message: 'FPT Long Châu có thể hỗ trợ gì cho Anh/Chị ạ?',
-                      createdAt: DateTime.now(),
-                      isMine: false,
+      body: BlocBuilder<MessageCubit, MessageState>(
+        builder: (context, state) {
+          return Stack(
+            children: [
+              Positioned(
+                child: Align(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 100, horizontal: 10),
+                    child: ListMessageWidget(
+                      messages: [
+                        Message(
+                          id: '1',
+                          message: 'FPT Long Châu có thể hỗ trợ gì cho Anh/Chị ạ?',
+                          createdAt: DateTime.now(),
+                          isMine: false,
+                        ),
+                        Message(
+                          id: '2',
+                          message: 'Xin chào, tôi cần hỗ trợ mua thuốc',
+                          createdAt: DateTime.now(),
+                          isMine: true,
+                        ),
+                        Message(
+                          id: '3',
+                          message: 'Dạ em xin phép được gọi anh để tư vấn cụ thể hơn được không ạ?',
+                          createdAt: DateTime.now(),
+                          isMine: false,
+                        ),
+                        Message(
+                          id: '4',
+                          message: 'Hello 4',
+                          createdAt: DateTime.now(),
+                          isMine: true,
+                        ),
+                        Message(
+                          id: '5',
+                          message: 'Hello',
+                          createdAt: DateTime.now(),
+                          isMine: false,
+                        ),
+                        Message(
+                          id: '6',
+                          message: 'Hello 2',
+                          createdAt: DateTime.now(),
+                          isMine: true,
+                        ),
+                        Message(
+                          id: '7',
+                          message: 'Hello 3',
+                          createdAt: DateTime.now(),
+                          isMine: false,
+                        ),
+                        Message(
+                          id: '8',
+                          message: 'Hello 4',
+                          createdAt: DateTime.now(),
+                          isMine: true,
+                        ),
+                        Message(
+                          id: '1',
+                          message: 'Hello',
+                          createdAt: DateTime.now(),
+                          isMine: false,
+                        ),
+                        Message(
+                          id: '2',
+                          message: 'Hello 2',
+                          createdAt: DateTime.now(),
+                          isMine: true,
+                        ),
+                        Message(
+                          id: '3',
+                          message: 'Hello 3',
+                          createdAt: DateTime.now(),
+                          isMine: false,
+                        ),
+                        Message(
+                          id: '4',
+                          message: 'Hello 4',
+                          createdAt: DateTime.now(),
+                          isMine: true,
+                        ),
+                        Message(
+                          id: '5',
+                          message: 'Hello',
+                          createdAt: DateTime.now(),
+                          isMine: false,
+                        ),
+                        Message(
+                          id: '6',
+                          message: 'Hello 2',
+                          createdAt: DateTime.now(),
+                          isMine: true,
+                        ),
+                        Message(
+                          id: '7',
+                          message: 'Hello 3',
+                          createdAt: DateTime.now(),
+                          isMine: false,
+                        ),
+                        Message(
+                          id: '8',
+                          message: 'Hello 4',
+                          createdAt: DateTime.now(),
+                          isMine: true,
+                        )
+                      ],
                     ),
-                    Message(
-                      id: '2',
-                      message: 'Xin chào, tôi cần hỗ trợ mua thuốc',
-                      createdAt: DateTime.now(),
-                      isMine: true,
-                    ),
-                    Message(
-                      id: '3',
-                      message: 'Dạ em xin phép được gọi anh để tư vấn cụ thể hơn được không ạ?',
-                      createdAt: DateTime.now(),
-                      isMine: false,
-                    ),
-                    Message(
-                      id: '4',
-                      message: 'Hello 4',
-                      createdAt: DateTime.now(),
-                      isMine: true,
-                    ),
-                    Message(
-                      id: '5',
-                      message: 'Hello',
-                      createdAt: DateTime.now(),
-                      isMine: false,
-                    ),
-                    Message(
-                      id: '6',
-                      message: 'Hello 2',
-                      createdAt: DateTime.now(),
-                      isMine: true,
-                    ),
-                    Message(
-                      id: '7',
-                      message: 'Hello 3',
-                      createdAt: DateTime.now(),
-                      isMine: false,
-                    ),
-                    Message(
-                      id: '8',
-                      message: 'Hello 4',
-                      createdAt: DateTime.now(),
-                      isMine: true,
-                    ),
-                    Message(
-                      id: '1',
-                      message: 'Hello',
-                      createdAt: DateTime.now(),
-                      isMine: false,
-                    ),
-                    Message(
-                      id: '2',
-                      message: 'Hello 2',
-                      createdAt: DateTime.now(),
-                      isMine: true,
-                    ),
-                    Message(
-                      id: '3',
-                      message: 'Hello 3',
-                      createdAt: DateTime.now(),
-                      isMine: false,
-                    ),
-                    Message(
-                      id: '4',
-                      message: 'Hello 4',
-                      createdAt: DateTime.now(),
-                      isMine: true,
-                    ),
-                    Message(
-                      id: '5',
-                      message: 'Hello',
-                      createdAt: DateTime.now(),
-                      isMine: false,
-                    ),
-                    Message(
-                      id: '6',
-                      message: 'Hello 2',
-                      createdAt: DateTime.now(),
-                      isMine: true,
-                    ),
-                    Message(
-                      id: '7',
-                      message: 'Hello 3',
-                      createdAt: DateTime.now(),
-                      isMine: false,
-                    ),
-                    Message(
-                      id: '8',
-                      message: 'Hello 4',
-                      createdAt: DateTime.now(),
-                      isMine: true,
-                    )
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
-          Positioned(
-              child: Align(
-                  alignment: Alignment.topCenter,
-                  child: _buildAppBar(context))),
-          Positioned(child: Align(
-              alignment: Alignment.bottomCenter,
-              child: _buildSendButton(context))),
-        ],
-      ),
+              Positioned(
+                  child: Align(
+                      alignment: Alignment.topCenter,
+                      child: _buildAppBar(context))),
+              Positioned(child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: _buildSendButton(context))),
+              state is FetchingMessage ? Positioned(
+                child: Align(
+                  child:  Container(
+                    height: 24,
+                    width: 24,
+                    child: AnimatedSwitcher(
+                      duration: Duration(milliseconds: 300),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                ),
+              ) : const SizedBox.shrink(),
+            ],
+          );
+        },
+),
     );
   }
 

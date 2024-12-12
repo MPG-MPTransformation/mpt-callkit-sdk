@@ -45,7 +45,7 @@ class MptCallKitController {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => MessageView(phoneNumber: phoneNumber),
+        builder: (context) => MessageViewWrapper(phoneNumber: phoneNumber),
       ),
     );
   }
