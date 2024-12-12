@@ -143,7 +143,8 @@ class MessageBoxWidget extends StatelessWidget {
     required Widget child,
   }) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
             padding: const EdgeInsets.fromLTRB(10, 6, 16, 0),
@@ -155,7 +156,7 @@ class MessageBoxWidget extends StatelessWidget {
               height: 36,
             )
         ),
-        Expanded(
+        Flexible(
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
             decoration: const BoxDecoration(
