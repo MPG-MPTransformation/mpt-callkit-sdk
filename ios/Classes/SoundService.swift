@@ -1,112 +1,113 @@
 import AVFoundation
-import AudioToolbox
 
+// private implementation
+//
 class SoundService {
     var playerRingBackTone: AVAudioPlayer!
+    var playerRingTone: AVAudioPlayer!
     var speakerOn: Bool!
-    var ringToneSoundID: SystemSoundID = 0
 
-    init() {
-        // Set default ringing sound to a system sound, such as the default "new mail" sound
-        ringToneSoundID = 1007 // Choose a sound ID from Apple’s system sounds list
+    func initPlayerWithPath(_ path: String) -> AVAudioPlayer {
+        // Locate the plugin's bundle where the Assets folder resides
+        guard let url = Bundle(for: type(of: self)).url(forResource: path, withExtension: "mp3") else {
+           NSLog("File not found")
+           fatalError("Failed to initialize AVAudioPlayer")
+        }
+
+        var player: AVAudioPlayer!
+        do {
+            player = try AVAudioPlayer(contentsOf: url)
+        } catch {
+            fatalError("Failed to initialize AVAudioPlayer: \(error)")
+        }
+
+        return player
     }
 
     func unInit() {
-        if playerRingBackTone != nil, playerRingBackTone.isPlaying {
-            playerRingBackTone.stop()
+        if playerRingBackTone != nil {
+            if playerRingBackTone.isPlaying {
+                playerRingBackTone.stop()
+            }
+        }
+
+        if playerRingTone != nil {
+            if playerRingTone.isPlaying {
+                playerRingTone.stop()
+            }
         }
     }
 
-    func speakerEnabled(_ enabled: Bool) {
+    //
+    // SoundService
+    //
+    func speakerEnabled(_ enabled: Bool) -> Bool {
         let session = AVAudioSession.sharedInstance()
         var options = session.categoryOptions
 
         if enabled {
-            options.insert(.defaultToSpeaker)
+            options.insert(AVAudioSession.CategoryOptions.defaultToSpeaker)
         } else {
-            options.remove(.defaultToSpeaker)
+            options.remove(AVAudioSession.CategoryOptions.defaultToSpeaker)
         }
-        do {
-            try session.setCategory(.playAndRecord, options: options)
-            NSLog("Playback OK")
-        } catch {
-            NSLog("ERROR: CANNOT enable speaker. Message from code: \"\(error)\"")
-        }
+
+        try! session.setCategory(AVAudioSession.Category(rawValue: convertFromAVAudioSessionCategory(AVAudioSession.Category.playAndRecord)), options: options)
+        return true
     }
 
     func isSpeakerEnabled() -> Bool {
         speakerOn
     }
 
+    @discardableResult
     func playRingTone() -> Bool {
-        // Use system sound for ringing
-        if ringToneSoundID != 0 {
-            speakerEnabled(true)
-            AudioServicesPlaySystemSound(ringToneSoundID)
+        if playerRingTone == nil {
+            playerRingTone = initPlayerWithPath("ringbacktone")
+        }
+        if playerRingTone != nil {
+            playerRingTone.numberOfLoops = -1
+            _ = speakerEnabled(true)
+            playerRingTone.play()
             return true
         }
         return false
     }
 
+    @discardableResult
     func stopRingTone() -> Bool {
-        // Stop the ringtone by disposing of the sound
-        if ringToneSoundID != 0 {
-            AudioServicesDisposeSystemSoundID(ringToneSoundID)
+        if playerRingTone != nil, playerRingTone.isPlaying {
+            playerRingTone.stop()
+            _ = speakerEnabled(true)
         }
-        speakerEnabled(true)
         return true
     }
 
+    @discardableResult
     func playRingBackTone() -> Bool {
         if playerRingBackTone == nil {
-            playerRingBackTone = initPlayerWithPath("ringbacktone.mp3", fromPlugin: true)
+            playerRingBackTone = initPlayerWithPath("ringbacktone")
         }
         if playerRingBackTone != nil {
             playerRingBackTone.numberOfLoops = -1
-            speakerEnabled(false)
+            _ = speakerEnabled(false)
             playerRingBackTone.play()
             return true
         }
+
         return false
     }
 
+    @discardableResult
     func stopRingBackTone() -> Bool {
         if playerRingBackTone != nil, playerRingBackTone.isPlaying {
             playerRingBackTone.stop()
-            speakerEnabled(true)
+            _ = speakerEnabled(true)
         }
         return true
     }
+}
 
-    private func initPlayerWithPath(_ fileName: String, fromPlugin: Bool = false) -> AVAudioPlayer? {
-        let bundle: Bundle
-        if fromPlugin {
-            // Replace `PluginClassName` with an actual class from your plugin
-            guard let pluginBundle = Bundle(for: MptCallkitPlugin.self).url(forResource: "mpt_callkit", withExtension: "bundle"),
-                  let resourceBundle = Bundle(url: pluginBundle) else {
-                NSLog("ERROR: Could not locate plugin bundle.")
-                return nil
-            }
-            bundle = resourceBundle
-        } else {
-            bundle = Bundle.main
-        }
-        
-        // Fetch the file path
-        guard let path = bundle.path(forResource: fileName, ofType: nil) else {
-            NSLog("ERROR: Could not find audio file \(fileName).")
-            return nil
-        }
-
-        let url = URL(fileURLWithPath: path)
-        var player: AVAudioPlayer?
-
-        do {
-            player = try AVAudioPlayer(contentsOf: url)
-        } catch {
-            NSLog("ERROR: Could not initialize AVAudioPlayer. \(error.localizedDescription)")
-        }
-
-        return player
-    }
+// Helper function inserted by Swift 4.2 migrator.
+private func convertFromAVAudioSessionCategory(_ input: AVAudioSession.Category) -> String {
+    input.rawValue
 }

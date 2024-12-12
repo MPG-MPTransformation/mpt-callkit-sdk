@@ -111,7 +111,6 @@ class LoginViewController {
         
         // enable video RTCP nack
         portSIPSDK.setVideoNackStatus(true)
-        portSIPSDK.setLoudspeakerStatus(true)
     
         // enable srtp
         portSIPSDK.setSrtpPolicy(srtp)

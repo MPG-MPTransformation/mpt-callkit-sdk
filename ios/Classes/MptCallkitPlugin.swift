@@ -494,7 +494,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     public func onInviteRinging(_ sessionId: Int, statusText: String!, statusCode: Int32, sipMessage: String!) {
         NSLog("onInviteRinging...")
         let index = findSession(sessionid: sessionId)
-        
         if index == -1 {
             return
         }
@@ -507,7 +506,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     public func onInviteAnswered(_ sessionId: Int, callerDisplayName: String!, caller: String!, calleeDisplayName: String!, callee: String!, audioCodecs: String!, videoCodecs: String!, existsAudio: Bool, existsVideo: Bool, sipMessage: String!) {
         NSLog("onInviteAnswered...")
         guard let result = _callManager.findCallBySessionID(sessionId) else {
-            print("Not exist this SessionId = \(sessionId)")
+            NSLog("Not exist this SessionId = \(sessionId)")
             return
         }
         
@@ -564,8 +563,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
         _callManager.removeCall(call: result.session)
         
-        _ = mSoundService.stopRingTone()
-        _ = mSoundService.stopRingBackTone()
+        mSoundService.stopRingTone()
+        mSoundService.stopRingBackTone()
         setLoudspeakerStatus(true)
         videoViewController.onClearState()
         loginViewController.unRegister()
@@ -591,6 +590,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
     public func onInviteConnected(_ sessionId: Int) {
+        NSLog("onInviteConnected...")
         guard let result = _callManager.findCallBySessionID(sessionId) else {
             return
         }
@@ -598,11 +598,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         print("The call is connected on line \(findSession(sessionid: sessionId))")
         if result.session.videoState {
             videoViewController.onStartVideo(sessionId)
+            setLoudspeakerStatus(true)
         } else {
             videoViewController.onStartVoiceCall(sessionId)
+            setLoudspeakerStatus(false)
         }
         setLoudspeakerStatus(true)
-        NSLog("onInviteConnected...")
     }
     
     public func onInviteBeginingForward(_ forwardTo: String) {
@@ -1064,10 +1065,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         if result != nil {
             if result!.session.videoState {
                 videoViewController.onStartVideo(sessionId)
+                setLoudspeakerStatus(true)
             } else {
                 videoViewController.onStartVoiceCall(sessionId)
+                setLoudspeakerStatus(false)
             }
-            setLoudspeakerStatus(true)
             let line = findSession(sessionid: sessionId)
             if line >= 0 {
                 didSelectLine(line)

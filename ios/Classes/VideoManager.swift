@@ -27,14 +27,7 @@ class VideoManager {
         isStartVideo = false
         checkDisplayVideo()
     }
-
-    func toggleSpeaker() -> String {
-        let currentStatus = false
-        let newStatus = !currentStatus
-        portSIPSDK.setLoudspeakerStatus(newStatus)
-        return newStatus ? "Headphone" : "Speaker"
-    }
-
+    
     func switchCamera() -> String {
         if mCameraDeviceId == 1 {
             if portSIPSDK.setVideoDeviceId(0) == 0 {
