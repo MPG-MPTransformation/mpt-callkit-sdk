@@ -185,7 +185,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     }
 
     // Usually for 3PCC need to make call without SDP
-    long sessionId = Engine.Instance().getEngine().call(callTo, true, true);
+    long sessionId = Engine.Instance().getEngine().call(callTo, true, isVideoCall);
     if (sessionId <= 0) {
       System.out.println("quanth: Call failure");
       return false;
