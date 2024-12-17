@@ -127,7 +127,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
 
     if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.TIRAMISU) {
-      activity.registerReceiver(Engine.Instance().getReceiver(), filter, Context.RECEIVER_NOT_EXPORTED);
+      activity.registerReceiver(Engine.Instance().getReceiver(), filter, Context.RECEIVER_EXPORTED);
     } else {
       activity.registerReceiver(Engine.Instance().getReceiver(), filter);
     }
