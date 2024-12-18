@@ -47,6 +47,9 @@ public class Engine {
     }
 
     public void setEngine(PortSipSdk obj){
+        if (obj == null) {
+            return;
+        }
         mEngine = obj;
         mEngine.clearAudioCodec();
         mEngine.addAudioCodec(PortSipEnumDefine.ENUM_AUDIOCODEC_PCMA);
@@ -57,6 +60,13 @@ public class Engine {
         mEngine.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_H264);
         mEngine.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_VP8);
         mEngine.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_VP9);
+
+        mEngine.setVideoBitrate(-1, 512); 
+        mEngine.setVideoFrameRate(-1,  20);
+        mEngine.setAudioSamples(20, 60);
+        
+        // 1 - FrontCamra 0 - BackCamra
+        mEngine.setVideoDeviceId(1);
 
         mEngine.setVideoNackStatus(true);
 
@@ -75,7 +85,7 @@ public class Engine {
 
         mEngine.setReliableProvisional(0);
 
-        String resolution = "720P";
+        String resolution = "VGA";
         int width = 352;
         int height = 288;
         if (resolution.equals("QCIF")) {

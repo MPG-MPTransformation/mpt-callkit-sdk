@@ -949,6 +949,9 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     }
 
     public static void ConfigPreferences(Context context, PortSipSdk sdk) {
+        if (sdk == null) {
+            return;
+        }
         sdk.clearAudioCodec();
         sdk.addAudioCodec(PortSipEnumDefine.ENUM_AUDIOCODEC_PCMA);
         sdk.addAudioCodec(PortSipEnumDefine.ENUM_AUDIOCODEC_PCMU);
@@ -958,6 +961,13 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         sdk.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_H264);
         sdk.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_VP8);
         sdk.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_VP9);
+
+        sdk.setVideoBitrate(-1, 512); 
+        sdk.setVideoFrameRate(-1,  20);
+        sdk.setAudioSamples(20, 60);
+        
+        // 1 - FrontCamra 0 - BackCamra
+        sdk.setVideoDeviceId(1);
 
         sdk.setVideoNackStatus(true);
 
@@ -976,7 +986,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         sdk.setReliableProvisional(0);
 
-        String resolution = "720P";
+        String resolution = "CIF";
         int width = 352;
         int height = 288;
         if (resolution.equals("QCIF")) {

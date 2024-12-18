@@ -44,6 +44,12 @@ class MptCallKitController {
     Function(String?)? onError,
   }) async {
     try {
+      final hasPerrmission = await requestPermission();
+      if(!hasPerrmission) {
+        onError?.call('Permission denied');
+        return;
+      }
+
       final result = await getExtension();
       if (result != null) {
         await online(
@@ -151,6 +157,11 @@ class MptCallKitController {
       debugPrint("Error in releaseExtension: $e");
       throw Exception(e);
     }
+  }
+
+  Future<bool> requestPermission() async {
+      final bool permissionResult = await channel.invokeMethod('requestPermission');
+      return permissionResult;
   }
 
   Future<bool> online({

@@ -4,7 +4,7 @@ import PortSIPVoIPSDK
 class VideoViewController: UIViewController {
     var mCameraDeviceId: Int = 1 // 1 - FrontCamera 0 - BackCamera
     var speakState: Int = 0 // 1 - Headphone 0 - mic
-    
+    var mSoundService: SoundService!
     var muteState: Bool = true
     var muteMic: Bool = true
     var mLocalVideoWidth: Int = 352
@@ -45,6 +45,7 @@ class VideoViewController: UIViewController {
         otherButtonSize = (70 / 430) * deviceWidth
         leftRightSpacing = (20 / 430) * deviceWidth
         spacing = (10 / 430) * deviceWidth
+        mSoundService = SoundService()
         initVideoViews()
         initButtons()
         initCallingLabel()
@@ -457,13 +458,13 @@ class VideoViewController: UIViewController {
         if (sessionId == nil) {
             return
         }
-        if muteState {
-            muteState = false
-            portSIPSDK.muteSession(sessionId!, muteIncomingAudio: true, muteOutgoingAudio: false, muteIncomingVideo: false, muteOutgoingVideo: false)
+        if mSoundService.isSpeakerEnabled() {
+            mSoundService.speakerEnabled(false)
+            // portSIPSDK.muteSession(sessionId!, muteIncomingAudio: true, muteOutgoingAudio: false, muteIncomingVideo: false, muteOutgoingVideo: false)
             muteButton.setImage(UIImage(systemName: "speaker.slash.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         } else {
-            muteState = true
-            portSIPSDK.muteSession(sessionId!, muteIncomingAudio: false, muteOutgoingAudio: false, muteIncomingVideo: false, muteOutgoingVideo: false)
+            mSoundService.speakerEnabled(true)
+            // portSIPSDK.muteSession(sessionId!, muteIncomingAudio: false, muteOutgoingAudio: false, muteIncomingVideo: false, muteOutgoingVideo: false)
             muteButton.setImage(UIImage(systemName: "speaker.2.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         }
     }

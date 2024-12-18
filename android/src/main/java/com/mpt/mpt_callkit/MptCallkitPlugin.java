@@ -38,6 +38,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
   public Activity activity;
   public String pushToken = "e3TKpdmDSJqzW20HYsDe9h:APA91bFdWS9ALxW1I7Zuq7uXsYTL6-8F-A3AARhcrLMY6pB6ecUbWX7RbABnLrzCGjGBWIxJ8QaCQkwkOjrv2BOJjEGfFgIGjlIekFqKQR-dtutszyRLZy1Im6KXNIqDzicWIGKdbcWD";
   public String APPID = "com.portsip.sipsample";
+  private MethodChannel.Result pendingResult;
 
   @Override
   public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
@@ -67,6 +68,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         boolean hasVideoCall = call.argument("isVideoCall");
         boolean callResult = makeCall(phoneNumber, hasVideoCall);
         result.success(callResult);
+        break;
+      case "requestPermission":
+        requestPermissions(activity, result);
         break;
       case "hangup":
         hangup();
@@ -118,7 +122,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     // TODO: your plugin is now attached to an Activity
     System.out.println("quanth: onAttachedToActivity");
     activity = activityPluginBinding.getActivity();
-    requestPermissions(activity);
     IntentFilter filter = new IntentFilter();
     filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
     filter.addAction(PortSipService.CALL_CHANGE_ACTION);
@@ -131,6 +134,30 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     } else {
       activity.registerReceiver(Engine.Instance().getReceiver(), filter);
     }
+    activityPluginBinding.addRequestPermissionsResultListener((requestCode, permissions, grantResults) -> {
+      if (requestCode == REQ_DANGERS_PERMISSION) {
+          if (grantResults.length > 0) {
+              boolean isAllGranted = true;
+              for (int result : grantResults) {
+                  if (result != PackageManager.PERMISSION_GRANTED) {
+                      isAllGranted = false;
+                      break;
+                  }
+              }
+              if (pendingResult != null) {
+                  pendingResult.success(isAllGranted);
+                  pendingResult = null;
+              }
+          } else {
+              if (pendingResult != null) {
+                  pendingResult.success(false);
+                  pendingResult = null;
+              }
+          }
+          return true;
+      }
+      return false;
+    });
   }
 
   @Override
@@ -145,6 +172,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
   public void onReattachedToActivityForConfigChanges(ActivityPluginBinding activityPluginBinding) {
     // TODO: your plugin is now attached to a new Activity
     // after a configuration change.
+    activity = activityPluginBinding.getActivity();
     System.out.println("quanth: onReattachedToActivityForConfigChanges");
   }
 
@@ -155,16 +183,20 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     System.out.println("quanth: onDetachedFromActivity");
   }
 
-  public void requestPermissions(Activity activity) {
-    // Check if we have write permission
+  public void requestPermissions(Activity activity, MethodChannel.Result result) {
     if(	PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity, Manifest.permission.CAMERA)
-            ||PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO))
+          ||PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO))
     {
       System.out.println("quanth: request permission");
+      pendingResult = result;
       ActivityCompat.requestPermissions(activity,new String[]{
-                      Manifest.permission.CAMERA,Manifest.permission.RECORD_AUDIO},
+                      Manifest.permission.CAMERA,
+                      Manifest.permission.RECORD_AUDIO},
               REQ_DANGERS_PERMISSION);
+              
+      return;
     }
+    result.success(true);
     System.out.println("quanth: no need request permission");
   }
 
@@ -191,7 +223,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
       return false;
     }
     //default send video
-    Engine.Instance().getEngine().sendVideo(sessionId, true);
+    Engine.Instance().getEngine().sendVideo(sessionId, isVideoCall);
 
     currentLine.remote = callTo;
 

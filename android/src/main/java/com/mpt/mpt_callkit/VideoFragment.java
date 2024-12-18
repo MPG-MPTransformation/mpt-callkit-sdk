@@ -257,55 +257,49 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                 activity.finishAndRemoveTask();
             }
         } else if (v.getId() == R.id.mute) {
-            if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.S
-                    && ActivityCompat.checkSelfPermission(getContext(), android.Manifest.permission.BLUETOOTH_CONNECT)!= PackageManager.PERMISSION_GRANTED){
-                Toast.makeText(getContext(),"BLUETOOTH_CONNECT permission is required for BLUETOOTH Device",Toast.LENGTH_SHORT).show();
-                ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.BLUETOOTH_CONNECT}, 100);
+            if ( CallManager.Instance().getCurrentAudioDevice() == PortSipEnumDefine.AudioDevice.EARPIECE) {
+                CallManager.Instance().setAudioDevice(portSipLib, PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
+                imgMute.setImageResource(R.drawable.volume_on);
+            }else {
+                CallManager.Instance().setAudioDevice(portSipLib,  PortSipEnumDefine.AudioDevice.EARPIECE);
+                imgMute.setImageResource(R.drawable.headphones);
             }
-
-            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-            builder.setCancelable(true);
-            audioDeviceAdapter.setSelectalbeAudioDevice(CallManager.Instance().getSelectableAudioDevice());
-            audioDeviceAdapter.notifyDataSetChanged();
-            builder.setAdapter(audioDeviceAdapter, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    // Nếu k connect bluetooth thì k cho chọn bluetooth
-                    if(!audioDeviceAdapter.isActiveAudioDevice(audioDevices[which])){
-                        return;
-                    }
-                    CallManager.Instance().setAudioDevice(portSipLib, audioDevices[which]);
-                    currentAudioDevice = audioDevices[which];
-                    if (currentAudioDevice == PortSipEnumDefine.AudioDevice.EARPIECE) {
-                        imgMute.setImageResource(R.drawable.headphones);
-                    } else if (currentAudioDevice == PortSipEnumDefine.AudioDevice.BLUETOOTH) {
-                        imgMute.setImageResource(R.drawable.bluetooth);
-                    } else {
-                        imgMute.setImageResource(R.drawable.volume_on);
-                    }
-                }
-            }).create().show();
         } else if(v.getId() == R.id.ibvideo){
-            currentLine.bMuteVideo = !currentLine.bMuteVideo;
-            System.out.println("quanth: mute ================================");
-            System.out.println("quanth: mute currentLine.bMuteAudioInComing = " + currentLine.bMuteAudioInComing);
-            System.out.println("quanth: mute currentLine.bMuteAudioOutGoing = " + currentLine.bMuteAudioOutGoing);
-            System.out.println("quanth: mute currentLine.bMuteVideo = " + currentLine.bMuteVideo);
-            // long sessionId, boolean muteIncomingAudio, boolean muteOutgoingAudio, boolean muteIncomingVideo, boolean muteOutgoingVideo
-            portSipLib.muteSession(
-                    currentLine.sessionID,
-                    currentLine.bMuteAudioInComing,
-                    currentLine.bMuteAudioOutGoing,
-                    false,
-                    currentLine.bMuteVideo
+            if (isVideoOn){
+                currentLine.bMuteVideo = !currentLine.bMuteVideo;
+                System.out.println("quanth: mute ================================");
+                System.out.println("quanth: mute currentLine.bMuteAudioInComing = " + currentLine.bMuteAudioInComing);
+                System.out.println("quanth: mute currentLine.bMuteAudioOutGoing = " + currentLine.bMuteAudioOutGoing);
+                System.out.println("quanth: mute currentLine.bMuteVideo = " + currentLine.bMuteVideo);
+                // long sessionId, boolean muteIncomingAudio, boolean muteOutgoingAudio, boolean muteIncomingVideo, boolean muteOutgoingVideo
+                portSipLib.muteSession(
+                        currentLine.sessionID,
+                        currentLine.bMuteAudioInComing,
+                        currentLine.bMuteAudioOutGoing,
+                        false,
+                        currentLine.bMuteVideo
 
-            );
-            if (currentLine.bMuteVideo) {
-                imgVideo.setImageResource(R.drawable.camera_off);
-                llLocalView.setVisibility(View.GONE);
+                );
+                if (currentLine.bMuteVideo) {
+                    imgVideo.setImageResource(R.drawable.camera_off);
+                    llLocalView.setVisibility(View.GONE);
+                } else {
+                    imgVideo.setImageResource(R.drawable.camera_on);
+                    llLocalView.setVisibility(View.VISIBLE);
+                }
             } else {
-                imgVideo.setImageResource(R.drawable.camera_on);
-                llLocalView.setVisibility(View.VISIBLE);
+                Toast.makeText(activity, "Switch to video call",
+                        Toast.LENGTH_SHORT).show();
+                isVideoOn = true;
+                CallManager callManager = CallManager.Instance();
+                Session cur = CallManager.Instance().getCurrentSession();
+                imgSwitchCamera.setVisibility(View.VISIBLE);
+                localRenderScreen.setVisibility(View.VISIBLE);
+                remoteRenderScreen.setVisibility(View.VISIBLE);
+                callManager.setShareVideoWindow(portSipLib, cur.sessionID, null);
+                callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderScreen);
+                portSipLib.displayLocalVideo(true, true, localRenderScreen);
+                portSipLib.sendVideo(cur.sessionID, true);
             }
         } else if(v.getId() == R.id.ibback) {
             AlertDialog dialog = getAlertDialog();
@@ -354,9 +348,9 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
     private void SetCamera(PortSipSdk portSipLib, boolean userFront) {
         System.out.println("quanth: video SetCamera");
         if (userFront) {
-            portSipLib.setVideoDeviceId(1);
-        } else {
             portSipLib.setVideoDeviceId(0);
+        } else {
+            portSipLib.setVideoDeviceId(1);
         }
     }
 
@@ -380,8 +374,9 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             System.out.println("quanth: application.mConference = false");
             if (cur != null && !cur.IsIdle()
                     && cur.sessionID != PortSipErrorcode.INVALID_SESSION_ID) {
-
                 if (cur.hasVideo) {
+                    isVideoOn = true;
+                    imgSwitchCamera.setVisibility(View.VISIBLE);
                     localRenderScreen.setVisibility(View.VISIBLE);
                     remoteRenderScreen.setVisibility(View.VISIBLE);
                     if (cur.bScreenShare) {
@@ -404,6 +399,9 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                     portSipLib.displayLocalVideo(true, true, localRenderScreen); // display Local video
                     portSipLib.sendVideo(cur.sessionID, true);
                 } else {
+                    isVideoOn = false;
+                    imgSwitchCamera.setVisibility(View.INVISIBLE);
+
                     remoteRenderSmallScreen.setVisibility(View.GONE);
                     localRenderScreen.setVisibility(View.GONE);
                     remoteRenderScreen.setVisibility(View.VISIBLE);
