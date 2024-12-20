@@ -234,11 +234,6 @@ class VideoViewController: UIViewController {
             backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
             backButton.widthAnchor.constraint(equalToConstant: otherButtonSize),
             backButton.heightAnchor.constraint(equalToConstant: otherButtonSize),
-            
-            (isVideoCall ? swapButton.trailingAnchor : smallVideoCallButton.trailingAnchor).constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10),
-            (isVideoCall ? swapButton.topAnchor : smallVideoCallButton.topAnchor).constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            (isVideoCall ? swapButton.widthAnchor : smallVideoCallButton.widthAnchor).constraint(equalToConstant: (50 / 430) * deviceWidth),
-            (isVideoCall ? swapButton.heightAnchor : smallVideoCallButton.heightAnchor).constraint(equalToConstant: (50 / 430) * deviceWidth)
         ])
 
         if isVideoCall {
