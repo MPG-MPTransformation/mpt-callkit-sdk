@@ -160,8 +160,8 @@ class MptCallKitController {
   }
 
   Future<bool> requestPermission() async {
-      final bool permissionResult = await channel.invokeMethod('requestPermission');
-      return permissionResult;
+    final bool permissionResult = await channel.invokeMethod('requestPermission');
+    return permissionResult;
   }
 
   Future<bool> online({

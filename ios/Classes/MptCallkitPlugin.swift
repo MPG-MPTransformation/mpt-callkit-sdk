@@ -1074,10 +1074,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         if result != nil {
             if result!.session.videoState {
                 videoViewController.onStartVideo(sessionId)
-                setLoudspeakerStatus(true)
             } else {
                 videoViewController.onStartVoiceCall(sessionId)
-                setLoudspeakerStatus(false)
             }
             let line = findSession(sessionid: sessionId)
             if line >= 0 {
@@ -1173,6 +1171,16 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         print("Method called: \(call.method)")
         print("Arguments: \(String(describing: call.arguments))")
         switch call.method {
+        case "requestPermission":
+            AVCaptureDevice.requestAccess(for: .video) { videoGranted in
+                if videoGranted {
+                    AVAudioSession.sharedInstance().requestRecordPermission { audioGranted in
+                        result(audioGranted)
+                    }
+                } else {
+                    result(false)
+                }
+            }
         case "Login":
             if let args = call.arguments as? [String: Any],
                let username = args["username"] as? String,

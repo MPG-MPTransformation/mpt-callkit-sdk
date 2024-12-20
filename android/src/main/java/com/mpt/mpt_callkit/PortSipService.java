@@ -478,7 +478,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         }
         Session session = CallManager.Instance().findIdleSession();
         session.state = Session.CALL_STATE_FLAG.INCOMING;
-        session.hasVideo = existsVideo;
+        // session.hasVideo = existsVideo;
         session.sessionID = sessionId;
         session.remote = caller;
         session.displayName = callerDisplayName;
@@ -564,7 +564,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         if (session != null) {
             session.state = Session.CALL_STATE_FLAG.CONNECTED;
-            session.hasVideo = existsVideo;
+            // session.hasVideo = existsVideo;
 
             Intent broadIntent = new Intent(CALL_CHANGE_ACTION);
             broadIntent.putExtra(EXTRA_CALL_SEESIONID, sessionId);
@@ -611,7 +611,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         if (session != null) {
             session.state = Session.CALL_STATE_FLAG.CONNECTED;
-            session.hasVideo = existsVideo;
+            // session.hasVideo = existsVideo;
             session.bScreenShare = existsScreen;
 
             Intent broadIntent = new Intent(CALL_CHANGE_ACTION);

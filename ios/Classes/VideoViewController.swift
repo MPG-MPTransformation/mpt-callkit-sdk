@@ -158,6 +158,8 @@ class VideoViewController: UIViewController {
     
     func initCallingLabel() {
         let appDelegate = MptCallkitPlugin.shared
+        phoneLabel?.removeFromSuperview()
+        callingLabel?.removeFromSuperview()
         
         // Initialize phoneLabel
         phoneLabel = UILabel()
@@ -198,21 +200,15 @@ class VideoViewController: UIViewController {
         addBackButton()
         
         // Initialize Swap Button (Only if Video Call)
-        if isVideoCall {
-            swapUIButton()
-        }
+        swapUIButton()
         
         // Initialize Small Video Call Button (Only if Audio Call)
-        if !isVideoCall {
-            videoCallButton()
-        }
+        videoCallButton()
         
         // Initialize Other Buttons
         hangUpButton()
         speakButton()
-        if isVideoCall {
-            sendingVideo()
-        }
+        sendingVideo()
         initMuteButton()
         
         // Top Button Stack View
@@ -222,7 +218,7 @@ class VideoViewController: UIViewController {
             topButtonStackView = UIStackView(arrangedSubviews: [backButton, swapButton])
         } else {
             // Create stack view with backButton and smallVideoCallButton
-            topButtonStackView = UIStackView(arrangedSubviews: [backButton, smallVideoCallButton])
+            topButtonStackView = UIStackView(arrangedSubviews: [backButton])
         }
         
         topButtonStackView.axis = .horizontal
@@ -244,13 +240,22 @@ class VideoViewController: UIViewController {
             (isVideoCall ? swapButton.widthAnchor : smallVideoCallButton.widthAnchor).constraint(equalToConstant: (50 / 430) * deviceWidth),
             (isVideoCall ? swapButton.heightAnchor : smallVideoCallButton.heightAnchor).constraint(equalToConstant: (50 / 430) * deviceWidth)
         ])
+
+        if isVideoCall {
+            NSLayoutConstraint.activate([
+                swapButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10),
+                swapButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+                swapButton.widthAnchor.constraint(equalToConstant: (50 / 430) * deviceWidth),
+                swapButton.heightAnchor.constraint(equalToConstant: (50 / 430) * deviceWidth)
+            ])
+        }
         
         // Bottom Button Stack View
         let bottomButtonStackView: UIStackView
         if isVideoCall {
-            bottomButtonStackView = UIStackView(arrangedSubviews: [muteButton, buttonSendingVideo, buttonSpeaker, hangupButton])
+            bottomButtonStackView = UIStackView(arrangedSubviews: [buttonSendingVideo, muteButton, buttonSpeaker, hangupButton])
         } else {
-            bottomButtonStackView = UIStackView(arrangedSubviews: [muteButton, hangupButton, buttonSpeaker])
+            bottomButtonStackView = UIStackView(arrangedSubviews: [smallVideoCallButton, muteButton, buttonSpeaker, hangupButton])
         }
         
         bottomButtonStackView.axis = .horizontal
@@ -262,8 +267,8 @@ class VideoViewController: UIViewController {
         
         // Constraints for the Bottom Button Stack View
         NSLayoutConstraint.activate([
-            bottomButtonStackView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: isVideoCall ? leftRightSpacing : 60),
-            bottomButtonStackView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: isVideoCall ? -leftRightSpacing : -60),
+            bottomButtonStackView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: leftRightSpacing),
+            bottomButtonStackView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -leftRightSpacing),
             bottomButtonStackView.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor, constant: (-40 / 430) * deviceWidth),
             bottomButtonStackView.heightAnchor.constraint(equalToConstant: otherButtonSize)
         ])
@@ -271,6 +276,8 @@ class VideoViewController: UIViewController {
     
     
     func addBackButton() {
+        backButton?.removeFromSuperview()
+
         backButton = UIButton(type: .system)
         backButton.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         backButton.tintColor = .white
@@ -285,6 +292,8 @@ class VideoViewController: UIViewController {
     }
     
     func hangUpButton() {
+        hangupButton?.removeFromSuperview()
+
         hangupButton = UIButton(type: .system)
         hangupButton.setImage(UIImage(systemName: "phone.down.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         hangupButton.tintColor = .white
@@ -301,6 +310,8 @@ class VideoViewController: UIViewController {
     }
     
     func swapUIButton() {
+        swapButton?.removeFromSuperview()
+
         swapButton = UIButton(type: .system)
         swapButton.setImage(UIImage(systemName: "camera.rotate.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         swapButton.tintColor = .white
@@ -318,25 +329,34 @@ class VideoViewController: UIViewController {
     }
     
     func videoCallButton() {
+        smallVideoCallButton?.removeFromSuperview()
+
         smallVideoCallButton = UIButton(type: .system)
         smallVideoCallButton.setImage(UIImage(systemName: "video.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         smallVideoCallButton.tintColor = .white
-        smallVideoCallButton.backgroundColor = UIColor.white.withAlphaComponent(0.3)
+        smallVideoCallButton.backgroundColor = UIColor.white.withAlphaComponent(0.5)
         
         smallVideoCallButton.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
-        smallVideoCallButton.layer.cornerRadius = (50 / 430) * deviceWidth / 2
+        smallVideoCallButton.layer.cornerRadius = otherButtonSize / 2
         smallVideoCallButton.addTarget(self, action: #selector(activeVideoCall(_:)), for: .touchUpInside)
         
         smallVideoCallButton.translatesAutoresizingMaskIntoConstraints = false
         smallVideoCallButton.widthAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
         smallVideoCallButton.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
         smallVideoCallButton.imageView?.contentMode = .scaleAspectFit
-        smallVideoCallButton.contentEdgeInsets = UIEdgeInsets(top: 4, left: 4, bottom: 4, right: 4)
+        smallVideoCallButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
     }
     
     func initMuteButton() {
+        if speakState == 0 {
+            portSIPSDK.setLoudspeakerStatus(true)
+        } else {
+            portSIPSDK.setLoudspeakerStatus(false)
+        }
+
+        muteButton?.removeFromSuperview()
         muteButton = UIButton(type: .system)
-        muteButton.setImage(UIImage(systemName: "speaker.2.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+        muteButton.setImage(UIImage(systemName: "speaker.3.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         muteButton.tintColor = .white
         muteButton.backgroundColor = UIColor.gray.withAlphaComponent(0.5)
         
@@ -352,6 +372,7 @@ class VideoViewController: UIViewController {
     }
     
     func speakButton() {
+        buttonSpeaker?.removeFromSuperview()
         buttonSpeaker = UIButton(type: .system)
         buttonSpeaker.setImage(UIImage(systemName: "mic.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         buttonSpeaker.tintColor = .white
@@ -369,6 +390,7 @@ class VideoViewController: UIViewController {
     }
     
     func sendingVideo() {
+        buttonSendingVideo?.removeFromSuperview()
         buttonSendingVideo = UIButton(type: .system)
         buttonSendingVideo.setImage(UIImage(systemName: "video.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         buttonSendingVideo.tintColor = .white
@@ -458,14 +480,14 @@ class VideoViewController: UIViewController {
         if (sessionId == nil) {
             return
         }
-        if mSoundService.isSpeakerEnabled() {
-            mSoundService.speakerEnabled(false)
-            // portSIPSDK.muteSession(sessionId!, muteIncomingAudio: true, muteOutgoingAudio: false, muteIncomingVideo: false, muteOutgoingVideo: false)
-            muteButton.setImage(UIImage(systemName: "speaker.slash.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+        if speakState == 0 {
+            speakState = 1
+            portSIPSDK.setLoudspeakerStatus(false)
+            muteButton.setImage(UIImage(systemName: "speaker.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         } else {
-            mSoundService.speakerEnabled(true)
-            // portSIPSDK.muteSession(sessionId!, muteIncomingAudio: false, muteOutgoingAudio: false, muteIncomingVideo: false, muteOutgoingVideo: false)
-            muteButton.setImage(UIImage(systemName: "speaker.2.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+            speakState = 0
+            portSIPSDK.setLoudspeakerStatus(true)
+            muteButton.setImage(UIImage(systemName: "speaker.3.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         }
     }
     
@@ -576,8 +598,18 @@ class VideoViewController: UIViewController {
     
     func onStartVoiceCall(_ sessionID: Int) {
         DispatchQueue.main.async {
+           self.isStartVideo = false
+            self.isInitVideo = false
+            self.sessionId = sessionID
+            self.shareInSmallWindow = false
+            // Hide calling label when remote video starts
             self.callingLabel.isHidden = false
             self.startCallTimer()
+            self.viewLocalVideo?.isHidden = true
+            self.viewLocalVideo?.removeFromSuperview()
+            
+            self.initializeVideoViews()
+            self.checkDisplayVideo()
         }
     }
     
@@ -615,18 +647,25 @@ class VideoViewController: UIViewController {
         isInitVideo = true
         callingLabel.isHidden = true
         
-    
-        viewRemoteVideo.initVideoRender()
-        viewRemoteVideo.contentMode = .scaleAspectFit
-        viewRemoteVideoSmall.initVideoRender()
-        
-        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(onSwichShareScreenClick(action:)))
-        viewRemoteVideo.isHidden = false
-        viewRemoteVideoSmall.isHidden = false
+        let appDelegate = MptCallkitPlugin.shared
+        let isVideoCall = appDelegate.isVideoCall
+        if isVideoCall {
+            viewRemoteVideo.initVideoRender()
+            viewRemoteVideo.contentMode = .scaleAspectFit
+            viewRemoteVideoSmall.initVideoRender()
+            
+            let tapGesture = UITapGestureRecognizer(target: self, action: #selector(onSwichShareScreenClick(action:)))
+            viewRemoteVideo.isHidden = false
+            viewRemoteVideoSmall.isHidden = false
+        }
     }
     
     func onClearState() {
         stopCallTimer() // Stop the timer
+
+        viewLocalVideo?.releaseVideoRender()
+        viewLocalVideo?.removeFromSuperview()
+        viewLocalVideo?.isHidden = true
 
         let appDelegate = MptCallkitPlugin.shared
         let isVideoCall = appDelegate.isVideoCall
