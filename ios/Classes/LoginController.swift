@@ -66,7 +66,7 @@ class LoginViewController {
         //            srtp = SRTP_POLICY_NONE
         //        }
         
-        let localPort = 10002
+        let localPort = 10000 + arc4random() % 2000
         let loaclIPaddress = "0.0.0.0"
         let appDelegate = MptCallkitPlugin.shared
         
