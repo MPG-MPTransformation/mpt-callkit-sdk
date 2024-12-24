@@ -554,7 +554,7 @@ class VideoViewController: UIViewController {
                 }
                 portSIPSDK.sendVideo(sessionId, sendState: true)
             } else {
-                self.viewRemoteVideoSmall.isHidden = true
+                self.viewRemoteVideoSmall?.isHidden = true
                 portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
                 portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
             }
@@ -600,8 +600,6 @@ class VideoViewController: UIViewController {
             // Hide calling label when remote video starts
             self.callingLabel.isHidden = false
             self.startCallTimer()
-            self.viewLocalVideo?.isHidden = true
-            self.viewLocalVideo?.removeFromSuperview()
             
             self.initializeVideoViews()
             self.checkDisplayVideo()
