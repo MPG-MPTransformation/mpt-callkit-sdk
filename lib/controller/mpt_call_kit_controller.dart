@@ -44,8 +44,8 @@ class MptCallKitController {
     Function(String?)? onError,
   }) async {
     try {
-      final hasPerrmission = await requestPermission();
-      if(!hasPerrmission) {
+      final hasPerrmission = await requestPermission(context);
+      if (!hasPerrmission) {
         onError?.call('Permission denied');
         return;
       }
@@ -53,26 +53,26 @@ class MptCallKitController {
       final result = await getExtension();
       if (result != null) {
         await online(
-          username: result.username ?? "",
-          displayName: phoneNumber,
-          authName: '',
-          password: result.password!,
-          userDomain: result.domain!,
-          sipServer: result.sipServer!,
-          sipServerPort: result.port ?? 5060,
-          transportType: 0,
-          srtpType: 0,
-          phoneNumber: phoneNumber,
-          isVideoCall: isVideoCall,
-          onBusy: (){
-          const snackBar = SnackBar(
-            content: Text('Current line is busy now, please switch a line.'),
-          );
-          // Find the ScaffoldMessenger in the widget tree
-          // and use it to show a SnackBar.
-          ScaffoldMessenger.of(context).showSnackBar(snackBar);
-        }
-    );
+            username: result.username ?? "",
+            displayName: phoneNumber,
+            authName: '',
+            password: result.password!,
+            userDomain: result.domain!,
+            sipServer: result.sipServer!,
+            sipServerPort: result.port ?? 5060,
+            transportType: 0,
+            srtpType: 0,
+            phoneNumber: phoneNumber,
+            isVideoCall: isVideoCall,
+            onBusy: () {
+              const snackBar = SnackBar(
+                content:
+                    Text('Current line is busy now, please switch a line.'),
+              );
+              // Find the ScaffoldMessenger in the widget tree
+              // and use it to show a SnackBar.
+              ScaffoldMessenger.of(context).showSnackBar(snackBar);
+            });
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -159,9 +159,65 @@ class MptCallKitController {
     }
   }
 
-  Future<bool> requestPermission() async {
-    final bool permissionResult = await channel.invokeMethod('requestPermission');
-    return permissionResult;
+  Future<bool> requestPermission(BuildContext context ) async {
+    final bool permissionResult =
+        await channel.invokeMethod('requestPermission');
+
+    if (permissionResult) {
+      return true;
+    } else {
+      // write a dialog to open app setting
+      Dialog dialog = Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Permission denied',
+            style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Please allow the app to access the camera and microphone in the app settings',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+               ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('No'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await channel.invokeMethod('openAppSetting');
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Go to Settings'),
+              ),
+             
+            ],
+          ),
+        ],
+          ),
+        ),
+      );
+      showDialog(
+        context: context,
+        builder: (context) => dialog,
+      );
+      return false;
+    }
   }
 
   Future<bool> online({
@@ -179,19 +235,20 @@ class MptCallKitController {
     void Function()? onBusy,
   }) async {
     try {
-      if(Platform.isAndroid) {
+      if (Platform.isAndroid) {
         channel.setMethodCallHandler((call) async {
           /// lắng nghe kết quả register
-          if(call.method == 'registrationStateStream'){
+          if (call.method == 'registrationStateStream') {
             /// nếu thành công thì call luôn
-            if(call.arguments == true){
-              final bool callResult = await channel.invokeMethod('call',
+            if (call.arguments == true) {
+              final bool callResult = await channel.invokeMethod(
+                'call',
                 <String, dynamic>{
                   'phoneNumber': phoneNumber,
                   'isVideoCall': isVideoCall
                 },
               );
-              if(callResult) {
+              if (callResult) {
                 /// nếu thành công thì mở màn hình video call luôn
                 channel.invokeMethod('startActivity');
               } else {
@@ -202,7 +259,7 @@ class MptCallKitController {
             } else {
               print('quanth: registration has failed');
             }
-          } else if(call.method == 'releaseExtension') {
+          } else if (call.method == 'releaseExtension') {
             print('quanth: releaseExtension has started');
             await releaseExtension();
             print('quanth: releaseExtension has done');

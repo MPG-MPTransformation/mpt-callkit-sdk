@@ -118,7 +118,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
   void openAppSetting(){
     Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
     intent.setData(Uri.parse("package:" + context.getPackageName()));
-    context.startActivity(intent);
+    activity.startActivity(intent);
   }
 
   @Override
