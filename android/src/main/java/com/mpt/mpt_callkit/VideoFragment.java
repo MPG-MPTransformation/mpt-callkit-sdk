@@ -299,7 +299,8 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                 callManager.setShareVideoWindow(portSipLib, cur.sessionID, null);
                 callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderScreen);
                 portSipLib.displayLocalVideo(true, true, localRenderScreen);
-                portSipLib.sendVideo(cur.sessionID, true);
+                // portSipLib.sendVideo(cur.sessionID, true);
+                portSipLib.updateCall(cur.sessionID,false, true);
             }
         } else if(v.getId() == R.id.ibback) {
             AlertDialog dialog = getAlertDialog();

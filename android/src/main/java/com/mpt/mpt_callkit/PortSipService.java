@@ -611,7 +611,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         if (session != null) {
             session.state = Session.CALL_STATE_FLAG.CONNECTED;
-            // session.hasVideo = existsVideo;
+            session.hasVideo = existsVideo;
             session.bScreenShare = existsScreen;
 
             Intent broadIntent = new Intent(CALL_CHANGE_ACTION);
@@ -620,6 +620,27 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             broadIntent.putExtra(EXTRA_CALL_DESCRIPTION, description);
 
             sendPortSipMessage(description, broadIntent);
+
+            if (existsVideo) {
+                new java.util.Timer().schedule( 
+                        new java.util.TimerTask() {
+                            @Override
+                            public void run() {
+                                Engine.Instance().getEngine().hold(sessionId);
+                            }
+                        }, 
+                        200 
+                );
+                new java.util.Timer().schedule( 
+                        new java.util.TimerTask() {
+                            @Override
+                            public void run() {
+                                Engine.Instance().getEngine().unHold(sessionId);
+                            }
+                        }, 
+                        500 
+                );
+            }
         }
     }
 

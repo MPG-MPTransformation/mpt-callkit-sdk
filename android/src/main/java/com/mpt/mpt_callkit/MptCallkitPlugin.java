@@ -1,5 +1,6 @@
 package com.mpt.mpt_callkit;
 
+import android.net.Uri;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Build;
@@ -72,6 +73,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
       case "requestPermission":
         requestPermissions(activity, result);
         break;
+      case "openAppSetting":
+        openAppSetting();
+        break;
       case "hangup":
         hangup();
         break;
@@ -109,6 +113,12 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
       default:
         result.notImplemented();
     }
+  }
+
+  void openAppSetting(){
+    Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+    intent.setData(Uri.parse("package:" + context.getPackageName()));
+    context.startActivity(intent);
   }
 
   @Override

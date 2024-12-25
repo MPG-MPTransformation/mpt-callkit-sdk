@@ -588,7 +588,14 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 videoViewController.initButtons()
             }
             videoViewController.onStartVideo(sessionId)
-            setLoudspeakerStatus(true)
+//            setLoudspeakerStatus(true)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.portSIPSDK.hold(sessionId)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self.portSIPSDK.unHold(sessionId)
+            }
+            
         }
         if existsAudio {}
 
@@ -1167,10 +1174,21 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         debugPrint("applicationWillResignActive")
     }
     
+    func openAppSettings() {
+        if let appSettingsURL = URL(string: UIApplication.openSettingsURLString) {
+            if UIApplication.shared.canOpenURL(appSettingsURL) {
+                UIApplication.shared.open(appSettingsURL, options: [:], completionHandler: nil)
+            }
+        }
+    }
+    
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         print("Method called: \(call.method)")
         print("Arguments: \(String(describing: call.arguments))")
         switch call.method {
+        case "openAppSetting":
+            openAppSettings()
+            result(true)
         case "requestPermission":
             AVCaptureDevice.requestAccess(for: .video) { videoGranted in
                 if videoGranted {
