@@ -572,7 +572,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     
   
     public func onInviteUpdated(_ sessionId: Int, audioCodecs: String!, videoCodecs: String!, screenCodecs: String!, existsAudio: Bool, existsVideo: Bool, existsScreen: Bool, sipMessage: String!) {
-        NSLog("onInviteUpdated...")
+        NSLog("onInviteUpdated... sessionId: \(sessionId) audioCodecs: \(String(describing: audioCodecs)) videoCodecs: \(String(describing: videoCodecs)) screenCodecs: \(String(describing: screenCodecs)) existsAudio: \(existsAudio) existsVideo: \(existsVideo) existsScreen: \(existsScreen) sipMessage: \(String(describing: sipMessage))")
         guard let result = _callManager.findCallBySessionID(sessionId) else {
             return ;
         }
@@ -588,13 +588,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 videoViewController.initButtons()
             }
             videoViewController.onStartVideo(sessionId)
-//            setLoudspeakerStatus(true)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.portSIPSDK.hold(sessionId)
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                self.portSIPSDK.unHold(sessionId)
-            }
             
         }
         if existsAudio {}
@@ -935,7 +928,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     func updateCall() {
-        portSIPSDK.updateCall(activeSessionid, enableAudio: false, enableVideo: true)
+        let result = portSIPSDK.updateCall(activeSessionid, enableAudio: true, enableVideo: true)
+        print("update Call result: \(result) \n")
     }
     
     func hungUpCall() {
