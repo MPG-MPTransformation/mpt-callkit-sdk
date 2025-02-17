@@ -1,4 +1,5 @@
 package com.mpt.mpt_callkit.util;
+
 import android.text.TextUtils;
 import com.portsip.PortSipSdk;
 import com.portsip.PortSipEnumDefine;
@@ -6,15 +7,16 @@ import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
 import io.flutter.plugin.common.MethodChannel;
 
 public class Engine {
+
     private static Engine mInstance;
     private PortSipSdk mEngine;
-    public boolean mConference= false;
+    public boolean mConference = false;
     private static Object locker = new Object();
-    public boolean mUseFrontCamera= false;
+    public boolean mUseFrontCamera = false;
     private PortMessageReceiver receiver;
     private MethodChannel channel;
 
-    public void setMethodChannel(MethodChannel obj){
+    public void setMethodChannel(MethodChannel obj) {
         channel = obj;
     }
 
@@ -22,7 +24,7 @@ public class Engine {
         return channel;
     }
 
-    public void setReceiver(PortMessageReceiver obj){
+    public void setReceiver(PortMessageReceiver obj) {
         receiver = obj;
     }
 
@@ -30,14 +32,10 @@ public class Engine {
         return receiver;
     }
 
-    public static Engine Instance()
-    {
-        if (mInstance == null)
-        {
-            synchronized (locker)
-            {
-                if (mInstance == null)
-                {
+    public static Engine Instance() {
+        if (mInstance == null) {
+            synchronized (locker) {
+                if (mInstance == null) {
                     mInstance = new Engine();
                 }
             }
@@ -46,7 +44,7 @@ public class Engine {
         return mInstance;
     }
 
-    public void setEngine(PortSipSdk obj){
+    public void setEngine(PortSipSdk obj) {
         if (obj == null) {
             return;
         }
@@ -61,10 +59,10 @@ public class Engine {
         mEngine.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_VP8);
         mEngine.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_VP9);
 
-        mEngine.setVideoBitrate(-1, 512); 
-        mEngine.setVideoFrameRate(-1,  20);
+        mEngine.setVideoBitrate(-1, 512);
+        mEngine.setVideoFrameRate(-1, 20);
         mEngine.setAudioSamples(20, 60);
-        
+
         // 1 - FrontCamra 0 - BackCamra
         mEngine.setVideoDeviceId(1);
 
@@ -85,7 +83,7 @@ public class Engine {
 
         mEngine.setReliableProvisional(0);
 
-        String resolution = "VGA";
+        String resolution = "720P";
         int width = 352;
         int height = 288;
         if (resolution.equals("QCIF")) {
@@ -108,7 +106,7 @@ public class Engine {
         mEngine.setVideoResolution(width, height);
     }
 
-    public PortSipSdk getEngine(){
+    public PortSipSdk getEngine() {
         return mEngine;
     }
 }

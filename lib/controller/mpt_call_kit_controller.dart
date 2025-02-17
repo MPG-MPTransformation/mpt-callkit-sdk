@@ -113,7 +113,7 @@ class MptCallKitController {
       final message = result.message ?? '';
 
       if (result.success ?? false) {
-        this.extension = result.data?.username ?? '';
+        extension = result.data?.username ?? '';
         return result.data;
       } else {
         if (retryCount > 2) {
@@ -133,7 +133,7 @@ class MptCallKitController {
   Future<bool> releaseExtension() async {
     final url = Uri.parse('$baseUrl/integration/extension/release');
     try {
-      if (this.extension.isEmpty) return true;
+      if (extension.isEmpty) return true;
       final response = await http.post(
         url,
         headers: {
@@ -141,13 +141,13 @@ class MptCallKitController {
           'Authorization': 'Bearer $apiKey',
         },
         body: json.encode({
-          "extension": this.extension,
+          "extension": extension,
         }),
       );
 
       final data = json.decode(response.body);
       final result = ReleaseExtensionModel.fromJson(data);
-      this.extension = '';
+      extension = '';
       if (result.success ?? false) {
         return true;
       } else {
@@ -159,7 +159,7 @@ class MptCallKitController {
     }
   }
 
-  Future<bool> requestPermission(BuildContext context ) async {
+  Future<bool> requestPermission(BuildContext context) async {
     final bool permissionResult =
         await channel.invokeMethod('requestPermission');
 
@@ -174,41 +174,40 @@ class MptCallKitController {
         child: Container(
           padding: const EdgeInsets.all(16),
           child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'Permission denied',
-            style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Please allow the app to access the camera and microphone in the app settings',
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisSize: MainAxisSize.min,
             children: [
-               ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text('No'),
+              const Text(
+                'Permission denied',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              ElevatedButton(
-                onPressed: () async {
-                  await channel.invokeMethod('openAppSetting');
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Go to Settings'),
+              const SizedBox(height: 16),
+              const Text(
+                'Please allow the app to access the camera and microphone in the app settings',
+                textAlign: TextAlign.center,
               ),
-             
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('No'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      await channel.invokeMethod('openAppSetting');
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('Go to Settings'),
+                  ),
+                ],
+              ),
             ],
-          ),
-        ],
           ),
         ),
       );
@@ -240,6 +239,8 @@ class MptCallKitController {
           /// lắng nghe kết quả register
           if (call.method == 'registrationStateStream') {
             /// nếu thành công thì call luôn
+            /// mở màn hình video call
+            channel.invokeMethod('startActivity');
             if (call.arguments == true) {
               final bool callResult = await channel.invokeMethod(
                 'call',
@@ -248,10 +249,7 @@ class MptCallKitController {
                   'isVideoCall': isVideoCall
                 },
               );
-              if (callResult) {
-                /// nếu thành công thì mở màn hình video call luôn
-                channel.invokeMethod('startActivity');
-              } else {
+              if (!callResult) {
                 onBusy?.call();
                 print('quanth: call has failed');
                 await offline();
@@ -270,7 +268,7 @@ class MptCallKitController {
         MptCallKitConstants.login,
         {
           'username': username,
-          'displayName': this.userPhoneNumber,
+          'displayName': userPhoneNumber,
           'authName': authName,
           'password': password,
           'userDomain': userDomain,

@@ -48,8 +48,8 @@ import java.util.UUID;
 
 import com.mpt.mpt_callkit.MainActivity;
 
-
 public class PortSipService extends Service implements OnPortSIPEvent, NetWorkReceiver.NetWorkListener {
+
     private NetWorkReceiver mNetWorkReceiver;
     private NotificationManager mNotificationManager;
     private String channelID = "PortSipService";
@@ -264,7 +264,6 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         int sipServerPort = Integer.parseInt(serverPort);
         int stunServerPort = Integer.parseInt(stunPort);
 
-
         if (TextUtils.isEmpty(userName)) {
             showTipMessage("Please enter user name!");
             return;
@@ -336,7 +335,6 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         mNetWorkReceiver = new NetWorkReceiver();
         mNetWorkReceiver.setListener(this);
 
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(mNetWorkReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
         } else {
@@ -358,7 +356,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         builder.setSmallIcon(getDrawableFromContext(context, "icon"))
                 .setContentTitle(getResourceFromContext(context, "app_name"))
                 .setContentText("Service Running")
-//                .setContentIntent(contentIntent)
+                //                .setContentIntent(contentIntent)
                 .build();// getNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(SERVICE_NOTIFICATION, builder.build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
@@ -429,7 +427,6 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         sendPortSipMessage(tipMessage, broadIntent);
     }
 
-
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
@@ -461,16 +458,15 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onInviteIncoming(long sessionId,
-                                 String callerDisplayName,
-                                 String caller,
-                                 String calleeDisplayName,
-                                 String callee,
-                                 String audioCodecNames,
-                                 String videoCodecNames,
-                                 boolean existsAudio,
-                                 boolean existsVideo,
-                                 String sipMessage) {
-
+            String callerDisplayName,
+            String caller,
+            String calleeDisplayName,
+            String callee,
+            String audioCodecNames,
+            String videoCodecNames,
+            boolean existsAudio,
+            boolean existsVideo,
+            String sipMessage) {
 
         if (CallManager.Instance().findIncomingCall() != null) {
             Engine.Instance().getEngine().rejectCall(sessionId, 486);//busy
@@ -499,7 +495,6 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         broadIntent.putExtra(EXTRA_CALL_DESCRIPTION, description);
 
         sendPortSipMessage(description, broadIntent);
-
 
         Ring.getInstance(this).startRingTone();
     }
@@ -550,15 +545,15 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onInviteAnswered(long sessionId,
-                                 String callerDisplayName,
-                                 String caller,
-                                 String calleeDisplayName,
-                                 String callee,
-                                 String audioCodecNames,
-                                 String videoCodecNames,
-                                 boolean existsAudio,
-                                 boolean existsVideo,
-                                 String sipMessage) {
+            String callerDisplayName,
+            String caller,
+            String calleeDisplayName,
+            String callee,
+            String audioCodecNames,
+            String videoCodecNames,
+            boolean existsAudio,
+            boolean existsVideo,
+            String sipMessage) {
         System.out.println("quanth: onInviteAnswered");
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 
@@ -580,12 +575,12 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onInviteFailure(long sessionId, String callerDisplayName,
-                                String caller,
-                                String calleeDisplayName,
-                                String callee,
-                                String reason,
-                                int code,
-                                String sipMessage) {
+            String caller,
+            String calleeDisplayName,
+            String callee,
+            String reason,
+            int code,
+            String sipMessage) {
         System.out.println("quanth: onInviteFailure");
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 
@@ -798,9 +793,9 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onPresenceRecvSubscribe(long subscribeId,
-                                        String fromDisplayName,
-                                        String from,
-                                        String subject) {
+            String fromDisplayName,
+            String from,
+            String subject) {
         System.out.println("quanth: onPresenceRecvSubscribe");
         Contact contact = ContactManager.Instance().findContactBySipAddr(from);
         if (contact == null) {
@@ -962,10 +957,10 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         sdk.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_VP8);
         sdk.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_VP9);
 
-        sdk.setVideoBitrate(-1, 512); 
-        sdk.setVideoFrameRate(-1,  20);
+        sdk.setVideoBitrate(-1, 512);
+        sdk.setVideoFrameRate(-1, 20);
         sdk.setAudioSamples(20, 60);
-        
+
         // 1 - FrontCamra 0 - BackCamra
         sdk.setVideoDeviceId(1);
 
@@ -986,7 +981,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         sdk.setReliableProvisional(0);
 
-        String resolution = "CIF";
+        String resolution = "720P";
         int width = 352;
         int height = 288;
         if (resolution.equals("QCIF")) {
@@ -1036,7 +1031,6 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 //                .build();// getNotification()
 //
 //        mNotificationManager.notify(1, builder.build());
-
         sendBroadcast(broadIntent);
     }
 }

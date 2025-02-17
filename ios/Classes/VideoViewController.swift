@@ -327,7 +327,7 @@ class VideoViewController: UIViewController {
         smallVideoCallButton?.removeFromSuperview()
 
         smallVideoCallButton = UIButton(type: .system)
-        smallVideoCallButton.setImage(UIImage(systemName: "video.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+        smallVideoCallButton.setImage(UIImage(systemName: "video.badge.plus.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
         smallVideoCallButton.tintColor = .white
         smallVideoCallButton.backgroundColor = UIColor.white.withAlphaComponent(0.5)
         

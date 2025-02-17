@@ -396,6 +396,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                         callManager.setShareVideoWindow(portSipLib, cur.sessionID, null);
                         callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderScreen);
                     }
+                    imgVideo.setImageResource(R.drawable.camera_on);
                     portSipLib.displayLocalVideo(true, true, localRenderScreen); // display Local video
                     portSipLib.sendVideo(cur.sessionID, true);
                 } else {
@@ -405,7 +406,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                     remoteRenderSmallScreen.setVisibility(View.GONE);
                     localRenderScreen.setVisibility(View.GONE);
                     remoteRenderScreen.setVisibility(View.VISIBLE);
-
+                    imgVideo.setImageResource(R.drawable.switch_video_call);
                     portSipLib.displayLocalVideo(false, false, null);
                     callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, null);
                     if (cur.bScreenShare) {
