@@ -37,7 +37,7 @@ dependencies:
   mpt_callkit:
     git:
       url: https://github.com/MPG-MPTransformation/mpt-callkit-sdk.git
-      ref: main
+      ref: v2.10.0
 
 dev_dependencies:
   flutter_test:
