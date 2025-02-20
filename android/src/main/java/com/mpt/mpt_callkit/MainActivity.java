@@ -28,12 +28,13 @@ import com.mpt.mpt_callkit.PortSipService;
 public class MainActivity extends Activity {
 
     public PortMessageReceiver receiver = null;
-
+    public static MainActivity activity;
     private final int REQ_DANGERS_PERMISSION = 2;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        activity = this;
         receiver = new PortMessageReceiver();
         setContentView(R.layout.main);
 
@@ -66,8 +67,12 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (receiver != null){
+            unregisterReceiver(receiver);
+            receiver = null;
+        }
         super.onDestroy();
-        unregisterReceiver(receiver);
+        // unregisterReceiver(receiver);
     }
 
     //if you want app always keep run in background ,you need call this function to request ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS permission.

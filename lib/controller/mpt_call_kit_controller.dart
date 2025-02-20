@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -50,7 +51,16 @@ class MptCallKitController {
         return;
       }
 
-      final result = await getExtension();
+      if (Platform.isAndroid) {
+        channel.invokeMethod('startActivity');
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CameraView()),
+        );
+      }
+
+      final result = await getExtension(context: context);
       if (result != null) {
         await online(
             username: result.username ?? "",
@@ -73,22 +83,24 @@ class MptCallKitController {
               // and use it to show a SnackBar.
               ScaffoldMessenger.of(context).showSnackBar(snackBar);
             });
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const CameraView(),
-          ),
-        );
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(
+        //     builder: (context) => const CameraView(),
+        //   ),
+        // );
       } else {
         onError?.call('Tổng đài bận, liên hệ hỗ trợ');
       }
     } on Exception catch (e) {
       onError?.call(e.toString());
       debugPrint("Failed to call: '${e.toString()}'.");
+      if (!Platform.isAndroid) Navigator.of(context).pop();
     }
   }
 
-  Future<ExtensionData?> getExtension({int retryTime = 0}) async {
+  Future<ExtensionData?> getExtension(
+      {int retryTime = 0, required BuildContext context}) async {
     try {
       int retryCount = retryTime;
       final url = Uri.parse("$baseUrl/integration/extension/request");
@@ -116,17 +128,23 @@ class MptCallKitController {
         extension = result.data?.username ?? '';
         return result.data;
       } else {
-        if (retryCount > 2) {
-          throw Exception(message);
-        }
-        retryCount += 1;
-        final releaseResult = await releaseExtension();
-        if (!releaseResult) return null;
-        return await getExtension(retryTime: retryCount);
+        return null;
+        // if (retryCount > 2) {
+        //   throw Exception(message);
+        // }
+        // retryCount += 1;
+        // final releaseResult = await releaseExtension();
+        // if (!releaseResult) {
+        //   if (!Platform.isAndroid) Navigator.of(context).pop();
+        //   return null;
+        // }
+        // return await getExtension(retryTime: retryCount, context: context);
       }
     } on Exception catch (e) {
+      if (!Platform.isAndroid) Navigator.of(context).pop();
       debugPrint("Error in getExtension: $e");
-      throw Exception(e);
+      // throw Exception(e);
+      return null;
     }
   }
 
@@ -239,8 +257,6 @@ class MptCallKitController {
           /// lắng nghe kết quả register
           if (call.method == 'registrationStateStream') {
             /// nếu thành công thì call luôn
-            /// mở màn hình video call
-            channel.invokeMethod('startActivity');
             if (call.arguments == true) {
               final bool callResult = await channel.invokeMethod(
                 'call',
@@ -253,6 +269,9 @@ class MptCallKitController {
                 onBusy?.call();
                 print('quanth: call has failed');
                 await offline();
+              } else {
+                /// mở màn hình video call
+                channel.invokeMethod('startActivity');
               }
             } else {
               print('quanth: registration has failed');

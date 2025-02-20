@@ -10,10 +10,19 @@ class CameraView extends StatefulWidget {
   State<CameraView> createState() => _CameraViewState();
 }
 
-class _CameraViewState extends State<CameraView> {
+class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
+  @override
+  didChangeAppLifecycleState(AppLifecycleState state) async {
+    print("state: $state");
+    if (state == AppLifecycleState.detached) {
+      await MptCallKitController.channel.invokeMethod("offLine");
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback(
       (_) {
         MptCallKitController.channel.setMethodCallHandler(
@@ -28,6 +37,11 @@ class _CameraViewState extends State<CameraView> {
         );
       },
     );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   @override

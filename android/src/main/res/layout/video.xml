@@ -201,13 +201,13 @@
 
             </LinearLayout>
 
-            <com.portsip.PortSIPVideoRenderer
+            <!-- <com.portsip.PortSIPVideoRenderer
                 android:id="@+id/share_video_view"
                 android:layout_width="60dp"
                 android:layout_height="60dp"
                 android:layout_below="@id/llLocalView"
                 android:layout_alignParentEnd="true"
-                android:layout_marginTop="2dp" />
+                android:layout_marginTop="2dp" /> -->
         </RelativeLayout>
 
     </LinearLayout>

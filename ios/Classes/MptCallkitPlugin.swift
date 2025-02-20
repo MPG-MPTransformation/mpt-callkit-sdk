@@ -928,7 +928,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     func updateCall() {
-        let result = portSIPSDK.updateCall(activeSessionid, enableAudio: true, enableVideo: true)
+        let result = portSIPSDK.updateCall(activeSessionid, enableAudio: true, enableVideo: isVideoCall)
         print("update Call result: \(result) \n")
     }
     
@@ -1066,6 +1066,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     func onNewOutgoingCall(sessionid: CLong) {
         NSLog("onNewOutgoingCall")
         lineSessions[_activeLine] = sessionid
+        videoViewController.initVideoViews()
+        if isVideoCall {
+            videoViewController.onStartVideo(sessionid)
+        } else{
+            videoViewController.onStartVoiceCall(sessionid)
+        }
     }
     
     func onAnsweredCall(sessionId: CLong) {
@@ -1182,6 +1188,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         switch call.method {
         case "openAppSetting":
             openAppSettings()
+            result(true)
+        case "appKilled":
+            print("appKilled called!")
+            self.loginViewController.offLine()
+            _callManager.endCall(sessionid: activeSessionid)
             result(true)
         case "requestPermission":
             AVCaptureDevice.requestAccess(for: .video) { videoGranted in
