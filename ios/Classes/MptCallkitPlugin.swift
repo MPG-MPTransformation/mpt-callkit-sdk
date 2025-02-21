@@ -416,6 +416,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     
     public override func applicationWillTerminate(_: UIApplication) {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
+        print("applicationWillTerminate")
         if _enablePushNotification! {
             portSIPSDK.unRegisterServer(90);
             
@@ -565,7 +566,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         
         mSoundService.stopRingTone()
         mSoundService.stopRingBackTone()
-        setLoudspeakerStatus(true)
+        // setLoudspeakerStatus(true)
         videoViewController.onClearState()
         loginViewController.unRegister()
     }
@@ -580,6 +581,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // Checking does this call has video
         result.session.videoState = existsVideo;
         result.session.screenShare = existsScreen;
+
+        print("videoViewController.speakState: \(videoViewController.speakState)")
+        if videoViewController.speakState == 0{
+            setLoudspeakerStatus(true)
+        } else{
+            setLoudspeakerStatus(false)
+        }
         
         if existsVideo {
             if (!isVideoCall) {
@@ -604,10 +612,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         print("The call is connected on line \(findSession(sessionid: sessionId))")
         if result.session.videoState {
             videoViewController.onStartVideo(sessionId)
-            setLoudspeakerStatus(true)
+            // setLoudspeakerStatus(true)
         } else {
             videoViewController.onStartVoiceCall(sessionId)
-            setLoudspeakerStatus(false)
+            // setLoudspeakerStatus(false)
         }
     }
     
@@ -928,7 +936,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     func updateCall() {
-        let result = portSIPSDK.updateCall(activeSessionid, enableAudio: true, enableVideo: true)
+        let result = portSIPSDK.updateCall(activeSessionid, enableAudio: true, enableVideo: isVideoCall)
         print("update Call result: \(result) \n")
     }
     
@@ -1066,6 +1074,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     func onNewOutgoingCall(sessionid: CLong) {
         NSLog("onNewOutgoingCall")
         lineSessions[_activeLine] = sessionid
+        videoViewController.initVideoViews()
+        if isVideoCall {
+            videoViewController.onStartVideo(sessionid)
+        } else {
+            videoViewController.onStartVoiceCall(sessionid)
+        }
     }
     
     func onAnsweredCall(sessionId: CLong) {
@@ -1112,9 +1126,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         _ = mSoundService.stopRingTone()
         _ = mSoundService.stopRingBackTone()
         
-        if _callManager.getConnectCallNum() == 0 {
-            setLoudspeakerStatus(true)
-        }
+        // if _callManager.getConnectCallNum() == 0 {
+        //     setLoudspeakerStatus(true)
+        // }
     }
     
     func onMuteCall(sessionId: CLong, muted _: Bool) {
@@ -1182,6 +1196,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         switch call.method {
         case "openAppSetting":
             openAppSettings()
+            result(true)
+        case "appKilled":
+            print("appKilled called!")
+            self.loginViewController.offLine()
+            _callManager.endCall(sessionid: activeSessionid)
             result(true)
         case "requestPermission":
             AVCaptureDevice.requestAccess(for: .video) { videoGranted in

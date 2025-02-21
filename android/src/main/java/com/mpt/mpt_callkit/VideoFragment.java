@@ -133,11 +133,21 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         imgMute.setOnClickListener(this);
         imgVideo.setOnClickListener(this);
         imgBack.setOnClickListener(this);
+
+        imgSwitchCamera.setVisibility(View.GONE);
+        imgMicOn.setVisibility(View.GONE);
+        imgHangOut.setVisibility(View.GONE);
+        imgMute.setVisibility(View.GONE);
+        imgVideo.setVisibility(View.GONE);
+
         audioDeviceAdapter = new AudioDeviceAdapter(audioDevices);
 
         localRenderScreen = (PortSIPVideoRenderer) view.findViewById(R.id.local_video_view);
         remoteRenderScreen = (PortSIPVideoRenderer) view.findViewById(R.id.remote_video_view);
         remoteRenderSmallScreen = (PortSIPVideoRenderer) view.findViewById(R.id.share_video_view);
+        localRenderScreen.setVisibility(View.GONE);
+        remoteRenderScreen.setVisibility(View.GONE);
+        remoteRenderSmallScreen.setVisibility(View.GONE);
         remoteRenderSmallScreen.setOnClickListener(this);
         scalingType = PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FIT;//
         remoteRenderScreen.setScalingType(scalingType);
@@ -374,6 +384,11 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             System.out.println("quanth: application.mConference = false");
             if (cur != null && !cur.IsIdle()
                     && cur.sessionID != PortSipErrorcode.INVALID_SESSION_ID) {
+                imgSwitchCamera.setVisibility(View.VISIBLE);
+                imgMicOn.setVisibility(View.VISIBLE);
+                imgHangOut.setVisibility(View.VISIBLE);
+                imgMute.setVisibility(View.VISIBLE);
+                imgVideo.setVisibility(View.VISIBLE);
                 if (cur.hasVideo) {
                     isVideoOn = true;
                     imgSwitchCamera.setVisibility(View.VISIBLE);
@@ -414,6 +429,11 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                     }
                 }
             } else {
+                imgSwitchCamera.setVisibility(View.GONE);
+                imgMicOn.setVisibility(View.GONE);
+                imgHangOut.setVisibility(View.GONE);
+                imgMute.setVisibility(View.GONE);
+                imgVideo.setVisibility(View.GONE);
                 remoteRenderSmallScreen.setVisibility(View.GONE);
                 portSipLib.displayLocalVideo(false, false, null);
                 callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, null);

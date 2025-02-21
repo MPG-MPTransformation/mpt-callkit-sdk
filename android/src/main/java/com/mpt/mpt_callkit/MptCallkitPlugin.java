@@ -53,13 +53,16 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
   @Override
   public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
-    System.out.println("quanth: onMethodCall");
+    System.out.println("quanth: onMethodCall" + call.method);
+    Intent offLineIntent = null;
+    Intent myIntent = null;
+    Intent stopIntent = null;
     switch (call.method) {
       case "getPlatformVersion":
         result.success("Android " + android.os.Build.VERSION.RELEASE);
         break;
       case "Offline":
-        Intent offLineIntent = new Intent(activity, PortSipService.class);
+        offLineIntent = new Intent(activity, PortSipService.class);
         offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
         PortSipService.startServiceCompatibility(activity, offLineIntent);
         System.out.println("quanth: UnregisterServer..");
@@ -76,13 +79,36 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
       case "openAppSetting":
         openAppSetting();
         break;
+      case "appKilled":
+        stopIntent = new Intent(activity, PortSipService.class);
+        stopIntent.setAction(PortSipService.ACTION_STOP);
+        PortSipService.startServiceCompatibility(activity, stopIntent);
+        if(MainActivity.activity.receiver != null) {
+          MainActivity.activity.unregisterReceiver(MainActivity.activity.receiver);
+          MainActivity.activity.receiver = null;
+        }
+        MainActivity.activity.finish();
+        hangup();
+        activity.finishAndRemoveTask();
       case "hangup":
         hangup();
         break;
       case "startActivity":
-        Intent myIntent = new Intent(activity, MainActivity.class);
+        myIntent = new Intent(activity, MainActivity.class);
         myIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         activity.startActivity(myIntent);
+        break;
+      case "finishActivity":
+        System.out.println("quanth: finishActivity");
+        stopIntent = new Intent(activity, PortSipService.class);
+        stopIntent.setAction(PortSipService.ACTION_STOP);
+        PortSipService.startServiceCompatibility(activity, stopIntent);
+       
+        if(MainActivity.activity.receiver != null) {
+          MainActivity.activity.unregisterReceiver(MainActivity.activity.receiver);
+          MainActivity.activity.receiver = null;
+        }
+        MainActivity.activity.finish();
         break;
       case "Login":
         String username = call.argument("username");
@@ -96,7 +122,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         boolean isVideoCall = call.argument("isVideoCall");
         String sipServerPort = call.argument("sipServerPort") + "";
         if(CallManager.Instance().online){
-          Toast.makeText(activity,"Please OffLine First",Toast.LENGTH_SHORT).show();
+          // Toast.makeText(activity,"Please OffLine First",Toast.LENGTH_SHORT).show();
+          Engine.Instance().getMethodChannel().invokeMethod("registrationStateStream", true);
         } else {
           Intent onLineIntent = new Intent(activity, PortSipService.class);
           onLineIntent.setAction(PortSipService.ACTION_SIP_REGIEST);

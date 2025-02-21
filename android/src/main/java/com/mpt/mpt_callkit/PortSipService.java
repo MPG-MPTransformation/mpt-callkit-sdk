@@ -66,6 +66,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     public static final String ACTION_PUSH_TOKEN = "PortSip.AndroidSample.Test.PushToken";
     public static final String ACTION_SIP_REGIEST = "PortSip.AndroidSample.Test.REGIEST";
     public static final String ACTION_SIP_UNREGIEST = "PortSip.AndroidSample.Test.UNREGIEST";
+    public static final String ACTION_STOP = "PortSip.AndroidSample.Test.STOP";
     public static final String EXTRA_CALL_DESCRIPTION = "Description";
     public static final String ACTION_SIP_AUDIODEVICE = "PortSip.AndroidSample.Test.AudioDeviceUpdate";
     public static final String EXTRA_CALL_SEESIONID = "SessionID";
@@ -242,6 +243,8 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                 Engine.Instance().getMethodChannel().invokeMethod("releaseExtension", true);
                 context.stopService(new Intent(this, PortSipService.class));
                 System.out.println("quanth: service unregisterToServer done");
+            } else if (ACTION_STOP.equals(intent.getAction())){
+                return START_NOT_STICKY;
             }
         }
         return result;

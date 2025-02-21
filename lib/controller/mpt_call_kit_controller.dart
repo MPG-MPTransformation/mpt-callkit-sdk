@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,6 +26,10 @@ class MptCallKitController {
     return _instance;
   }
 
+  final StreamController<bool> _isGetExtensionSuccess = StreamController();
+
+  Stream<bool> get isGetExtensionSuccess => _isGetExtensionSuccess.stream;
+
   void initSdk({
     required String apiKey,
     String? baseUrl,
@@ -50,41 +55,52 @@ class MptCallKitController {
         return;
       }
 
+      if (Platform.isAndroid) {
+        channel.invokeListMethod("startActivity");
+      } else {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const CameraView()));
+      }
+
       final result = await getExtension();
       if (result != null) {
+        _isGetExtensionSuccess.add(true);
         await online(
-            username: result.username ?? "",
-            displayName: phoneNumber,
-            authName: '',
-            password: result.password!,
-            userDomain: result.domain!,
-            sipServer: result.sipServer!,
-            sipServerPort: result.port ?? 5060,
-            transportType: 0,
-            srtpType: 0,
-            phoneNumber: phoneNumber,
-            isVideoCall: isVideoCall,
-            onBusy: () {
-              const snackBar = SnackBar(
-                content:
-                    Text('Current line is busy now, please switch a line.'),
-              );
-              // Find the ScaffoldMessenger in the widget tree
-              // and use it to show a SnackBar.
-              ScaffoldMessenger.of(context).showSnackBar(snackBar);
-            });
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const CameraView(),
-          ),
+          username: result.username ?? "",
+          displayName: phoneNumber,
+          authName: '',
+          password: result.password!,
+          userDomain: result.domain!,
+          sipServer: result.sipServer!,
+          sipServerPort: result.port ?? 5060,
+          transportType: 0,
+          srtpType: 0,
+          phoneNumber: phoneNumber,
+          isVideoCall: isVideoCall,
+          onBusy: () {
+            onError?.call('Tổng đài bận, liên hệ hỗ trợ');
+          },
+          context: context,
         );
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(
+        //     builder: (context) => const CameraView(),
+        //   ),
+        // );
       } else {
         onError?.call('Tổng đài bận, liên hệ hỗ trợ');
+        // _isGetExtensionSuccess.add(false);
+        if (Platform.isIOS)
+          Navigator.pop(context);
+        else
+          await channel.invokeMethod("finishActivity");
       }
     } on Exception catch (e) {
+      // _isGetExtensionSuccess.add(false);
       onError?.call(e.toString());
       debugPrint("Failed to call: '${e.toString()}'.");
+      if (Platform.isIOS) Navigator.pop(context);
     }
   }
 
@@ -116,17 +132,18 @@ class MptCallKitController {
         extension = result.data?.username ?? '';
         return result.data;
       } else {
-        if (retryCount > 2) {
-          throw Exception(message);
-        }
-        retryCount += 1;
-        final releaseResult = await releaseExtension();
-        if (!releaseResult) return null;
-        return await getExtension(retryTime: retryCount);
+        return null;
+        // if (retryCount > 2) {
+        //   throw Exception(message);
+        // }
+        // retryCount += 1;
+        // final releaseResult = await releaseExtension();
+        // if (!releaseResult) return null;
+        // return await getExtension(retryTime: retryCount);
       }
     } on Exception catch (e) {
       debugPrint("Error in getExtension: $e");
-      throw Exception(e);
+      return null;
     }
   }
 
@@ -232,6 +249,7 @@ class MptCallKitController {
     required String phoneNumber,
     bool isVideoCall = false,
     void Function()? onBusy,
+    required BuildContext context,
   }) async {
     try {
       if (Platform.isAndroid) {
@@ -240,7 +258,7 @@ class MptCallKitController {
           if (call.method == 'registrationStateStream') {
             /// nếu thành công thì call luôn
             /// mở màn hình video call
-            channel.invokeMethod('startActivity');
+            // channel.invokeMethod('startActivity');
             if (call.arguments == true) {
               final bool callResult = await channel.invokeMethod(
                 'call',
@@ -253,9 +271,18 @@ class MptCallKitController {
                 onBusy?.call();
                 print('quanth: call has failed');
                 await offline();
+                if (Platform.isIOS)
+                  Navigator.pop(context);
+                else
+                  await channel.invokeMethod("finishActivity");
               }
             } else {
               print('quanth: registration has failed');
+              if (Platform.isIOS)
+                Navigator.pop(context);
+              else {
+                await channel.invokeMethod("finishActivity");
+              }
             }
           } else if (call.method == 'releaseExtension') {
             print('quanth: releaseExtension has started');
@@ -283,6 +310,10 @@ class MptCallKitController {
       return result;
     } on PlatformException catch (e) {
       debugPrint("Login failed: ${e.message}");
+      if (Platform.isIOS)
+        Navigator.pop(context);
+      else
+        await channel.invokeMethod("finishActivity");
       return false;
     }
   }
