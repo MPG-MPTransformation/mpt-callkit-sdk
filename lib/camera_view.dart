@@ -14,7 +14,7 @@ class _CameraViewState extends State<CameraView> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback(
+    WidgetsBinding.instance?.addPostFrameCallback(
       (_) {
         MptCallKitController.channel.setMethodCallHandler(
           (call) async {
