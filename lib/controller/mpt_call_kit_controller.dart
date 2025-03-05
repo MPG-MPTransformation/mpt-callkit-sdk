@@ -26,10 +26,6 @@ class MptCallKitController {
     return _instance;
   }
 
-  final StreamController<bool> _isGetExtensionSuccess = StreamController();
-
-  Stream<bool> get isGetExtensionSuccess => _isGetExtensionSuccess.stream;
-
   void initSdk({
     required String apiKey,
     String? baseUrl,
@@ -55,16 +51,11 @@ class MptCallKitController {
         return;
       }
 
-      if (Platform.isAndroid) {
-        channel.invokeListMethod("startActivity");
-      } else {
-        Navigator.push(context,
-            MaterialPageRoute(builder: (context) => const CameraView()));
-      }
+      Navigator.push(
+          context, MaterialPageRoute(builder: (context) => const CameraView()));
 
       final result = await getExtension();
       if (result != null) {
-        _isGetExtensionSuccess.add(true);
         await online(
           username: result.username ?? "",
           displayName: phoneNumber,
@@ -82,25 +73,14 @@ class MptCallKitController {
           },
           context: context,
         );
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (context) => const CameraView(),
-        //   ),
-        // );
       } else {
         onError?.call('Tổng đài bận, liên hệ hỗ trợ');
-        // _isGetExtensionSuccess.add(false);
-        if (Platform.isIOS)
-          Navigator.pop(context);
-        else
-          await channel.invokeMethod("finishActivity");
+        Navigator.pop(context);
       }
     } on Exception catch (e) {
-      // _isGetExtensionSuccess.add(false);
       onError?.call(e.toString());
       debugPrint("Failed to call: '${e.toString()}'.");
-      if (Platform.isIOS) Navigator.pop(context);
+      Navigator.pop(context);
     }
   }
 
@@ -252,45 +232,18 @@ class MptCallKitController {
     required BuildContext context,
   }) async {
     try {
-      if (Platform.isAndroid) {
-        channel.setMethodCallHandler((call) async {
-          /// lắng nghe kết quả register
-          if (call.method == 'registrationStateStream') {
-            /// nếu thành công thì call luôn
-            /// mở màn hình video call
-            // channel.invokeMethod('startActivity');
-            if (call.arguments == true) {
-              final bool callResult = await channel.invokeMethod(
-                'call',
-                <String, dynamic>{
-                  'phoneNumber': phoneNumber,
-                  'isVideoCall': isVideoCall
-                },
-              );
-              if (!callResult) {
-                onBusy?.call();
-                print('quanth: call has failed');
-                await offline();
-                if (Platform.isIOS)
-                  Navigator.pop(context);
-                else
-                  await channel.invokeMethod("finishActivity");
-              }
-            } else {
-              print('quanth: registration has failed');
-              if (Platform.isIOS)
-                Navigator.pop(context);
-              else {
-                await channel.invokeMethod("finishActivity");
-              }
-            }
-          } else if (call.method == 'releaseExtension') {
-            print('quanth: releaseExtension has started');
-            await releaseExtension();
-            print('quanth: releaseExtension has done');
-          }
-        });
-      }
+      channel.setMethodCallHandler((call) async {
+        if (call.method == 'releaseExtension') {
+          print('quanth: releaseExtension has started');
+          await releaseExtension();
+          print('quanth: releaseExtension has done');
+        }
+        if (call.method == 'onBusy') {
+          Navigator.pop(context);
+          onBusy?.call();
+        }
+      });
+
       final bool result = await channel.invokeMethod(
         MptCallKitConstants.login,
         {
@@ -305,15 +258,14 @@ class MptCallKitController {
           'srtpType': srtpType,
           'phoneNumber': phoneNumber,
           'isVideoCall': isVideoCall,
+          'baseUrl': baseUrl,
         },
       );
       return result;
     } on PlatformException catch (e) {
       debugPrint("Login failed: ${e.message}");
-      if (Platform.isIOS)
-        Navigator.pop(context);
-      else
-        await channel.invokeMethod("finishActivity");
+      Navigator.pop(context);
+
       return false;
     }
   }

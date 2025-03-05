@@ -3,220 +3,190 @@ package com.mpt.mpt_callkit.util;
 import com.portsip.PortSIPVideoRenderer;
 import com.portsip.PortSipEnumDefine;
 import com.portsip.PortSipSdk;
+import io.reactivex.subjects.BehaviorSubject;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class CallManager
-{
-	public static final int MAX_LINES = 10;
-	private static CallManager mInstance;
-	private static Object locker = new Object();
-	Session[] sessions;
-	public int CurrentLine;
-	public boolean isRegistered;
-	public boolean online;
-	public boolean speakerOn =false;
-	PortSipEnumDefine.AudioDevice currentAudioDevice=PortSipEnumDefine.AudioDevice.NONE;
-	List<PortSipEnumDefine.AudioDevice> audioDeviceAvailable = new ArrayList<>();
+public class CallManager {
 
-	public static CallManager Instance()
-	{
-			if (mInstance == null)
-			{
-				synchronized (locker)
-				{
-					if (mInstance == null)
-					{
-						mInstance = new CallManager();
-					}
-				}
-			}
+    private static CallManager instance;
+    private BehaviorSubject<String> registrationStateStream;
 
-			return mInstance;
-	}
+    public static CallManager Instance() {
+        if (instance == null) {
+            instance = new CallManager();
+        }
+        return instance;
+    }
 
-	public void setSelectableAudioDevice(PortSipEnumDefine.AudioDevice current, Set<PortSipEnumDefine.AudioDevice> devices){
-		audioDeviceAvailable.clear();
-		audioDeviceAvailable.addAll(devices);
+    public BehaviorSubject<String> getRegistrationStateStream() {
+        return registrationStateStream;
+    }
 
-		this.currentAudioDevice = current;
-	}
+    public void setRegistrationState(String state) {
+        registrationStateStream.onNext(state);
+    }
 
-	public Set<PortSipEnumDefine.AudioDevice> getSelectableAudioDevice(){
-		HashSet audioDevices = new HashSet<PortSipEnumDefine.AudioDevice>();
-		audioDevices.addAll(audioDeviceAvailable);
-		return audioDevices;
-	}
+    public static final int MAX_LINES = 10;
+    private static Object locker = new Object();
+    Session[] sessions;
+    public int CurrentLine;
+    public boolean isRegistered;
+    public boolean online;
+    public boolean speakerOn = false;
+    PortSipEnumDefine.AudioDevice currentAudioDevice = PortSipEnumDefine.AudioDevice.NONE;
+    List<PortSipEnumDefine.AudioDevice> audioDeviceAvailable = new ArrayList<>();
 
-	public void setAudioDevice(PortSipSdk portSipSdk ,PortSipEnumDefine.AudioDevice audioDevice) {
-		currentAudioDevice = audioDevice;
-		portSipSdk.setAudioDevice(currentAudioDevice);
-	}
+    public void setSelectableAudioDevice(PortSipEnumDefine.AudioDevice current, Set<PortSipEnumDefine.AudioDevice> devices) {
+        audioDeviceAvailable.clear();
+        audioDeviceAvailable.addAll(devices);
 
-	public PortSipEnumDefine.AudioDevice getCurrentAudioDevice(){
-		return this.currentAudioDevice;
-	}
+        this.currentAudioDevice = current;
+    }
 
-	private CallManager()
-	{
-		CurrentLine = 0;
-		sessions = new Session[MAX_LINES];
-		for (int i = 0; i < sessions.length; i++)
-		{
-			sessions[i] = new Session();
-			sessions[i].lineName = "line - " + i;
+    public Set<PortSipEnumDefine.AudioDevice> getSelectableAudioDevice() {
+        HashSet audioDevices = new HashSet<PortSipEnumDefine.AudioDevice>();
+        audioDevices.addAll(audioDeviceAvailable);
+        return audioDevices;
+    }
 
-		}
-	}
+    public void setAudioDevice(PortSipSdk portSipSdk, PortSipEnumDefine.AudioDevice audioDevice) {
+        currentAudioDevice = audioDevice;
+        portSipSdk.setAudioDevice(currentAudioDevice);
+    }
 
-	public void hangupAllCalls(PortSipSdk sdk)
-	{
+    public PortSipEnumDefine.AudioDevice getCurrentAudioDevice() {
+        return this.currentAudioDevice;
+    }
 
-		 for (Session session: sessions)
-		{
-			if (session.sessionID > Session.INVALID_SESSION_ID)
-			{
-				sdk.hangUp(session.sessionID);
-			}
-		}
-	}
+    private CallManager() {
+        registrationStateStream = BehaviorSubject.create();
+        CurrentLine = 0;
+        sessions = new Session[MAX_LINES];
+        for (int i = 0; i < sessions.length; i++) {
+            sessions[i] = new Session();
+            sessions[i].lineName = "line - " + i;
 
-	public boolean hasActiveSession()
-	{
+        }
+    }
 
-		for(Session session: sessions)
-		{
-			if (session.sessionID > Session.INVALID_SESSION_ID)
-			{
-				return true;
-			}
-		}
+    public void hangupAllCalls(PortSipSdk sdk) {
 
-		return false;
-	}
+        for (Session session : sessions) {
+            if (session.sessionID > Session.INVALID_SESSION_ID) {
+                sdk.hangUp(session.sessionID);
+            }
+        }
+    }
 
-	public Session findSessionBySessionID(long SessionID)
-	{
-		for(Session session :sessions)
-		{
-			if (session.sessionID == SessionID)
-			{
-				return session;
-			}
-		}
-		return null;
-	}
+    public boolean hasActiveSession() {
 
-	public Session findIdleSession()
-	{
-		for(Session session :sessions)
-		{
-			if (session.IsIdle())
-			{
-				session.Reset();
-				return session;
-			}
-		}
-		return null;
-	}
+        for (Session session : sessions) {
+            if (session.sessionID > Session.INVALID_SESSION_ID) {
+                return true;
+            }
+        }
 
-	public Session getCurrentSession()
-	{
-		if (CurrentLine >= 0 && CurrentLine <= sessions.length)
-		{
+        return false;
+    }
 
-			return sessions[CurrentLine];
+    public Session findSessionBySessionID(long SessionID) {
+        for (Session session : sessions) {
+            if (session.sessionID == SessionID) {
+                return session;
+            }
+        }
+        return null;
+    }
 
-		}
-		return null;
-	}
+    public Session findIdleSession() {
+        for (Session session : sessions) {
+            if (session.IsIdle()) {
+                session.Reset();
+                return session;
+            }
+        }
+        return null;
+    }
 
-	public Session findSessionByIndex(int index)
-	{
-		if (index >= 0 && index <= sessions.length)
-		{
+    public Session getCurrentSession() {
+        if (CurrentLine >= 0 && CurrentLine <= sessions.length) {
 
-			return sessions[index];
+            return sessions[CurrentLine];
 
-		}
-		return null;
-	}
-    public void addActiveSessionToConfrence(PortSipSdk sdk)
-    {
-        for (Session session : sessions)
-        {
-            if(session.state == Session.CALL_STATE_FLAG.CONNECTED)
-            {
-				sdk.setRemoteScreenWindow(session.sessionID,null);
-				sdk.setRemoteVideoWindow(session.sessionID,null);
+        }
+        return null;
+    }
+
+    public Session findSessionByIndex(int index) {
+        if (index >= 0 && index <= sessions.length) {
+
+            return sessions[index];
+
+        }
+        return null;
+    }
+
+    public void addActiveSessionToConfrence(PortSipSdk sdk) {
+        for (Session session : sessions) {
+            if (session.state == Session.CALL_STATE_FLAG.CONNECTED) {
+                sdk.setRemoteScreenWindow(session.sessionID, null);
+                sdk.setRemoteVideoWindow(session.sessionID, null);
                 sdk.joinToConference(session.sessionID);
                 sdk.sendVideo(session.sessionID, true);
-				sdk.unHold(session.sessionID);
+                sdk.unHold(session.sessionID);
 
             }
         }
     }
 
-	public void setRemoteVideoWindow(PortSipSdk sdk,long sessionid,PortSIPVideoRenderer renderer){
-		sdk.setConferenceVideoWindow(null);
-		for (Session session : sessions)
-		{
-			if(session.state == Session.CALL_STATE_FLAG.CONNECTED&&sessionid!=session.sessionID)
-			{
-				sdk.setRemoteVideoWindow(session.sessionID,null);
-			}
-		}
-		sdk.setRemoteVideoWindow(sessionid,renderer);
-	}
+    public void setRemoteVideoWindow(PortSipSdk sdk, long sessionid, PortSIPVideoRenderer renderer) {
+        sdk.setConferenceVideoWindow(null);
+        for (Session session : sessions) {
+            if (session.state == Session.CALL_STATE_FLAG.CONNECTED && sessionid != session.sessionID) {
+                sdk.setRemoteVideoWindow(session.sessionID, null);
+            }
+        }
+        sdk.setRemoteVideoWindow(sessionid, renderer);
+    }
 
-	public void setShareVideoWindow(PortSipSdk sdk,long sessionid,PortSIPVideoRenderer renderer){
-		sdk.setConferenceVideoWindow(null);
-		for (Session session : sessions)
-		{
-			if(session.state == Session.CALL_STATE_FLAG.CONNECTED&&sessionid!=session.sessionID)
-			{
-				sdk.setRemoteScreenWindow(session.sessionID,null);
-			}
-		}
-		sdk.setRemoteScreenWindow(sessionid,renderer);
-	}
+    public void setShareVideoWindow(PortSipSdk sdk, long sessionid, PortSIPVideoRenderer renderer) {
+        sdk.setConferenceVideoWindow(null);
+        for (Session session : sessions) {
+            if (session.state == Session.CALL_STATE_FLAG.CONNECTED && sessionid != session.sessionID) {
+                sdk.setRemoteScreenWindow(session.sessionID, null);
+            }
+        }
+        sdk.setRemoteScreenWindow(sessionid, renderer);
+    }
 
+    public void setConferenceVideoWindow(PortSipSdk sdk, PortSIPVideoRenderer renderer) {
+        for (Session session : sessions) {
+            if (session.state == Session.CALL_STATE_FLAG.CONNECTED) {
+                sdk.setRemoteVideoWindow(session.sessionID, null);
+                sdk.setRemoteScreenWindow(session.sessionID, null);
+            }
+        }
+        sdk.setConferenceVideoWindow(renderer);
+    }
 
-	public void setConferenceVideoWindow(PortSipSdk sdk,PortSIPVideoRenderer renderer){
-		for (Session session : sessions)
-		{
-			if(session.state == Session.CALL_STATE_FLAG.CONNECTED)
-			{
-				sdk.setRemoteVideoWindow(session.sessionID,null);
-				sdk.setRemoteScreenWindow(session.sessionID,null);
-			}
-		}
-		sdk.setConferenceVideoWindow(renderer);
-	}
-	public void resetAll()
-	{
-		for(Session session :sessions)
-		{
-			session.Reset();
-		}
-	}
+    public void resetAll() {
+        for (Session session : sessions) {
+            session.Reset();
+        }
+    }
 
-	public Session findIncomingCall()
-	{
-		for(Session session :sessions)
-		{
-			if (session.sessionID != Session.INVALID_SESSION_ID&&session.state== Session.CALL_STATE_FLAG.INCOMING)
-			{
-				return session;
-			}
-		}
+    public Session findIncomingCall() {
+        for (Session session : sessions) {
+            if (session.sessionID != Session.INVALID_SESSION_ID && session.state == Session.CALL_STATE_FLAG.INCOMING) {
+                return session;
+            }
+        }
 
-		return null;
-	}
+        return null;
+    }
 
 }
-
-

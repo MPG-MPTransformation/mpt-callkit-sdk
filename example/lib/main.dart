@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mpt_callkit/camera_view.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 
 void main() {
@@ -38,8 +37,8 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    _phoneController.text = "200011";
-    _callTo.text = "20015";
+    _phoneController.text = "2000115580";
+    _callTo.text = "88888888";
   }
 
   @override
@@ -48,23 +47,24 @@ class _MyHomePageState extends State<MyHomePage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           MptCallKitController().initSdk(
-            apiKey: "0c16d4aa-abe7-4098-b47a-7b914f9b7444",
-            baseUrl: "https://crm-dev-v2.metechvn.com",
+            // apiKey: "53801c57-a9ef-495b-ab92-797ba1be2a60",
+            // baseUrl: "https://crm-uat-v2.metechvn.com",
+            apiKey: "0c16d4aa-abe7-4098-b47a-7b914f9b7444", //dev
+            baseUrl: "https://crm-dev-v2.metechvn.com", //dev
             userPhoneNumber: _phoneController.text,
           );
           MptCallKitController().makeCall(
-            context: context,
-            phoneNumber: _callTo.text,
-            isVideoCall: true,
-            onError: (errorMessage){
-              if(errorMessage == null) return;
-              var snackBar = SnackBar(
-                content: Text(errorMessage),
-                backgroundColor: Colors.grey,
-              );
-              ScaffoldMessenger.of(context).showSnackBar(snackBar);
-            }
-          );
+              context: context,
+              phoneNumber: _callTo.text,
+              isVideoCall: true,
+              onError: (errorMessage) {
+                if (errorMessage == null) return;
+                var snackBar = SnackBar(
+                  content: Text(errorMessage),
+                  backgroundColor: Colors.grey,
+                );
+                ScaffoldMessenger.of(context).showSnackBar(snackBar);
+              });
         },
         child: const Icon(Icons.call),
       ),
@@ -77,7 +77,7 @@ class _MyHomePageState extends State<MyHomePage> {
               child: TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Phone Number',
                   border: OutlineInputBorder(),
                 ),
@@ -88,7 +88,7 @@ class _MyHomePageState extends State<MyHomePage> {
               child: TextField(
                 controller: _callTo,
                 keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Call to',
                   border: OutlineInputBorder(),
                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
 import 'package:flutter/services.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
@@ -32,12 +33,21 @@ class _CameraViewState extends State<CameraView> {
 
   @override
   Widget build(BuildContext context) {
-    return UiKitView(
-      viewType: 'VideoView',
-      onPlatformViewCreated: _onPlatformViewCreated,
-      creationParams: const <String, dynamic>{},
-      creationParamsCodec: const StandardMessageCodec(),
-    );
+    if (Platform.isAndroid) {
+      return AndroidView(
+        viewType: 'VideoView',
+        onPlatformViewCreated: _onPlatformViewCreated,
+        creationParams: const <String, dynamic>{},
+        creationParamsCodec: const StandardMessageCodec(),
+      );
+    } else {
+      return UiKitView(
+        viewType: 'VideoView',
+        onPlatformViewCreated: _onPlatformViewCreated,
+        creationParams: const <String, dynamic>{},
+        creationParamsCodec: const StandardMessageCodec(),
+      );
+    }
   }
 
   void _onPlatformViewCreated(int id) {}
