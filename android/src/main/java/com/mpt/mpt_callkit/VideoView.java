@@ -59,7 +59,7 @@ public class VideoView implements PlatformView {
         this.context = context;
         this.activity = activity;
         view = LayoutInflater.from(context).inflate(R.layout.video, null);
-        receiver = new PortMessageReceiver();
+        receiver = Engine.Instance().getReceiver();
         initializeViews();
         setupClickListeners();
         setupInitialState();
@@ -167,10 +167,28 @@ public class VideoView implements PlatformView {
         Engine.Instance().getEngine().hangUp(currentLine.sessionID);
         currentLine.Reset();
 
+        // Đảm bảo codec âm thanh được thêm lại trước khi unregister
+        prepareForNextCall();
+
         // Logout
         Intent offLineIntent = new Intent(context, PortSipService.class);
         offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
         PortSipService.startServiceCompatibility(context, offLineIntent);
+        
+        // Thông báo về Flutter để đóng màn hình Native View
+        Engine.Instance().getMethodChannel().invokeMethod("onCallEnded", true);
+    }
+
+    /**
+     * Chuẩn bị cho cuộc gọi tiếp theo bằng cách đảm bảo các codec âm thanh được thêm lại
+     */
+    private void prepareForNextCall() {
+        PortSipSdk portSipLib = Engine.Instance().getEngine();
+        if (portSipLib != null) {
+            // Sử dụng ConfigPreferences để reset codec
+            PortSipService.ConfigPreferences(context, portSipLib);
+            System.out.println("quanth: Reset audio codecs for next call");
+        }
     }
 
     private void handleMuteToggle() {
@@ -179,7 +197,7 @@ public class VideoView implements PlatformView {
             imgMute.setImageResource(R.drawable.volume_on);
         } else {
             CallManager.Instance().setAudioDevice(Engine.Instance().getEngine(), PortSipEnumDefine.AudioDevice.EARPIECE);
-            imgMute.setImageResource(R.drawable.headphones);
+            imgMute.setImageResource(R.drawable.volumn_up);
         }
     }
 
@@ -242,10 +260,16 @@ public class VideoView implements PlatformView {
                         // Tắt cuộc gọi
                         portSipLib.hangUp(currentLine.sessionID);
                         currentLine.Reset();
+                        // Đảm bảo codec âm thanh được thêm lại trước khi unregister
+                        prepareForNextCall();
                         // Logout
                         Intent offLineIntent = new Intent(context, PortSipService.class);
                         offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
                         PortSipService.startServiceCompatibility(context, offLineIntent);
+                        
+                        // Thông báo về Flutter để đóng màn hình Native View
+                        Engine.Instance().getMethodChannel().invokeMethod("onCallEnded", true);
+                        
                         dialog.cancel();
                     }
                 });
@@ -345,19 +369,6 @@ public class VideoView implements PlatformView {
     }
 
     private void setupReceiver() {
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
-        filter.addAction(PortSipService.CALL_CHANGE_ACTION);
-        filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
-        filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
-        filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            context.registerReceiver(receiver, filter);
-        }
-        
         // Thêm xử lý sự kiện broadcast
         receiver.broadcastReceiver = new PortMessageReceiver.BroadcastListener() {
             @Override
@@ -383,10 +394,15 @@ public class VideoView implements PlatformView {
                         // Tắt cuộc gọi
                         portSipLib.hangUp(currentLine.sessionID);
                         currentLine.Reset();
+                        // Đảm bảo codec âm thanh được thêm lại trước khi unregister
+                        prepareForNextCall();
                         // Logout
                         Intent offLineIntent = new Intent(context, PortSipService.class);
                         offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
                         PortSipService.startServiceCompatibility(context, offLineIntent);
+                        
+                        // Thông báo về Flutter để đóng màn hình Native View
+                        Engine.Instance().getMethodChannel().invokeMethod("onCallEnded", true);
                         break;
                     case INCOMING:
                         break;
@@ -409,6 +425,9 @@ public class VideoView implements PlatformView {
                         Intent logoutIntent = new Intent(context, PortSipService.class);
                         logoutIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
                         PortSipService.startServiceCompatibility(context, logoutIntent);
+                        
+                        // Thông báo về Flutter để đóng màn hình Native View
+                        Engine.Instance().getMethodChannel().invokeMethod("onCallEnded", true);
                         break;
                 }
             }
@@ -464,10 +483,15 @@ public class VideoView implements PlatformView {
                     // Tắt cuộc gọi nếu người dùng không nghe
                     portSipLib.hangUp(currentLine.sessionID);
                     currentLine.Reset();
+                    // Đảm bảo codec âm thanh được thêm lại trước khi unregister
+                    prepareForNextCall();
                     // Logout
                     Intent logoutIntent = new Intent(context, PortSipService.class);
                     logoutIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
                     PortSipService.startServiceCompatibility(context, logoutIntent);
+                    
+                    // Thông báo về Flutter để đóng màn hình Native View
+                    Engine.Instance().getMethodChannel().invokeMethod("onCallEnded", true);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -482,13 +506,9 @@ public class VideoView implements PlatformView {
 
     @Override
     public void dispose() {
-        // Hủy đăng ký receiver
+        // Hủy đăng ký listener
         if (receiver != null) {
-            try {
-                context.unregisterReceiver(receiver);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            receiver.broadcastReceiver = null;
             receiver = null;
         }
         

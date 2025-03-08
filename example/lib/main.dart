@@ -47,10 +47,10 @@ class _MyHomePageState extends State<MyHomePage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           MptCallKitController().initSdk(
-            // apiKey: "53801c57-a9ef-495b-ab92-797ba1be2a60",
-            // baseUrl: "https://crm-uat-v2.metechvn.com",
-            apiKey: "0c16d4aa-abe7-4098-b47a-7b914f9b7444", //dev
-            baseUrl: "https://crm-dev-v2.metechvn.com", //dev
+            apiKey: "53801c57-a9ef-495b-ab92-797ba1be2a60",
+            baseUrl: "https://crm-uat-v2.metechvn.com",
+            // apiKey: "0c16d4aa-abe7-4098-b47a-7b914f9b7444", //dev
+            // baseUrl: "https://crm-dev-v2.metechvn.com", //dev
             userPhoneNumber: _phoneController.text,
           );
           MptCallKitController().makeCall(

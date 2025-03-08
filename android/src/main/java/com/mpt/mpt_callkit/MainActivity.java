@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         activity = this;
         receiver = new PortMessageReceiver();
-        setContentView(R.layout.main);
+        // setContentView(R.layout.main);
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
@@ -51,12 +51,12 @@ public class MainActivity extends Activity {
             registerReceiver(receiver, filter);
         }
 
-        Fragment fragment = getFragmentManager().findFragmentById(R.id.video_fragment);
+        // Fragment fragment = getFragmentManager().findFragmentById(R.id.video_fragment);
 
-        FragmentTransaction fTransaction = getFragmentManager().beginTransaction();
-        if(fragment!=null){
-            fTransaction.show( fragment).commit();
-        }
+        // FragmentTransaction fTransaction = getFragmentManager().beginTransaction();
+        // if(fragment!=null){
+        //     fTransaction.show( fragment).commit();
+        // }
     }
 
     @Override
