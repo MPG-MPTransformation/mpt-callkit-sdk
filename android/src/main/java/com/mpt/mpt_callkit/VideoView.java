@@ -28,6 +28,8 @@ import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import com.mpt.mpt_callkit.PortSipService;
+import androidx.annotation.NonNull;
 
 public class VideoView implements PlatformView {
 
@@ -60,6 +62,19 @@ public class VideoView implements PlatformView {
         this.activity = activity;
         view = LayoutInflater.from(context).inflate(R.layout.video, null);
         receiver = Engine.Instance().getReceiver();
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
+        filter.addAction(PortSipService.CALL_CHANGE_ACTION);
+        filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
+        filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
+        filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
+        if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else{
+            context.registerReceiver(receiver, filter);
+        }
+
         initializeViews();
         setupClickListeners();
         setupInitialState();
@@ -298,73 +313,80 @@ public class VideoView implements PlatformView {
         CallManager callManager = CallManager.Instance();
         Session cur = CallManager.Instance().getCurrentSession();
 
-        if (cur != null && !cur.IsIdle() && cur.sessionID != -1) {
-            // Hiển thị các nút điều khiển
-            imgSwitchCamera.setVisibility(View.VISIBLE);
-            imgMicOn.setVisibility(View.VISIBLE);
-            imgHangOut.setVisibility(View.VISIBLE);
-            imgMute.setVisibility(View.VISIBLE);
-            imgVideo.setVisibility(View.VISIBLE);
-            
-            if (cur.hasVideo) {
-                isVideoOn = true;
+        if (Engine.Instance().mConference) {
+            System.out.println("quanth: application.mConference = true && setConferenceVideoWindow");
+            callManager.setConferenceVideoWindow(portSipLib, remoteRenderScreen);
+        } else {
+            System.out.println("quanth: application.mConference = false");
+
+            if (cur != null && !cur.IsIdle() && cur.sessionID != -1) {
+                // Hiển thị các nút điều khiển
                 imgSwitchCamera.setVisibility(View.VISIBLE);
-                localRenderScreen.setVisibility(View.VISIBLE);
-                remoteRenderScreen.setVisibility(View.VISIBLE);
-
-                if (cur.bScreenShare) {
-                    remoteRenderSmallScreen.setVisibility(View.VISIBLE);
-                    callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, null);
-                    callManager.setShareVideoWindow(portSipLib, cur.sessionID, null);
-
-                    if (shareInSmall) {
-                        callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderScreen);
-                        callManager.setShareVideoWindow(portSipLib, cur.sessionID, remoteRenderSmallScreen);
+                imgMicOn.setVisibility(View.VISIBLE);
+                imgHangOut.setVisibility(View.VISIBLE);
+                imgMute.setVisibility(View.VISIBLE);
+                imgVideo.setVisibility(View.VISIBLE);
+                
+                if (cur.hasVideo) {
+                    isVideoOn = true;
+                    imgSwitchCamera.setVisibility(View.VISIBLE);
+                    localRenderScreen.setVisibility(View.VISIBLE);
+                    remoteRenderScreen.setVisibility(View.VISIBLE);
+    
+                    if (cur.bScreenShare) {
+                        remoteRenderSmallScreen.setVisibility(View.VISIBLE);
+                        callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, null);
+                        callManager.setShareVideoWindow(portSipLib, cur.sessionID, null);
+    
+                        if (shareInSmall) {
+                            callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderScreen);
+                            callManager.setShareVideoWindow(portSipLib, cur.sessionID, remoteRenderSmallScreen);
+                        } else {
+                            callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderSmallScreen);
+                            callManager.setShareVideoWindow(portSipLib, cur.sessionID, remoteRenderScreen);
+                        }
                     } else {
-                        callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderSmallScreen);
+                        remoteRenderSmallScreen.setVisibility(View.GONE);
+                        callManager.setShareVideoWindow(portSipLib, cur.sessionID, null);
+                        callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderScreen);
+                    }
+    
+                    imgVideo.setImageResource(R.drawable.camera_on);
+                    portSipLib.displayLocalVideo(true, true, localRenderScreen);
+                    portSipLib.sendVideo(cur.sessionID, true);
+                } else {
+                    isVideoOn = false;
+                    imgSwitchCamera.setVisibility(View.INVISIBLE);
+                    remoteRenderSmallScreen.setVisibility(View.GONE);
+                    localRenderScreen.setVisibility(View.GONE);
+                    remoteRenderScreen.setVisibility(View.VISIBLE);
+                    imgVideo.setImageResource(R.drawable.switch_video_call);
+                    portSipLib.displayLocalVideo(false, false, null);
+                    callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, null);
+                    if (cur.bScreenShare) {
                         callManager.setShareVideoWindow(portSipLib, cur.sessionID, remoteRenderScreen);
                     }
+                }
+                
+                // Cập nhật trạng thái các nút
+                if (cur.bMuteAudioOutGoing) {
+                    imgMicOn.setImageResource(R.drawable.mic_off);
                 } else {
-                    remoteRenderSmallScreen.setVisibility(View.GONE);
-                    callManager.setShareVideoWindow(portSipLib, cur.sessionID, null);
-                    callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderScreen);
+                    imgMicOn.setImageResource(R.drawable.mic_on);
                 }
-
-                imgVideo.setImageResource(R.drawable.camera_on);
-                portSipLib.displayLocalVideo(true, true, localRenderScreen);
-                portSipLib.sendVideo(cur.sessionID, true);
+                
+                updateAudioDeviceUI();
             } else {
-                isVideoOn = false;
-                imgSwitchCamera.setVisibility(View.INVISIBLE);
+                // Ẩn các nút điều khiển nếu không có cuộc gọi
+                imgSwitchCamera.setVisibility(View.GONE);
+                imgMicOn.setVisibility(View.GONE);
+                imgHangOut.setVisibility(View.GONE);
+                imgMute.setVisibility(View.GONE);
+                imgVideo.setVisibility(View.GONE);
                 remoteRenderSmallScreen.setVisibility(View.GONE);
-                localRenderScreen.setVisibility(View.GONE);
-                remoteRenderScreen.setVisibility(View.VISIBLE);
-                imgVideo.setImageResource(R.drawable.switch_video_call);
                 portSipLib.displayLocalVideo(false, false, null);
-                callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, null);
-                if (cur.bScreenShare) {
-                    callManager.setShareVideoWindow(portSipLib, cur.sessionID, remoteRenderScreen);
-                }
+                callManager.setRemoteVideoWindow(portSipLib, -1, null);
             }
-            
-            // Cập nhật trạng thái các nút
-            if (cur.bMuteAudioOutGoing) {
-                imgMicOn.setImageResource(R.drawable.mic_off);
-            } else {
-                imgMicOn.setImageResource(R.drawable.mic_on);
-            }
-            
-            updateAudioDeviceUI();
-        } else {
-            // Ẩn các nút điều khiển nếu không có cuộc gọi
-            imgSwitchCamera.setVisibility(View.GONE);
-            imgMicOn.setVisibility(View.GONE);
-            imgHangOut.setVisibility(View.GONE);
-            imgMute.setVisibility(View.GONE);
-            imgVideo.setVisibility(View.GONE);
-            remoteRenderSmallScreen.setVisibility(View.GONE);
-            portSipLib.displayLocalVideo(false, false, null);
-            callManager.setRemoteVideoWindow(portSipLib, -1, null);
         }
     }
 
@@ -433,6 +455,7 @@ public class VideoView implements PlatformView {
             }
         } else if (PortSipService.REGISTER_CHANGE_ACTION.equals(action)) {
             // Xử lý sự kiện đăng ký thay đổi
+            System.out.println("quanth: REGISTER_CHANGE_ACTION - login");
         } else if (PortSipService.ACTION_SIP_AUDIODEVICE.equals(action)) {
             // Xử lý sự kiện thiết bị âm thanh thay đổi
             updateAudioDeviceUI();
@@ -508,6 +531,11 @@ public class VideoView implements PlatformView {
     public void dispose() {
         // Hủy đăng ký listener
         if (receiver != null) {
+            try {
+                context.unregisterReceiver(receiver);
+            } catch (Exception e) {
+                System.out.println("quanth: Error unregistering receiver: " + e.getMessage());
+            }
             receiver.broadcastReceiver = null;
             receiver = null;
         }
@@ -557,4 +585,25 @@ public class VideoView implements PlatformView {
                 break;
         }
     }
+
+    private void resetAudioCodecs() {
+        PortSipSdk portSipLib = Engine.Instance().getEngine();
+        if (portSipLib != null) {
+            portSipLib.clearAudioCodec();
+            portSipLib.addAudioCodec(PortSipEnumDefine.ENUM_AUDIOCODEC_PCMA);
+            portSipLib.addAudioCodec(PortSipEnumDefine.ENUM_AUDIOCODEC_PCMU);
+            portSipLib.addAudioCodec(PortSipEnumDefine.ENUM_AUDIOCODEC_G729);
+            System.out.println("quanth: Manually reset audio codecs");
+        }
+    }
+
+    private boolean isCallAllowed() {
+        if (!CallManager.Instance().isRegistered) {
+            System.out.println("quanth: SIP not registered, cannot make call");
+            return false;
+        }
+        return true;
+    }
+
+
 }

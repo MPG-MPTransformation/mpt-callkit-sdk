@@ -223,6 +223,8 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         String port = intent.getStringExtra("port");
         String displayName = intent.getStringExtra("displayName");
         int result = super.onStartCommand(intent, flags, startId);
+
+        System.out.println("quanth: intent = " + intent);
         if (intent != null) {
             /*if(ACTION_PUSH_MESSAGE.equals(intent.getAction())){
                 if(!CallManager.Instance().online){
@@ -329,6 +331,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             Engine.Instance().getEngine().unInitialize();
             CallManager.Instance().online = false;
             CallManager.Instance().isRegistered = false;
+            CallManager.Instance().setRegistrationState(false);
         }
     }
 
@@ -444,7 +447,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);
 //        sendPortSipMessage("onRegisterSuccess", broadIntent);
         keepCpuRun(true);
-        CallManager.Instance().setRegistrationState("registerSuccess");
+        CallManager.Instance().setRegistrationState(true);
         Engine.Instance().getMethodChannel().invokeMethod("registrationStateStream", true);
     }
 
@@ -455,7 +458,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);
 //        sendPortSipMessage("onRegisterFailure" + statusCode, broadIntent);
         CallManager.Instance().isRegistered = false;
-        CallManager.Instance().setRegistrationState("");
+        CallManager.Instance().setRegistrationState(false);
         CallManager.Instance().resetAll();
 
         keepCpuRun(false);

@@ -152,31 +152,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 String phoneNumber = call.argument("phoneNumber");
                 String baseUrl = call.argument("baseUrl");
 
-                if (registrationSubscription != null && !registrationSubscription.isDisposed()) {
-                    registrationSubscription.dispose();
-                }
-                registrationSubscription = CallManager.Instance().getRegistrationStateStream().subscribe(value -> {
-                    if (value.equals("registerSuccess")) {
-                        // Thực hiện cuộc gọi
-                        boolean callResult = makeCall(phoneNumber, isVideoCall);
-                        if (!callResult) {
-                            // Nếu cuộc gọi thất bại
-                            System.out.println("quanth: call has failed");
-                            Engine.Instance().getMethodChannel().invokeMethod("onBusy", true);
-                            // Offline và đóng màn hình
-                            Intent offIntent = new Intent(context, PortSipService.class);
-                            offIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
-                            PortSipService.startServiceCompatibility(context, offIntent);
-                            // activity.finish();
-                        }
-                    } else {
-                        System.out.println("quanth: registration has failed!");
-                        // activity.finish();
-                        // release extension
-                        Engine.Instance().getMethodChannel().invokeMethod("onHangOut", true);
-                    }
-                });
-
                 if (CallManager.Instance().online) {
                     // Toast.makeText(activity,"Please OffLine First",Toast.LENGTH_SHORT).show();
                 } else {
@@ -191,6 +166,32 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     PortSipService.startServiceCompatibility(context, onLineIntent);
                     System.out.println("quanth: RegisterServer..");
                 }
+
+                if (registrationSubscription != null && !registrationSubscription.isDisposed()) {
+                    registrationSubscription.dispose();
+                }
+                registrationSubscription = CallManager.Instance().getRegistrationStateStream().subscribe(value -> {
+                    if (value == true) {
+                        // Thực hiện cuộc gọi
+                        boolean callResult = makeCall(phoneNumber, isVideoCall);
+                        result.success(callResult);
+                        if (!callResult) {
+                            // Nếu cuộc gọi thất bại
+                            System.out.println("quanth: call has failed");
+                            Engine.Instance().getMethodChannel().invokeMethod("onBusy", true);
+                            // Offline và đóng màn hình
+                            Intent offIntent = new Intent(context, PortSipService.class);
+                            offIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
+                            PortSipService.startServiceCompatibility(context, offIntent);
+                            // activity.finish();
+                        }
+                    } else {
+                        System.out.println("quanth: registration has failed!");
+                        // activity.finish();
+                        // release extension
+                        Engine.Instance().getMethodChannel().invokeMethod("onCallEnded", true);
+                    }
+                });
                 break;
             default:
                 result.notImplemented();
@@ -206,6 +207,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     @Override
     public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
         flutterPluginBinding = null;
+        if (registrationSubscription != null && !registrationSubscription.isDisposed()) {
+            registrationSubscription.dispose();
+            registrationSubscription = null;
+        }
         Engine.Instance().setEngine(null);
         Engine.Instance().getMethodChannel().setMethodCallHandler(null);
     }

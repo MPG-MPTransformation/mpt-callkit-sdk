@@ -13,7 +13,7 @@ import java.util.Set;
 public class CallManager {
 
     private static CallManager instance;
-    private BehaviorSubject<String> registrationStateStream;
+    private BehaviorSubject<Boolean> registrationStateStream;
 
     public static CallManager Instance() {
         if (instance == null) {
@@ -22,11 +22,11 @@ public class CallManager {
         return instance;
     }
 
-    public BehaviorSubject<String> getRegistrationStateStream() {
+    public BehaviorSubject<Boolean> getRegistrationStateStream() {
         return registrationStateStream;
     }
 
-    public void setRegistrationState(String state) {
+    public void setRegistrationState(Boolean state) {
         registrationStateStream.onNext(state);
     }
 

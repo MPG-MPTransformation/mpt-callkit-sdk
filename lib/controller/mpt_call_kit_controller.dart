@@ -242,6 +242,9 @@ class MptCallKitController {
           Navigator.pop(context);
           onBusy?.call();
         }
+        // if (call.method == 'onCallEnded') {
+        //   Navigator.pop(context);
+        // }
       });
 
       final bool result = await channel.invokeMethod(
