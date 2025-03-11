@@ -34,7 +34,6 @@ import androidx.annotation.NonNull;
 public class VideoView implements PlatformView {
 
     private final View view;
-    private final Activity activity;
     private PortSIPVideoRenderer remoteRenderScreen;
     private PortSIPVideoRenderer localRenderScreen;
     private PortSIPVideoRenderer remoteRenderSmallScreen;
@@ -57,9 +56,9 @@ public class VideoView implements PlatformView {
     private PortMessageReceiver receiver;
     private final int REQ_DANGERS_PERMISSION = 2;
 
-    VideoView(Context context, Activity activity, int viewId) {
+    VideoView(Context context, int viewId) {
         this.context = context;
-        this.activity = activity;
+
         view = LayoutInflater.from(context).inflate(R.layout.video, null);
         receiver = Engine.Instance().getReceiver();
 
@@ -182,9 +181,6 @@ public class VideoView implements PlatformView {
         Engine.Instance().getEngine().hangUp(currentLine.sessionID);
         currentLine.Reset();
 
-        // Đảm bảo codec âm thanh được thêm lại trước khi unregister
-        prepareForNextCall();
-
         // Logout
         Intent offLineIntent = new Intent(context, PortSipService.class);
         offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
@@ -197,14 +193,7 @@ public class VideoView implements PlatformView {
     /**
      * Chuẩn bị cho cuộc gọi tiếp theo bằng cách đảm bảo các codec âm thanh được thêm lại
      */
-    private void prepareForNextCall() {
-        PortSipSdk portSipLib = Engine.Instance().getEngine();
-        if (portSipLib != null) {
-            // Sử dụng ConfigPreferences để reset codec
-            PortSipService.ConfigPreferences(context, portSipLib);
-            System.out.println("quanth: Reset audio codecs for next call");
-        }
-    }
+
 
     private void handleMuteToggle() {
         if (CallManager.Instance().getCurrentAudioDevice() == PortSipEnumDefine.AudioDevice.EARPIECE) {
@@ -275,8 +264,6 @@ public class VideoView implements PlatformView {
                         // Tắt cuộc gọi
                         portSipLib.hangUp(currentLine.sessionID);
                         currentLine.Reset();
-                        // Đảm bảo codec âm thanh được thêm lại trước khi unregister
-                        prepareForNextCall();
                         // Logout
                         Intent offLineIntent = new Intent(context, PortSipService.class);
                         offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
@@ -416,8 +403,6 @@ public class VideoView implements PlatformView {
                         // Tắt cuộc gọi
                         portSipLib.hangUp(currentLine.sessionID);
                         currentLine.Reset();
-                        // Đảm bảo codec âm thanh được thêm lại trước khi unregister
-                        prepareForNextCall();
                         // Logout
                         Intent offLineIntent = new Intent(context, PortSipService.class);
                         offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
@@ -506,8 +491,6 @@ public class VideoView implements PlatformView {
                     // Tắt cuộc gọi nếu người dùng không nghe
                     portSipLib.hangUp(currentLine.sessionID);
                     currentLine.Reset();
-                    // Đảm bảo codec âm thanh được thêm lại trước khi unregister
-                    prepareForNextCall();
                     // Logout
                     Intent logoutIntent = new Intent(context, PortSipService.class);
                     logoutIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
@@ -528,18 +511,7 @@ public class VideoView implements PlatformView {
     }
 
     @Override
-    public void dispose() {
-        // Hủy đăng ký listener
-        if (receiver != null) {
-            try {
-                context.unregisterReceiver(receiver);
-            } catch (Exception e) {
-                System.out.println("quanth: Error unregistering receiver: " + e.getMessage());
-            }
-            receiver.broadcastReceiver = null;
-            receiver = null;
-        }
-        
+    public void dispose() {   
         // Hủy timer
         if (countDownTimer != null) {
             countDownTimer.cancel();
@@ -586,16 +558,6 @@ public class VideoView implements PlatformView {
         }
     }
 
-    private void resetAudioCodecs() {
-        PortSipSdk portSipLib = Engine.Instance().getEngine();
-        if (portSipLib != null) {
-            portSipLib.clearAudioCodec();
-            portSipLib.addAudioCodec(PortSipEnumDefine.ENUM_AUDIOCODEC_PCMA);
-            portSipLib.addAudioCodec(PortSipEnumDefine.ENUM_AUDIOCODEC_PCMU);
-            portSipLib.addAudioCodec(PortSipEnumDefine.ENUM_AUDIOCODEC_G729);
-            System.out.println("quanth: Manually reset audio codecs");
-        }
-    }
 
     private boolean isCallAllowed() {
         if (!CallManager.Instance().isRegistered) {

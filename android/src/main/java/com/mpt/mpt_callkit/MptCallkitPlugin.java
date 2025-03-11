@@ -60,10 +60,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         Engine.Instance().setMethodChannel(new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "mpt_callkit"));
 
         // Đăng ký VideoViewFactory với activity
-        if (activity != null) {
+        if (context != null) {
             flutterPluginBinding.getPlatformViewRegistry().registerViewFactory(
                     "VideoView",
-                    new VideoViewFactory(activity)
+                    new VideoViewFactory(context)
             );
         }
 

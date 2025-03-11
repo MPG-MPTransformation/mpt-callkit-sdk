@@ -8,14 +8,14 @@ import io.flutter.plugin.platform.PlatformView;
 import io.flutter.plugin.platform.PlatformViewFactory;
 
 public class VideoViewFactory extends PlatformViewFactory {
-    private final Activity activity;
+    private final Context context;
 
-    public VideoViewFactory(Activity activity) {
+    public VideoViewFactory(Context context) {
         super(StandardMessageCodec.INSTANCE);
-        if (activity == null) {
-            throw new IllegalArgumentException("Activity cannot be null");
+        if (context == null) {
+            throw new IllegalArgumentException("Context cannot be null");
         }
-        this.activity = activity;
+        this.context = context;
     }
 
     @Override
@@ -23,6 +23,6 @@ public class VideoViewFactory extends PlatformViewFactory {
         if (context == null) {
             throw new IllegalArgumentException("Context cannot be null");
         }
-        return new VideoView(context, activity, viewId);
+        return new VideoView(context, viewId);
     }
 } 

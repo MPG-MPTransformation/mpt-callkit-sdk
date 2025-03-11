@@ -33,21 +33,20 @@ class _CameraViewState extends State<CameraView> {
 
   @override
   Widget build(BuildContext context) {
-    if (Platform.isAndroid) {
-      return AndroidView(
-        viewType: 'VideoView',
-        onPlatformViewCreated: _onPlatformViewCreated,
-        creationParams: const <String, dynamic>{},
-        creationParamsCodec: const StandardMessageCodec(),
-      );
-    } else {
-      return UiKitView(
-        viewType: 'VideoView',
-        onPlatformViewCreated: _onPlatformViewCreated,
-        creationParams: const <String, dynamic>{},
-        creationParamsCodec: const StandardMessageCodec(),
-      );
-    }
+    return Scaffold(
+        body: (Platform.isAndroid)
+            ? AndroidView(
+                viewType: 'VideoView',
+                onPlatformViewCreated: _onPlatformViewCreated,
+                creationParams: const <String, dynamic>{},
+                creationParamsCodec: const StandardMessageCodec(),
+              )
+            : UiKitView(
+                viewType: 'VideoView',
+                onPlatformViewCreated: _onPlatformViewCreated,
+                creationParams: const <String, dynamic>{},
+                creationParamsCodec: const StandardMessageCodec(),
+              ));
   }
 
   void _onPlatformViewCreated(int id) {}

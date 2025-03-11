@@ -613,6 +613,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 
         if (session != null) {
+            System.out.println("quanth: onInviteUpdated session not null");
             session.state = Session.CALL_STATE_FLAG.CONNECTED;
             session.hasVideo = existsVideo;
             session.bScreenShare = existsScreen;
@@ -623,6 +624,8 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             broadIntent.putExtra(EXTRA_CALL_DESCRIPTION, description);
 
             sendPortSipMessage(description, broadIntent);
+        } else {
+            System.out.println("quanth: onInviteUpdated session null");
         }
     }
 
@@ -631,6 +634,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         System.out.println("quanth: onInviteConnected");
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
         if (session != null) {
+            System.out.println("quanth: onInviteConnected session not null");
             session.state = Session.CALL_STATE_FLAG.CONNECTED;
             session.sessionID = sessionId;
 
@@ -645,6 +649,8 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             broadIntent.putExtra(EXTRA_CALL_DESCRIPTION, description);
 
             sendPortSipMessage(description, broadIntent);
+        } else {
+            System.out.println("quanth: onInviteConnected session null");
         }
     }
 
