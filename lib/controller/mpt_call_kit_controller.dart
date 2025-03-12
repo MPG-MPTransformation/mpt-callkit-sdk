@@ -238,7 +238,7 @@ class MptCallKitController {
           await releaseExtension();
           print('quanth: releaseExtension has done');
         }
-        if (call.method == 'onBusy') {
+        if (call.method == 'callFailed') {
           Navigator.pop(context);
           onBusy?.call();
         }

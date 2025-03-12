@@ -1,3 +1,4 @@
+import 'package:example/login.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 
@@ -16,90 +17,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _callTo = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _phoneController.text = "2000115580";
-    _callTo.text = "88888888";
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          MptCallKitController().initSdk(
-            apiKey: "53801c57-a9ef-495b-ab92-797ba1be2a60",
-            baseUrl: "https://crm-uat-v2.metechvn.com",
-            // apiKey: "0c16d4aa-abe7-4098-b47a-7b914f9b7444", //dev
-            // baseUrl: "https://crm-dev-v2.metechvn.com", //dev
-            userPhoneNumber: _phoneController.text,
-          );
-          MptCallKitController().makeCall(
-              context: context,
-              phoneNumber: _callTo.text,
-              isVideoCall: true,
-              onError: (errorMessage) {
-                if (errorMessage == null) return;
-                var snackBar = SnackBar(
-                  content: Text(errorMessage),
-                  backgroundColor: Colors.grey,
-                );
-                ScaffoldMessenger.of(context).showSnackBar(snackBar);
-              });
-        },
-        child: const Icon(Icons.call),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Phone Number',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: TextField(
-                controller: _callTo,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Call to',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ),
-            const Text(
-              'Click button to make a call',
-            ),
-          ],
-        ),
-      ),
+      home: const Login(),
     );
   }
 }
