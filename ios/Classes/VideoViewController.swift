@@ -101,7 +101,7 @@ class VideoViewController: UIViewController {
             // viewRemoteVideoSmall.initVideoRender()
             updateLocalVideoPosition(UIScreen.main.bounds.size)
 
-            portSIPSDK.displayLocalVideo(true, mirror: mCameraDeviceId == 0, localVideoWindow: viewLocalVideo)
+            portSIPSDK.displayLocalVideo(true, mirror: mCameraDeviceId == 1, localVideoWindow: viewLocalVideo)
             
             let tapGesture = UITapGestureRecognizer(target: self, action: #selector(onSwichShareScreenClick(action:)))
             // viewRemoteVideoSmall.addGestureRecognizer(tapGesture)
@@ -469,11 +469,15 @@ class VideoViewController: UIViewController {
         if mCameraDeviceId == 0 {
             if portSIPSDK.setVideoDeviceId(1) == 0 {
                 mCameraDeviceId = 1
+                // Khi chuyển sang camera trước, bật mirror
+                portSIPSDK.displayLocalVideo(true, mirror: true, localVideoWindow: viewLocalVideo)
                 swapButton.setImage(UIImage(systemName: "camera.rotate.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
             }
         } else {
             if portSIPSDK.setVideoDeviceId(0) == 0 {
                 mCameraDeviceId = 0
+                // Khi chuyển sang camera sau, tắt mirror
+                portSIPSDK.displayLocalVideo(true, mirror: false, localVideoWindow: viewLocalVideo)
                 swapButton.setImage(UIImage(systemName: "camera.rotate", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
             }
         }
@@ -659,7 +663,7 @@ class VideoViewController: UIViewController {
     }
     
     func initializeVideoViews() {
-        // Remove previous views if they exist (in case cleanup wasn’t complete)
+        // Remove previous views if they exist (in case cleanup wasn't complete)
         viewRemoteVideo?.removeFromSuperview()
         // viewRemoteVideoSmall?.removeFromSuperview()
         
@@ -701,7 +705,7 @@ class VideoViewController: UIViewController {
             let appDelegate = MptCallkitPlugin.shared
             let isVideoCall = appDelegate.isVideoCall
             if isVideoCall {
-                self.portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
+                self.portSIPSDK.displayLocalVideo(false, mirror: true, localVideoWindow: nil)
                 self.viewLocalVideo.releaseVideoRender()
                 if self.isStartVideo {
                     self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: nil)
