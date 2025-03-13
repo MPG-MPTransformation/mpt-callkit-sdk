@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
-import 'package:mpt_callkit/mpt_socket.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key, required this.name, required this.phoneNumber});
@@ -18,39 +17,27 @@ class _HomeState extends State<Home> {
 
   final TextEditingController _callTo = TextEditingController();
 
-  connectChat() async {
-    await MptSocket.connectSocket(
-      baseUrl,
-      guestAPI: '/integration/security/guest-token',
-      barrierToken: apiKey,
-      appId: '88888888',
-      phoneNumber: widget.phoneNumber,
+  initSdk() async {
+    await MptCallKitController().initSdk(
+      apiKey: apiKey,
+      baseUrl: baseUrl,
+      userPhoneNumber: widget.phoneNumber,
       userName: widget.name,
     );
-
-    // if (widget.isFirstLogin == true) {
-    //   ChatSocket.sendMessage(
-    //       "Chat session is being connected from mobile", null);
-    // }
   }
 
   @override
   void initState() {
     super.initState();
     _callTo.text = "88888888";
-    connectChat();
+    initSdk();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          MptCallKitController().initSdk(
-            apiKey: apiKey,
-            baseUrl: baseUrl,
-            userPhoneNumber: widget.phoneNumber,
-          );
+        onPressed: () async {
           MptCallKitController().makeCall(
               context: context,
               phoneNumber: _callTo.text,

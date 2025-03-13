@@ -7,7 +7,7 @@ import 'package:mpt_callkit/camera_view.dart';
 import 'package:mpt_callkit/models/extension_model.dart';
 import 'package:mpt_callkit/models/release_extension_model.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
-import 'dart:io';
+import 'package:mpt_callkit/mpt_socket.dart';
 
 class MptCallKitController {
   String apiKey = '';
@@ -26,16 +26,32 @@ class MptCallKitController {
     return _instance;
   }
 
-  void initSdk({
+  Future<void> initSdk({
     required String apiKey,
     String? baseUrl,
     required String userPhoneNumber,
-  }) {
+    required String userName,
+  }) async {
     this.apiKey = apiKey;
     this.userPhoneNumber = userPhoneNumber;
     this.baseUrl = baseUrl != null && baseUrl.isNotEmpty
         ? baseUrl
         : "https://crm-dev-v2.metechvn.com";
+
+    //connect to socket
+    await MptSocket.connectSocket(
+      this.baseUrl,
+      guestAPI: '/integration/security/guest-token',
+      barrierToken: this.apiKey,
+      appId: '88888888',
+      phoneNumber: this.userPhoneNumber,
+      userName: userName,
+    );
+  }
+
+  //dispose socket
+  void disposeSocket() {
+    MptSocket.dispose();
   }
 
   Future<void> makeCall({

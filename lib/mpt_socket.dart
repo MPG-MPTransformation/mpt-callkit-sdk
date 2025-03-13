@@ -33,20 +33,20 @@ class MptSocket {
 
   static void _listenSocket() {
     socket.onConnect((_) {
-      debugPrint('SocketIO connection established!');
+      print('SocketIO connection established!');
       _connectionStatusController.add(true);
     });
-    socket.onError((error) => debugPrint(error.toString()));
-    socket.onConnectError((error) => debugPrint(error.toString()));
+    socket.onError((error) => print(error.toString()));
+    socket.onConnectError((error) => print(error.toString()));
     socket.onDisconnect(
       (_) {
-        debugPrint('SocketIO disconnected!');
+        print('SocketIO disconnected!');
         _connectionStatusController.add(false);
       },
     );
 
     socket.onReconnect((_) {
-      debugPrint('Reconnected');
+      print('Reconnected');
       _connectionStatusController.add(true);
     });
 
@@ -58,7 +58,7 @@ class MptSocket {
 
   static void onDisconnect(VoidCallback callback) {
     socket.onDisconnect((_) {
-      debugPrint('SocketIO disconnected!');
+      print('SocketIO disconnected!');
       callback();
     });
   }
@@ -69,7 +69,7 @@ class MptSocket {
 
   static sendMessage(String? msg, List<dynamic>? files) {
     if ((msg == null || msg.isEmpty) && (files == null || files.isEmpty)) {
-      debugPrint("Message and files are empty!");
+      print("Message and files are empty!");
       return;
     }
 
@@ -84,7 +84,7 @@ class MptSocket {
 
   static void onReceiveMessage(Function(dynamic) callback) {
     socket.on("msg", (data) {
-      debugPrint('Data received: $data');
+      print('Data received: $data');
       callback(data);
     });
   }
@@ -119,7 +119,7 @@ class MptSocket {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
-        debugPrint('Response data: $responseData');
+        print('Response data: $responseData');
         if (responseData != null) {
           if (responseData["success"]) {
             var data = responseData["data"];
@@ -130,10 +130,10 @@ class MptSocket {
           }
         }
       } else {
-        debugPrint('Failed to post data. Status code: ${response.statusCode}');
+        print('Failed to post data. Status code: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('Error: $e');
+      print('Error: $e');
     }
 
     return token;
