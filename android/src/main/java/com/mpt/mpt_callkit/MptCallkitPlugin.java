@@ -93,6 +93,30 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
       case "hangup":
         hangup();
         break;
+      case "hold":
+        holdCall();
+        break;
+      case "unhold":
+        unHoldCall();
+        break;
+      case "mute":
+        muteCall(true);
+        break;
+      case "unmute":
+        muteCall(false);
+        break;
+      case "cameraOn":
+        toggleCamera(true);
+        break;
+      case "cameraOff":
+        toggleCamera(false);
+        break;
+      case "answer":
+        answerCall();
+        break;
+      case "reject":
+        rejectCall();
+        break;
       case "startActivity":
         myIntent = new Intent(activity, MainActivity.class);
         myIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -288,4 +312,71 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     currentLine.Reset();
   }
 
+  void holdCall() {
+    Session currentLine = CallManager.Instance().getCurrentSession();
+    
+    if (currentLine != null && currentLine.sessionID > 0) {
+      int rt = Engine.Instance().getEngine().hold(currentLine.sessionID);
+
+      if (rt!= 0) {
+        currentLine.bHold = false;
+        System.out.println("quanth: Hold call failed");
+        return;
+      }
+      currentLine.bHold = true;
+      System.out.println("quanth: Hold call success");
+    }
+  }
+
+  void unHoldCall() {
+    Session currentLine = CallManager.Instance().getCurrentSession();
+    if (currentLine != null && currentLine.sessionID > 0 && currentLine.bHold) {
+      int result = Engine.Instance().getEngine().unHold(currentLine.sessionID);
+      if (result != 0) {
+        currentLine.bHold = false;
+        System.out.println("quanth: Unhold call failed");
+        return;
+      }
+      currentLine.bHold = false;
+      System.out.println("quanth: Unhold call success");
+    }
+  }
+
+  void muteCall(boolean mute) {
+    Session currentLine = CallManager.Instance().getCurrentSession();
+    if (currentLine != null && currentLine.sessionID > 0) {
+      int result = Engine.Instance().getEngine().muteSession(currentLine.sessionID, !mute, !mute, !mute, !mute );
+      System.out.println("quanth: Mute call result: " + result);
+      currentLine.bMute = !currentLine.bMute;
+    }
+  }
+
+  void toggleCamera(boolean enable) {
+    Session currentLine = CallManager.Instance().getCurrentSession();
+    if (currentLine != null && currentLine.sessionID > 0) {
+      currentLine.bMuteVideo = !enable;
+      Engine.Instance().getEngine().muteSession(currentLine.sessionID, currentLine.bMute, currentLine.bMute, currentLine.bMute, currentLine.bMute);
+    }
+  }
+
+  void answerCall() {
+    Session currentLine = CallManager.Instance().getCurrentSession();
+    if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING) {
+      int result = Engine.Instance().getEngine().answerCall(currentLine.sessionID, true);
+      System.out.println("quanth: Answer call result: " + result);
+      if (result != 0) {
+        currentLine.state = Session.CALL_STATE_FLAG.CONNECTED;
+        Engine.Instance().getEngine().joinToConference(currentLine.sessionID);
+      }
+    }
+  }
+
+  void rejectCall() {
+    Session currentLine = CallManager.Instance().getCurrentSession();
+    if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING) {
+      int result = Engine.Instance().getEngine().rejectCall(currentLine.sessionID, 486);
+      System.out.println("quanth:"+ currentLine.lineName + ": Rejected call");
+      currentLine.Reset();
+    }
+  }
 }

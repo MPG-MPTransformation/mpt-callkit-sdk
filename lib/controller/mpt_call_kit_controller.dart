@@ -45,6 +45,7 @@ class MptCallKitController {
   Future<void> makeCall({
     required BuildContext context,
     required String phoneNumber,
+    bool isUseNativeView = false,
     bool isVideoCall = false,
     Function(String?)? onError,
   }) async {
@@ -55,11 +56,13 @@ class MptCallKitController {
         return;
       }
 
-      if (Platform.isAndroid) {
-        channel.invokeListMethod("startActivity");
-      } else {
-        Navigator.push(context,
-            MaterialPageRoute(builder: (context) => const CameraView()));
+      if (isUseNativeView) {
+        if (Platform.isAndroid) {
+          channel.invokeListMethod("startActivity");
+        } else {
+          Navigator.push(context,
+              MaterialPageRoute(builder: (context) => const CameraView()));
+        }
       }
 
       final result = await getExtension();
@@ -77,6 +80,7 @@ class MptCallKitController {
           srtpType: 0,
           phoneNumber: phoneNumber,
           isVideoCall: isVideoCall,
+          isUseNativeView: isUseNativeView,
           onBusy: () {
             onError?.call('Tổng đài bận, liên hệ hỗ trợ');
           },
@@ -91,10 +95,14 @@ class MptCallKitController {
       } else {
         onError?.call('Tổng đài bận, liên hệ hỗ trợ');
         // _isGetExtensionSuccess.add(false);
-        if (Platform.isIOS)
-          Navigator.pop(context);
-        else
-          await channel.invokeMethod("finishActivity");
+        if (isUseNativeView) {
+          {
+            if (Platform.isIOS)
+              Navigator.pop(context);
+            else
+              await channel.invokeMethod("finishActivity");
+          }
+        }
       }
     } on Exception catch (e) {
       // _isGetExtensionSuccess.add(false);
@@ -248,6 +256,7 @@ class MptCallKitController {
     required int srtpType,
     required String phoneNumber,
     bool isVideoCall = false,
+    bool isUseNativeView = false,
     void Function()? onBusy,
     required BuildContext context,
   }) async {
@@ -271,10 +280,14 @@ class MptCallKitController {
                 onBusy?.call();
                 print('quanth: call has failed');
                 await offline();
-                if (Platform.isIOS)
-                  Navigator.pop(context);
-                else
-                  await channel.invokeMethod("finishActivity");
+                if (isUseNativeView) {
+                  {
+                    if (Platform.isIOS)
+                      Navigator.pop(context);
+                    else
+                      await channel.invokeMethod("finishActivity");
+                  }
+                }
               }
             } else {
               print('quanth: registration has failed');

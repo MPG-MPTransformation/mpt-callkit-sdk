@@ -7,12 +7,11 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 class MockMptCallkitPlatform
     with MockPlatformInterfaceMixin
     implements MptCallkitPlatform {
-
   @override
   Future<String?> getPlatformVersion() => Future.value('42');
 
   @override
-  bool call(String phone) {
+  bool call(String phone, bool isVideoCall) {
     throw UnimplementedError();
   }
 
@@ -25,13 +24,16 @@ class MockMptCallkitPlatform
   Future<Map<String, dynamic>> initSipConnection({
     required String apiKey,
     String? baseUrl,
-    required String userPhoneNumber,}) {
+    required String userPhoneNumber,
+  }) {
     // TODO: implement initSipConnection
     throw UnimplementedError();
   }
 
   @override
-  void registrationStateStream({required void Function() onSuccess, required void Function() onFailure}) {
+  void registrationStateStream(
+      {required void Function() onSuccess,
+      required void Function() onFailure}) {
     // TODO: implement registrationStateStream
   }
 
@@ -41,7 +43,9 @@ class MockMptCallkitPlatform
   }
 
   @override
-  void unregistrationStateStream({required void Function() onSuccess, required void Function() onFailure}) {
+  void unregistrationStateStream(
+      {required void Function() onSuccess,
+      required void Function() onFailure}) {
     // TODO: implement unregistrationStateStream
   }
 
@@ -49,6 +53,71 @@ class MockMptCallkitPlatform
   Future<bool> unregisterConnection() {
     // TODO: implement unregisterConnection
     throw UnimplementedError();
+  }
+
+  @override
+  void answer() {
+    // TODO: implement answer
+  }
+
+  @override
+  void cameraOff() {
+    // TODO: implement cameraOff
+  }
+
+  @override
+  void cameraOn() {
+    // TODO: implement cameraOn
+  }
+
+  @override
+  void getAgentStatus() {
+    // TODO: implement getAgentStatus
+  }
+
+  @override
+  void getOutboundCallNumbers() {
+    // TODO: implement getOutboundCallNumbers
+  }
+
+  @override
+  void hold() {
+    // TODO: implement hold
+  }
+
+  @override
+  void mute() {
+    // TODO: implement mute
+  }
+
+  @override
+  void reject() {
+    // TODO: implement reject
+  }
+
+  @override
+  void switchMicrophone() {
+    // TODO: implement switchMicrophone
+  }
+
+  @override
+  void transfer() {
+    // TODO: implement transfer
+  }
+
+  @override
+  void unhold() {
+    // TODO: implement unhold
+  }
+
+  @override
+  void unmute() {
+    // TODO: implement unmute
+  }
+
+  @override
+  void changeAgentStatus() {
+    // TODO: implement changeAgentStatus
   }
 }
 

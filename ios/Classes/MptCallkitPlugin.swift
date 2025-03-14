@@ -1236,6 +1236,34 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             }
         case "Offline":
             self.loginViewController.offLine()
+            result(true)
+        case "hangup":
+            hungUpCall()
+            result(true)
+        case "hold":
+            holdCall()
+            result(true)
+        case "unhold":
+            unholdCall()
+            result(true)
+        case "mute":
+            muteCall(true)
+            result(true)
+        case "unmute":
+            muteCall(false)
+            result(true)
+        case "cameraOn":
+            toggleCamera(true)
+            result(true)
+        case "cameraOff":
+            toggleCamera(false)
+            result(true)
+        case "answer":
+            answerCall()
+            result(true)
+        case "reject":
+            rejectCall()
+            result(true)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -1257,6 +1285,52 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         sipRegistered = false
         loginViewController.unRegister()
         NSLog("onRegisterFailure")
+    }
+    
+    // Thêm phương thức mới để xử lý camera
+    func toggleCamera(_ enable: Bool) {
+        NSLog("toggleCamera: \(enable)")
+        if activeSessionid != CLong(INVALID_SESSION_ID) {
+            let result = _callManager.findCallBySessionID(activeSessionid)
+            if result != nil {
+                if enable {
+                    // Bật camera
+                    portSIPSDK.sendVideo(activeSessionid, sendState: true)
+                    result!.session.videoState = true
+                    print("Camera turned on")
+                } else {
+                    // Tắt camera
+                    portSIPSDK.sendVideo(activeSessionid, sendState: false)
+                    result!.session.videoState = false
+                    print("Camera turned off")
+                }
+            }
+        }
+    }
+    
+    // Thêm phương thức để trả lời cuộc gọi
+    func answerCall() {
+        NSLog("answerCall")
+        if activeSessionid != CLong(INVALID_SESSION_ID) {
+            let result = _callManager.findCallBySessionID(activeSessionid)
+            if result != nil && !result!.session.sessionState {
+                _ = _callManager.answerCall(sessionId: activeSessionid, isVideo: result!.session.videoState)
+                print("Call answered")
+            }
+        }
+    }
+    
+    // Thêm phương thức để từ chối cuộc gọi
+    func rejectCall() {
+        NSLog("rejectCall")
+        if activeSessionid != CLong(INVALID_SESSION_ID) {
+            let result = _callManager.findCallBySessionID(activeSessionid)
+            if result != nil && !result!.session.sessionState {
+                portSIPSDK.rejectCall(activeSessionid, code: 486)
+                _callManager.removeCall(call: result!.session)
+                print("Call rejected")
+            }
+        }
     }
 }
 
