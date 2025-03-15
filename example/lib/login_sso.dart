@@ -17,6 +17,7 @@ class _LoginSSOState extends State<LoginSSO> {
   final organizationController =
       TextEditingController(text: "D1B85F69-5565-4301-8602-0FAA88DB6F39");
   final baseUrl = "https://crm-dev-v2.metechvn.com";
+  final String apiKey = "0c16d4aa-abe7-4098-b47a-7b914f9b7444";
   Map<String, dynamic>? userData;
 
   @override
@@ -45,6 +46,7 @@ class _LoginSSOState extends State<LoginSSO> {
                     title: 'Login SSO Successful',
                     userData: userData,
                     baseUrl: baseUrl,
+                    apiKey: apiKey,
                   )),
         );
       }

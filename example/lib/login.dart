@@ -14,7 +14,8 @@ class _LoginState extends State<Login> {
 
   final usernameController = TextEditingController(text: "hoangnt");
   final passwordController = TextEditingController(text: "123456aA@");
-  final baseUrl = "https://crm-dev-v2.metechvn.com";
+  final _baseUrl = "https://crm-dev-v2.metechvn.com";
+  final String _apiKey = "0c16d4aa-abe7-4098-b47a-7b914f9b7444";
   final tenantId = 4;
   Map<String, dynamic>? userData;
 
@@ -25,7 +26,7 @@ class _LoginState extends State<Login> {
         username: usernameController.text,
         password: passwordController.text,
         tenantId: tenantId,
-        baseUrl: baseUrl,
+        baseUrl: _baseUrl,
         onError: (error) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(error ?? 'Login failed')),
@@ -44,7 +45,8 @@ class _LoginState extends State<Login> {
               builder: (context) => LoginResultScreen(
                     title: 'Login Successful',
                     userData: userData,
-                    baseUrl: baseUrl,
+                    baseUrl: _baseUrl,
+                    apiKey: _apiKey,
                   )),
         );
       }

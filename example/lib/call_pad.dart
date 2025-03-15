@@ -23,14 +23,15 @@ class _CallPadState extends State<CallPad> {
     "reject",
   ];
 
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _callTo = TextEditingController();
+  final TextEditingController _outboundNumberController =
+      TextEditingController();
+  final TextEditingController _destController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _phoneController.text = "200011";
-    _callTo.text = "20015";
+    _outboundNumberController.text = "200011";
+    _destController.text = "20015";
   }
 
   @override
@@ -47,10 +48,10 @@ class _CallPadState extends State<CallPad> {
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: TextField(
-                  controller: _phoneController,
+                  controller: _outboundNumberController,
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
-                    labelText: 'Phone Number',
+                    labelText: 'Outbound number',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -58,10 +59,10 @@ class _CallPadState extends State<CallPad> {
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: TextField(
-                  controller: _callTo,
+                  controller: _destController,
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
-                    labelText: 'Call to',
+                    labelText: 'Destination',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -115,11 +116,11 @@ class _CallPadState extends State<CallPad> {
         MptCallKitController().initSdk(
           apiKey: widget.apiKey, // dev
           baseUrl: widget.baseUrl, // dev
-          userPhoneNumber: _phoneController.text,
+          userPhoneNumber: _outboundNumberController.text,
         );
         MptCallKitController().makeCall(
             context: context,
-            phoneNumber: _callTo.text,
+            phoneNumber: _destController.text,
             isVideoCall: true,
             isShowNativeView: false,
             onError: (errorMessage) {

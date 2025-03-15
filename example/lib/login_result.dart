@@ -1,5 +1,7 @@
+import 'package:example/call_pad.dart';
 import 'package:example/components/repo.dart';
 import 'package:flutter/material.dart';
+import 'package:mpt_callkit/models/extension_model.dart';
 import 'package:mpt_callkit/mpt_callkit.dart';
 
 class LoginResultScreen extends StatefulWidget {
@@ -7,17 +9,20 @@ class LoginResultScreen extends StatefulWidget {
       {super.key,
       required this.title,
       required this.userData,
-      required this.baseUrl});
+      required this.baseUrl,
+      required this.apiKey});
 
   final String title;
   final Map<String, dynamic>? userData;
   final String baseUrl;
+  final String apiKey;
   @override
   State<LoginResultScreen> createState() => _LoginResultScreenState();
 }
 
 class _LoginResultScreenState extends State<LoginResultScreen> {
   Map<String, dynamic>? _currentUserInfo;
+  ExtensionData? _extensionData;
 
   @override
   void initState() {
@@ -35,6 +40,16 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
           print("Error in get current user info: $e");
         },
       );
+
+      if (_currentUserInfo != null) {
+        _extensionData = ExtensionData(
+          username: _currentUserInfo!["user"]["extension"],
+          password: _currentUserInfo!["user"]["sipPassword"],
+          domain: "voice.omicx.vn",
+          sipServer: "portsip.omicx.vn",
+          port: 5060,
+        );
+      }
     } else {
       print("Access token is null");
     }
@@ -106,8 +121,25 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
             title: const Text('Login Result'),
           ),
           body: Center(
-            child: Text(
-              "Login status: ${widget.title}",
+            child: Column(
+              children: [
+                Text(
+                  "Login status: ${widget.title}",
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => CallPad(
+                                  apiKey: widget.apiKey,
+                                  baseUrl: widget.baseUrl,
+                                )),
+                      );
+                    },
+                    child: const Text("Go to call-pad")),
+              ],
             ),
           ),
         ));
