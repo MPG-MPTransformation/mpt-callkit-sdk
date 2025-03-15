@@ -1264,6 +1264,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         case "reject":
             rejectCall()
             result(true)
+        case "transfer":
+            if let args = call.arguments as? [String: Any],
+            let destination = args["destination"] as? String {
+            referCall(destination)
+            // Trả về kết quả thành công (có thể cải thiện để trả về kết quả thực tế)
+            result(true)
+        } else {
+            result(FlutterError(code: "INVALID_ARGUMENT", message: "Destination is required for transfer", details: nil))
+        }
         default:
             result(FlutterMethodNotImplemented)
         }

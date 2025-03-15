@@ -45,7 +45,7 @@ class MptCallKitController {
   Future<void> makeCall({
     required BuildContext context,
     required String phoneNumber,
-    bool isUseNativeView = false,
+    bool isShowNativeView = true,
     bool isVideoCall = false,
     Function(String?)? onError,
   }) async {
@@ -56,7 +56,7 @@ class MptCallKitController {
         return;
       }
 
-      if (isUseNativeView) {
+      if (isShowNativeView) {
         if (Platform.isAndroid) {
           channel.invokeListMethod("startActivity");
         } else {
@@ -80,7 +80,7 @@ class MptCallKitController {
           srtpType: 0,
           phoneNumber: phoneNumber,
           isVideoCall: isVideoCall,
-          isUseNativeView: isUseNativeView,
+          isShowNativeView: isShowNativeView,
           onBusy: () {
             onError?.call('Tổng đài bận, liên hệ hỗ trợ');
           },
@@ -95,7 +95,7 @@ class MptCallKitController {
       } else {
         onError?.call('Tổng đài bận, liên hệ hỗ trợ');
         // _isGetExtensionSuccess.add(false);
-        if (isUseNativeView) {
+        if (isShowNativeView) {
           {
             if (Platform.isIOS)
               Navigator.pop(context);
@@ -256,7 +256,7 @@ class MptCallKitController {
     required int srtpType,
     required String phoneNumber,
     bool isVideoCall = false,
-    bool isUseNativeView = false,
+    bool isShowNativeView = true,
     void Function()? onBusy,
     required BuildContext context,
   }) async {
@@ -280,7 +280,7 @@ class MptCallKitController {
                 onBusy?.call();
                 print('quanth: call has failed');
                 await offline();
-                if (isUseNativeView) {
+                if (isShowNativeView) {
                   {
                     if (Platform.isIOS)
                       Navigator.pop(context);
@@ -336,6 +336,78 @@ class MptCallKitController {
       await channel.invokeMethod(MptCallKitConstants.offline);
     } on PlatformException catch (e) {
       debugPrint("Failed to go offline: '${e.message}'.");
+    }
+  }
+
+  Future<void> hangup() async {
+    try {
+      await channel.invokeMethod("hangup");
+    } on PlatformException catch (e) {
+      debugPrint("Failed in 'hangup' mothod: '${e.message}'.");
+    }
+  }
+
+  Future<void> hold() async {
+    try {
+      await channel.invokeMethod("hold");
+    } on PlatformException catch (e) {
+      debugPrint("Failed in 'hold' mothod: '${e.message}'.");
+    }
+  }
+
+  Future<void> unhold() async {
+    try {
+      await channel.invokeMethod("unhold");
+    } on PlatformException catch (e) {
+      debugPrint("Failed in 'unhold' mothod: '${e.message}'.");
+    }
+  }
+
+  Future<void> mute() async {
+    try {
+      await channel.invokeMethod("mute");
+    } on PlatformException catch (e) {
+      debugPrint("Failed in 'mute' mothod: '${e.message}'.");
+    }
+  }
+
+  Future<void> unmute() async {
+    try {
+      await channel.invokeMethod("unmute");
+    } on PlatformException catch (e) {
+      debugPrint("Failed in 'unmute' mothod: '${e.message}'.");
+    }
+  }
+
+  Future<void> cameraOn() async {
+    try {
+      await channel.invokeMethod("cameraOn");
+    } on PlatformException catch (e) {
+      debugPrint("Failed in 'cameraOn' mothod: '${e.message}'.");
+    }
+  }
+
+  Future<void> cameraOff() async {
+    try {
+      await channel.invokeMethod("cameraOff");
+    } on PlatformException catch (e) {
+      debugPrint("Failed in 'cameraOff' mothod: '${e.message}'.");
+    }
+  }
+
+  Future<void> reject() async {
+    try {
+      await channel.invokeMethod("reject");
+    } on PlatformException catch (e) {
+      debugPrint("Failed in 'reject' mothod: '${e.message}'.");
+    }
+  }
+
+  Future<void> transfer(String destination) async {
+    try {
+      await channel.invokeMethod("transfer", {"destination": destination});
+    } on PlatformException catch (e) {
+      debugPrint("Failed in 'transfer' mothod: '${e.message}'.");
     }
   }
 }
