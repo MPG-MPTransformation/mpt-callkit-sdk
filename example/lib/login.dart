@@ -1,4 +1,4 @@
-import 'package:example/call_screen.dart';
+import 'package:example/login_result.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/mpt_callkit.dart';
 
@@ -41,9 +41,10 @@ class _LoginState extends State<Login> {
         Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) => CallScreen(
+              builder: (context) => LoginResultScreen(
                     title: 'Login Successful',
                     userData: userData,
+                    baseUrl: baseUrl,
                   )),
         );
       }

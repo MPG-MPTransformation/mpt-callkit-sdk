@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 class Repo {
   String decryptText(String encrypted) => AESHelper.decryptAesB64(encrypted);
 
+  // Get current user info
   Future<Map<String, dynamic>?> getCurrentUserInfo({
     String? baseUrl,
     required String accessToken,
