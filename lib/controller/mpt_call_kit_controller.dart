@@ -26,10 +26,6 @@ class MptCallKitController {
     return _instance;
   }
 
-  final StreamController<bool> _isGetExtensionSuccess = StreamController();
-
-  Stream<bool> get isGetExtensionSuccess => _isGetExtensionSuccess.stream;
-
   void initSdk({
     required String apiKey,
     String? baseUrl,
@@ -47,6 +43,7 @@ class MptCallKitController {
     required String phoneNumber,
     bool isShowNativeView = true,
     bool isVideoCall = false,
+    ExtensionData? agentExtension,
     Function(String?)? onError,
   }) async {
     try {
@@ -64,10 +61,9 @@ class MptCallKitController {
               MaterialPageRoute(builder: (context) => const CameraView()));
         }
       }
-
-      final result = await getExtension();
+      extension = agentExtension?.username ?? '';
+      final result = agentExtension ?? await getExtension();
       if (result != null) {
-        _isGetExtensionSuccess.add(true);
         await online(
           username: result.username ?? "",
           displayName: phoneNumber,
@@ -94,7 +90,6 @@ class MptCallKitController {
         // );
       } else {
         onError?.call('Tổng đài bận, liên hệ hỗ trợ');
-        // _isGetExtensionSuccess.add(false);
         if (isShowNativeView) {
           {
             if (Platform.isIOS)
@@ -105,7 +100,6 @@ class MptCallKitController {
         }
       }
     } on Exception catch (e) {
-      // _isGetExtensionSuccess.add(false);
       onError?.call(e.toString());
       debugPrint("Failed to call: '${e.toString()}'.");
       if (Platform.isIOS) Navigator.pop(context);

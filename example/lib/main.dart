@@ -1,9 +1,7 @@
 import 'package:example/call_in_native_view.dart';
-import 'package:example/call_pad.dart';
 import 'package:example/login.dart';
 import 'package:example/login_sso.dart';
 import 'package:flutter/material.dart';
-import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 
 void main() {
   runApp(const MyApp());
@@ -82,16 +80,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
                 child: const Text("Call with native-view")),
             const SizedBox(height: 10),
-            OutlinedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) =>
-                            CallPad(apiKey: _apiKey, baseUrl: _baseUrl)),
-                  );
-                },
-                child: const Text("Call with call-pad")),
           ],
         ),
       ),
