@@ -1,6 +1,7 @@
 import 'package:example/call_pad.dart';
 import 'package:example/components/repo.dart';
 import 'package:flutter/material.dart';
+import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:mpt_callkit/models/extension_model.dart';
 import 'package:mpt_callkit/mpt_callkit.dart';
 
@@ -28,31 +29,54 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
   void initState() {
     super.initState();
 
-    getCurrentUserInfo();
+    initData();
   }
 
-  void getCurrentUserInfo() async {
+  initData() async {
     if (widget.userData != null) {
-      _currentUserInfo = await Repo().getCurrentUserInfo(
-        baseUrl: widget.baseUrl,
-        accessToken: widget.userData!["result"]["accessToken"],
-        onError: (e) {
-          print("Error in get current user info: $e");
-        },
-      );
-
-      if (_currentUserInfo != null) {
-        _extensionData = ExtensionData(
-          username: _currentUserInfo!["user"]["extension"],
-          password: _currentUserInfo!["user"]["sipPassword"],
-          domain: "voice.omicx.vn",
-          sipServer: "portsip.omicx.vn",
-          port: 5060,
-        );
-      }
+      await getCurrentUserInfo();
+      await connectToSocketServer();
     } else {
       print("Access token is null");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Access token is null"),
+          backgroundColor: Colors.grey,
+        ),
+      );
     }
+  }
+
+  Future<void> getCurrentUserInfo() async {
+    _currentUserInfo = await Repo().getCurrentUserInfo(
+      baseUrl: widget.baseUrl,
+      accessToken: widget.userData!["result"]["accessToken"],
+      onError: (e) {
+        print("Error in get current user info: ${e.toString()}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error in get current user info: ${e.toString()}"),
+            backgroundColor: Colors.grey,
+          ),
+        );
+      },
+    );
+
+    if (_currentUserInfo != null) {
+      _extensionData = ExtensionData(
+        username: _currentUserInfo!["user"]["extension"],
+        password: _currentUserInfo!["user"]["sipPassword"],
+        domain: "voice.omicx.vn",
+        sipServer: "portsip.omicx.vn",
+        port: 5060,
+      );
+    }
+  }
+
+  Future<void> connectToSocketServer() async {
+    await MptCallKitController().connectSocketByUser(
+        baseUrl: widget.baseUrl,
+        userToken: widget.userData!["result"]["accessToken"]);
   }
 
   void logout() async {
@@ -135,6 +159,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                             builder: (context) => CallPad(
                                   apiKey: widget.apiKey,
                                   baseUrl: widget.baseUrl,
+                                  extensionData: _extensionData,
                                 )),
                       );
                     },

@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -7,7 +9,7 @@ import 'package:mpt_callkit/camera_view.dart';
 import 'package:mpt_callkit/models/extension_model.dart';
 import 'package:mpt_callkit/models/release_extension_model.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
-import 'dart:io';
+import 'package:mpt_callkit/mpt_socket.dart';
 
 class MptCallKitController {
   String apiKey = '';
@@ -29,8 +31,9 @@ class MptCallKitController {
   void initSdk({
     required String apiKey,
     String? baseUrl,
+    bool isAgent = false,
     required String userPhoneNumber,
-  }) {
+  }) async {
     this.apiKey = apiKey;
     this.userPhoneNumber = userPhoneNumber;
     this.baseUrl = baseUrl != null && baseUrl.isNotEmpty
@@ -38,12 +41,39 @@ class MptCallKitController {
         : "https://crm-dev-v2.metechvn.com";
   }
 
+  Future<void> connectSocketByUser({
+    required String baseUrl,
+    required String userToken,
+  }) async {
+    await MptSocket.connectSocketByUser(
+      baseUrl,
+      token: userToken,
+    );
+  }
+
+  Future<void> connectSocketByGuest({
+    required String apiKey,
+    required String baseUrl,
+    String? appId,
+    String? userName,
+  }) async {
+    await MptSocket.connectSocketByGuest(
+      baseUrl,
+      guestAPI: '/integration/security/guest-token',
+      barrierToken: apiKey,
+      appId: appId ?? '88888888',
+      phoneNumber: userPhoneNumber,
+      userName: userName ?? "guest",
+    );
+  }
+
   Future<void> makeCall({
     required BuildContext context,
     required String phoneNumber,
     bool isShowNativeView = true,
     bool isVideoCall = false,
-    ExtensionData? agentExtension,
+    ExtensionData?
+        userExtensionData, // need pass this value if user is existed, else get extension by getExtension() method
     Function(String?)? onError,
   }) async {
     try {
@@ -61,8 +91,8 @@ class MptCallKitController {
               MaterialPageRoute(builder: (context) => const CameraView()));
         }
       }
-      extension = agentExtension?.username ?? '';
-      final result = agentExtension ?? await getExtension();
+      extension = userExtensionData?.username ?? '';
+      final result = userExtensionData ?? await getExtension();
       if (result != null) {
         await online(
           username: result.username ?? "",

@@ -328,6 +328,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             Engine.Instance().getEngine().removeUser();
             Engine.Instance().getEngine().unInitialize();
             CallManager.Instance().online = false;
+            Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", false);
             CallManager.Instance().isRegistered = false;
         }
     }
@@ -373,6 +374,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     private int initialSDK() {
         Engine.Instance().getEngine().setOnPortSIPEvent(this);
         CallManager.Instance().online = true;
+        Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
         String dataPath = getExternalFilesDir(null).getAbsolutePath();
         String certRoot = dataPath + "/certs";
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);

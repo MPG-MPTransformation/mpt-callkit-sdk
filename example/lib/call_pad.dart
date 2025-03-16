@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
+import 'package:mpt_callkit/models/extension_model.dart';
 
 class CallPad extends StatefulWidget {
-  const CallPad({super.key, required this.apiKey, required this.baseUrl});
+  const CallPad({
+    super.key,
+    required this.apiKey,
+    required this.baseUrl,
+    this.extensionData,
+  });
   final String apiKey;
   final String baseUrl;
+  final ExtensionData? extensionData;
 
   @override
   State<CallPad> createState() => _CallPadState();
@@ -123,6 +130,7 @@ class _CallPadState extends State<CallPad> {
             phoneNumber: _destController.text,
             isVideoCall: true,
             isShowNativeView: false,
+            userExtensionData: widget.extensionData,
             onError: (errorMessage) {
               if (errorMessage == null) return;
               var snackBar = SnackBar(
