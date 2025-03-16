@@ -19,10 +19,24 @@ class MptCallKitController {
 
   static const MethodChannel channel = MethodChannel('mpt_callkit');
 
+  final StreamController<bool> _onlineStatusController =
+      StreamController<bool>.broadcast();
+  Stream<bool> get onlineStatusController => _onlineStatusController.stream;
+
+  bool _isOnline = false;
+  bool get isOnline => _isOnline;
+
   static final MptCallKitController _instance =
       MptCallKitController._internal();
 
-  MptCallKitController._internal();
+  MptCallKitController._internal() {
+    channel.setMethodCallHandler((call) async {
+      if (call.method == 'onlineStatus') {
+        _isOnline = call.arguments as bool;
+        _onlineStatusController.add(call.arguments as bool);
+      }
+    });
+  }
 
   factory MptCallKitController() {
     return _instance;
@@ -67,7 +81,7 @@ class MptCallKitController {
     );
   }
 
-  Future<void> makeCall({
+  Future<void> makeCallByGuest({
     required BuildContext context,
     required String phoneNumber,
     bool isShowNativeView = true,
@@ -94,6 +108,44 @@ class MptCallKitController {
       extension = userExtensionData?.username ?? '';
       final result = userExtensionData ?? await getExtension();
       if (result != null) {
+        if (Platform.isAndroid) {
+          channel.setMethodCallHandler((call) async {
+            /// lắng nghe kết quả register
+            if (call.method == 'registrationStateStream') {
+              /// nếu thành công thì call luôn
+              /// mở màn hình video call
+              // channel.invokeMethod('startActivity');
+              if (call.arguments == true) {
+                final bool callResult = await callMethod(
+                    phoneNumber: phoneNumber, isVideoCall: isVideoCall);
+                if (!callResult) {
+                  onError?.call('Tổng đài bận, liên hệ hỗ trợ');
+                  print('quanth: call has failed');
+                  await offline();
+                  if (isShowNativeView) {
+                    {
+                      if (Platform.isIOS)
+                        Navigator.pop(context);
+                      else
+                        await channel.invokeMethod("finishActivity");
+                    }
+                  }
+                }
+              } else {
+                print('quanth: registration has failed');
+                if (Platform.isIOS)
+                  Navigator.pop(context);
+                else {
+                  await channel.invokeMethod("finishActivity");
+                }
+              }
+            } else if (call.method == 'releaseExtension') {
+              print('quanth: releaseExtension has started');
+              await releaseExtension();
+              print('quanth: releaseExtension has done');
+            }
+          });
+        }
         await online(
           username: result.username ?? "",
           displayName: phoneNumber,
@@ -107,9 +159,6 @@ class MptCallKitController {
           phoneNumber: phoneNumber,
           isVideoCall: isVideoCall,
           isShowNativeView: isShowNativeView,
-          onBusy: () {
-            onError?.call('Tổng đài bận, liên hệ hỗ trợ');
-          },
           context: context,
         );
         // Navigator.push(
@@ -281,70 +330,32 @@ class MptCallKitController {
     required String phoneNumber,
     bool isVideoCall = false,
     bool isShowNativeView = true,
-    void Function()? onBusy,
+    Function(String?)? onError,
     required BuildContext context,
   }) async {
     try {
-      if (Platform.isAndroid) {
-        channel.setMethodCallHandler((call) async {
-          /// lắng nghe kết quả register
-          if (call.method == 'registrationStateStream') {
-            /// nếu thành công thì call luôn
-            /// mở màn hình video call
-            // channel.invokeMethod('startActivity');
-            if (call.arguments == true) {
-              final bool callResult = await channel.invokeMethod(
-                'call',
-                <String, dynamic>{
-                  'phoneNumber': phoneNumber,
-                  'isVideoCall': isVideoCall
-                },
-              );
-              if (!callResult) {
-                onBusy?.call();
-                print('quanth: call has failed');
-                await offline();
-                if (isShowNativeView) {
-                  {
-                    if (Platform.isIOS)
-                      Navigator.pop(context);
-                    else
-                      await channel.invokeMethod("finishActivity");
-                  }
-                }
-              }
-            } else {
-              print('quanth: registration has failed');
-              if (Platform.isIOS)
-                Navigator.pop(context);
-              else {
-                await channel.invokeMethod("finishActivity");
-              }
-            }
-          } else if (call.method == 'releaseExtension') {
-            print('quanth: releaseExtension has started');
-            await releaseExtension();
-            print('quanth: releaseExtension has done');
-          }
-        });
+      if (isOnline) {
+        onError?.call("You already online. Please go offline first");
+        return false;
+      } else {
+        final bool result = await channel.invokeMethod(
+          MptCallKitConstants.login,
+          {
+            'username': username,
+            'displayName': userPhoneNumber,
+            'authName': authName,
+            'password': password,
+            'userDomain': userDomain,
+            'sipServer': sipServer,
+            'sipServerPort': sipServerPort,
+            'transportType': transportType,
+            'srtpType': srtpType,
+            'phoneNumber': phoneNumber,
+            'isVideoCall': isVideoCall,
+          },
+        );
+        return result;
       }
-      final bool result = await channel.invokeMethod(
-        MptCallKitConstants.login,
-        {
-          'username': username,
-          'displayName': userPhoneNumber,
-          'authName': authName,
-          'password': password,
-          'userDomain': userDomain,
-          'sipServer': sipServer,
-          'sipServerPort': sipServerPort,
-          'transportType': transportType,
-          'srtpType': srtpType,
-          'phoneNumber': phoneNumber,
-          'isVideoCall': isVideoCall,
-        },
-      );
-      return result;
     } on PlatformException catch (e) {
       debugPrint("Login failed: ${e.message}");
       if (Platform.isIOS)
@@ -355,83 +366,130 @@ class MptCallKitController {
     }
   }
 
-  Future<void> offline() async {
+  Future<bool> callMethod({
+    required String phoneNumber,
+    required bool isVideoCall,
+    Function(String?)? onError,
+  }) async {
     try {
-      await channel.invokeMethod(MptCallKitConstants.offline);
+      if (!isOnline) {
+        onError?.call("You need register to SIP server first");
+        return false;
+      } else {
+        final result = await channel.invokeMethod('call', {
+          'phoneNumber': phoneNumber,
+          'isVideoCall': isVideoCall,
+        });
+        return result;
+      }
+    } on PlatformException catch (e) {
+      debugPrint("Failed to call: '${e.message}'.");
+      return false;
+    }
+  }
+
+  Future<void> offline({Function(String?)? onError}) async {
+    try {
+      if (!isOnline) {
+        onError?.call("You need register to SIP server first");
+        return;
+      } else {
+        await channel.invokeMethod(MptCallKitConstants.offline);
+      }
     } on PlatformException catch (e) {
       debugPrint("Failed to go offline: '${e.message}'.");
     }
   }
 
-  Future<void> hangup() async {
+  Future<bool> hangup() async {
     try {
-      await channel.invokeMethod("hangup");
+      final result = await channel.invokeMethod("hangup");
+      return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'hangup' mothod: '${e.message}'.");
+      return false;
     }
   }
 
-  Future<void> hold() async {
+  Future<bool> hold() async {
     try {
-      await channel.invokeMethod("hold");
+      final result = await channel.invokeMethod("hold");
+      return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'hold' mothod: '${e.message}'.");
+      return false;
     }
   }
 
-  Future<void> unhold() async {
+  Future<bool> unhold() async {
     try {
-      await channel.invokeMethod("unhold");
+      final result = await channel.invokeMethod("unhold");
+      return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'unhold' mothod: '${e.message}'.");
+      return false;
     }
   }
 
-  Future<void> mute() async {
+  Future<bool> mute() async {
     try {
-      await channel.invokeMethod("mute");
+      final result = await channel.invokeMethod("mute");
+      return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'mute' mothod: '${e.message}'.");
+      return false;
     }
   }
 
-  Future<void> unmute() async {
+  Future<bool> unmute() async {
     try {
-      await channel.invokeMethod("unmute");
+      final result = await channel.invokeMethod("unmute");
+      return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'unmute' mothod: '${e.message}'.");
+      return false;
     }
   }
 
-  Future<void> cameraOn() async {
+  Future<bool> cameraOn() async {
     try {
-      await channel.invokeMethod("cameraOn");
+      final result = await channel.invokeMethod("cameraOn");
+      return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'cameraOn' mothod: '${e.message}'.");
+      return false;
     }
   }
 
-  Future<void> cameraOff() async {
+  Future<bool> cameraOff() async {
     try {
-      await channel.invokeMethod("cameraOff");
+      final result = await channel.invokeMethod("cameraOff");
+      return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'cameraOff' mothod: '${e.message}'.");
+      return false;
     }
   }
 
-  Future<void> reject() async {
+  Future<bool> reject() async {
     try {
-      await channel.invokeMethod("reject");
+      final result = await channel.invokeMethod("reject");
+      return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'reject' mothod: '${e.message}'.");
+      return false;
     }
   }
 
-  Future<void> transfer(String destination) async {
+  Future<bool> transfer(String destination) async {
     try {
-      await channel.invokeMethod("transfer", {"destination": destination});
+      final result = await channel.invokeMethod("transfer", {
+        "destination": destination,
+      });
+      return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'transfer' mothod: '${e.message}'.");
+      return false;
     }
   }
 }

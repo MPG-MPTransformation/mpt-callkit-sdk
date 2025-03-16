@@ -43,8 +43,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 break;
             case "call":
                 String phoneNumber = call.argument("phoneNumber");
-                boolean hasVideoCall = call.argument("isVideoCall");
-                boolean callResult = makeCall(phoneNumber, hasVideoCall);
+                boolean isVideoCall = call.argument("isVideoCall");
+                boolean callResult = makeCall(phoneNumber, isVideoCall);
                 result.success(callResult);
                 break;
             case "requestPermission":
@@ -126,10 +126,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 String sipServer = call.argument("sipServer");
                 String transportType = call.argument("transportType") + "";
                 String srtpType = call.argument("srtpType") + "";
-                boolean isVideoCall = call.argument("isVideoCall");
                 String sipServerPort = call.argument("sipServerPort") + "";
                 if (CallManager.Instance().online) {
-                    // Toast.makeText(activity,"Please OffLine First",Toast.LENGTH_SHORT).show();
                     Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
                 } else {
                     Intent onLineIntent = new Intent(activity, PortSipService.class);

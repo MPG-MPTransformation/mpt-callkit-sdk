@@ -140,6 +140,7 @@ class LoginViewController {
             portSIPSDK.unInitialize()
             sipInitialized = false
             sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_OFFLINE
+            MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: false)
         }
         print("Offline and Unregistered")
     }
@@ -172,6 +173,7 @@ class LoginViewController {
     func onRegisterSuccess(statusText: String) {
         print("Registration success: \(statusText)")
         sipRegistrationStatus = .LOGIN_STATUS_ONLINE
+        MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: true)
         autoRegisterRetryTimes = 0
     }
     
@@ -179,6 +181,7 @@ class LoginViewController {
         print("Registration failure: \(statusText)")
         
         sipRegistrationStatus = .LOGIN_STATUS_FAILUE
+        MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: false)
         
         if statusCode != 401, statusCode != 403, statusCode != 404 {
             var interval = TimeInterval(autoRegisterRetryTimes * 2 + 1)

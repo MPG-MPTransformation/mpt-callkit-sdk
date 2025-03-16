@@ -1220,19 +1220,45 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                let password = args["password"] as? String,
                let userDomain = args["userDomain"] as? String,
                let sipServer = args["sipServer"] as? String,
-               let phoneNumber = args["phoneNumber"] as? String,
-               let sipServerPort = args["sipServerPort"] as? Int32,
-               let transportType = args["transportType"] as? Int,
-               let isVideo = args["isVideoCall"] as? Bool,
-               let srtpType = args["srtpType"] as? Int {
-                self.loginViewController!.onLine(username:username, displayName: displayName, authName: username, password: password, userDomain: userDomain, sipServer: sipServer, sipServerPort: sipServerPort, transportType: transportType, srtpType: srtpType)
-                phone = phoneNumber
-                self.displayName = displayName
-                isVideoCall = isVideo
-                print("isVideoCall: \(isVideo)")
+               let sipServerPort = args["sipServerPort"] as? Int32 {
+                
+                // Chỉ thực hiện đăng ký SIP
+                loginViewController.onLine(
+                    username: username,
+                    displayName: displayName,
+                    authName: authName,
+                    password: password,
+                    userDomain: userDomain,
+                    sipServer: sipServer,
+                    sipServerPort: sipServerPort,
+                    transportType: 0,
+                    srtpType: 0
+                )
                 result(true)
             } else {
-                result(FlutterError(code: "INVALID_ARGUMENT", message: "Invalid arguments", details: nil))
+                result(FlutterError(code: "INVALID_ARGUMENTS",
+                                  message: "Missing or invalid arguments for login",
+                                  details: nil))
+            }
+        case "call":
+            if let args = call.arguments as? [String: Any],
+               let phoneNumber = args["phoneNumber"] as? String,
+               let isVideoCall = args["isVideoCall"] as? Bool {
+                
+                // Kiểm tra trạng thái đăng ký trước khi thực hiện cuộc gọi
+                if loginViewController.sipRegistrationStatus == .LOGIN_STATUS_ONLINE {
+                    // Sử dụng hàm makeCall có sẵn trong plugin
+                    let sessionId = makeCall(phoneNumber, videoCall: isVideoCall)
+                    result(sessionId > 0)
+                } else {
+                    result(FlutterError(code: "NOT_REGISTERED",
+                                      message: "SIP registration required before making calls",
+                                      details: nil))
+                }
+            } else {
+                result(FlutterError(code: "INVALID_ARGUMENTS",
+                                  message: "Missing or invalid arguments for call",
+                                  details: nil))
             }
         case "Offline":
             self.loginViewController.offLine()
@@ -1268,7 +1294,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             if let args = call.arguments as? [String: Any],
             let destination = args["destination"] as? String {
             referCall(destination)
-            // Trả về kết quả thành công (có thể cải thiện để trả về kết quả thực tế)
             result(true)
         } else {
             result(FlutterError(code: "INVALID_ARGUMENT", message: "Destination is required for transfer", details: nil))
@@ -1282,9 +1307,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     public func onRegisterSuccess(_ statusText: String!, statusCode: Int32, sipMessage: String!) {
         NSLog("Status: \(String(describing: statusText)), Message: \(String(describing: sipMessage))")
         sipRegistered = true
-        print("isVideoCall: \(isVideoCall)")
-        let _ = makeCall(phone, videoCall: isVideoCall)
-        print("Calling:\(phone) on line \(_activeLine!)")
+        methodChannel?.invokeMethod("onlineStatus", arguments: true)
         methodChannel?.invokeMethod("onRegisterSuccess", arguments: true)
         NSLog("onRegisterSuccess")
     }
@@ -1292,6 +1315,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     public func onRegisterFailure(_ statusText: String!, statusCode: Int32, sipMessage: String!) {
         NSLog("Status: \(String(describing: statusText)), Message: \(String(describing: sipMessage))")
         sipRegistered = false
+        methodChannel?.invokeMethod("onlineStatus", arguments: false)
         loginViewController.unRegister()
         NSLog("onRegisterFailure")
     }
