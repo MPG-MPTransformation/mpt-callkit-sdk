@@ -81,18 +81,21 @@ class MptCallKitController {
     );
   }
 
+  disposeSocket() {
+    MptSocket.dispose();
+  }
+
   Future<void> makeCallByGuest({
     required BuildContext context,
     required String phoneNumber,
     bool isShowNativeView = true,
     bool isVideoCall = false,
-    ExtensionData?
-        userExtensionData, // need pass this value if user is existed, else get extension by getExtension() method
+    ExtensionData? userExtensionData,
     Function(String?)? onError,
   }) async {
     try {
-      final hasPerrmission = await requestPermission(context);
-      if (!hasPerrmission) {
+      final hasPermission = await requestPermission(context);
+      if (!hasPermission) {
         onError?.call('Permission denied');
         return;
       }
@@ -113,11 +116,14 @@ class MptCallKitController {
             /// lắng nghe kết quả register
             if (call.method == 'registrationStateStream') {
               /// nếu thành công thì call luôn
-              /// mở màn hình video call
-              // channel.invokeMethod('startActivity');
               if (call.arguments == true) {
-                final bool callResult = await callMethod(
-                    phoneNumber: phoneNumber, isVideoCall: isVideoCall);
+                final bool callResult = await channel.invokeMethod(
+                  'call',
+                  <String, dynamic>{
+                    'phoneNumber': phoneNumber,
+                    'isVideoCall': isVideoCall
+                  },
+                );
                 if (!callResult) {
                   onError?.call('Tổng đài bận, liên hệ hỗ trợ');
                   print('quanth: call has failed');
@@ -157,8 +163,6 @@ class MptCallKitController {
           transportType: 0,
           srtpType: 0,
           phoneNumber: phoneNumber,
-          isVideoCall: isVideoCall,
-          isShowNativeView: isShowNativeView,
           context: context,
         );
         // Navigator.push(
@@ -317,6 +321,7 @@ class MptCallKitController {
     }
   }
 
+  // Method do register to SIP server
   Future<bool> online({
     required String username,
     required String displayName,
@@ -328,14 +333,12 @@ class MptCallKitController {
     required int transportType,
     required int srtpType,
     required String phoneNumber,
-    bool isVideoCall = false,
-    bool isShowNativeView = true,
     Function(String?)? onError,
     required BuildContext context,
   }) async {
     try {
       if (isOnline) {
-        onError?.call("You already online. Please go offline first");
+        onError?.call("You already registered. Please unregister first!");
         return false;
       } else {
         final bool result = await channel.invokeMethod(
@@ -351,7 +354,6 @@ class MptCallKitController {
             'transportType': transportType,
             'srtpType': srtpType,
             'phoneNumber': phoneNumber,
-            'isVideoCall': isVideoCall,
           },
         );
         return result;
@@ -367,20 +369,31 @@ class MptCallKitController {
   }
 
   Future<bool> callMethod({
-    required String phoneNumber,
+    required BuildContext context,
+    required String destination,
     required bool isVideoCall,
     Function(String?)? onError,
   }) async {
     try {
+      final hasPermission = await requestPermission(context);
+      if (!hasPermission) {
+        onError?.call("Permission denied");
+        return false;
+      }
       if (!isOnline) {
         onError?.call("You need register to SIP server first");
         return false;
       } else {
         final result = await channel.invokeMethod('call', {
-          'phoneNumber': phoneNumber,
+          'destination': destination,
           'isVideoCall': isVideoCall,
         });
-        return result;
+        if (result == false) {
+          onError?.call("Current line is busy");
+          return false;
+        } else {
+          return true;
+        }
       }
     } on PlatformException catch (e) {
       debugPrint("Failed to call: '${e.message}'.");
@@ -388,16 +401,19 @@ class MptCallKitController {
     }
   }
 
-  Future<void> offline({Function(String?)? onError}) async {
+  // Method do unregister from SIP server
+  Future<bool> offline({Function(String?)? onError}) async {
     try {
       if (!isOnline) {
         onError?.call("You need register to SIP server first");
-        return;
+        return false;
       } else {
-        await channel.invokeMethod(MptCallKitConstants.offline);
+        var result = await channel.invokeMethod(MptCallKitConstants.offline);
+        return result;
       }
     } on PlatformException catch (e) {
       debugPrint("Failed to go offline: '${e.message}'.");
+      return false;
     }
   }
 
@@ -481,15 +497,15 @@ class MptCallKitController {
     }
   }
 
-  Future<bool> transfer(String destination) async {
-    try {
-      final result = await channel.invokeMethod("transfer", {
-        "destination": destination,
-      });
-      return result;
-    } on PlatformException catch (e) {
-      debugPrint("Failed in 'transfer' mothod: '${e.message}'.");
-      return false;
-    }
-  }
+  // Future<bool> transfer(String destination) async {
+  //   try {
+  //     final result = await channel.invokeMethod("transfer", {
+  //       "destination": destination,
+  //     });
+  //     return result;
+  //   } on PlatformException catch (e) {
+  //     debugPrint("Failed in 'transfer' mothod: '${e.message}'.");
+  //     return false;
+  //   }
+  // }
 }

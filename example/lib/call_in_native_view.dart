@@ -35,7 +35,7 @@ class _CallInNativeViewState extends State<CallInNativeView> {
             baseUrl: widget.baseUrl,
             userPhoneNumber: _phoneController.text,
           );
-          MptCallKitController().makeCall(
+          MptCallKitController().makeCallByGuest(
               context: context,
               phoneNumber: _callTo.text,
               isVideoCall: true,

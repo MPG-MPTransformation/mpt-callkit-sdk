@@ -3,6 +3,35 @@ package com.mpt.mpt_callkit;
 /**
  * PortsipFlutterPlugin
  */
+import android.net.Uri;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Build;
+import android.widget.Toast;
+import androidx.annotation.NonNull;
+
+import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.plugin.common.MethodCall;
+import io.flutter.plugin.common.MethodChannel;
+import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
+import io.flutter.plugin.common.MethodChannel.Result;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
+import android.content.Context;
+import com.portsip.PortSipEnumDefine;
+import com.portsip.PortSipErrorcode;
+import com.portsip.PortSipSdk;
+import com.portsip.OnPortSIPEvent;
+import android.Manifest;
+import android.app.Activity;
+import android.content.pm.PackageManager;
+import androidx.core.app.ActivityCompat;
+import com.mpt.mpt_callkit.util.CallManager;
+import com.mpt.mpt_callkit.util.Session;
+import com.mpt.mpt_callkit.util.Engine;
+import com.mpt.mpt_callkit.util.Ring;
+
 public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
 
     /// The MethodChannel that will the communication between Flutter and native Android
@@ -42,9 +71,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 System.out.println("quanth: UnregisterServer..");
                 break;
             case "call":
-                String phoneNumber = call.argument("phoneNumber");
+                String destinationNumber = call.argument("destination");
                 boolean isVideoCall = call.argument("isVideoCall");
-                boolean callResult = makeCall(phoneNumber, isVideoCall);
+                boolean callResult = makeCall(destinationNumber, isVideoCall);
                 result.success(callResult);
                 break;
             case "requestPermission":
@@ -361,21 +390,21 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     }
 
     boolean transfer(String destination) {
-      Session currentLine = CallManager.Instance().getCurrentSession();
-      if (currentLine == null || currentLine.sessionID <= 0 || currentLine.state != Session.CALL_STATE_FLAG.CONNECTED) {
-          System.out.println("quanth: Cannot transfer - no active call");
-          return false;
-      }
-      
-      // Thực hiện chuyển cuộc gọi không cần tham vấn (Blind Transfer)
-      int result = Engine.Instance().getEngine().refer(currentLine.sessionID, destination);
-      
-      if (result != 0) {
-          System.out.println("quanth: Transfer failed to " + destination + ", error code: " + result);
-          return false;
-      }
-      
-      System.out.println("quanth: Call transfer initiated to " + destination);
-      return true;
-  }
+        Session currentLine = CallManager.Instance().getCurrentSession();
+        if (currentLine == null || currentLine.sessionID <= 0 || currentLine.state != Session.CALL_STATE_FLAG.CONNECTED) {
+            System.out.println("quanth: Cannot transfer - no active call");
+            return false;
+        }
+
+        // Thực hiện chuyển cuộc gọi không cần tham vấn (Blind Transfer)
+        int result = Engine.Instance().getEngine().refer(currentLine.sessionID, destination);
+
+        if (result != 0) {
+            System.out.println("quanth: Transfer failed to " + destination + ", error code: " + result);
+            return false;
+        }
+
+        System.out.println("quanth: Call transfer initiated to " + destination);
+        return true;
+    }
 }

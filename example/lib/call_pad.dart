@@ -7,11 +7,11 @@ class CallPad extends StatefulWidget {
     super.key,
     required this.apiKey,
     required this.baseUrl,
-    this.extensionData,
+    required this.ounboundNumber,
   });
   final String apiKey;
   final String baseUrl;
-  final ExtensionData? extensionData;
+  final String ounboundNumber;
 
   @override
   State<CallPad> createState() => _CallPadState();
@@ -30,14 +30,11 @@ class _CallPadState extends State<CallPad> {
     "reject",
   ];
 
-  final TextEditingController _outboundNumberController =
-      TextEditingController();
   final TextEditingController _destController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _outboundNumberController.text = "200011";
     _destController.text = "20015";
   }
 
@@ -52,17 +49,6 @@ class _CallPadState extends State<CallPad> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: TextField(
-                  controller: _outboundNumberController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Outbound number',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: TextField(
@@ -120,24 +106,16 @@ class _CallPadState extends State<CallPad> {
 
     switch (functionName) {
       case 'call':
-        MptCallKitController().initSdk(
-          apiKey: widget.apiKey, // dev
-          baseUrl: widget.baseUrl, // dev
-          userPhoneNumber: _outboundNumberController.text,
-        );
-        MptCallKitController().makeCall(
+        MptCallKitController().callMethod(
             context: context,
-            phoneNumber: _destController.text,
+            destination: _destController.text,
             isVideoCall: true,
-            isShowNativeView: false,
-            userExtensionData: widget.extensionData,
-            onError: (errorMessage) {
-              if (errorMessage == null) return;
-              var snackBar = SnackBar(
-                content: Text(errorMessage),
-                backgroundColor: Colors.grey,
+            onError: (e) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("$e"),
+                ),
               );
-              ScaffoldMessenger.of(context).showSnackBar(snackBar);
             });
         break;
       case 'hangup':

@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:ably_flutter/ably_flutter.dart' as ably;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
+// SocketIO
 class MptSocket {
   static late IO.Socket socket;
 
@@ -15,7 +17,7 @@ class MptSocket {
     yield* _connectionStatusController.stream;
   }
 
-  static _connectSocket(String token, String url) {
+  static _connectSocket(String token, String url, String path) {
     socket = IO.io(
       url,
       IO.OptionBuilder()
@@ -24,7 +26,7 @@ class MptSocket {
           .disableAutoConnect()
           .setReconnectionDelay(1000)
           .setTransports(["websocket"]).setAuth({"token": token}).setQuery(
-        {"env": "widget", "type": "guest"},
+        {"env": "widget", "type": "agent"},
       ).build(),
     );
     socket.connect();
@@ -156,18 +158,82 @@ class MptSocket {
       userName: userName,
     );
 
-    _connectSocket(token, url);
+    _connectSocket(token, url, "/live-connect");
   }
 
   static Future<void> connectSocketByUser(
     String url, {
     required String token,
   }) async {
-    _connectSocket(token, url);
+    _connectSocket(token, url, "/socket-server");
   }
 
   static void dispose() {
     _connectionStatusController.close();
     socket.dispose();
+  }
+}
+
+class SDKAbly {
+  String ablyKey;
+  String clientId;
+  bool isConnecting = false;
+  late ably.Realtime ablyClient;
+  late ably.RealtimeChannel channel;
+  Function(ably.Message) onMessageReceived;
+
+  SDKAbly({
+    required this.ablyKey,
+    required this.clientId,
+    required this.onMessageReceived,
+  }) {
+    _initAbly();
+  }
+
+  /// Khởi tạo kết nối đến Ably
+  void _initAbly() {
+    ablyClient = ably.Realtime(
+      options: ably.ClientOptions(
+        key: ablyKey,
+        clientId: clientId,
+      ),
+    );
+
+    ablyClient.connection.on().listen((ably.ConnectionStateChange stateChange) {
+      if (stateChange.current == ably.ConnectionState.connected) {
+        print("Connected to Ably");
+        isConnecting = true;
+        _subscribeToChannels();
+      } else {
+        print("Disconnected from Ably");
+        isConnecting = false;
+      }
+    });
+  }
+
+  /// Đăng ký kênh để nhận tin nhắn
+  void _subscribeToChannels() {
+    channel = ablyClient.channels.get('conversation_tenant_id');
+    channel.subscribe().listen((ably.Message message) {
+      _handleIncomingMessage(message);
+    });
+  }
+
+  /// Xử lý tin nhắn đến từ kênh Ably
+  void _handleIncomingMessage(ably.Message message) {
+    print("Received message: ${message.name} - ${message.data}");
+    onMessageReceived(message);
+  }
+
+  /// Gửi tin nhắn lên kênh
+  Future<void> sendMessage(String name, dynamic data) async {
+    await channel.publish(name: name, data: data);
+    print("Sent message: $name - $data");
+  }
+
+  /// Ngắt kết nối Ably
+  Future<void> disconnect() async {
+    await ablyClient.close();
+    print("Disconnected from Ably");
   }
 }

@@ -1222,7 +1222,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                let sipServer = args["sipServer"] as? String,
                let sipServerPort = args["sipServerPort"] as? Int32 {
                 
-                // Chỉ thực hiện đăng ký SIP
+                // Register to SIP server
                 loginViewController.onLine(
                     username: username,
                     displayName: displayName,
