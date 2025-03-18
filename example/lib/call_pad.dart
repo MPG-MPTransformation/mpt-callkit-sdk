@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
-import 'package:mpt_callkit/models/extension_model.dart';
 
 class CallPad extends StatefulWidget {
   const CallPad({

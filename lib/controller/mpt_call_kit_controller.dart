@@ -55,15 +55,15 @@ class MptCallKitController {
         : "https://crm-dev-v2.metechvn.com";
   }
 
-  Future<void> connectSocketByUser({
-    required String baseUrl,
-    required String userToken,
-  }) async {
-    await MptSocket.connectSocketByUser(
-      baseUrl,
-      token: userToken,
-    );
-  }
+  // Future<void> connectSocketByUser({
+  //   required String baseUrl,
+  //   required String userToken,
+  // }) async {
+  //   await MptSocket.connectSocketByUser(
+  //     baseUrl,
+  //     token: userToken,
+  //   );
+  // }
 
   Future<void> connectSocketByGuest({
     required String apiKey,

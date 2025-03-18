@@ -17,7 +17,7 @@ class AESHelper {
     final encrypter = Encrypter(AES(key, mode: AESMode.cbc, padding: 'PKCS7'));
     final decrypted =
         encrypter.decrypt(Encrypted.fromBase64(encrypted), iv: iv);
-    print("Decrypted: $decrypted");
+    // print("Decrypted: $decrypted");
     return decrypted;
   }
 }

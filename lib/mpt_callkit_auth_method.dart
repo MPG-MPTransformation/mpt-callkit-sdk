@@ -35,7 +35,7 @@ class MptCallkitAuthMethod {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
         data?.call(responseData);
-        print('Response data: $responseData');
+        print('Login Response data: $responseData');
         if (responseData != null) {
           if (responseData["success"]) {
             var result = responseData["result"];
@@ -96,7 +96,7 @@ class MptCallkitAuthMethod {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
         data?.call(responseData);
-        print('Response data: $responseData');
+        print('Login SSOResponse data: $responseData');
         if (responseData != null) {
           if (responseData["success"]) {
             var result = responseData["result"];
@@ -154,7 +154,7 @@ class MptCallkitAuthMethod {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
-        print('Response data: $responseData');
+        print('Logout Response data: $responseData');
         if (responseData != null) {
           if (responseData["success"] && responseData["status"]) {
             return true;

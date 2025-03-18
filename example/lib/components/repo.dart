@@ -26,7 +26,6 @@ class Repo {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = convert.jsonDecode(response.body);
-        // print('Response data: $responseData');
         if (responseData != null) {
           if (responseData["success"]) {
             var result =
@@ -64,6 +63,7 @@ class Repo {
     final headers = {
       "Content-Type": "application/json",
       "Accept": "*/*",
+      "Authorization": "Bearer $accessToken",
     };
 
     const changeStatusApi = "/acd-asm-chat/agent-status/change";
@@ -109,21 +109,22 @@ class Repo {
   }
 
   // Get all conversation
-  Future<dynamic> getAll({
+  Future<dynamic> getConfiguration({
     required String baseUrl,
     required String accessToken,
     Function(String?)? onError,
   }) async {
-    final header = {
+    final headers = {
       "Content-Type": "application/json",
       "Accept": "*/*",
       "Authorization": "Bearer $accessToken",
     };
 
-    final url = "$baseUrl/config/EncryptedAbpUserConfiguration/GetAll";
+    final url =
+        "$baseUrl/config/EncryptedAbpUserConfiguration/GetConfiguration";
 
     try {
-      final response = await http.get(Uri.parse(url), headers: header);
+      final response = await http.get(Uri.parse(url), headers: headers);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = convert.jsonDecode(response.body);

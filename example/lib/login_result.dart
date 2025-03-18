@@ -26,27 +26,20 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
   Map<String, dynamic>? _currentUserInfo;
   ExtensionData? _extensionData;
   final _outboundNumber = "200011";
-  Map<String, dynamic>? getAll;
+  Map<String, dynamic>? _configuration;
 
   @override
   void initState() {
     super.initState();
-
     initData();
   }
 
-  initData() async {
+  Future<void> initData() async {
     if (widget.userData != null) {
       await getCurrentUserInfo();
-      getAll = await Repo().getAll(
-        baseUrl: widget.baseUrl,
-        accessToken: widget.userData!["result"]["accessToken"],
-        onError: (e) {
-          print("Error in get all: ${e.toString()}");
-        },
-      );
-
+      await getConfiguration();
       await connectToSocketServer();
+      await registerToSipServer();
     } else {
       print("Access token is null");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -58,6 +51,18 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
     }
   }
 
+  // get configuration
+  Future<void> getConfiguration() async {
+    _configuration = await Repo().getConfiguration(
+      baseUrl: widget.baseUrl,
+      accessToken: widget.userData!["result"]["accessToken"],
+      onError: (e) {
+        print("Error in get all: ${e.toString()}");
+      },
+    );
+  }
+
+  // get current user info
   Future<void> getCurrentUserInfo() async {
     _currentUserInfo = await Repo().getCurrentUserInfo(
       baseUrl: widget.baseUrl,
@@ -72,7 +77,10 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
         );
       },
     );
+  }
 
+  // handle register to sip server
+  Future<void> registerToSipServer() async {
     // Get extension data from current user info
     if (_currentUserInfo != null) {
       _extensionData = ExtensionData(
@@ -85,29 +93,48 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
 
       if (_extensionData != null) {
         // Register to SIP server
-        await MptCallKitController().online(
-          username: _extensionData!.username!,
-          displayName: _extensionData!.username!, // ??
-          srtpType: 0,
-          authName: _extensionData!.username!, // ??
-          password: _extensionData!.password!,
-          userDomain: _extensionData!.domain!,
-          sipServer: _extensionData!.sipServer!,
-          sipServerPort: _extensionData!.port ?? 5060,
-          transportType: 0,
-          onError: (p0) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text("Error in online: ${p0.toString()}"),
-                backgroundColor: Colors.grey,
-              ),
-            );
-          },
-          phoneNumber: _outboundNumber,
-          context: context,
-        );
+        bool result = await doOnline();
       }
     }
+  }
+
+  // register SIP
+  Future<bool> doOnline() async {
+    return await MptCallKitController().online(
+      username: _extensionData!.username!,
+      displayName: _extensionData!.username!, // ??
+      srtpType: 0,
+      authName: _extensionData!.username!, // ??
+      password: _extensionData!.password!,
+      userDomain: _extensionData!.domain!,
+      sipServer: _extensionData!.sipServer!,
+      sipServerPort: _extensionData!.port ?? 5060,
+      transportType: 0,
+      onError: (p0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error in online: ${p0.toString()}"),
+            backgroundColor: Colors.grey,
+          ),
+        );
+      },
+      phoneNumber: _outboundNumber,
+      context: context,
+    );
+  }
+
+  // unregister SIP
+  Future<bool> doOffline() async {
+    return await MptCallKitController().offline(
+      onError: (error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Lỗi: $error"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      },
+    );
   }
 
   // // @override
@@ -120,12 +147,13 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
   // Connect to socket server
   Future<void> connectToSocketServer() async {
     print("connectToSocketServer");
-    if (getAll != null) {
-      SDKAbly(
-        ablyKey: getAll!["ABLY_KEY"],
-        clientId:
-            "${_currentUserInfo!["tenant"]["id"]}_${_currentUserInfo!["user"]["id"]}_${_currentUserInfo!["user"]["userName"]}",
-        onMessageReceived: (p0) {
+    if (_configuration != null) {
+      MptSocketAbly.initialize(
+        ablyKeyParam: _configuration!["ABLY_KEY"],
+        tenantIdParam: _currentUserInfo!["tenant"]["id"],
+        userIdParam: _currentUserInfo!["user"]["id"],
+        userNameParam: _currentUserInfo!["user"]["userName"],
+        onMessageReceivedParam: (p0) {
           print("Message received: $p0");
         },
       );
@@ -136,7 +164,14 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
 
   // Logout account
   void logout() async {
-    var unregisterResult = false;
+    Navigator.pop(context);
+
+    MptSocketAbly.disconnect();
+
+    if (MptCallKitController().isOnline) {
+      await MptCallKitController().offline();
+    }
+
     var logoutResult = await MptCallkit().logout(
       cloudAgentId: _currentUserInfo!["user"]["id"],
       cloudAgentName: _currentUserInfo!["user"]["fullName"] ?? "",
@@ -151,16 +186,6 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
         );
       },
     );
-
-    if (MptCallKitController().isOnline) {
-      unregisterResult = await MptCallKitController().offline();
-    } else {
-      unregisterResult = true;
-    }
-
-    if (logoutResult && unregisterResult) {
-      Navigator.pop(context);
-    }
   }
 
   handleBackButton() {
@@ -184,6 +209,21 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
         ],
       ),
     );
+  }
+
+  // change status method
+  void changeStatus({
+    required String statusName,
+    required int reasonCodeId,
+  }) async {
+    await Repo().changeAgentStatus(
+        cloudAgentId: _currentUserInfo!["user"]["id"],
+        cloudTenantId: _currentUserInfo!["tenant"]["id"],
+        cloudAgentName: _currentUserInfo!["user"]["fullName"] ?? "",
+        reasonCodeId: reasonCodeId,
+        statusName: statusName,
+        baseUrl: widget.baseUrl,
+        accessToken: widget.userData!["result"]["accessToken"]);
   }
 
   @override
@@ -213,13 +253,12 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                 Text(
                   "Login status: ${widget.title}",
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 40),
                 StreamBuilder<bool>(
                   stream: MptCallKitController().onlineStatusController,
                   initialData: MptCallKitController().isOnline,
                   builder: (context, snapshot) {
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    return Column(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
@@ -227,8 +266,9 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text("SIP Status:"),
+                              const Text("SIP connection status:"),
                               Text(
                                 snapshot.data == true
                                     ? 'Registered'
@@ -241,45 +281,15 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 10),
                         ElevatedButton(
                           onPressed: () async {
                             if (snapshot.data == true) {
                               // Nếu đang online thì chuyển sang offline
-                              await MptCallKitController().offline(
-                                onError: (error) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text("Lỗi: $error"),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                },
-                              );
+                              await doOffline();
                             } else {
                               // Nếu đang offline thì chuyển sang online
                               if (_extensionData != null) {
-                                await MptCallKitController().online(
-                                  username: _extensionData!.username!,
-                                  displayName: _extensionData!.username!,
-                                  srtpType: 0,
-                                  authName: _extensionData!.username!,
-                                  password: _extensionData!.password!,
-                                  userDomain: _extensionData!.domain!,
-                                  sipServer: _extensionData!.sipServer!,
-                                  sipServerPort: _extensionData!.port ?? 5060,
-                                  transportType: 0,
-                                  onError: (error) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text("Lỗi: $error"),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                  },
-                                  phoneNumber: _outboundNumber,
-                                  context: context,
-                                );
+                                await doOnline();
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
@@ -297,7 +307,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                                 : Colors.green.shade700,
                           ),
                           child: Text(
-                            snapshot.data == true ? "Offline" : "Online",
+                            snapshot.data == true ? "do offline" : "do online",
                             style: const TextStyle(color: Colors.white),
                           ),
                         ),
@@ -305,7 +315,41 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                     );
                   },
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 40),
+                StreamBuilder<String>(
+                  stream: MptSocketAbly.agentStatusStream,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      return Text(
+                        "Agent Status: ${snapshot.data!}",
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      );
+                    } else {
+                      return const Text("Agent Status: null");
+                    }
+                  },
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ElevatedButton(
+                        onPressed: () {
+                          changeStatus(reasonCodeId: 1001, statusName: "READY");
+                        },
+                        child: const Text("change to ready")),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                        onPressed: () {
+                          changeStatus(
+                              reasonCodeId: 1000, statusName: "NOT_READY");
+                        },
+                        child: const Text("change to busy")),
+                  ],
+                ),
+                const SizedBox(height: 40),
                 OutlinedButton(
                     onPressed: () {
                       Navigator.push(
