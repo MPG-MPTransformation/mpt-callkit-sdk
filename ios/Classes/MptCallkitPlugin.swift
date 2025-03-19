@@ -42,6 +42,14 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     
     var _enableForceBackground: Bool?
     
+    enum CallState: String {
+        case INCOMING = "INCOMING"
+        case TRYING = "TRYING"
+        case CONNECTED = "CONNECTED"
+        case FAILED = "FAILED"
+        case CLOSED = "CLOSED"
+    }
+    
     func findSession(sessionid: CLong) -> (Int) {
         for i in 0 ..< MAX_LINES {
             if lineSessions[i] == sessionid {
@@ -454,6 +462,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         lineSessions[index] = sessionId
         
         _callManager.incomingCall(sessionid: sessionId, existsVideo: existsVideo, remoteParty: remoteParty!, remoteDisplayName: remoteDisplayName!, callUUID: uuid!, completionHandle: {})
+        
+        // Gửi trạng thái về Flutter
+        sendCallStateToFlutter(.INCOMING)
     }
     
     public func onInviteTrying(_ sessionId: Int) {
@@ -463,6 +474,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             return
         }
         
+        // Gửi trạng thái về Flutter
+        sendCallStateToFlutter(.TRYING)
     }
     
     public func onInviteSessionProgress(_ sessionId: Int, audioCodecs: String!, videoCodecs: String!, existsEarlyMedia: Bool, existsAudio: Bool, existsVideo: Bool, sipMessage: String!) {
@@ -530,6 +543,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             _callManager.joinToConference(sessionid: sessionId)
         }
         _ = mSoundService.stopRingBackTone()
+        
+        // Gửi trạng thái về Flutter
+        sendCallStateToFlutter(.CONNECTED)
     }
     
     public func onInviteFailure(_ sessionId: Int, callerDisplayName: String!, caller: String!, calleeDisplayName: String!, callee: String!, reason: String!, code: Int32, sipMessage: String!) {
@@ -569,6 +585,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // setLoudspeakerStatus(true)
         videoViewController.onClearState()
         loginViewController.unRegister()
+        
+        // Gửi trạng thái về Flutter
+        sendCallStateToFlutter(.FAILED)
     }
     
   
@@ -617,6 +636,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             videoViewController.onStartVoiceCall(sessionId)
             // setLoudspeakerStatus(false)
         }
+        
+        // Gửi trạng thái về Flutter
+        sendCallStateToFlutter(.CONNECTED)
     }
     
     public func onInviteBeginingForward(_ forwardTo: String) {
@@ -641,6 +663,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         videoViewController.onClearState()
         loginViewController.unRegister()
         NSLog("onInviteClosed...")
+        
+        // Gửi trạng thái về Flutter
+        sendCallStateToFlutter(.CLOSED)
     }
     
     public func onDialogStateUpdated(_ BLFMonitoredUri: String!, blfDialogState BLFDialogState: String!, blfDialogId BLFDialogId: String!, blfDialogDirection BLFDialogDirection: String!) {
@@ -851,8 +876,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
     }
     
-    public func onSendOutOfDialogMessageSuccess(_ messageId: Int, fromDisplayName: String!, from: String!, toDisplayName: String!, to: String!, sipMessage: String!) {
-        NSLog("onSendOutOfDialogMessageSuccess...")
+    public func onSendOutOfDialogMessageSuccess(_ messageId: Int, fromDisplayName _: UnsafeMutablePointer<Int8>!, from _: UnsafeMutablePointer<Int8>!, toDisplayName _: UnsafeMutablePointer<Int8>!, to _: UnsafeMutablePointer<Int8>!, sipMessage: UnsafeMutablePointer<CChar>!) {
+    }
+    
+    public func onSendOutOfDialogMessageFailure(_ messageId: Int, fromDisplayName: String!, from: String!, toDisplayName: String!, to: String!, reason: String!, code: Int32, sipMessage: String!) {
     }
     
     public func onSendMessageFailure(_ sessionId: Int, messageId: Int, reason: String!, code: Int32, sipMessage: String!) {
@@ -992,6 +1019,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         if isConference == true {
             _callManager.muteAllCall(muted: mute)
         }
+
+        sendMicrophoneStateToFlutter(mute)
     }
     
     func setLoudspeakerStatus(_ enable: Bool) {
@@ -1337,6 +1366,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     result!.session.videoState = false
                     print("Camera turned off")
                 }
+
+                sendCameraStateToFlutter(enable)
             }
         }
     }
@@ -1364,6 +1395,20 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 print("Call rejected")
             }
         }
+    }
+    
+    func sendCallStateToFlutter(_ state: CallState) {
+        methodChannel?.invokeMethod("callState", arguments: state.rawValue)
+    }
+    
+    // Gửi trạng thái camera
+    func sendCameraStateToFlutter(_ isOn: Bool) {
+        methodChannel?.invokeMethod("cameraState", arguments: isOn)
+    }
+
+    // Gửi trạng thái microphone
+    func sendMicrophoneStateToFlutter(_ isOn: Bool) {
+        methodChannel?.invokeMethod("microphoneState", arguments: isOn)
     }
 }
 

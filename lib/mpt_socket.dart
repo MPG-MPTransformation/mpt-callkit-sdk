@@ -174,49 +174,81 @@ class MptSocket {
   }
 }
 
+/// MptSocketAbly class
 class MptSocketAbly {
-  static late String ablyKey;
-  static late int tenantId;
-  static late int userId;
-  static late String userName;
-  static bool isConnecting = false;
-  static late ably.Realtime ablyClient;
-  static late ably.RealtimeChannel channel;
-  static late Function(ably.Message) onMessageReceived;
+  static MptSocketAbly? _instance;
 
-  static final _agentStatusController = StreamController<String>.broadcast();
+  static MptSocketAbly get instance {
+    _instance ??= MptSocketAbly._internal();
+    return _instance!;
+  }
 
-  static Stream<String> get agentStatusStream => _agentStatusController.stream;
+  String? ablyKey;
+  int? tenantId;
+  int? userId;
+  String? userName;
+  bool isConnecting = false;
+  ably.Realtime? ablyClient;
+  ably.RealtimeChannel? channel;
+  Function(ably.Message)? onMessageReceived;
+  StreamController<String> _agentStatusController =
+      StreamController<String>.broadcast();
 
-  static void initialize({
+  Stream<String> get statusStream => _agentStatusController.stream;
+
+  // Constructor private
+  MptSocketAbly._internal();
+
+  void setup({
     required String ablyKeyParam,
     required Function(ably.Message) onMessageReceivedParam,
     required int tenantIdParam,
     required int userIdParam,
     required String userNameParam,
   }) {
+    /// Create a new stream controller if it is closed
+    if (_agentStatusController.isClosed) {
+      _agentStatusController = StreamController<String>.broadcast();
+    }
+
+    // Gán tham số vào thuộc tính của lớp
     ablyKey = ablyKeyParam;
     onMessageReceived = onMessageReceivedParam;
     tenantId = tenantIdParam;
     userId = userIdParam;
     userName = userNameParam;
+
     _initAbly();
   }
 
-  /// Khởi tạo kết nối đến Ably
-  static void _initAbly() {
+  /// Initialize Ably connection
+  void _initAbly() {
+    // Kiểm tra null trước khi sử dụng
+    if (ablyKey == null ||
+        tenantId == null ||
+        userId == null ||
+        userName == null) {
+      print("ERROR: Required parameters are null in _initAbly");
+      print(
+          "ablyKey: $ablyKey, tenantId: $tenantId, userId: $userId, userName: $userName");
+      return;
+    }
+
+    print("Initializing Ably with clientId: ${tenantId}_${userId}_$userName");
     ablyClient = ably.Realtime(
       options: ably.ClientOptions(
-        key: ablyKey,
+        key: ablyKey!,
         clientId: "${tenantId}_${userId}_$userName",
       ),
     );
 
-    ablyClient.connection.on().listen((ably.ConnectionStateChange stateChange) {
+    ablyClient!.connection
+        .on()
+        .listen((ably.ConnectionStateChange stateChange) {
+      print("Ably connection state changed: ${stateChange.current}");
       if (stateChange.current == ably.ConnectionState.connected) {
         print("Ably socket connected");
         isConnecting = true;
-        // _subscribeToChannelConversationTenantId();
         _subscribeToChannelAgentStatus();
       } else {
         print("Ably state change: ${stateChange.current}");
@@ -225,50 +257,178 @@ class MptSocketAbly {
     });
   }
 
-  /// Subscribe to channel conversation tenant id
-  static void _subscribeToChannelConversationTenantId() {
-    print("Ably subscribe to channels: conversation_$tenantId");
-    channel = ablyClient.channels.get('conversation_$tenantId');
-    channel.subscribe().listen((ably.Message message) {
-      _handleIncomingMessage(message);
-    });
-  }
-
   /// Subscribe to channel agent status
-  static void _subscribeToChannelAgentStatus() {
-    print("Ably subscribe to channels: agent_status_${tenantId}_$userId");
-    channel = ablyClient.channels.get('agent_status_${tenantId}_$userId');
-    channel.subscribe().listen((ably.Message message) {
-      _handleIncomingMessage(message);
-    });
-  }
+  void _subscribeToChannelAgentStatus() {
+    if (tenantId == null || userId == null) {
+      print("Error: tenantId or userId is null. Cannot subscribe to channel.");
+      return;
+    }
 
-  /// Xử lý tin nhắn đến từ kênh Ably
-  static void _handleIncomingMessage(ably.Message message) {
-    if (message.name == "AGENT_STATUS_CHANGED") {
-      print("Ably received message: ${message.name} - ${message.data}");
+    String channelName = 'agent_status_${tenantId}_$userId';
+    print("Ably subscribe to channel: $channelName");
 
-      final data = message.data as Map<dynamic, dynamic>;
-      final statusName = data['statusName'] as String?;
-      if (statusName != null) {
-        _agentStatusController.add(statusName);
-      } else {
-        print("statusName is null");
+    // Close old channel if exists
+    if (channel != null) {
+      try {
+        channel!.detach();
+      } catch (e) {
+        print("Error detaching old channel: $e");
       }
     }
-    onMessageReceived(message);
+
+    // Create new channel and subscribe
+    channel = ablyClient!.channels.get(channelName);
+
+    try {
+      channel!.subscribe().listen((ably.Message message) {
+        print(
+            "Received message on channel $channelName: ${message.name} - ${message.data}");
+        _handleIncomingMessage(message);
+      }, onError: (error) {
+        print("Error subscribing to channel $channelName: $error");
+      });
+      print("Successfully subscribed to channel $channelName");
+    } catch (e) {
+      print("Exception while subscribing to channel $channelName: $e");
+    }
   }
 
-  /// Gửi tin nhắn lên kênh
-  static Future<void> sendMessage(String name, dynamic data) async {
-    await channel.publish(name: name, data: data);
-    print("Ably sent message: $name - $data");
+  /// Handle incoming message from Ably
+  void _handleIncomingMessage(ably.Message message) {
+    print("Handling message: ${message.name} with data: ${message.data}");
+
+    if (message.name == "AGENT_STATUS_CHANGED" ||
+        message.name == "agent_status_chat") {
+      print("Processing agent status message: ${message.data}");
+
+      Map<dynamic, dynamic>? data;
+      try {
+        if (message.data is Map) {
+          data = message.data as Map<dynamic, dynamic>;
+        } else if (message.data is String) {
+          data = Map<String, dynamic>.from(jsonDecode(message.data as String));
+        }
+      } catch (e) {
+        print("Error parsing message data: $e");
+      }
+
+      if (data != null) {
+        final statusName = data['statusName'] as String?;
+        if (statusName != null) {
+          if (!_agentStatusController.isClosed) {
+            print("Adding status to stream: $statusName");
+            _agentStatusController.add(statusName);
+          } else {
+            print("Warning: Controller is closed. Creating a new one.");
+            _agentStatusController = StreamController<String>.broadcast();
+            _agentStatusController.add(statusName);
+          }
+        } else {
+          print("statusName is null in data: $data");
+        }
+      } else {
+        print("Could not parse data from message: ${message.data}");
+      }
+    } else {
+      print("Message name not recognized: ${message.name}");
+    }
+
+    if (onMessageReceived != null) {
+      onMessageReceived!(message);
+    }
   }
 
-  /// Ngắt kết nối Ably
+  /// Send message to Ably
+  Future<void> sendMessage(String name, dynamic data) async {
+    if (channel == null) {
+      print("Cannot send message: channel is null");
+      return;
+    }
+
+    try {
+      await channel!.publish(name: name, data: data);
+      print("Ably sent message: $name - $data");
+    } catch (e) {
+      print("Error sending message: $e");
+    }
+  }
+
+  /// Close connection
+  Future<void> closeConnection() async {
+    try {
+      if (ablyClient != null) {
+        if (channel != null) {
+          await channel!.detach();
+          print("Channel detached");
+        }
+        await ablyClient!.connection.close();
+        print("Ably disconnected from Ably");
+      } else {
+        print("ablyClient is null, nothing to disconnect");
+      }
+    } catch (e) {
+      print("Error disconnecting from Ably: $e");
+    }
+  }
+
+  /// Close all resources
+  Future<void> releaseResources() async {
+    try {
+      await closeConnection();
+
+      if (!_agentStatusController.isClosed) {
+        _agentStatusController.close();
+      }
+    } catch (e) {
+      print("Error disposing MptSocketAbly instance: $e");
+    }
+  }
+
+  /// Check connection state
+  bool checkConnection() {
+    return ablyClient != null &&
+        ablyClient!.connection.state == ably.ConnectionState.connected;
+  }
+
+  /// IMPORTANT: Destroy instance
+  static Future<void> destroyInstance() async {
+    if (_instance != null) {
+      await _instance!.releaseResources();
+      _instance = null;
+      print("MptSocketAbly instance destroyed successfully");
+    }
+  }
+
+  /// Create a single instance
+  static void initialize({
+    required String ablyKeyParam,
+    required Function(ably.Message) onMessageReceivedParam,
+    required int tenantIdParam,
+    required int userIdParam,
+    required String userNameParam,
+  }) {
+    // Đảm bảo các tham số được chuyển đúng
+    instance.setup(
+      ablyKeyParam: ablyKeyParam,
+      onMessageReceivedParam: onMessageReceivedParam,
+      tenantIdParam: tenantIdParam,
+      userIdParam: userIdParam,
+      userNameParam: userNameParam,
+    );
+  }
+
+  /// Stream static
+  static Stream<String> get agentStatusStream => instance.statusStream;
+
+  /// Disconnect
   static Future<void> disconnect() async {
-    await ablyClient.connection.close();
-    _agentStatusController.close(); // Close the stream controller
-    print("Ably disconnected from Ably");
+    if (_instance != null) {
+      await _instance!.closeConnection();
+    }
+  }
+
+  /// Check connection
+  static bool isConnected() {
+    return _instance != null && _instance!.checkConnection();
   }
 }

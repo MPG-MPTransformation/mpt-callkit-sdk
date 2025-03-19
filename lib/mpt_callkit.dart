@@ -74,6 +74,7 @@ class MptCallkit {
     );
   }
 
+  // logout user account from server
   Future<bool> logout({
     String? baseUrl,
     Function(String?)? onError,

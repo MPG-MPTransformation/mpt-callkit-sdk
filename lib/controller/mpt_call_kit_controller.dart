@@ -19,9 +19,25 @@ class MptCallKitController {
 
   static const MethodChannel channel = MethodChannel('mpt_callkit');
 
-  final StreamController<bool> _onlineStatusController =
+  /// online status stream
+  final StreamController<bool> _onlineStatuslistener =
       StreamController<bool>.broadcast();
-  Stream<bool> get onlineStatusController => _onlineStatusController.stream;
+  Stream<bool> get onlineStatuslistener => _onlineStatuslistener.stream;
+
+  /// call state stream
+  final StreamController<String> _callStateListener =
+      StreamController<String>.broadcast();
+  Stream<String> get callStateListener => _callStateListener.stream;
+
+  /// camera state stream
+  final StreamController<bool> _cameraStateListener =
+      StreamController<bool>.broadcast();
+  Stream<bool> get cameraStateListener => _cameraStateListener.stream;
+
+  /// microphone state stream
+  final StreamController<bool> _microphoneStateListener =
+      StreamController<bool>.broadcast();
+  Stream<bool> get microphoneStateListener => _microphoneStateListener.stream;
 
   bool _isOnline = false;
   bool get isOnline => _isOnline;
@@ -33,7 +49,19 @@ class MptCallKitController {
     channel.setMethodCallHandler((call) async {
       if (call.method == 'onlineStatus') {
         _isOnline = call.arguments as bool;
-        _onlineStatusController.add(call.arguments as bool);
+        _onlineStatuslistener.add(call.arguments as bool);
+      }
+
+      if (call.method == 'callState') {
+        _callStateListener.add(call.arguments as String);
+      }
+
+      if (call.method == 'cameraState') {
+        _cameraStateListener.add(call.arguments as bool);
+      }
+
+      if (call.method == 'microphoneState') {
+        _microphoneStateListener.add(call.arguments as bool);
       }
     });
   }
@@ -337,6 +365,11 @@ class MptCallKitController {
     required BuildContext context,
   }) async {
     try {
+      final hasPermission = await requestPermission(context);
+      if (!hasPermission) {
+        onError?.call('Permission denied');
+        return false;
+      }
       if (isOnline) {
         onError?.call("You already registered. Please unregister first!");
         return false;

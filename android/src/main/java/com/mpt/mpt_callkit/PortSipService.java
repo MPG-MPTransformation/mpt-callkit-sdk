@@ -243,7 +243,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                 Engine.Instance().getMethodChannel().invokeMethod("releaseExtension", true);
                 context.stopService(new Intent(this, PortSipService.class));
                 System.out.println("quanth: service unregisterToServer done");
-            } else if (ACTION_STOP.equals(intent.getAction())){
+            } else if (ACTION_STOP.equals(intent.getAction())) {
                 return START_NOT_STICKY;
             }
         }
@@ -323,6 +323,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     }
 
     public void unregisterToServer() {
+        System.out.println("quanth: unregisterToServer");
         if (CallManager.Instance().online) {
             Engine.Instance().getEngine().unRegisterServer(100);
             Engine.Instance().getEngine().removeUser();
@@ -441,6 +442,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     @Override
     public void onRegisterSuccess(String statusText, int statusCode, String sipMessage) {
         System.out.println("quanth: onRegisterSuccess");
+        Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
         CallManager.Instance().isRegistered = true;
         Intent broadIntent = new Intent(REGISTER_CHANGE_ACTION);
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);
@@ -502,6 +504,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         sendPortSipMessage(description, broadIntent);
 
         Ring.getInstance(this).startRingTone();
+        sendCallStateToFlutter("INCOMING");
     }
 
     public void showPendingCallNotification(Context context, String contenTitle, String contenText, Intent intent) {
@@ -520,7 +523,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onInviteTrying(long l) {
-
+        sendCallStateToFlutter("TRYING");
     }
 
     @Override
@@ -576,6 +579,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         }
 
         Ring.getInstance(this).stopRingBackTone();
+        sendCallStateToFlutter("CONNECTED");
     }
 
     @Override
@@ -602,6 +606,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         }
 
         Ring.getInstance(this).stopRingBackTone();
+        sendCallStateToFlutter("FAILED");
     }
 
     @Override
@@ -643,6 +648,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
             sendPortSipMessage(description, broadIntent);
         }
+        sendCallStateToFlutter("CONNECTED");
     }
 
     @Override
@@ -667,6 +673,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         }
         Ring.getInstance(this).stopRingTone();
         mNotificationManager.cancel(PENDINGCALL_NOTIFICATION);
+        sendCallStateToFlutter("CLOSED");
     }
 
     @Override
@@ -1037,5 +1044,11 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 //
 //        mNotificationManager.notify(1, builder.build());
         sendBroadcast(broadIntent);
+    }
+
+    private void sendCallStateToFlutter(String state) {
+        if (Engine.Instance().getMethodChannel() != null) {
+            Engine.Instance().getMethodChannel().invokeMethod("callState", state);
+        }
     }
 }

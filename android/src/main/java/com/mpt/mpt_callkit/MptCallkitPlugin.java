@@ -68,6 +68,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 offLineIntent = new Intent(activity, PortSipService.class);
                 offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
                 PortSipService.startServiceCompatibility(activity, offLineIntent);
+                result.success(true);
                 System.out.println("quanth: UnregisterServer..");
                 break;
             case "call":
@@ -157,6 +158,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 String srtpType = call.argument("srtpType") + "";
                 String sipServerPort = call.argument("sipServerPort") + "";
                 if (CallManager.Instance().online) {
+                    System.out.println("quanth: Already online");
                     Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
                 } else {
                     Intent onLineIntent = new Intent(activity, PortSipService.class);
@@ -357,6 +359,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             int result = Engine.Instance().getEngine().muteSession(currentLine.sessionID, !mute, !mute, !mute, !mute);
             System.out.println("quanth: Mute call result: " + result);
             currentLine.bMute = !currentLine.bMute;
+            Engine.Instance().getMethodChannel().invokeMethod("microphoneState", currentLine.bMute);
         }
     }
 
@@ -365,6 +368,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         if (currentLine != null && currentLine.sessionID > 0) {
             currentLine.bMuteVideo = !enable;
             Engine.Instance().getEngine().muteSession(currentLine.sessionID, currentLine.bMute, currentLine.bMute, currentLine.bMute, currentLine.bMute);
+            Engine.Instance().getMethodChannel().invokeMethod("cameraState", currentLine.bMuteVideo);
         }
     }
 

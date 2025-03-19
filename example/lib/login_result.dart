@@ -87,7 +87,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
         username: _currentUserInfo!["user"]["extension"],
         password: _currentUserInfo!["user"]["sipPassword"],
         domain: "voice.omicx.vn",
-        sipServer: "portsip.omicx.vn",
+        sipServer: "porsip.omicx.vn",
         port: 5060,
       );
 
@@ -137,13 +137,6 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
     );
   }
 
-  // // @override
-  // @override
-  // void dispose() {
-  //   MptCallKitController().disposeSocket();
-  //   super.dispose();
-  // }
-
   // Connect to socket server
   Future<void> connectToSocketServer() async {
     print("connectToSocketServer");
@@ -154,25 +147,29 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
         userIdParam: _currentUserInfo!["user"]["id"],
         userNameParam: _currentUserInfo!["user"]["userName"],
         onMessageReceivedParam: (p0) {
-          print("Message received: $p0");
+          print("Message received in callback: $p0");
         },
       );
     } else {
-      print("Cannot connect agent to socket server");
+      print("Cannot connect agent to socket server - configuration is null");
     }
   }
 
   // Logout account
-  void logout() async {
-    Navigator.pop(context);
+  Future<void> logout() async {
+    bool isLogoutAccountSuccess = false;
+    bool isUnregistered = false;
 
-    MptSocketAbly.disconnect();
+    // Ngắt kết nối socket
+    await MptSocketAbly.disconnect();
 
     if (MptCallKitController().isOnline) {
-      await MptCallKitController().offline();
+      isLogoutAccountSuccess = await MptCallKitController().offline();
+    } else {
+      isLogoutAccountSuccess = true;
     }
 
-    var logoutResult = await MptCallkit().logout(
+    isUnregistered = await MptCallkit().logout(
       cloudAgentId: _currentUserInfo!["user"]["id"],
       cloudAgentName: _currentUserInfo!["user"]["fullName"] ?? "",
       cloudTenantId: _currentUserInfo!["tenant"]["id"],
@@ -186,6 +183,18 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
         );
       },
     );
+
+    // Quan trọng: Hủy hoàn toàn instance khi đăng xuất
+    await MptSocketAbly.destroyInstance();
+
+    if (isLogoutAccountSuccess && isUnregistered) {
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   handleBackButton() {
@@ -200,9 +209,9 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
             child: const Text('No'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(context).pop(true);
-              logout();
+              await logout();
             },
             child: const Text('Yes'),
           ),
@@ -255,7 +264,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                 ),
                 const SizedBox(height: 40),
                 StreamBuilder<bool>(
-                  stream: MptCallKitController().onlineStatusController,
+                  stream: MptCallKitController().onlineStatuslistener,
                   initialData: MptCallKitController().isOnline,
                   builder: (context, snapshot) {
                     return Column(
@@ -303,8 +312,8 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: snapshot.data == true
-                                ? Colors.red.shade700
-                                : Colors.green.shade700,
+                                ? Colors.deepOrange
+                                : Colors.blueGrey,
                           ),
                           child: Text(
                             snapshot.data == true ? "do offline" : "do online",
