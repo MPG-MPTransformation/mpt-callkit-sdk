@@ -86,14 +86,14 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
       _extensionData = ExtensionData(
         username: _currentUserInfo!["user"]["extension"],
         password: _currentUserInfo!["user"]["sipPassword"],
-        domain: "voice.omicx.vn",
-        sipServer: "porsip.omicx.vn",
+        domain: _currentUserInfo!["tenant"]["domainContext"],
+        sipServer: "portsip.omicx.vn",
         port: 5060,
       );
 
       if (_extensionData != null) {
         // Register to SIP server
-        bool result = await doOnline();
+        await doOnline();
       }
     }
   }

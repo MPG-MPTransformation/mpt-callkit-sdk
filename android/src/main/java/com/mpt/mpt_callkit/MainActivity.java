@@ -44,11 +44,14 @@ public class MainActivity extends Activity {
         filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
         filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
         filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
+        System.out.println("quanth: MainActivity - Registering broadcast receiver");
 
         if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            System.out.println("quanth: MainActivity - Registered receiver with RECEIVER_NOT_EXPORTED flag");
         } else{
             registerReceiver(receiver, filter);
+            System.out.println("quanth: MainActivity - Registered receiver without flag");
         }
 
         Fragment fragment = getFragmentManager().findFragmentById(R.id.video_fragment);

@@ -31,6 +31,7 @@ import com.mpt.mpt_callkit.util.CallManager;
 import com.mpt.mpt_callkit.util.Session;
 import com.mpt.mpt_callkit.util.Engine;
 import com.mpt.mpt_callkit.util.Ring;
+import android.os.Handler;
 
 public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
 
@@ -159,7 +160,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 String sipServerPort = call.argument("sipServerPort") + "";
                 if (CallManager.Instance().online) {
                     System.out.println("quanth: Already online");
-                    Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
+                    // Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
                 } else {
                     Intent onLineIntent = new Intent(activity, PortSipService.class);
                     onLineIntent.setAction(PortSipService.ACTION_SIP_REGIEST);
@@ -169,8 +170,19 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     onLineIntent.putExtra("sipServer", sipServer);
                     onLineIntent.putExtra("port", sipServerPort);
                     onLineIntent.putExtra("displayName", displayName);
+                    onLineIntent.putExtra("transportType", transportType);
+                    onLineIntent.putExtra("srtpType", srtpType);
                     PortSipService.startServiceCompatibility(context, onLineIntent);
                     System.out.println("quanth: RegisterServer..");
+                    pendingResult = result;
+                    // Set timeout handler
+                    new Handler().postDelayed(() -> {
+                        if (pendingResult != null) {
+                            pendingResult.success(false);
+                            Engine.Instance().getMethodChannel().invokeMethod("registerFailure", "Request Timeout - 408 - SIP/2.0 408 Request Timeout");
+                            pendingResult = null;
+                        }
+                    }, 30000); // 30 seconds timeout
                 }
                 break;
             default:
@@ -201,11 +213,14 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
         filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
         filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
+        System.out.println("quanth: Registering broadcast receiver for call actions");
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             activity.registerReceiver(Engine.Instance().getReceiver(), filter, Context.RECEIVER_EXPORTED);
+            System.out.println("quanth: Registered with RECEIVER_EXPORTED flag");
         } else {
             activity.registerReceiver(Engine.Instance().getReceiver(), filter);
+            System.out.println("quanth: Registered without RECEIVER_EXPORTED flag");
         }
         activityPluginBinding.addRequestPermissionsResultListener((requestCode, permissions, grantResults) -> {
             if (requestCode == REQ_DANGERS_PERMISSION) {

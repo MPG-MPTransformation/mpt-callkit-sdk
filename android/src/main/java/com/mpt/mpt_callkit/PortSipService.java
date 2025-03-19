@@ -142,17 +142,21 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         } else {
             activitys = getActivePackagesCompat(this);
         }
+        System.out.println("quanth: isForeground - Checking if app is in foreground");
         if (activitys.length > 0) {
             String packagename = getPackageName();
             //String processName= getProcessName();||activityname.contains(processName)
             for (String activityname : activitys) {
-
+                System.out.println("quanth: isForeground - Active package: " + activityname);
                 if (activityname.contains(packagename)) {
+                    System.out.println("quanth: isForeground - App is in foreground");
                     return true;
                 }
             }
+            System.out.println("quanth: isForeground - App is NOT in foreground");
             return false;
         }
+        System.out.println("quanth: isForeground - No active packages found");
         return false;
     }
 
@@ -375,7 +379,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     private int initialSDK() {
         Engine.Instance().getEngine().setOnPortSIPEvent(this);
         CallManager.Instance().online = true;
-        Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
+        // Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
         String dataPath = getExternalFilesDir(null).getAbsolutePath();
         String certRoot = dataPath + "/certs";
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -475,8 +479,16 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             boolean existsVideo,
             String sipMessage) {
 
+        System.out.println("quanth: onInviteIncoming - Debug info:");
+        System.out.println("quanth: caller = " + caller);
+        System.out.println("quanth: callee = " + callee);
+        System.out.println("quanth: sessionId = " + sessionId);
+        System.out.println("quanth: existsVideo = " + existsVideo);
+        System.out.println("quanth: sipMessage = " + sipMessage);
+
         if (CallManager.Instance().findIncomingCall() != null) {
-            Engine.Instance().getEngine().rejectCall(sessionId, 486);//busy
+            Engine.Instance().getEngine().rejectCall(sessionId, 486); //busy
+            System.out.println("quanth: Rejected call - already in a call");
             return;
         }
         Session session = CallManager.Instance().findIdleSession();
@@ -490,9 +502,12 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         activityIntent.putExtra(EXTRA_CALL_SEESIONID, sessionId);
         activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
+        System.out.println("quanth: isForeground = " + isForeground());
         if (isForeground()) {
+            System.out.println("quanth: Starting IncomingActivity directly");
             startActivity(activityIntent);
         } else {
+            System.out.println("quanth: Showing notification for incoming call");
             showPendingCallNotification(this, callerDisplayName, caller, activityIntent);
         }
         Intent broadIntent = new Intent(CALL_CHANGE_ACTION);
@@ -508,7 +523,25 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     }
 
     public void showPendingCallNotification(Context context, String contenTitle, String contenText, Intent intent) {
-        PendingIntent contentIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+        System.out.println("quanth: showPendingCallNotification - Creating notification for incoming call");
+        System.out.println("quanth: showPendingCallNotification - contenTitle: " + contenTitle);
+        System.out.println("quanth: showPendingCallNotification - contenText: " + contenText);
+        
+        // Đảm bảo intent không bị clear khi nhiều notification được tạo
+        intent.setAction("INCOMING_CALL_" + System.currentTimeMillis());
+        
+        // Quan trọng: thêm flag để mở activity từ notification
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | 
+                      Intent.FLAG_ACTIVITY_CLEAR_TOP | 
+                      Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        
+        // Sử dụng flag FLAG_UPDATE_CURRENT để cập nhật PendingIntent nếu đã tồn tại
+        PendingIntent contentIntent = PendingIntent.getActivity(
+            context, 
+            (int) System.currentTimeMillis(), 
+            intent, 
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, callChannelID)
                 .setSmallIcon(R.drawable.icon)
@@ -516,9 +549,21 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                 .setContentText(contenText)
                 .setAutoCancel(true)
                 .setShowWhen(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setContentIntent(contentIntent)
                 .setFullScreenIntent(contentIntent, true);
+                
+        System.out.println("quanth: showPendingCallNotification - Displaying notification with ID: " + PENDINGCALL_NOTIFICATION);
         mNotificationManager.notify(PENDINGCALL_NOTIFICATION, builder.build());
+        
+        // Thử mở trực tiếp activity nếu notification không hoạt động
+        try {
+            context.startActivity(intent);
+            System.out.println("quanth: showPendingCallNotification - Started IncomingActivity directly");
+        } catch (Exception e) {
+            System.out.println("quanth: showPendingCallNotification - Failed to start activity: " + e.getMessage());
+        }
     }
 
     @Override

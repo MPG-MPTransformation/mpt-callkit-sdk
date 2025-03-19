@@ -399,6 +399,43 @@ class MptSocketAbly {
     }
   }
 
+  /// Subscribe to conversation channel
+  Future<void> subscribeToConversation(String conversationId) async {
+    if (ablyClient == null) {
+      print("Error: Ably client is not initialized");
+      return;
+    }
+
+    String channelName = 'conversation_$tenantId';
+    print("Subscribing to conversation channel: $channelName");
+
+    try {
+      ably.RealtimeChannel conversationChannel =
+          ablyClient!.channels.get(channelName);
+
+      conversationChannel.subscribe().listen((ably.Message message) {
+        print(
+            "Received message on conversation channel $channelName: ${message.name} - ${message.data}");
+        if (onMessageReceived != null) {
+          onMessageReceived!(message);
+        }
+      }, onError: (error) {
+        print("Error subscribing to conversation channel $channelName: $error");
+      });
+
+      print("Successfully subscribed to conversation channel $channelName");
+    } catch (e) {
+      print(
+          "Exception while subscribing to conversation channel $channelName: $e");
+    }
+  }
+
+  /// Static method to subscribe to conversation
+  static Future<void> subscribeToConversationChannel(
+      String conversationId) async {
+    await instance.subscribeToConversation(conversationId);
+  }
+
   /// Create a single instance
   static void initialize({
     required String ablyKeyParam,
