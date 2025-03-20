@@ -530,6 +530,16 @@ class MptCallKitController {
     }
   }
 
+  Future<bool> answer() async {
+    try {
+      final result = await channel.invokeMethod("answer");
+      return result;
+    } on PlatformException catch (e) {
+      debugPrint("Failed in 'answer' mothod: '${e.message}'.");
+      return false;
+    }
+  }
+
   // Future<bool> transfer(String destination) async {
   //   try {
   //     final result = await channel.invokeMethod("transfer", {

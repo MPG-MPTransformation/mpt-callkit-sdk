@@ -85,7 +85,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         portSIPSDK = PortSIPSDK()
         portSIPSDK.delegate = self
         mSoundService = SoundService()
-        UserDefaults.standard.register(defaults: ["CallKit": true])
+        // change "CallKit" to true if wanna use iOS CallKit
+        UserDefaults.standard.register(defaults: ["CallKit": false])
         UserDefaults.standard.register(defaults: ["PushNotification": true])
         UserDefaults.standard.register(defaults: ["ForceBackground": false])
         
@@ -1011,15 +1012,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
     }
     
-    func muteCall(_ mute: Bool) {
-        NSLog("muteCall")
+    func muteMicrophone(_ mute: Bool) {
+        NSLog("muteMicrophone")
         if activeSessionid != CLong(INVALID_SESSION_ID) {
-            _callManager.muteCall(sessionid: activeSessionid, muted: mute)
+            portSIPSDK.muteSession(sessionId, muteIncomingAudio: false, muteOutgoingAudio: mute, muteIncomingVideo: false, muteOutgoingVideo: false)
         }
-        if isConference == true {
-            _callManager.muteAllCall(muted: mute)
-        }
-
         sendMicrophoneStateToFlutter(mute)
     }
     
@@ -1057,47 +1054,35 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         guard _callManager.findCallBySessionID(sessionId) != nil else {
             return
         }
-        if UIApplication.shared.applicationState == .background, _enablePushNotification == false {
-            
-            var stringAlert:String;
-            if(existsVideo){
-                stringAlert = "VideoCall from \n  \(remoteParty)"
-            }
-            else{
-                stringAlert = "Call from \n \(remoteParty)"
-            }
-            
-            postNotification(title: "SIPSample", body: stringAlert, sound:nil, trigger: nil)
-        } else {
-            let index = findSession(sessionid: sessionId)
-            if index < 0 {
-                return
-            }
-            let alertController = UIAlertController(title: "Incoming Call", message: "Call from <\(remoteDisplayName)>\(remoteParty) on line \(index)", preferredStyle: .alert)
-            
-            alertController.addAction(UIAlertAction(title: "Reject", style: .default, handler: { action in
-                _ = self.mSoundService.stopRingTone()
-                self._callManager.endCall(sessionid: sessionId)
-                
-            }))
-            
-            alertController.addAction(UIAlertAction(title: "Answer", style: .default, handler: { action in
-                _ = self.mSoundService.stopRingTone()
-                _ = self._callManager.answerCall(sessionId: sessionId, isVideo: false)
-                
-            }))
-            
-            if existsVideo {
-                alertController.addAction(UIAlertAction(title: "Video", style: .default, handler: { action in
-                    _ = self.mSoundService.stopRingTone()
-                    _ = self._callManager.answerCall(sessionId: sessionId, isVideo: true)
-                    
-                }))
-            }
         
+        // Thay đổi phần này: Không hiển thị cảnh báo hoặc UI native, chỉ gửi thông báo đến Flutter
+        // Gửi trạng thái về Flutter
+        sendCallStateToFlutter(.INCOMING)
+        
+        // Nếu ứng dụng ở trạng thái nền, có thể hiển thị thông báo hệ thống đơn giản
+        if UIApplication.shared.applicationState == .background {
+            var stringAlert: String
+            if(existsVideo) {
+                stringAlert = "Cuộc gọi video từ \(remoteParty)"
+            } else {
+                stringAlert = "Cuộc gọi từ \(remoteParty)"
+            }
             
-            _ = mSoundService.playRingTone()
+            postNotification(title: "Cuộc gọi đến", body: stringAlert, sound: UNNotificationSound.default, trigger: nil)
         }
+        
+        // Phát âm thanh chuông mà không hiển thị UI
+        _ = mSoundService.playRingTone()
+        
+        // KHÔNG hiển thị bất kỳ alert hoặc UI native nào
+        // Gửi thêm thông tin chi tiết về cuộc gọi để Flutter có thể hiển thị UI riêng
+        let callInfo: [String: Any] = [
+            "sessionId": sessionId,
+            "hasVideo": existsVideo,
+            "remoteParty": remoteParty,
+            "remoteDisplayName": remoteDisplayName
+        ]
+        methodChannel?.invokeMethod("incomingCall", arguments: callInfo)
     }
     
     func onNewOutgoingCall(sessionid: CLong) {
@@ -1116,11 +1101,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         let result = _callManager.findCallBySessionID(sessionId)
         
         if result != nil {
-            if result!.session.videoState {
-                videoViewController.onStartVideo(sessionId)
-            } else {
-                videoViewController.onStartVoiceCall(sessionId)
-            }
+            // KHÔNG gọi các phương thức để hiển thị video mà để Flutter xử lý
+            // if result!.session.videoState {
+            //     videoViewController.onStartVideo(sessionId)
+            // } else {
+            //     videoViewController.onStartVoiceCall(sessionId)
+            // }
+            
             let line = findSession(sessionid: sessionId)
             if line >= 0 {
                 didSelectLine(line)
@@ -1133,6 +1120,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         if activeSessionid == CLong(INVALID_SESSION_ID) {
             activeSessionid = sessionId
         }
+        
+        // Gửi trạng thái về Flutter
+        sendCallStateToFlutter(.CONNECTED)
     }
     
     
@@ -1302,10 +1292,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             unholdCall()
             result(true)
         case "mute":
-            muteCall(true)
+            muteMicrophone(true)
             result(true)
         case "unmute":
-            muteCall(false)
+            muteMicrophone(false)
             result(true)
         case "cameraOn":
             toggleCamera(true)
@@ -1314,11 +1304,37 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             toggleCamera(false)
             result(true)
         case "answer":
-            answerCall()
-            result(true)
+            if activeSessionid != CLong(INVALID_SESSION_ID) {
+                let sessionResult = _callManager.findCallBySessionID(activeSessionid)
+                if sessionResult != nil && !sessionResult!.session.sessionState {
+                    let isVideo = sessionResult!.session.videoState
+                    if _callManager.answerCall(sessionId: activeSessionid, isVideo: isVideo) {
+                        // Không mở VideoView - để Flutter tự xử lý UI
+                        result(true)
+                    } else {
+                        result(false)
+                    }
+                } else {
+                    result(false)
+                }
+            } else {
+                result(false)
+            }
         case "reject":
-            rejectCall()
-            result(true)
+            if activeSessionid != CLong(INVALID_SESSION_ID) {
+                let sessionResult = _callManager.findCallBySessionID(activeSessionid)
+                if sessionResult != nil && !sessionResult!.session.sessionState {
+                    portSIPSDK.rejectCall(activeSessionid, code: 486)
+                    _callManager.removeCall(call: sessionResult!.session)
+                    _ = mSoundService.stopRingTone()
+                    sendCallStateToFlutter(.CLOSED)
+                    result(true)
+                } else {
+                    result(false)
+                }
+            } else {
+                result(false)
+            }
         case "transfer":
             if let args = call.arguments as? [String: Any],
             let destination = args["destination"] as? String {
@@ -1398,7 +1414,20 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     
     func sendCallStateToFlutter(_ state: CallState) {
+        // Gửi trạng thái cơ bản
         methodChannel?.invokeMethod("callState", arguments: state.rawValue)
+        
+        // Gửi thêm thông tin chi tiết nếu có cuộc gọi đang hoạt động
+        if activeSessionid != CLong(INVALID_SESSION_ID) {
+            if let result = _callManager.findCallBySessionID(activeSessionid) {
+                let callDetails: [String: Any] = [
+                    "sessionId": activeSessionid,
+                    "hasVideo": result.session.videoState,
+                    "state": state.rawValue
+                ]
+                methodChannel?.invokeMethod("callDetails", arguments: callDetails)
+            }
+        }
     }
     
     // Gửi trạng thái camera

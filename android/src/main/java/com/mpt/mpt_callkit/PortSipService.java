@@ -498,18 +498,6 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         session.remote = caller;
         session.displayName = callerDisplayName;
 
-        Intent activityIntent = new Intent(this, IncomingActivity.class);
-        activityIntent.putExtra(EXTRA_CALL_SEESIONID, sessionId);
-        activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-
-        System.out.println("quanth: isForeground = " + isForeground());
-        if (isForeground()) {
-            System.out.println("quanth: Starting IncomingActivity directly");
-            startActivity(activityIntent);
-        } else {
-            System.out.println("quanth: Showing notification for incoming call");
-            showPendingCallNotification(this, callerDisplayName, caller, activityIntent);
-        }
         Intent broadIntent = new Intent(CALL_CHANGE_ACTION);
         String description = session.lineName + " onInviteIncoming";
 
@@ -519,28 +507,46 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         sendPortSipMessage(description, broadIntent);
 
         Ring.getInstance(this).startRingTone();
+
+        // Gửi thông tin cuộc gọi đến đến Flutter
         sendCallStateToFlutter("INCOMING");
+
+        // Gửi thêm thông tin chi tiết về người gọi
+        if (Engine.Instance().getMethodChannel() != null) {
+            try {
+                // Tạo đối tượng chứa thông tin cuộc gọi để gửi về Flutter
+                java.util.Map<String, Object> callInfo = new java.util.HashMap<>();
+                callInfo.put("sessionId", sessionId);
+                callInfo.put("callerName", callerDisplayName);
+                callInfo.put("callerNumber", caller);
+                callInfo.put("hasVideo", existsVideo);
+
+                Engine.Instance().getMethodChannel().invokeMethod("incomingCall", callInfo);
+            } catch (Exception e) {
+                System.out.println("quanth: Error sending call info to Flutter: " + e.getMessage());
+            }
+        }
     }
 
     public void showPendingCallNotification(Context context, String contenTitle, String contenText, Intent intent) {
         System.out.println("quanth: showPendingCallNotification - Creating notification for incoming call");
         System.out.println("quanth: showPendingCallNotification - contenTitle: " + contenTitle);
         System.out.println("quanth: showPendingCallNotification - contenText: " + contenText);
-        
+
         // Đảm bảo intent không bị clear khi nhiều notification được tạo
         intent.setAction("INCOMING_CALL_" + System.currentTimeMillis());
-        
+
         // Quan trọng: thêm flag để mở activity từ notification
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | 
-                      Intent.FLAG_ACTIVITY_CLEAR_TOP | 
-                      Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+
         // Sử dụng flag FLAG_UPDATE_CURRENT để cập nhật PendingIntent nếu đã tồn tại
         PendingIntent contentIntent = PendingIntent.getActivity(
-            context, 
-            (int) System.currentTimeMillis(), 
-            intent, 
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                context,
+                (int) System.currentTimeMillis(),
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, callChannelID)
@@ -553,10 +559,10 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setContentIntent(contentIntent)
                 .setFullScreenIntent(contentIntent, true);
-                
+
         System.out.println("quanth: showPendingCallNotification - Displaying notification with ID: " + PENDINGCALL_NOTIFICATION);
         mNotificationManager.notify(PENDINGCALL_NOTIFICATION, builder.build());
-        
+
         // Thử mở trực tiếp activity nếu notification không hoạt động
         try {
             context.startActivity(intent);

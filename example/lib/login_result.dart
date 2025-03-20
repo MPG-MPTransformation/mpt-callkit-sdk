@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:example/call_pad.dart';
 import 'package:example/components/repo.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:mpt_callkit/models/extension_model.dart';
+import 'package:mpt_callkit/mpt_call_kit_constant.dart';
 import 'package:mpt_callkit/mpt_callkit.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
 
@@ -27,11 +30,21 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
   ExtensionData? _extensionData;
   final _outboundNumber = "200011";
   Map<String, dynamic>? _configuration;
+  final TextEditingController _destinationController = TextEditingController();
+  late StreamSubscription<String> _callStateSubscription;
 
   @override
   void initState() {
     super.initState();
     initData();
+
+    _callStateSubscription =
+        MptCallKitController().callStateListener.listen((state) {
+      // Chỉ khi nhận được INCOMING mới route đến call_pad
+      if (state == CallStateConstants.INCOMING) {
+        _navigateToCallPad();
+      }
+    });
   }
 
   Future<void> initData() async {
@@ -194,6 +207,8 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
 
   @override
   void dispose() {
+    _destinationController.dispose();
+    _callStateSubscription.cancel();
     super.dispose();
   }
 
@@ -244,137 +259,246 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
             handleBackButton();
           }
         },
-        child: Scaffold(
-          appBar: AppBar(
-            automaticallyImplyLeading: false,
-            actions: [
-              IconButton(
-                  onPressed: () {
-                    handleBackButton();
-                  },
-                  icon: const Icon(Icons.logout))
-            ],
-            title: const Text('Login Result'),
-          ),
-          body: Center(
-            child: Column(
-              children: [
-                Text(
-                  "Login status: ${widget.title}",
-                ),
-                const SizedBox(height: 40),
-                StreamBuilder<bool>(
-                  stream: MptCallKitController().onlineStatuslistener,
-                  initialData: MptCallKitController().isOnline,
-                  builder: (context, snapshot) {
-                    return Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text("SIP connection status:"),
-                              Text(
-                                snapshot.data == true
-                                    ? 'Registered'
-                                    : 'Unregistered',
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        ElevatedButton(
-                          onPressed: () async {
-                            if (snapshot.data == true) {
-                              // Nếu đang online thì chuyển sang offline
-                              await doOffline();
-                            } else {
-                              // Nếu đang offline thì chuyển sang online
-                              if (_extensionData != null) {
-                                await doOnline();
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content:
-                                        Text("Không có thông tin extension"),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: snapshot.data == true
-                                ? Colors.deepOrange
-                                : Colors.blueGrey,
-                          ),
-                          child: Text(
-                            snapshot.data == true ? "do offline" : "do online",
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 40),
-                StreamBuilder<String>(
-                  stream: MptSocketAbly.agentStatusStream,
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData) {
-                      return Text(
-                        "Agent Status: ${snapshot.data!}",
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      );
-                    } else {
-                      return const Text("Agent Status: null");
-                    }
-                  },
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ElevatedButton(
-                        onPressed: () {
-                          changeStatus(reasonCodeId: 1001, statusName: "READY");
-                        },
-                        child: const Text("change to ready")),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                        onPressed: () {
-                          changeStatus(
-                              reasonCodeId: 1000, statusName: "NOT_READY");
-                        },
-                        child: const Text("change to busy")),
-                  ],
-                ),
-                const SizedBox(height: 40),
-                OutlinedButton(
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: Scaffold(
+            appBar: AppBar(
+              automaticallyImplyLeading: false,
+              actions: [
+                IconButton(
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => CallPad(
-                                  apiKey: widget.apiKey,
-                                  baseUrl: widget.baseUrl,
-                                  ounboundNumber: _outboundNumber,
-                                )),
-                      );
+                      handleBackButton();
                     },
-                    child: const Text("Go to call-pad")),
+                    icon: const Icon(Icons.logout))
               ],
+              title: const Text('Login Result'),
+            ),
+            body: Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: SingleChildScrollView(
+                child: Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        decoration: const BoxDecoration(
+                            border:
+                                Border(bottom: BorderSide(color: Colors.grey))),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Login status: ${widget.title}",
+                            ),
+                            const SizedBox(height: 10),
+                            const Text(
+                              "To get Call-Incoming:",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 10),
+                            const Text(
+                                "Make sure you have registered to SIP server and your agent status is READY"),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Container(
+                        decoration: const BoxDecoration(
+                            border:
+                                Border(bottom: BorderSide(color: Colors.grey))),
+                        child: Column(
+                          children: [
+                            StreamBuilder<bool>(
+                              stream:
+                                  MptCallKitController().onlineStatuslistener,
+                              initialData: MptCallKitController().isOnline,
+                              builder: (context, snapshot) {
+                                return Column(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Text("SIP connection status:"),
+                                          Text(
+                                            snapshot.data == true
+                                                ? 'Registered'
+                                                : 'Unregistered',
+                                            style: const TextStyle(
+                                              color: Colors.black,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        if (snapshot.data == true) {
+                                          // Nếu đang online thì chuyển sang offline
+                                          await doOffline();
+                                        } else {
+                                          // Nếu đang offline thì chuyển sang online
+                                          if (_extensionData != null) {
+                                            await doOnline();
+                                          } else {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                    "Không có thông tin extension"),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: snapshot.data == true
+                                            ? Colors.deepOrange
+                                            : Colors.blueGrey,
+                                      ),
+                                      child: Text(
+                                        snapshot.data == true
+                                            ? "do offline"
+                                            : "do online",
+                                        style: const TextStyle(
+                                            color: Colors.white),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            StreamBuilder<String>(
+                              stream: MptSocketAbly.agentStatusStream,
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData) {
+                                  return Text(
+                                    "Agent Status: ${snapshot.data!}",
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  );
+                                } else {
+                                  return const Text("Agent Status: null");
+                                }
+                              },
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ElevatedButton(
+                                    onPressed: () {
+                                      changeStatus(
+                                          reasonCodeId: 1001,
+                                          statusName: "READY");
+                                    },
+                                    child: const Text("change to ready")),
+                                const SizedBox(width: 10),
+                                ElevatedButton(
+                                    onPressed: () {
+                                      changeStatus(
+                                          reasonCodeId: 1000,
+                                          statusName: "NOT_READY");
+                                    },
+                                    child: const Text("change to busy")),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Column(
+                          children: [
+                            TextFormField(
+                              controller: _destinationController,
+                              keyboardType: TextInputType.phone,
+                              decoration: const InputDecoration(
+                                labelText: 'Destination',
+                                hintText: 'Enter destination number',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            StreamBuilder<bool>(
+                              stream:
+                                  MptCallKitController().onlineStatuslistener,
+                              initialData: MptCallKitController().isOnline,
+                              builder: (context, snapshot) {
+                                final bool isOnline = snapshot.data ?? false;
+                                return ElevatedButton(
+                                  onPressed: isOnline
+                                      ? () {
+                                          _makeCall();
+                                        }
+                                      : null,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blueGrey,
+                                    foregroundColor: Colors.white,
+                                    minimumSize:
+                                        const Size(double.infinity, 50),
+                                  ),
+                                  child: const Text('Call'),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ));
+  }
+
+  void _makeCall() async {
+    final String destination = _destinationController.text.trim();
+    if (destination.isEmpty && MptCallKitController().isOnline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              "Failed: Please enter destination number and make sure registered to SIP server"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Thực hiện cuộc gọi và kiểm tra kết quả
+    final success = await MptCallKitController().callMethod(
+      context: context,
+      destination: destination,
+      isVideoCall: true,
+      onError: (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      },
+    );
+
+    if (success) {
+      _navigateToCallPad();
+    }
+  }
+
+  void _navigateToCallPad() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CallPad()),
+    );
   }
 }

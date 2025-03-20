@@ -105,10 +105,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 unHoldCall();
                 break;
             case "mute":
-                muteCall(true);
+                muteMicrophone(true);
                 break;
             case "unmute":
-                muteCall(false);
+                muteMicrophone(false);
                 break;
             case "cameraOn":
                 toggleCamera(true);
@@ -368,12 +368,18 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
-    void muteCall(boolean mute) {
+    void muteMicrophone(boolean mute) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (currentLine != null && currentLine.sessionID > 0) {
-            int result = Engine.Instance().getEngine().muteSession(currentLine.sessionID, !mute, !mute, !mute, !mute);
+            currentLine.bMuteAudioOutGoing = mute;
+            int result = Engine.Instance().getEngine().muteSession(
+                    currentLine.sessionID,
+                    currentLine.bMuteAudioInComing,
+                    currentLine.bMuteAudioOutGoing,
+                    false,
+                    currentLine.bMuteVideo
+            );
             System.out.println("quanth: Mute call result: " + result);
-            currentLine.bMute = !currentLine.bMute;
             Engine.Instance().getMethodChannel().invokeMethod("microphoneState", currentLine.bMute);
         }
     }
@@ -381,8 +387,14 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     void toggleCamera(boolean enable) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (currentLine != null && currentLine.sessionID > 0) {
-            currentLine.bMuteVideo = !enable;
-            Engine.Instance().getEngine().muteSession(currentLine.sessionID, currentLine.bMute, currentLine.bMute, currentLine.bMute, currentLine.bMute);
+            currentLine.bMuteVideo = enable;
+            Engine.Instance().getEngine().muteSession(
+                    currentLine.sessionID,
+                    currentLine.bMuteAudioInComing,
+                    currentLine.bMute,
+                    false,
+                    currentLine.bMuteVideo
+            );
             Engine.Instance().getMethodChannel().invokeMethod("cameraState", currentLine.bMuteVideo);
         }
     }

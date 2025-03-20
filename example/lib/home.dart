@@ -1,20 +1,17 @@
+import 'package:example/login_method.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 
-class CallInNativeView extends StatefulWidget {
-  const CallInNativeView({
-    super.key,
-    required this.apiKey,
-    required this.baseUrl,
-  });
-  final String apiKey;
-  final String baseUrl;
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<CallInNativeView> createState() => _CallInNativeViewState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _CallInNativeViewState extends State<CallInNativeView> {
+class _HomeScreenState extends State<HomeScreen> {
+  final String _apiKey = "0c16d4aa-abe7-4098-b47a-7b914f9b7444";
+  final String _baseUrl = "https://crm-dev-v2.metechvn.com";
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _callTo = TextEditingController();
 
@@ -31,8 +28,8 @@ class _CallInNativeViewState extends State<CallInNativeView> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           MptCallKitController().initSdk(
-            apiKey: widget.apiKey,
-            baseUrl: widget.baseUrl,
+            apiKey: _apiKey,
+            baseUrl: _baseUrl,
             userPhoneNumber: _phoneController.text,
           );
           MptCallKitController().makeCallByGuest(
@@ -51,7 +48,7 @@ class _CallInNativeViewState extends State<CallInNativeView> {
         child: const Icon(Icons.call),
       ),
       appBar: AppBar(
-        title: const Text("Call in native view"),
+        title: const Text("Mpt Callkit SDK demo"),
       ),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -82,6 +79,16 @@ class _CallInNativeViewState extends State<CallInNativeView> {
           const Text(
             'Click button to make a call',
           ),
+          const SizedBox(height: 30),
+          const Text("OR"),
+          const SizedBox(height: 10),
+          OutlinedButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) {
+                  return const LoginMethod();
+                }));
+              },
+              child: const Text("Call with account"))
         ],
       ),
     );
