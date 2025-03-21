@@ -2,6 +2,8 @@ import 'package:example/login_result.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/mpt_callkit.dart';
 
+import '../components/callkit_constants.dart';
+
 class LoginSSO extends StatefulWidget {
   const LoginSSO({super.key});
 
@@ -16,8 +18,8 @@ class _LoginSSOState extends State<LoginSSO> {
       TextEditingController(text: "414c7fdf-dc8f-4212-8a82-0d3a2f88e248");
   final organizationController =
       TextEditingController(text: "D1B85F69-5565-4301-8602-0FAA88DB6F39");
-  final baseUrl = "https://crm-dev-v2.metechvn.com";
-  final String apiKey = "0c16d4aa-abe7-4098-b47a-7b914f9b7444";
+  final String baseUrl = CallkitConstants.BASE_URL;
+  final String apiKey = CallkitConstants.API_KEY;
   Map<String, dynamic>? userData;
 
   @override

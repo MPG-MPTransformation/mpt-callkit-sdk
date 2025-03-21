@@ -170,7 +170,9 @@ class MptSocket {
 
   static void dispose() {
     _connectionStatusController.close();
-    socket.dispose();
+    if (socket.connected) {
+      socket.disconnect();
+    }
   }
 }
 

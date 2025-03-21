@@ -98,13 +98,14 @@ class MptCallKitController {
     required String baseUrl,
     String? appId,
     String? userName,
+    required String phoneNumber,
   }) async {
     await MptSocket.connectSocketByGuest(
       baseUrl,
       guestAPI: '/integration/security/guest-token',
       barrierToken: apiKey,
       appId: appId ?? '88888888',
-      phoneNumber: userPhoneNumber,
+      phoneNumber: phoneNumber,
       userName: userName ?? "guest",
     );
   }
@@ -143,8 +144,18 @@ class MptCallKitController {
           channel.setMethodCallHandler((call) async {
             /// lắng nghe kết quả register
             if (call.method == 'registrationStateStream') {
+              // connect socket by guest
+              await connectSocketByGuest(
+                apiKey: apiKey,
+                baseUrl: baseUrl,
+                appId: "88888888",
+                userName: "guest",
+                phoneNumber: phoneNumber,
+              );
+
               /// nếu thành công thì call luôn
               if (call.arguments == true) {
+                // make call by guest
                 final bool callResult = await channel.invokeMethod(
                   'call',
                   <String, dynamic>{
@@ -177,6 +188,7 @@ class MptCallKitController {
               print('quanth: releaseExtension has started');
               await releaseExtension();
               print('quanth: releaseExtension has done');
+              disposeSocket();
             }
           });
         }

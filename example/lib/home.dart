@@ -2,6 +2,8 @@ import 'package:example/login_method.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 
+import 'components/callkit_constants.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -10,8 +12,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final String _apiKey = "0c16d4aa-abe7-4098-b47a-7b914f9b7444";
-  final String _baseUrl = "https://crm-dev-v2.metechvn.com";
+  final String _apiKey = CallkitConstants.API_KEY;
+  final String _baseUrl = CallkitConstants.BASE_URL;
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _callTo = TextEditingController();
 

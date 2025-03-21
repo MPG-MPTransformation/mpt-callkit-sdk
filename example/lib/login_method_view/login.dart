@@ -2,6 +2,8 @@ import 'package:example/login_result.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/mpt_callkit.dart';
 
+import '../components/callkit_constants.dart';
+
 class Login extends StatefulWidget {
   const Login({super.key});
 
@@ -14,8 +16,8 @@ class _LoginState extends State<Login> {
 
   final usernameController = TextEditingController(text: "hienhh");
   final passwordController = TextEditingController(text: "123456aA@");
-  final _baseUrl = "https://crm-dev-v2.metechvn.com";
-  final String _apiKey = "0c16d4aa-abe7-4098-b47a-7b914f9b7444";
+  final String _baseUrl = CallkitConstants.BASE_URL;
+  final String _apiKey = CallkitConstants.API_KEY;
   final tenantId = 4;
   Map<String, dynamic>? userData;
 
