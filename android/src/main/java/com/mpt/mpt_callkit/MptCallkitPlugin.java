@@ -401,8 +401,11 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     void answerCall() {
         Session currentLine = CallManager.Instance().getCurrentSession();
+        System.out.println("quanth: Answer call currentLine: " + currentLine);
+        System.out.println("quanth: Answer call sessionID: " + currentLine.sessionID);
+        System.out.println("quanth: Answer call state: " + currentLine.state);
         if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING) {
-            int result = Engine.Instance().getEngine().answerCall(currentLine.sessionID, true);
+            int result = Engine.Instance().getEngine().answerCall(currentLine.sessionID, false);
             System.out.println("quanth: Answer call result: " + result);
             if (result != 0) {
                 currentLine.state = Session.CALL_STATE_FLAG.CONNECTED;

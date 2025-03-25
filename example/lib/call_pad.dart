@@ -196,9 +196,7 @@ class _CallPadState extends State<CallPad> {
 
     switch (functionName) {
       case 'answer':
-        if (_callState == CallStateConstants.INCOMING) {
-          MptCallKitController().answer();
-        }
+        MptCallKitController().answer();
         break;
       case 'hangup':
         MptCallKitController().hangup();
@@ -265,7 +263,7 @@ class _CallPadState extends State<CallPad> {
         actions: [
           TextButton(
             onPressed: () {
-              // Đóng dialog
+              // Close dialog
               Navigator.of(context).pop();
             },
             child: const Text('Cancel'),
@@ -281,6 +279,8 @@ class _CallPadState extends State<CallPad> {
               // Go back to previous screen
               if (context.mounted) {
                 Navigator.of(context).pop();
+              } else {
+                print("Context is not mounted");
               }
             },
             style: TextButton.styleFrom(

@@ -114,7 +114,8 @@ class MptCallKitController {
     MptSocket.dispose();
   }
 
-  Future<void> makeCallByGuest({
+  // Make call by guest
+  Future<void> makeCall({
     required BuildContext context,
     required String phoneNumber,
     bool isShowNativeView = true,
@@ -413,38 +414,103 @@ class MptCallKitController {
     }
   }
 
-  Future<bool> callMethod({
-    required BuildContext context,
-    required String destination,
-    required bool isVideoCall,
+  Future<bool> makeCallOutbound({
+    required int tenantId,
+    required String applicationId,
+    required String senderId,
+    String? channel,
+    required int agentId,
+    required String direction,
+    required String extraInfo,
     Function(String?)? onError,
+    String? baseUrl,
+    required String authToken,
   }) async {
+    const makeCallOutboundAPI = "/chat-acd/conversation/start-outbound";
+    const channelCall = "CALL";
     try {
-      final hasPermission = await requestPermission(context);
-      if (!hasPermission) {
-        onError?.call("Permission denied");
-        return false;
-      }
-      if (!isOnline) {
-        onError?.call("You need register to SIP server first");
-        return false;
-      } else {
-        final result = await channel.invokeMethod('call', {
-          'destination': destination,
-          'isVideoCall': isVideoCall,
-        });
-        if (result == false) {
-          onError?.call("Current line is busy");
+      final headers = {
+        'Authorization': 'Bearer $authToken',
+        'Content-Type': 'application/json',
+        "Abp.TenantId": tenantId.toString(),
+        'Accept': '*/*',
+      };
+
+      final body = {
+        "tenantId": tenantId,
+        "applicationId": applicationId,
+        "senderId": senderId,
+        "channel": channel ?? channelCall,
+        "agentId": agentId,
+        "direction": direction,
+        "extraInfo": extraInfo,
+      };
+
+      print("Call outbound body: ${jsonEncode(body)}");
+
+      final response = await http.post(
+        Uri.parse(
+            "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$makeCallOutboundAPI"),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        print('Make call outbound Response data: $responseData');
+        if (responseData != null) {
+          if (responseData["success"]) {
+            print("Call outbound success!");
+            return true;
+          }
+          onError?.call("Call outbound failed: ${responseData["message"]}");
           return false;
-        } else {
-          return true;
         }
+        onError?.call("Call outbound data is null");
+        return false;
       }
-    } on PlatformException catch (e) {
-      debugPrint("Failed to call: '${e.message}'.");
+      onError?.call(
+          "Call outbound failed with status code: ${response.statusCode}");
+      return false;
+    } catch (e) {
+      print("Error in logout: $e");
+      onError?.call("Logout failed with error: $e");
       return false;
     }
   }
+
+  // Future<bool> callMethod({
+  //   required BuildContext context,
+  //   required String destination,
+  //   required bool isVideoCall,
+  //   Function(String?)? onError,
+  // }) async {
+  //   try {
+  //     final hasPermission = await requestPermission(context);
+  //     if (!hasPermission) {
+  //       onError?.call("Permission denied");
+  //       return false;
+  //     }
+  //     if (!isOnline) {
+  //       onError?.call("You need register to SIP server first");
+  //       return false;
+  //     } else {
+  //       final result = await channel.invokeMethod('call', {
+  //         'destination': destination,
+  //         'isVideoCall': isVideoCall,
+  //       });
+  //       if (result == false) {
+  //         onError?.call("Current line is busy");
+  //         return false;
+  //       } else {
+  //         return true;
+  //       }
+  //     }
+  //   } on PlatformException catch (e) {
+  //     debugPrint("Failed to call: '${e.message}'.");
+  //     return false;
+  //   }
+  // }
 
   // Method do unregister from SIP server
   Future<bool> offline({Function(String?)? onError}) async {

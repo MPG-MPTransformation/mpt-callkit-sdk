@@ -485,7 +485,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         System.out.println("quanth: sessionId = " + sessionId);
         System.out.println("quanth: existsVideo = " + existsVideo);
         System.out.println("quanth: sipMessage = " + sipMessage);
-
+        System.out.println("quanth: answer-mode = " + Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "Answer-Mode").toString());
         if (CallManager.Instance().findIncomingCall() != null) {
             Engine.Instance().getEngine().rejectCall(sessionId, 486); //busy
             System.out.println("quanth: Rejected call - already in a call");
@@ -526,6 +526,10 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                 System.out.println("quanth: Error sending call info to Flutter: " + e.getMessage());
             }
         }
+
+        // if (Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "Answer-Mode").toString().equals("Auto;require")) {
+        //     Engine.Instance().getEngine().answerCall(sessionId, true);
+        // }
     }
 
     public void showPendingCallNotification(Context context, String contenTitle, String contenText, Intent intent) {

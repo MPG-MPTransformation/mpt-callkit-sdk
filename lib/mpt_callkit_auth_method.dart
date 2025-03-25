@@ -8,6 +8,10 @@ class MptCallkitAuthMethod {
     "Accept": "*/*",
   };
 
+  final loginAPI = "/api/TokenAuth/Authenticate";
+  final loginSSOAPI = "/api/TokenAuth/ExternalSystemAuthenticate";
+  final logoutAPI = "/acd-asm-chat/agent-status/logout";
+
   Future<bool> login({
     required String username,
     required String password,
@@ -16,8 +20,6 @@ class MptCallkitAuthMethod {
     Function(String?)? onError,
     Function(Map<String, dynamic>)? data,
   }) async {
-    const loginApi = "/api/TokenAuth/Authenticate";
-
     final body = {
       "tenantId": tenantId,
       "userNameOrEmailAddress": username,
@@ -27,7 +29,7 @@ class MptCallkitAuthMethod {
     bool status = false;
     try {
       final response = await http.post(
-        Uri.parse("${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$loginApi"),
+        Uri.parse("${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$loginAPI"),
         headers: _headers,
         body: jsonEncode(body),
       );
@@ -77,7 +79,6 @@ class MptCallkitAuthMethod {
     Function(String?)? onError,
     Function(Map<String, dynamic>)? data,
   }) async {
-    const loginSSOApi = "/api/TokenAuth/ExternalSystemAuthenticate";
     bool status = false;
 
     final body = {
@@ -88,7 +89,7 @@ class MptCallkitAuthMethod {
     try {
       final response = await http.post(
         Uri.parse(
-            "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$loginSSOApi"),
+            "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$loginSSOAPI"),
         headers: _headers,
         body: jsonEncode(body),
       );
@@ -138,7 +139,6 @@ class MptCallkitAuthMethod {
     required int cloudAgentId,
     required int cloudTenantId,
   }) async {
-    const logoutApi = "/acd-asm-chat/agent-status/logout";
     try {
       final body = {
         "cloudAgentId": cloudAgentId,
@@ -148,7 +148,7 @@ class MptCallkitAuthMethod {
 
       final response = await http.post(
           Uri.parse(
-              "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$logoutApi"),
+              "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$logoutAPI"),
           headers: _headers,
           body: jsonEncode(body));
 

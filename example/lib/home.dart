@@ -34,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
             baseUrl: _baseUrl,
             userPhoneNumber: _phoneController.text,
           );
-          MptCallKitController().makeCallByGuest(
+          MptCallKitController().makeCall(
               context: context,
               phoneNumber: _callTo.text,
               isVideoCall: true,

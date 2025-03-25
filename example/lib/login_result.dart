@@ -10,12 +10,13 @@ import 'package:mpt_callkit/mpt_callkit.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
 
 class LoginResultScreen extends StatefulWidget {
-  const LoginResultScreen(
-      {super.key,
-      required this.title,
-      required this.userData,
-      required this.baseUrl,
-      required this.apiKey});
+  const LoginResultScreen({
+    super.key,
+    required this.title,
+    required this.userData,
+    required this.baseUrl,
+    required this.apiKey,
+  });
 
   final String title;
   final Map<String, dynamic>? userData;
@@ -28,9 +29,10 @@ class LoginResultScreen extends StatefulWidget {
 class _LoginResultScreenState extends State<LoginResultScreen> {
   Map<String, dynamic>? _currentUserInfo;
   ExtensionData? _extensionData;
-  final _outboundNumber = "200011";
+  final _outboundNumber = "18006602"; // your outbound number
   Map<String, dynamic>? _configuration;
-  final TextEditingController _destinationController = TextEditingController();
+  final TextEditingController _destinationController =
+      TextEditingController(text: "0988712192");
   late StreamSubscription<String> _callStateSubscription;
 
   @override
@@ -417,7 +419,10 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 32),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            const Text("Make call outbound"),
+                            const SizedBox(height: 10),
                             TextFormField(
                               controller: _destinationController,
                               keyboardType: TextInputType.phone,
@@ -433,13 +438,10 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                                   MptCallKitController().onlineStatuslistener,
                               initialData: MptCallKitController().isOnline,
                               builder: (context, snapshot) {
-                                final bool isOnline = snapshot.data ?? false;
                                 return ElevatedButton(
-                                  onPressed: isOnline
-                                      ? () {
-                                          _makeCall();
-                                        }
-                                      : null,
+                                  onPressed: () async {
+                                    await _makeCallOutbound();
+                                  },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.blueGrey,
                                     foregroundColor: Colors.white,
@@ -462,9 +464,9 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
         ));
   }
 
-  void _makeCall() async {
+  Future<void> _makeCallOutbound() async {
     final String destination = _destinationController.text.trim();
-    if (destination.isEmpty && MptCallKitController().isOnline) {
+    if (destination.isEmpty || !MptCallKitController().isOnline) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -476,23 +478,28 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
     }
 
     // Thực hiện cuộc gọi và kiểm tra kết quả
-    final success = await MptCallKitController().callMethod(
-      context: context,
-      destination: destination,
-      isVideoCall: true,
-      onError: (e) {
+    final success = await MptCallKitController().makeCallOutbound(
+      baseUrl: widget.baseUrl,
+      channel: "CALL",
+      tenantId: _currentUserInfo!["tenant"]["id"],
+      applicationId: _outboundNumber,
+      senderId: destination,
+      agentId: _currentUserInfo!["user"]["id"] ?? 0,
+      direction: "INTERNAL",
+      extraInfo: "",
+      authToken: widget.userData!["result"]["accessToken"],
+      onError: (error) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Failed: $e"),
+            content: Text(error ?? 'Call outbound failed!'),
             backgroundColor: Colors.red,
           ),
         );
       },
     );
-
-    if (success) {
-      _navigateToCallPad();
-    }
+    // if (success) {
+    //   _navigateToCallPad();
+    // }
   }
 
   void _navigateToCallPad() {
