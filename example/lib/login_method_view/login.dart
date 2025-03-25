@@ -1,7 +1,6 @@
 import 'package:example/login_result.dart';
 import 'package:flutter/material.dart';
-import 'package:mpt_callkit/mpt_callkit.dart';
-
+import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import '../components/callkit_constants.dart';
 
 class Login extends StatefulWidget {
@@ -24,7 +23,7 @@ class _LoginState extends State<Login> {
   @override
   Widget build(BuildContext context) {
     void login() async {
-      var result = await MptCallkit().login(
+      var result = await MptCallKitController().loginRequest(
         username: usernameController.text,
         password: passwordController.text,
         tenantId: tenantId,
@@ -33,10 +32,6 @@ class _LoginState extends State<Login> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(error ?? 'Login failed')),
           );
-        },
-        data: (data) {
-          userData = data;
-          print("Response data: $data");
         },
       );
 

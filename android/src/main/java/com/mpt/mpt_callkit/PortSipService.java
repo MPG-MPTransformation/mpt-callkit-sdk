@@ -527,9 +527,11 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             }
         }
 
-        // if (Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "Answer-Mode").toString().equals("Auto;require")) {
-        //     Engine.Instance().getEngine().answerCall(sessionId, true);
-        // }
+        // Auto answer call
+        if (Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "Answer-Mode").toString().equals("Auto;require")) {
+            Engine.Instance().getEngine().answerCall(sessionId, true);
+            System.out.println("quanth: On auto answer call");
+        }
     }
 
     public void showPendingCallNotification(Context context, String contenTitle, String contenText, Intent intent) {

@@ -356,7 +356,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     void unHoldCall() {
         Session currentLine = CallManager.Instance().getCurrentSession();
-        if (currentLine != null && currentLine.sessionID > 0 && currentLine.bHold) {
+        if (currentLine != null && currentLine.sessionID > 0) {
             int result = Engine.Instance().getEngine().unHold(currentLine.sessionID);
             if (result != 0) {
                 currentLine.bHold = false;
@@ -387,11 +387,11 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     void toggleCamera(boolean enable) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (currentLine != null && currentLine.sessionID > 0) {
-            currentLine.bMuteVideo = enable;
+            currentLine.bMuteVideo = !enable;
             Engine.Instance().getEngine().muteSession(
                     currentLine.sessionID,
                     currentLine.bMuteAudioInComing,
-                    currentLine.bMute,
+                    currentLine.bMuteAudioOutGoing,
                     false,
                     currentLine.bMuteVideo
             );
@@ -405,11 +405,14 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         System.out.println("quanth: Answer call sessionID: " + currentLine.sessionID);
         System.out.println("quanth: Answer call state: " + currentLine.state);
         if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING) {
-            int result = Engine.Instance().getEngine().answerCall(currentLine.sessionID, false);
+            int result = Engine.Instance().getEngine().answerCall(currentLine.sessionID, currentLine.hasVideo);
+            System.out.println("quanth: Answer call with video: " + currentLine.hasVideo);
             System.out.println("quanth: Answer call result: " + result);
-            if (result != 0) {
+            if (result == 0) {
                 currentLine.state = Session.CALL_STATE_FLAG.CONNECTED;
                 Engine.Instance().getEngine().joinToConference(currentLine.sessionID);
+            } else {
+                System.out.println("quanth: Answer call failed with error code: " + result);
             }
         }
     }

@@ -1,6 +1,6 @@
 import 'package:example/login_result.dart';
 import 'package:flutter/material.dart';
-import 'package:mpt_callkit/mpt_callkit.dart';
+import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 
 import '../components/callkit_constants.dart';
 
@@ -25,7 +25,7 @@ class _LoginSSOState extends State<LoginSSO> {
   @override
   Widget build(BuildContext context) {
     void login() async {
-      var result = await MptCallkit().loginSSO(
+      var result = await MptCallKitController().loginSSORequest(
         ssoToken: ssoTokenController.text,
         organization: organizationController.text,
         baseUrl: baseUrl,

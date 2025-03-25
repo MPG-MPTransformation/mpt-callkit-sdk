@@ -32,11 +32,11 @@ class _HomeScreenState extends State<HomeScreen> {
           MptCallKitController().initSdk(
             apiKey: _apiKey,
             baseUrl: _baseUrl,
-            userPhoneNumber: _phoneController.text,
           );
-          MptCallKitController().makeCall(
+          MptCallKitController().makeCallByGuest(
               context: context,
-              phoneNumber: _callTo.text,
+              userPhoneNumber: _phoneController.text,
+              destinationPhoneNumber: _callTo.text,
               isVideoCall: true,
               onError: (errorMessage) {
                 if (errorMessage == null) return;

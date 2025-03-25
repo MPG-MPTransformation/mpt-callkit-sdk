@@ -1,12 +1,10 @@
 import 'dart:async';
 
 import 'package:example/call_pad.dart';
-import 'package:example/components/repo.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:mpt_callkit/models/extension_model.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
-import 'package:mpt_callkit/mpt_callkit.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
 
 class LoginResultScreen extends StatefulWidget {
@@ -27,21 +25,21 @@ class LoginResultScreen extends StatefulWidget {
 }
 
 class _LoginResultScreenState extends State<LoginResultScreen> {
-  Map<String, dynamic>? _currentUserInfo;
   ExtensionData? _extensionData;
-  final _outboundNumber = "18006602"; // your outbound number
-  Map<String, dynamic>? _configuration;
   final TextEditingController _destinationController =
-      TextEditingController(text: "0988712192");
+      TextEditingController(text: "10004");
   late StreamSubscription<String> _callStateSubscription;
 
   @override
   void initState() {
     super.initState();
-    initData();
+    Future.microtask(() {
+      if (mounted) {
+        _initDataWhenLoginSuccess();
+      }
+    });
 
-    _callStateSubscription =
-        MptCallKitController().callStateListener.listen((state) {
+    _callStateSubscription = MptCallKitController().callEvent.listen((state) {
       // Chỉ khi nhận được INCOMING mới route đến call_pad
       if (state == CallStateConstants.INCOMING) {
         _navigateToCallPad();
@@ -49,44 +47,14 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
     });
   }
 
-  Future<void> initData() async {
-    if (widget.userData != null) {
-      await getCurrentUserInfo();
-      await getConfiguration();
-      await connectToSocketServer();
-      await registerToSipServer();
-    } else {
-      print("Access token is null");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Access token is null"),
-          backgroundColor: Colors.grey,
-        ),
-      );
-    }
-  }
-
-  // get configuration
-  Future<void> getConfiguration() async {
-    _configuration = await Repo().getConfiguration(
-      baseUrl: widget.baseUrl,
-      accessToken: widget.userData!["result"]["accessToken"],
-      onError: (e) {
-        print("Error in get all: ${e.toString()}");
-      },
-    );
-  }
-
-  // get current user info
-  Future<void> getCurrentUserInfo() async {
-    _currentUserInfo = await Repo().getCurrentUserInfo(
-      baseUrl: widget.baseUrl,
-      accessToken: widget.userData!["result"]["accessToken"],
-      onError: (e) {
-        print("Error in get current user info: ${e.toString()}");
+  Future<void> _initDataWhenLoginSuccess() async {
+    await MptCallKitController().initDataWhenLoginSuccess(
+      context: context,
+      onError: (p0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Error in get current user info: ${e.toString()}"),
+            content:
+                Text("Error in initDataWhenLoginSuccess: ${p0.toString()}"),
             backgroundColor: Colors.grey,
           ),
         );
@@ -94,27 +62,8 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
     );
   }
 
-  // handle register to sip server
-  Future<void> registerToSipServer() async {
-    // Get extension data from current user info
-    if (_currentUserInfo != null) {
-      _extensionData = ExtensionData(
-        username: _currentUserInfo!["user"]["extension"],
-        password: _currentUserInfo!["user"]["sipPassword"],
-        domain: _currentUserInfo!["tenant"]["domainContext"],
-        sipServer: "portsip.omicx.vn",
-        port: 5060,
-      );
-
-      if (_extensionData != null) {
-        // Register to SIP server
-        await doOnline();
-      }
-    }
-  }
-
   // register SIP
-  Future<bool> doOnline() async {
+  Future<bool> doRegister() async {
     return await MptCallKitController().online(
       username: _extensionData!.username!,
       displayName: _extensionData!.username!, // ??
@@ -133,13 +82,12 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
           ),
         );
       },
-      phoneNumber: _outboundNumber,
       context: context,
     );
   }
 
   // unregister SIP
-  Future<bool> doOffline() async {
+  Future<bool> doUnregiter() async {
     return await MptCallKitController().offline(
       onError: (error) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -152,43 +100,9 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
     );
   }
 
-  // Connect to socket server
-  Future<void> connectToSocketServer() async {
-    print("connectToSocketServer");
-    if (_configuration != null) {
-      MptSocketAbly.initialize(
-        ablyKeyParam: _configuration!["ABLY_KEY"],
-        tenantIdParam: _currentUserInfo!["tenant"]["id"],
-        userIdParam: _currentUserInfo!["user"]["id"],
-        userNameParam: _currentUserInfo!["user"]["userName"],
-        onMessageReceivedParam: (p0) {
-          print("Message received in callback: $p0");
-        },
-      );
-    } else {
-      print("Cannot connect agent to socket server - configuration is null");
-    }
-  }
-
   // Logout account
   Future<void> logout() async {
-    bool isLogoutAccountSuccess = false;
-    bool isUnregistered = false;
-
-    // Ngắt kết nối socket
-    await MptSocketAbly.disconnect();
-
-    if (MptCallKitController().isOnline) {
-      isLogoutAccountSuccess = await MptCallKitController().offline();
-    } else {
-      isLogoutAccountSuccess = true;
-    }
-
-    isUnregistered = await MptCallkit().logout(
-      cloudAgentId: _currentUserInfo!["user"]["id"],
-      cloudAgentName: _currentUserInfo!["user"]["fullName"] ?? "",
-      cloudTenantId: _currentUserInfo!["tenant"]["id"],
-      baseUrl: widget.baseUrl,
+    var result = await MptCallKitController().logout(
       onError: (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -199,10 +113,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
       },
     );
 
-    // Quan trọng: Hủy hoàn toàn instance khi đăng xuất
-    await MptSocketAbly.destroyInstance();
-
-    if (isLogoutAccountSuccess && isUnregistered) {
+    if (result) {
       Navigator.pop(context);
     }
   }
@@ -242,14 +153,17 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
     required String statusName,
     required int reasonCodeId,
   }) async {
-    await Repo().changeAgentStatus(
-        cloudAgentId: _currentUserInfo!["user"]["id"],
-        cloudTenantId: _currentUserInfo!["tenant"]["id"],
-        cloudAgentName: _currentUserInfo!["user"]["fullName"] ?? "",
-        reasonCodeId: reasonCodeId,
-        statusName: statusName,
-        baseUrl: widget.baseUrl,
-        accessToken: widget.userData!["result"]["accessToken"]);
+    await MptCallKitController().changeAgentStatus(
+      reasonCodeId: reasonCodeId,
+      statusName: statusName,
+      onError: (error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error ?? 'Change status failed!'),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -341,11 +255,11 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                                       onPressed: () async {
                                         if (snapshot.data == true) {
                                           // Nếu đang online thì chuyển sang offline
-                                          await doOffline();
+                                          await doUnregiter();
                                         } else {
                                           // Nếu đang offline thì chuyển sang online
                                           if (_extensionData != null) {
-                                            await doOnline();
+                                            await doRegister();
                                           } else {
                                             ScaffoldMessenger.of(context)
                                                 .showSnackBar(
@@ -365,8 +279,8 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                                       ),
                                       child: Text(
                                         snapshot.data == true
-                                            ? "do offline"
-                                            : "do online",
+                                            ? "do unregister"
+                                            : "do register",
                                         style: const TextStyle(
                                             color: Colors.white),
                                       ),
@@ -377,7 +291,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                             ),
                             const SizedBox(height: 20),
                             StreamBuilder<String>(
-                              stream: MptSocketAbly.agentStatusStream,
+                              stream: MptSocketSocketServer.agentStatusEvent,
                               builder: (context, snapshot) {
                                 if (snapshot.hasData) {
                                   return Text(
@@ -477,17 +391,15 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
       return;
     }
 
-    // Thực hiện cuộc gọi và kiểm tra kết quả
-    final success = await MptCallKitController().makeCallOutbound(
-      baseUrl: widget.baseUrl,
-      channel: "CALL",
-      tenantId: _currentUserInfo!["tenant"]["id"],
-      applicationId: _outboundNumber,
-      senderId: destination,
-      agentId: _currentUserInfo!["user"]["id"] ?? 0,
-      direction: "INTERNAL",
+    /*
+     * Thực hiện cuộc gọi và kiểm tra kết quả
+     */
+
+    // call to a destination number
+    final success = await MptCallKitController().makeCallInternal(
+      destination: _destinationController.text.trim(),
+      senderId: MptCallKitController().currentUserInfo!["user"]["extension"],
       extraInfo: "",
-      authToken: widget.userData!["result"]["accessToken"],
       onError: (error) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -497,6 +409,23 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
         );
       },
     );
+
+    // // call etension to extension
+    // final success = await MptCallKitController().makeCall(
+    //   destination: _destinationController.text.trim(),
+    //   senderId: "18006602",
+    //   extraInfo: "",
+    //   onError: (error) {
+    //     ScaffoldMessenger.of(context).showSnackBar(
+    //       SnackBar(
+    //         content: Text(error ?? 'Call outbound failed!'),
+    //         backgroundColor: Colors.red,
+    //       ),
+    //     );
+    //   },
+    // );
+
+    print("Call outbound success: $success");
     // if (success) {
     //   _navigateToCallPad();
     // }

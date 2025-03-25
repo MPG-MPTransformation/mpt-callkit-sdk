@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
+import 'package:mpt_callkit/mpt_socket.dart';
 
 class CallPad extends StatefulWidget {
   const CallPad({
@@ -30,8 +31,10 @@ class _CallPadState extends State<CallPad> {
 
   bool _isMuted = false;
   bool _isCameraOn = true;
+  String _agentStatus = "";
 
   late StreamSubscription<String> _callStateSubscription;
+  late StreamSubscription<String> _agentStatusSubscription;
   late StreamSubscription<bool> _microphoneStateSubscription;
   late StreamSubscription<bool> _cameraStateSubscription;
 
@@ -40,37 +43,52 @@ class _CallPadState extends State<CallPad> {
     super.initState();
 
     // call state listener
-    _callStateSubscription =
-        MptCallKitController().callStateListener.listen((state) {
-      setState(() {
-        _callState = state;
-      });
-
-      // show dialog when call ended
-      if (state == CallStateConstants.CLOSED ||
-          state == CallStateConstants.FAILED) {
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted && context.mounted) {
-            _showCallEndedDialog(state);
-          }
+    _callStateSubscription = MptCallKitController().callEvent.listen((state) {
+      if (mounted) {
+        setState(() {
+          _callState = state;
         });
+
+        // show dialog when call ended
+        if (state == CallStateConstants.CLOSED ||
+            state == CallStateConstants.FAILED) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted && context.mounted) {
+              _showCallEndedDialog(state);
+            }
+          });
+        }
       }
     });
 
     // microphone state listener
     _microphoneStateSubscription =
-        MptCallKitController().microphoneStateListener.listen((isActive) {
-      setState(() {
-        _isMuted = !isActive; // true when microphone is off
-      });
+        MptCallKitController().microState.listen((isActive) {
+      if (mounted) {
+        setState(() {
+          _isMuted = !isActive; // true when microphone is off
+        });
+      }
     });
 
     // camera state listener
     _cameraStateSubscription =
-        MptCallKitController().cameraStateListener.listen((isActive) {
-      setState(() {
-        _isCameraOn = isActive; // true when camera is on
-      });
+        MptCallKitController().cameraState.listen((isActive) {
+      if (mounted) {
+        setState(() {
+          _isCameraOn = isActive; // true when camera is on
+        });
+      }
+    });
+
+    // agent status listener
+    _agentStatusSubscription =
+        MptSocketSocketServer.agentStatusEvent.listen((status) {
+      if (mounted) {
+        setState(() {
+          _agentStatus = status;
+        });
+      }
     });
   }
 
@@ -126,6 +144,13 @@ class _CallPadState extends State<CallPad> {
                 ),
                 Text(
                   'Camera: ${_isCameraOn ? "ON" : "OFF"}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Agent Status: ${_agentStatus.isEmpty ? "OFFLINE" : _agentStatus}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -196,10 +221,12 @@ class _CallPadState extends State<CallPad> {
 
     switch (functionName) {
       case 'answer':
-        MptCallKitController().answer();
+        MptCallKitController().answerCall();
         break;
       case 'hangup':
         MptCallKitController().hangup();
+        // Close call_pad screen
+        Navigator.of(context).pop();
         break;
       case 'hold':
         MptCallKitController().hold();
@@ -220,7 +247,7 @@ class _CallPadState extends State<CallPad> {
         MptCallKitController().cameraOn();
         break;
       case 'reject':
-        MptCallKitController().reject();
+        MptCallKitController().rejectCall();
         break;
       default:
         print('Function $functionName not implemented');
@@ -269,19 +296,15 @@ class _CallPadState extends State<CallPad> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () async {
-              // Close dialog
-              Navigator.of(context).pop();
-
+            onPressed: () {
               // End call
-              await MptCallKitController().hangup();
+              MptCallKitController().hangup();
 
               // Go back to previous screen
-              if (context.mounted) {
-                Navigator.of(context).pop();
-              } else {
-                print("Context is not mounted");
-              }
+              // Close dialog
+              Navigator.of(context).pop();
+              // Close call_pad screen
+              Navigator.of(context).pop();
             },
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,

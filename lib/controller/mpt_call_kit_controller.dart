@@ -9,13 +9,19 @@ import 'package:mpt_callkit/camera_view.dart';
 import 'package:mpt_callkit/models/extension_model.dart';
 import 'package:mpt_callkit/models/release_extension_model.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
+import 'package:mpt_callkit/mpt_callkit_auth_method.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
+
+import 'mpt_call_kit_controller_repo.dart';
 
 class MptCallKitController {
   String apiKey = '';
-  String userPhoneNumber = '';
   String baseUrl = '';
   String extension = '';
+  Map<String, dynamic>? userData;
+  Map<String, dynamic>? currentUserInfo;
+  ExtensionData? _extensionData;
+  Map<String, dynamic>? _configuration;
 
   static const MethodChannel channel = MethodChannel('mpt_callkit');
 
@@ -25,19 +31,18 @@ class MptCallKitController {
   Stream<bool> get onlineStatuslistener => _onlineStatuslistener.stream;
 
   /// call state stream
-  final StreamController<String> _callStateListener =
+  final StreamController<String> _callEvent =
       StreamController<String>.broadcast();
-  Stream<String> get callStateListener => _callStateListener.stream;
+  Stream<String> get callEvent => _callEvent.stream;
 
   /// camera state stream
-  final StreamController<bool> _cameraStateListener =
+  final StreamController<bool> _cameraState =
       StreamController<bool>.broadcast();
-  Stream<bool> get cameraStateListener => _cameraStateListener.stream;
+  Stream<bool> get cameraState => _cameraState.stream;
 
   /// microphone state stream
-  final StreamController<bool> _microphoneStateListener =
-      StreamController<bool>.broadcast();
-  Stream<bool> get microphoneStateListener => _microphoneStateListener.stream;
+  final StreamController<bool> _microState = StreamController<bool>.broadcast();
+  Stream<bool> get microState => _microState.stream;
 
   bool _isOnline = false;
   bool get isOnline => _isOnline;
@@ -53,15 +58,15 @@ class MptCallKitController {
       }
 
       if (call.method == 'callState') {
-        _callStateListener.add(call.arguments as String);
+        _callEvent.add(call.arguments as String);
       }
 
       if (call.method == 'cameraState') {
-        _cameraStateListener.add(call.arguments as bool);
+        _cameraState.add(call.arguments as bool);
       }
 
       if (call.method == 'microphoneState') {
-        _microphoneStateListener.add(call.arguments as bool);
+        _microState.add(call.arguments as bool);
       }
     });
   }
@@ -73,11 +78,8 @@ class MptCallKitController {
   void initSdk({
     required String apiKey,
     String? baseUrl,
-    bool isAgent = false,
-    required String userPhoneNumber,
   }) async {
     this.apiKey = apiKey;
-    this.userPhoneNumber = userPhoneNumber;
     this.baseUrl = baseUrl != null && baseUrl.isNotEmpty
         ? baseUrl
         : "https://crm-dev-v2.metechvn.com";
@@ -93,6 +95,182 @@ class MptCallKitController {
   //   );
   // }
 
+  Future<bool> loginRequest({
+    required String username,
+    required String password,
+    required int tenantId,
+    String? baseUrl,
+    Function(Map<String, dynamic>)? data,
+    Function(String?)? onError,
+  }) async {
+    return MptCallkitAuthMethod().login(
+      username: username,
+      password: password,
+      tenantId: tenantId,
+      baseUrl: baseUrl,
+      onError: onError,
+      data: (e) {
+        userData = e;
+        data?.call(e);
+      },
+    );
+  }
+
+  Future<bool> loginSSORequest({
+    required String ssoToken,
+    required String organization,
+    String? baseUrl,
+    Function(String?)? onError,
+    Function(Map<String, dynamic>)? data,
+  }) async {
+    return MptCallkitAuthMethod().loginSSO(
+      ssoToken: ssoToken,
+      organization: organization,
+      baseUrl: baseUrl,
+      onError: onError,
+      data: data,
+    );
+  }
+
+  Future<void> initDataWhenLoginSuccess({
+    required BuildContext context,
+    Function(String?)? onError,
+  }) async {
+    if (userData != null) {
+      await _getCurrentUserInfo();
+      await _getConfiguration();
+      await _connectToSocketServer();
+      await _registerToSipServer(context: context);
+    } else {
+      print("Access token is null");
+      onError?.call("Access token is null");
+    }
+  }
+
+  // handle register to sip server
+  Future<void> _registerToSipServer({
+    required BuildContext context,
+  }) async {
+    // Get extension data from current user info
+    if (currentUserInfo != null) {
+      _extensionData = ExtensionData(
+        username: currentUserInfo!["user"]["extension"],
+        password: currentUserInfo!["user"]["sipPassword"],
+        domain: currentUserInfo!["tenant"]["domainContext"],
+        sipServer: "portsip.omicx.vn",
+        port: 5060,
+      );
+
+      if (_extensionData != null) {
+        // Register to SIP server
+        await MptCallKitController().online(
+          username: _extensionData!.username!,
+          displayName: _extensionData!.username!, // ??
+          srtpType: 0,
+          authName: _extensionData!.username!, // ??
+          password: _extensionData!.password!,
+          userDomain: _extensionData!.domain!,
+          sipServer: _extensionData!.sipServer!,
+          sipServerPort: _extensionData!.port ?? 5060,
+          transportType: 0,
+          onError: (p0) {
+            print("Error in register to sip server: ${p0.toString()}");
+          },
+          context: context,
+        );
+      }
+    }
+  }
+
+  // get current user info
+  Future<void> _getCurrentUserInfo() async {
+    currentUserInfo = await MptCallkitAuthMethod().getCurrentUserInfo(
+      baseUrl: baseUrl,
+      accessToken: userData!["result"]["accessToken"],
+      onError: (p0) {
+        print("Error in get current user info: ${p0.toString()}");
+      },
+    );
+  }
+
+  Future<void> _connectToSocketServer() async {
+    print("connectToSocketServer");
+    if (_configuration != null) {
+      MptSocketSocketServer.initialize(
+        ablyKeyParam: _configuration!["ABLY_KEY"],
+        tenantIdParam: currentUserInfo!["tenant"]["id"],
+        userIdParam: currentUserInfo!["user"]["id"],
+        userNameParam: currentUserInfo!["user"]["userName"],
+        onMessageReceivedParam: (p0) {
+          print("Message received in callback: $p0");
+        },
+      );
+    } else {
+      print("Cannot connect agent to socket server - configuration is null");
+    }
+  }
+
+  // get configuration
+  Future<void> _getConfiguration() async {
+    _configuration = await MptCallkitAuthMethod().getConfiguration(
+      baseUrl: baseUrl,
+      accessToken: userData!["result"]["accessToken"],
+      onError: (p0) {
+        print("Error in get configuration: ${p0.toString()}");
+      },
+    );
+  }
+
+  // logout user account from server
+  Future<bool> logoutRequest({
+    String? baseUrl,
+    Function(String?)? onError,
+    required String cloudAgentName,
+    required int cloudAgentId,
+    required int cloudTenantId,
+  }) async {
+    return MptCallkitAuthMethod().logout(
+      baseUrl: baseUrl,
+      onError: onError,
+      cloudAgentName: cloudAgentName,
+      cloudAgentId: cloudAgentId,
+      cloudTenantId: cloudTenantId,
+    );
+  }
+
+  Future<bool> logout({
+    Function(String?)? onError,
+  }) async {
+    bool isLogoutAccountSuccess = false;
+    bool isUnregistered = false;
+
+    // Ngắt kết nối socket
+    await MptSocketSocketServer.disconnect();
+
+    if (isOnline) {
+      isLogoutAccountSuccess = await offline();
+    } else {
+      isLogoutAccountSuccess = true;
+    }
+
+    isUnregistered = await logoutRequest(
+      cloudAgentId: currentUserInfo!["user"]["id"],
+      cloudAgentName: currentUserInfo!["user"]["fullName"] ?? "",
+      cloudTenantId: currentUserInfo!["tenant"]["id"],
+      baseUrl: baseUrl,
+      onError: onError,
+    );
+
+    // Important: Destroy instance when logout
+    await MptSocketSocketServer.destroyInstance();
+
+    if (isLogoutAccountSuccess && isUnregistered) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   Future<void> connectSocketByGuest({
     required String apiKey,
     required String baseUrl,
@@ -100,7 +278,7 @@ class MptCallKitController {
     String? userName,
     required String phoneNumber,
   }) async {
-    await MptSocket.connectSocketByGuest(
+    await MptSocketLiveConnect.connectSocketByGuest(
       baseUrl,
       guestAPI: '/integration/security/guest-token',
       barrierToken: apiKey,
@@ -111,13 +289,14 @@ class MptCallKitController {
   }
 
   disposeSocket() {
-    MptSocket.dispose();
+    MptSocketLiveConnect.dispose();
   }
 
   // Make call by guest
-  Future<void> makeCall({
+  Future<void> makeCallByGuest({
     required BuildContext context,
-    required String phoneNumber,
+    required String userPhoneNumber,
+    required String destinationPhoneNumber,
     bool isShowNativeView = true,
     bool isVideoCall = false,
     ExtensionData? userExtensionData,
@@ -139,7 +318,8 @@ class MptCallKitController {
         }
       }
       extension = userExtensionData?.username ?? '';
-      final result = userExtensionData ?? await getExtension();
+      final result =
+          userExtensionData ?? await getExtension(phoneNumber: userPhoneNumber);
       if (result != null) {
         if (Platform.isAndroid) {
           channel.setMethodCallHandler((call) async {
@@ -151,7 +331,7 @@ class MptCallKitController {
                 baseUrl: baseUrl,
                 appId: "88888888",
                 userName: "guest",
-                phoneNumber: phoneNumber,
+                phoneNumber: userPhoneNumber,
               );
 
               /// nếu thành công thì call luôn
@@ -160,7 +340,7 @@ class MptCallKitController {
                 final bool callResult = await channel.invokeMethod(
                   'call',
                   <String, dynamic>{
-                    'phoneNumber': phoneNumber,
+                    'phoneNumber': destinationPhoneNumber,
                     'isVideoCall': isVideoCall
                   },
                 );
@@ -195,7 +375,7 @@ class MptCallKitController {
         }
         await online(
           username: result.username ?? "",
-          displayName: phoneNumber,
+          displayName: userPhoneNumber,
           authName: '',
           password: result.password!,
           userDomain: result.domain!,
@@ -203,7 +383,6 @@ class MptCallKitController {
           sipServerPort: result.port ?? 5060,
           transportType: 0,
           srtpType: 0,
-          phoneNumber: phoneNumber,
           context: context,
         );
         // Navigator.push(
@@ -230,7 +409,8 @@ class MptCallKitController {
     }
   }
 
-  Future<ExtensionData?> getExtension({int retryTime = 0}) async {
+  Future<ExtensionData?> getExtension(
+      {int retryTime = 0, required String phoneNumber}) async {
     try {
       int retryCount = retryTime;
       final url = Uri.parse("$baseUrl/integration/extension/request");
@@ -243,7 +423,7 @@ class MptCallKitController {
               'Authorization': 'Bearer $apiKey',
             },
             body: json.encode({
-              "phone_number": userPhoneNumber,
+              "phone_number": phoneNumber,
             }),
           )
           .timeout(const Duration(seconds: 10));
@@ -373,7 +553,6 @@ class MptCallKitController {
     required int sipServerPort,
     required int transportType,
     required int srtpType,
-    required String phoneNumber,
     Function(String?)? onError,
     required BuildContext context,
   }) async {
@@ -391,7 +570,7 @@ class MptCallKitController {
           MptCallKitConstants.login,
           {
             'username': username,
-            'displayName': userPhoneNumber,
+            'displayName': displayName,
             'authName': authName,
             'password': password,
             'userDomain': userDomain,
@@ -399,7 +578,6 @@ class MptCallKitController {
             'sipServerPort': sipServerPort,
             'transportType': transportType,
             'srtpType': srtpType,
-            'phoneNumber': phoneNumber,
           },
         );
         return result;
@@ -414,69 +592,41 @@ class MptCallKitController {
     }
   }
 
-  Future<bool> makeCallOutbound({
-    required int tenantId,
-    required String applicationId,
+// Call to a destination number
+  Future<bool> makeCall({
+    required String destination,
     required String senderId,
-    String? channel,
-    required int agentId,
-    required String direction,
     required String extraInfo,
     Function(String?)? onError,
-    String? baseUrl,
-    required String authToken,
   }) async {
-    const makeCallOutboundAPI = "/chat-acd/conversation/start-outbound";
-    const channelCall = "CALL";
-    try {
-      final headers = {
-        'Authorization': 'Bearer $authToken',
-        'Content-Type': 'application/json',
-        "Abp.TenantId": tenantId.toString(),
-        'Accept': '*/*',
-      };
+    return await MptCallKitControllerRepo().makeCall(
+      baseUrl: baseUrl,
+      tenantId: currentUserInfo!["tenant"]["id"],
+      applicationId: destination,
+      senderId: senderId,
+      agentId: currentUserInfo!["user"]["id"] ?? 0,
+      extraInfo: "",
+      authToken: userData!["result"]["accessToken"],
+      onError: onError,
+    );
+  }
 
-      final body = {
-        "tenantId": tenantId,
-        "applicationId": applicationId,
-        "senderId": senderId,
-        "channel": channel ?? channelCall,
-        "agentId": agentId,
-        "direction": direction,
-        "extraInfo": extraInfo,
-      };
-
-      print("Call outbound body: ${jsonEncode(body)}");
-
-      final response = await http.post(
-        Uri.parse(
-            "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$makeCallOutboundAPI"),
-        headers: headers,
-        body: jsonEncode(body),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final responseData = jsonDecode(response.body);
-        print('Make call outbound Response data: $responseData');
-        if (responseData != null) {
-          if (responseData["success"]) {
-            print("Call outbound success!");
-            return true;
-          }
-          onError?.call("Call outbound failed: ${responseData["message"]}");
-          return false;
-        }
-        onError?.call("Call outbound data is null");
-        return false;
-      }
-      onError?.call(
-          "Call outbound failed with status code: ${response.statusCode}");
-      return false;
-    } catch (e) {
-      print("Error in logout: $e");
-      onError?.call("Logout failed with error: $e");
-      return false;
-    }
+  // Make call internal : agent extension to agent extension
+  Future<bool> makeCallInternal({
+    String? senderId,
+    required String destination,
+    required String extraInfo,
+    Function(String?)? onError,
+  }) async {
+    return await MptCallKitControllerRepo().makeCallInternal(
+      tenantId: currentUserInfo!["tenant"]["id"],
+      applicationId: destination,
+      senderId: senderId ?? currentUserInfo!["user"]["extension"],
+      agentId: currentUserInfo!["user"]["id"] ?? 0,
+      extraInfo: "",
+      authToken: userData!["result"]["accessToken"],
+      onError: onError,
+    );
   }
 
   // Future<bool> callMethod({
@@ -511,6 +661,27 @@ class MptCallKitController {
   //     return false;
   //   }
   // }
+
+  Future<bool> changeAgentStatus({
+    required int reasonCodeId,
+    required String statusName,
+    Function(String?)? onError,
+  }) async {
+    if (currentUserInfo != null && userData != null) {
+      return await MptCallKitControllerRepo().changeAgentStatus(
+          cloudAgentId: currentUserInfo!["user"]["id"],
+          cloudTenantId: currentUserInfo!["tenant"]["id"],
+          cloudAgentName: currentUserInfo!["user"]["fullName"] ?? "",
+          reasonCodeId: reasonCodeId,
+          statusName: statusName,
+          baseUrl: baseUrl,
+          accessToken: userData!["result"]["accessToken"]);
+    } else {
+      onError
+          ?.call("changeAgentStatus: current user info or user data is null");
+      return false;
+    }
+  }
 
   // Method do unregister from SIP server
   Future<bool> offline({Function(String?)? onError}) async {
@@ -598,7 +769,7 @@ class MptCallKitController {
     }
   }
 
-  Future<bool> reject() async {
+  Future<bool> rejectCall() async {
     try {
       final result = await channel.invokeMethod("reject");
       return result;
@@ -608,7 +779,7 @@ class MptCallKitController {
     }
   }
 
-  Future<bool> answer() async {
+  Future<bool> answerCall() async {
     try {
       final result = await channel.invokeMethod("answer");
       return result;
@@ -618,15 +789,15 @@ class MptCallKitController {
     }
   }
 
-  // Future<bool> transfer(String destination) async {
-  //   try {
-  //     final result = await channel.invokeMethod("transfer", {
-  //       "destination": destination,
-  //     });
-  //     return result;
-  //   } on PlatformException catch (e) {
-  //     debugPrint("Failed in 'transfer' mothod: '${e.message}'.");
-  //     return false;
-  //   }
-  // }
+  Future<bool> transfer({required String destination}) async {
+    try {
+      final result = await channel.invokeMethod("transfer", {
+        "destination": destination,
+      });
+      return result;
+    } on PlatformException catch (e) {
+      debugPrint("Failed in 'transfer' mothod: '${e.message}'.");
+      return false;
+    }
+  }
 }

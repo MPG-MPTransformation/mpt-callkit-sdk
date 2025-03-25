@@ -11,3 +11,11 @@ class CallStateConstants {
   static const String FAILED = "FAILED";
   static const String CLOSED = "CLOSED";
 }
+
+class AgentStatusConstants {
+  static const String READY = "READY";
+  static const String NOT_READY = "NOT_READY";
+  static const String AGENT_LOGOUT = "AGENT_LOGOUT";
+  static const String OFFLINE = "OFFLINE";
+  static const String IN_CALL = "IN_CALL";
+}

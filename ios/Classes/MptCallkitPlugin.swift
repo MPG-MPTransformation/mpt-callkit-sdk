@@ -475,6 +475,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
       
        // Gửi trạng thái về Flutter
        sendCallStateToFlutter(.INCOMING)
+
+       // Auto answer call
+       if portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "Answer-Mode") == "Auto;require" {
+           answerCall()
+       }
    }
   
    public func onInviteTrying(_ sessionId: Int) {

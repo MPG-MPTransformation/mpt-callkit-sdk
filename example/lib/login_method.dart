@@ -1,6 +1,8 @@
 import 'package:example/login_method_view/login.dart';
 import 'package:flutter/material.dart';
+import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 
+import 'components/callkit_constants.dart';
 import 'login_method_view/login_sso.dart';
 
 class LoginMethod extends StatefulWidget {
@@ -13,6 +15,15 @@ class LoginMethod extends StatefulWidget {
 }
 
 class _LoginMethodState extends State<LoginMethod> {
+  @override
+  void initState() {
+    MptCallKitController().initSdk(
+      apiKey: CallkitConstants.API_KEY,
+      baseUrl: CallkitConstants.BASE_URL,
+    );
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

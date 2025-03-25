@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:convert' as convert;
 
 import 'package:http/http.dart' as http;
+import 'package:mpt_callkit/mpt_aes_helper.dart';
 
 class MptCallkitAuthMethod {
   final _headers = {
@@ -171,6 +173,89 @@ class MptCallkitAuthMethod {
       print("Error in logout: $e");
       onError?.call("Logout failed with error: $e");
       return false;
+    }
+  }
+
+  String decryptText(String encrypted) => MptAESHelper.decryptAesB64(encrypted);
+
+  // Get current user info
+  Future<Map<String, dynamic>?> getCurrentUserInfo({
+    required String baseUrl,
+    required String accessToken,
+    Function(String?)? onError,
+  }) async {
+    final headers = {
+      "Content-Type": "application/json",
+      "Accept": "*/*",
+      "Authorization": "Bearer $accessToken",
+    };
+    const userInfoApi = "/api/services/app/Session/GetCurrentLoginInformation";
+    try {
+      final response = await http.get(
+        Uri.parse("$baseUrl$userInfoApi"),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = convert.jsonDecode(response.body);
+        if (responseData != null) {
+          if (responseData["success"]) {
+            var result =
+                convert.jsonDecode(decryptText(responseData["result"]));
+            print("CurrentUserInfo: $result");
+            return result;
+          }
+          return null;
+        }
+        return null;
+      } else {
+        print('Failed to get data. Status code: ${response.statusCode}');
+        onError
+            ?.call('Failed to get data. Status code: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print("Error in get current user info: $e");
+      onError?.call("Get current user info with error: $e");
+      return null;
+    }
+  }
+
+  // Get all conversation
+  Future<dynamic> getConfiguration({
+    required String baseUrl,
+    required String accessToken,
+    Function(String?)? onError,
+  }) async {
+    final headers = {
+      "Content-Type": "application/json",
+      "Accept": "*/*",
+      "Authorization": "Bearer $accessToken",
+    };
+
+    final url =
+        "$baseUrl/config/EncryptedAbpUserConfiguration/GetConfiguration";
+
+    try {
+      final response = await http.get(Uri.parse(url), headers: headers);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = convert.jsonDecode(response.body);
+        if (responseData["success"]) {
+          var result = convert.jsonDecode(decryptText(responseData["result"]));
+          print("GetAll: ${result.isNotEmpty}");
+          return result;
+        }
+        onError?.call("Failed to get data");
+        return null;
+      }
+      onError
+          ?.call("Failed to get data with status code: ${response.statusCode}");
+      return null;
+    } catch (e) {
+      print("Error in getConfiguration: $e");
+      onError?.call("Get all conversation with error: $e");
+      return null;
     }
   }
 }

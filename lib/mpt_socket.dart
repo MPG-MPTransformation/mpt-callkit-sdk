@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 // SocketIO
-class MptSocket {
+class MptSocketLiveConnect {
   static late IO.Socket socket;
 
   static final _connectionStatusController = StreamController<bool>.broadcast();
@@ -176,12 +176,12 @@ class MptSocket {
   }
 }
 
-/// MptSocketAbly class
-class MptSocketAbly {
-  static MptSocketAbly? _instance;
+///SocketAbly class - socket server
+class MptSocketSocketServer {
+  static MptSocketSocketServer? _instance;
 
-  static MptSocketAbly get instance {
-    _instance ??= MptSocketAbly._internal();
+  static MptSocketSocketServer get instance {
+    _instance ??= MptSocketSocketServer._internal();
     return _instance!;
   }
 
@@ -199,7 +199,7 @@ class MptSocketAbly {
   Stream<String> get statusStream => _agentStatusController.stream;
 
   // Constructor private
-  MptSocketAbly._internal();
+  MptSocketSocketServer._internal();
 
   void setup({
     required String ablyKeyParam,
@@ -457,7 +457,7 @@ class MptSocketAbly {
   }
 
   /// Stream static
-  static Stream<String> get agentStatusStream => instance.statusStream;
+  static Stream<String> get agentStatusEvent => instance.statusStream;
 
   /// Disconnect
   static Future<void> disconnect() async {
