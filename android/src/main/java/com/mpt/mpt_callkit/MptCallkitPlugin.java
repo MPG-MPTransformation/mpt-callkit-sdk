@@ -3,6 +3,35 @@ package com.mpt.mpt_callkit;
 /**
  * PortsipFlutterPlugin
  */
+import android.net.Uri;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Build;
+import android.widget.Toast;
+import androidx.annotation.NonNull;
+
+import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.plugin.common.MethodCall;
+import io.flutter.plugin.common.MethodChannel;
+import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
+import io.flutter.plugin.common.MethodChannel.Result;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
+import android.content.Context;
+import com.portsip.PortSipEnumDefine;
+import com.portsip.PortSipErrorcode;
+import com.portsip.PortSipSdk;
+import com.portsip.OnPortSIPEvent;
+import android.Manifest;
+import android.app.Activity;
+import android.content.pm.PackageManager;
+import androidx.core.app.ActivityCompat;
+import com.mpt.mpt_callkit.util.CallManager;
+import com.mpt.mpt_callkit.util.Session;
+import com.mpt.mpt_callkit.util.Engine;
+import com.mpt.mpt_callkit.util.Ring;
+import android.os.Handler;
 
 public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
 
