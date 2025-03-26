@@ -27,7 +27,7 @@ class LoginResultScreen extends StatefulWidget {
 class _LoginResultScreenState extends State<LoginResultScreen> {
   ExtensionData? _extensionData;
   final TextEditingController _destinationController =
-      TextEditingController(text: "10004");
+      TextEditingController(text: "0979019082");
   late StreamSubscription<String> _callStateSubscription;
 
   @override
@@ -380,7 +380,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
 
   Future<void> _makeCallOutbound() async {
     final String destination = _destinationController.text.trim();
-    if (destination.isEmpty || !MptCallKitController().isOnline) {
+    if (destination.isEmpty || MptCallKitController().isOnline == false) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -412,8 +412,8 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
 
     // // call etension to extension
     // final success = await MptCallKitController().makeCall(
+    //   outboundNumber: "18006601",
     //   destination: _destinationController.text.trim(),
-    //   senderId: "18006602",
     //   extraInfo: "",
     //   onError: (error) {
     //     ScaffoldMessenger.of(context).showSnackBar(

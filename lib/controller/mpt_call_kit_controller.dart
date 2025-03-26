@@ -35,6 +35,11 @@ class MptCallKitController {
       StreamController<String>.broadcast();
   Stream<String> get callEvent => _callEvent.stream;
 
+  /// call state stream
+  final StreamController<String> _appEvent =
+      StreamController<String>.broadcast();
+  Stream<String> get appEvent => _appEvent.stream;
+
   /// camera state stream
   final StreamController<bool> _cameraState =
       StreamController<bool>.broadcast();
@@ -44,8 +49,10 @@ class MptCallKitController {
   final StreamController<bool> _microState = StreamController<bool>.broadcast();
   Stream<bool> get microState => _microState.stream;
 
-  bool _isOnline = false;
-  bool get isOnline => _isOnline;
+  ///
+
+  bool? _isOnline = false;
+  bool? get isOnline => _isOnline;
 
   static final MptCallKitController _instance =
       MptCallKitController._internal();
@@ -83,6 +90,7 @@ class MptCallKitController {
     this.baseUrl = baseUrl != null && baseUrl.isNotEmpty
         ? baseUrl
         : "https://crm-dev-v2.metechvn.com";
+    _appEvent.add(AppEventConstants.READY);
   }
 
   // Future<void> connectSocketByUser({
@@ -103,7 +111,7 @@ class MptCallKitController {
     Function(Map<String, dynamic>)? data,
     Function(String?)? onError,
   }) async {
-    return MptCallkitAuthMethod().login(
+    var result = await MptCallkitAuthMethod().login(
       username: username,
       password: password,
       tenantId: tenantId,
@@ -114,6 +122,10 @@ class MptCallKitController {
         data?.call(e);
       },
     );
+    if (result) {
+      _appEvent.add(AppEventConstants.LOGGED_IN);
+    }
+    return result;
   }
 
   Future<bool> loginSSORequest({
@@ -123,13 +135,20 @@ class MptCallKitController {
     Function(String?)? onError,
     Function(Map<String, dynamic>)? data,
   }) async {
-    return MptCallkitAuthMethod().loginSSO(
+    var result = await MptCallkitAuthMethod().loginSSO(
       ssoToken: ssoToken,
       organization: organization,
       baseUrl: baseUrl,
       onError: onError,
-      data: data,
+      data: (e) {
+        userData = e;
+        data?.call(e);
+      },
     );
+    if (result) {
+      _appEvent.add(AppEventConstants.LOGGED_IN);
+    }
+    return result;
   }
 
   Future<void> initDataWhenLoginSuccess({
@@ -143,6 +162,7 @@ class MptCallKitController {
       await _registerToSipServer(context: context);
     } else {
       print("Access token is null");
+      _appEvent.add(AppEventConstants.TOKEN_EXPIRED);
       onError?.call("Access token is null");
     }
   }
@@ -178,7 +198,11 @@ class MptCallKitController {
           },
           context: context,
         );
+      } else {
+        _appEvent.add(AppEventConstants.ERROR);
       }
+    } else {
+      _appEvent.add(AppEventConstants.TOKEN_EXPIRED);
     }
   }
 
@@ -191,6 +215,9 @@ class MptCallKitController {
         print("Error in get current user info: ${p0.toString()}");
       },
     );
+    if (currentUserInfo == null) {
+      _appEvent.add(AppEventConstants.TOKEN_EXPIRED);
+    }
   }
 
   Future<void> _connectToSocketServer() async {
@@ -229,13 +256,15 @@ class MptCallKitController {
     required int cloudAgentId,
     required int cloudTenantId,
   }) async {
-    return MptCallkitAuthMethod().logout(
+    var result = await MptCallkitAuthMethod().logout(
       baseUrl: baseUrl,
       onError: onError,
       cloudAgentName: cloudAgentName,
       cloudAgentId: cloudAgentId,
       cloudTenantId: cloudTenantId,
     );
+
+    return result;
   }
 
   Future<bool> logout({
@@ -247,7 +276,7 @@ class MptCallKitController {
     // Ngắt kết nối socket
     await MptSocketSocketServer.disconnect();
 
-    if (isOnline) {
+    if (isOnline == true) {
       isLogoutAccountSuccess = await offline();
     } else {
       isLogoutAccountSuccess = true;
@@ -265,8 +294,10 @@ class MptCallKitController {
     await MptSocketSocketServer.destroyInstance();
 
     if (isLogoutAccountSuccess && isUnregistered) {
+      _appEvent.add(AppEventConstants.LOGGED_OUT);
       return true;
     } else {
+      _appEvent.add(AppEventConstants.ERROR);
       return false;
     }
   }
@@ -562,7 +593,7 @@ class MptCallKitController {
         onError?.call('Permission denied');
         return false;
       }
-      if (isOnline) {
+      if (isOnline == true) {
         onError?.call("You already registered. Please unregister first!");
         return false;
       } else {
@@ -580,6 +611,7 @@ class MptCallKitController {
             'srtpType': srtpType,
           },
         );
+
         return result;
       }
     } on PlatformException catch (e) {
@@ -595,17 +627,17 @@ class MptCallKitController {
 // Call to a destination number
   Future<bool> makeCall({
     required String destination,
-    required String senderId,
+    required String outboundNumber,
     required String extraInfo,
     Function(String?)? onError,
   }) async {
     return await MptCallKitControllerRepo().makeCall(
       baseUrl: baseUrl,
       tenantId: currentUserInfo!["tenant"]["id"],
-      applicationId: destination,
-      senderId: senderId,
+      applicationId: outboundNumber,
+      senderId: destination,
       agentId: currentUserInfo!["user"]["id"] ?? 0,
-      extraInfo: "",
+      extraInfo: extraInfo,
       authToken: userData!["result"]["accessToken"],
       onError: onError,
     );
@@ -619,11 +651,12 @@ class MptCallKitController {
     Function(String?)? onError,
   }) async {
     return await MptCallKitControllerRepo().makeCallInternal(
+      baseUrl: baseUrl,
       tenantId: currentUserInfo!["tenant"]["id"],
       applicationId: destination,
       senderId: senderId ?? currentUserInfo!["user"]["extension"],
       agentId: currentUserInfo!["user"]["id"] ?? 0,
-      extraInfo: "",
+      extraInfo: extraInfo,
       authToken: userData!["result"]["accessToken"],
       onError: onError,
     );
@@ -686,7 +719,7 @@ class MptCallKitController {
   // Method do unregister from SIP server
   Future<bool> offline({Function(String?)? onError}) async {
     try {
-      if (!isOnline) {
+      if (isOnline == false) {
         onError?.call("You need register to SIP server first");
         return false;
       } else {

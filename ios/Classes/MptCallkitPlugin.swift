@@ -1272,7 +1272,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                    transportType: 0,
                    srtpType: 0
                )
-               result(true)
+               result(loginViewController.sipInitialized)
            } else {
                result(FlutterError(code: "INVALID_ARGUMENTS",
                                  message: "Missing or invalid arguments for login",

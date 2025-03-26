@@ -41,6 +41,7 @@ class LoginViewController {
         
         if sipInitialized {
             print("You already registered, go offline first!")
+            MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: true)
             return
         }
         
