@@ -27,7 +27,7 @@ class LoginResultScreen extends StatefulWidget {
 class _LoginResultScreenState extends State<LoginResultScreen> {
   ExtensionData? _extensionData;
   final TextEditingController _destinationController =
-      TextEditingController(text: "0979019082");
+      TextEditingController(text: "10045");
   late StreamSubscription<String> _callStateSubscription;
 
   @override
@@ -395,7 +395,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
      * Thực hiện cuộc gọi và kiểm tra kết quả
      */
 
-    // call to a destination number
+    // call internal
     final success = await MptCallKitController().makeCallInternal(
       destination: _destinationController.text.trim(),
       senderId: MptCallKitController().currentUserInfo!["user"]["extension"],
@@ -411,7 +411,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
       },
     );
 
-    // // call etension to extension
+    // // call to a destination number
     // final success = await MptCallKitController().makeCall(
     //   outboundNumber: "18006601",
     //   destination: _destinationController.text.trim(),

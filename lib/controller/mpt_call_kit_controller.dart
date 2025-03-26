@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:mpt_callkit/camera_view.dart';
+import 'package:mpt_callkit/views/camera_view.dart';
 import 'package:mpt_callkit/models/extension_model.dart';
 import 'package:mpt_callkit/models/release_extension_model.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';

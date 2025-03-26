@@ -16,8 +16,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        let instance = shared
        instance.methodChannel = channel
        registrar.addMethodCallDelegate(instance, channel: channel)
+
        let factory = FLNativeViewFactory(messenger: registrar.messenger(), videoViewController: instance.videoViewController)
        registrar.register(factory, withId: "VideoView")
+
+       let localFactory = LocalViewFactory(messenger: registrar.messenger())
+       registrar.register(localFactory, withId: "LocalView")
+       
+       let remoteFactory = RemoteViewFactory(messenger: registrar.messenger())
+       registrar.register(remoteFactory, withId: "RemoteView")
    }
   
    var sipRegistered: Bool!

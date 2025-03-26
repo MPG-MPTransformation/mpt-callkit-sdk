@@ -32,6 +32,9 @@ import com.mpt.mpt_callkit.util.Session;
 import com.mpt.mpt_callkit.util.Engine;
 import com.mpt.mpt_callkit.util.Ring;
 import android.os.Handler;
+import io.flutter.embedding.engine.FlutterEngine;
+import com.mpt.mpt_callkit.LocalViewFactory;
+import com.mpt.mpt_callkit.RemoteViewFactory;
 
 public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
 
@@ -53,6 +56,14 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         context = flutterPluginBinding.getApplicationContext();
         Engine.Instance().setEngine(new PortSipSdk(context));
         Engine.Instance().setReceiver(new PortMessageReceiver());
+
+        // Đăng ký LocalViewFactory
+        flutterPluginBinding
+            .getPlatformViewRegistry()
+            .registerViewFactory("LocalView", new LocalViewFactory(flutterPluginBinding.getApplicationContext()));
+         flutterPluginBinding
+             .getPlatformViewRegistry()
+             .registerViewFactory("RemoteView", new RemoteViewFactory(flutterPluginBinding.getApplicationContext()));
     }
 
     @Override

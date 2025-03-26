@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
+import 'package:mpt_callkit/views/local_view.dart';
+import 'package:mpt_callkit/views/remote_view.dart';
 
 class CallPad extends StatefulWidget {
   const CallPad({
@@ -97,6 +99,7 @@ class _CallPadState extends State<CallPad> {
     _callStateSubscription.cancel();
     _microphoneStateSubscription.cancel();
     _cameraStateSubscription.cancel();
+    _agentStatusSubscription.cancel();
     super.dispose();
   }
 
@@ -114,9 +117,9 @@ class _CallPadState extends State<CallPad> {
           title: const Text('Call Pad'),
           automaticallyImplyLeading: true,
         ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SingleChildScrollView(
             child: Column(
               children: [
                 Container(
@@ -190,6 +193,20 @@ class _CallPadState extends State<CallPad> {
                       ),
                     );
                   },
+                ),
+                const SizedBox(height: 16),
+                const Text("Camera"),
+                const SizedBox(
+                  height: 300,
+                  width: 300,
+                  child: LocalView(),
+                ),
+                const SizedBox(height: 16),
+                const Text("Video"),
+                const SizedBox(
+                  height: 300,
+                  width: 300,
+                  child: RemoteView(),
                 ),
               ],
             ),
