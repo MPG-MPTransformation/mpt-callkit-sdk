@@ -27,3 +27,8 @@ class AppEventConstants {
   static const String TOKEN_EXPIRED = "TOKEN_EXPIRED";
   static const String ERROR = "ERROR";
 }
+
+class CallType {
+  static const String VIDEO = "VIDEO";
+  static const String VOICE = "VOICE";
+}

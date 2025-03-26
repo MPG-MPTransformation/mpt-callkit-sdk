@@ -629,15 +629,20 @@ class MptCallKitController {
     required String destination,
     required String outboundNumber,
     required String extraInfo,
+    bool? isVideoCall,
     Function(String?)? onError,
   }) async {
+    var extraInfoResult = {
+      "type": isVideoCall == true ? CallType.VIDEO : CallType.VOICE,
+      "extraInfo": extraInfo,
+    };
     return await MptCallKitControllerRepo().makeCall(
       baseUrl: baseUrl,
       tenantId: currentUserInfo!["tenant"]["id"],
       applicationId: outboundNumber,
       senderId: destination,
       agentId: currentUserInfo!["user"]["id"] ?? 0,
-      extraInfo: extraInfo,
+      extraInfo: jsonEncode(extraInfoResult),
       authToken: userData!["result"]["accessToken"],
       onError: onError,
     );
@@ -648,15 +653,21 @@ class MptCallKitController {
     String? senderId,
     required String destination,
     required String extraInfo,
+    bool? isVideoCall,
     Function(String?)? onError,
   }) async {
+    var extraInfoResult = {
+      "type": isVideoCall == true ? CallType.VIDEO : CallType.VOICE,
+      "extraInfo": extraInfo,
+    };
+
     return await MptCallKitControllerRepo().makeCallInternal(
       baseUrl: baseUrl,
       tenantId: currentUserInfo!["tenant"]["id"],
       applicationId: destination,
       senderId: senderId ?? currentUserInfo!["user"]["extension"],
       agentId: currentUserInfo!["user"]["id"] ?? 0,
-      extraInfo: extraInfo,
+      extraInfo: jsonEncode(extraInfoResult),
       authToken: userData!["result"]["accessToken"],
       onError: onError,
     );

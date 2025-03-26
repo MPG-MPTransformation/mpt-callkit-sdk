@@ -399,6 +399,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
     final success = await MptCallKitController().makeCallInternal(
       destination: _destinationController.text.trim(),
       senderId: MptCallKitController().currentUserInfo!["user"]["extension"],
+      isVideoCall: true,
       extraInfo: "",
       onError: (error) {
         ScaffoldMessenger.of(context).showSnackBar(
