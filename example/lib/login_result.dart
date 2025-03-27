@@ -64,8 +64,15 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
   Future<bool> doRegister() async {
     var extensionData = MptCallKitController().extensionData;
 
+    if (extensionData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Không có thông tin extension")),
+      );
+      return false;
+    }
+
     return await MptCallKitController().online(
-      username: extensionData!.username!,
+      username: extensionData.username!,
       displayName: extensionData.username!, // ??
       srtpType: 0,
       authName: extensionData.username!, // ??
