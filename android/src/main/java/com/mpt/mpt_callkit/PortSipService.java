@@ -479,13 +479,16 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             boolean existsVideo,
             String sipMessage) {
 
+        System.out.println("quanth: onInviteIncoming - existsVideo: " + existsVideo);
+        System.out.println("quanth: onInviteIncoming - videoCodecNames: " + videoCodecNames);
         System.out.println("quanth: onInviteIncoming - Debug info:");
         System.out.println("quanth: caller = " + caller);
         System.out.println("quanth: callee = " + callee);
         System.out.println("quanth: sessionId = " + sessionId);
         System.out.println("quanth: existsVideo = " + existsVideo);
         System.out.println("quanth: sipMessage = " + sipMessage);
-        System.out.println("quanth: answer-mode = " + Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "Answer-Mode").toString());
+        // System.out.println("quanth: answer-mode = " + Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "Answer-Mode").toString());
+        // System.out.println("quanth: answer-mode = " + Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "X-Session-Id").toString());
         if (CallManager.Instance().findIncomingCall() != null) {
             Engine.Instance().getEngine().rejectCall(sessionId, 486); //busy
             System.out.println("quanth: Rejected call - already in a call");
@@ -493,10 +496,12 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         }
         Session session = CallManager.Instance().findIdleSession();
         session.state = Session.CALL_STATE_FLAG.INCOMING;
-        // session.hasVideo = existsVideo;
         session.sessionID = sessionId;
         session.remote = caller;
         session.displayName = callerDisplayName;
+        
+        // Lưu trữ sipMessage
+        session.setSipMessage(sipMessage);
 
         Intent broadIntent = new Intent(CALL_CHANGE_ACTION);
         String description = session.lineName + " onInviteIncoming";
@@ -527,9 +532,14 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             }
         }
 
-        // Auto answer call
+        // Lưu thông tin về video capability
+        session.hasVideo = existsVideo;
+        
+        // Answer call
         if (Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "Answer-Mode").toString().equals("Auto;require")) {
-            Engine.Instance().getEngine().answerCall(sessionId, true);
+            System.out.println("quanth: Auto answering call with video preference: " + existsVideo);
+            // Answer với video status hiện tại (có thể là false)
+            Engine.Instance().getEngine().answerCall(sessionId, existsVideo);
             System.out.println("quanth: On auto answer call");
         }
     }
@@ -668,12 +678,16 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onInviteUpdated(long sessionId, String audioCodecs, String videoCodecs, String screenCodecs, boolean existsAudio, boolean existsVideo, boolean existsScreen, String sipMessage) {
-        System.out.println("quanth: onInviteUpdated");
+        System.out.println("quanth: onInviteUpdated with videoCodecs: " + videoCodecs);
+        System.out.println("quanth: onInviteUpdated - existsVideo before: " + (CallManager.Instance().getCurrentSession() != null ? CallManager.Instance().getCurrentSession().hasVideo : "null"));
+        System.out.println("quanth: onInviteUpdated - existsVideo from event: " + existsVideo);
+        
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 
         if (session != null) {
             session.state = Session.CALL_STATE_FLAG.CONNECTED;
             session.hasVideo = existsVideo;
+            System.out.println("quanth: onInviteUpdated - existsVideo: " + existsVideo);
             session.bScreenShare = existsScreen;
 
             Intent broadIntent = new Intent(CALL_CHANGE_ACTION);
@@ -682,6 +696,15 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             broadIntent.putExtra(EXTRA_CALL_DESCRIPTION, description);
 
             sendPortSipMessage(description, broadIntent);
+
+            // // Cập nhật cuộc gọi để thêm video stream
+            // int result = Engine.Instance().getEngine().updateCall(sessionId, true, true);
+            // System.out.println("quanth: onInviteUpdated - updateCall(): " + result);
+        }
+
+        // Nếu video codecs là rỗng, có thể đó là lý do existsVideo = false
+        if (videoCodecs == null || videoCodecs.isEmpty()) {
+            System.out.println("quanth: No video codecs available in updated session");
         }
     }
 

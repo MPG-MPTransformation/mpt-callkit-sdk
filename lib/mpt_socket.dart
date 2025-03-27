@@ -3,8 +3,12 @@ import 'dart:convert';
 
 import 'package:ably_flutter/ably_flutter.dart' as ably;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+
+import 'controller/mpt_call_kit_controller.dart';
+import 'mpt_call_kit_constant.dart';
 
 // SocketIO
 class MptSocketLiveConnect {
@@ -192,6 +196,7 @@ class MptSocketSocketServer {
   bool isConnecting = false;
   ably.Realtime? ablyClient;
   ably.RealtimeChannel? channel;
+  ably.RealtimeChannel? conversationChannel;
   Function(ably.Message)? onMessageReceived;
   StreamController<String> _agentStatusController =
       StreamController<String>.broadcast();
@@ -252,6 +257,7 @@ class MptSocketSocketServer {
         print("Ably socket connected");
         isConnecting = true;
         _subscribeToChannelAgentStatus();
+        _subscribeToConversationChannel(); // Subscribe to conversation channel right after connection
       } else {
         print("Ably state change: ${stateChange.current}");
         isConnecting = false;
@@ -292,6 +298,76 @@ class MptSocketSocketServer {
       print("Successfully subscribed to channel $channelName");
     } catch (e) {
       print("Exception while subscribing to channel $channelName: $e");
+    }
+  }
+
+  /// Subscribe to conversation channel - called automatically during initialization
+  void _subscribeToConversationChannel() {
+    if (tenantId == null) {
+      print(
+          "Error: tenantId is null. Cannot subscribe to conversation channel.");
+      return;
+    }
+
+    String channelName = 'conversation_$tenantId';
+    print("Subscribing to conversation channel: $channelName");
+
+    // Close old conversation channel if exists
+    if (conversationChannel != null) {
+      try {
+        conversationChannel!.detach();
+      } catch (e) {
+        print("Error detaching old conversation channel: $e");
+      }
+    }
+
+    try {
+      conversationChannel = ablyClient!.channels.get(channelName);
+
+      conversationChannel!.subscribe().listen((ably.Message message) async {
+        print(
+            "Received message on conversation channel $channelName: ${message.name} - ${message.data}");
+        if (message.name == MessageAbly.ANSWER_CALL) {
+          print("Received call message: ${message.data}");
+          if (message.data is Map) {
+            Map<dynamic, dynamic> data = message.data as Map<dynamic, dynamic>;
+            var sessionId = data['sessionId'];
+
+            // Kiểm tra cẩn thận dữ liệu lồng nhau
+            if (data.containsKey('extraInfo') && data['extraInfo'] is Map) {
+              var extraInfo = data['extraInfo'] as Map<dynamic, dynamic>;
+
+              // Sử dụng containsKey để kiểm tra key tồn tại
+              if (extraInfo.containsKey('type')) {
+                var callType = extraInfo['type'];
+
+                // So sánh callType với một string để tránh lỗi type
+                if (callType.toString() == CallType.VIDEO.toString()) {
+                  // Xử lý cuộc gọi video
+                  try {
+                    await MptCallKitController.channel
+                        .invokeMethod('reInvite', {
+                      'sessionId': sessionId.toString(),
+                    });
+                  } catch (e) {
+                    print("Error invoking reinvite method: $e");
+                  }
+                }
+              }
+            }
+          }
+        }
+        if (onMessageReceived != null) {
+          onMessageReceived!(message);
+        }
+      }, onError: (error) {
+        print("Error subscribing to conversation channel $channelName: $error");
+      });
+
+      print("Successfully subscribed to conversation channel $channelName");
+    } catch (e) {
+      print(
+          "Exception while subscribing to conversation channel $channelName: $e");
     }
   }
 
@@ -355,6 +431,21 @@ class MptSocketSocketServer {
     }
   }
 
+  /// Send message to conversation channel
+  Future<void> sendConversationMessage(String name, dynamic data) async {
+    if (conversationChannel == null) {
+      print("Cannot send conversation message: conversationChannel is null");
+      return;
+    }
+
+    try {
+      await conversationChannel!.publish(name: name, data: data);
+      print("Ably sent conversation message: $name - $data");
+    } catch (e) {
+      print("Error sending conversation message: $e");
+    }
+  }
+
   /// Close connection
   Future<void> closeConnection() async {
     try {
@@ -362,6 +453,10 @@ class MptSocketSocketServer {
         if (channel != null) {
           await channel!.detach();
           print("Channel detached");
+        }
+        if (conversationChannel != null) {
+          await conversationChannel!.detach();
+          print("Conversation channel detached");
         }
         await ablyClient!.connection.close();
         print("Ably disconnected from Ably");
@@ -399,43 +494,6 @@ class MptSocketSocketServer {
       _instance = null;
       print("MptSocketAbly instance destroyed successfully");
     }
-  }
-
-  /// Subscribe to conversation channel
-  Future<void> subscribeToConversation(String conversationId) async {
-    if (ablyClient == null) {
-      print("Error: Ably client is not initialized");
-      return;
-    }
-
-    String channelName = 'conversation_$tenantId';
-    print("Subscribing to conversation channel: $channelName");
-
-    try {
-      ably.RealtimeChannel conversationChannel =
-          ablyClient!.channels.get(channelName);
-
-      conversationChannel.subscribe().listen((ably.Message message) {
-        print(
-            "Received message on conversation channel $channelName: ${message.name} - ${message.data}");
-        if (onMessageReceived != null) {
-          onMessageReceived!(message);
-        }
-      }, onError: (error) {
-        print("Error subscribing to conversation channel $channelName: $error");
-      });
-
-      print("Successfully subscribed to conversation channel $channelName");
-    } catch (e) {
-      print(
-          "Exception while subscribing to conversation channel $channelName: $e");
-    }
-  }
-
-  /// Static method to subscribe to conversation
-  static Future<void> subscribeToConversationChannel(
-      String conversationId) async {
-    await instance.subscribeToConversation(conversationId);
   }
 
   /// Create a single instance

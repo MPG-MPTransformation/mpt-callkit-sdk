@@ -196,6 +196,11 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     }, 30000); // 30 seconds timeout
                 }
                 break;
+            case "reInvite":
+                String sessionId = call.argument("sessionId");
+                boolean reinviteResult = reinviteSession(sessionId);
+                result.success(reinviteResult);
+                break;
             default:
                 result.notImplemented();
         }
@@ -416,7 +421,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         System.out.println("quanth: Answer call sessionID: " + currentLine.sessionID);
         System.out.println("quanth: Answer call state: " + currentLine.state);
         if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING) {
-            int result = Engine.Instance().getEngine().answerCall(currentLine.sessionID, currentLine.hasVideo);
+            int result = Engine.Instance().getEngine().answerCall(currentLine.sessionID, true);
             System.out.println("quanth: Answer call with video: " + currentLine.hasVideo);
             System.out.println("quanth: Answer call result: " + result);
             if (result == 0) {
@@ -454,5 +459,40 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
         System.out.println("quanth: Call transfer initiated to " + destination);
         return true;
+    }
+
+    boolean reinviteSession(String sessionId) {
+        Session currentLine = CallManager.Instance().getCurrentSession();
+        if (currentLine == null || currentLine.sessionID <= 0 || currentLine.sipMessage == null) {
+            System.out.println("quanth: Cannot reinvite - no active session or missing SIP message");
+            return false;
+        }
+
+        System.out.println("quanth: sessionId received: " + sessionId);
+        
+        // Lấy X-Session-Id từ sipMessage
+        String messageSesssionId = Engine.Instance().getEngine()
+                .getSipMessageHeaderValue(currentLine.sipMessage, "X-Session-Id").toString();
+        System.out.println("quanth: SIP message X-Session-Id: " + messageSesssionId);
+
+        // So sánh với sessionId được truyền vào
+        if (messageSesssionId.equals(sessionId)) {
+            // Cập nhật trạng thái video của session
+            currentLine.hasVideo = true;
+
+             // Gửi video từ camera
+             int sendVideoRes = Engine.Instance().getEngine().sendVideo(currentLine.sessionID, true);
+             System.out.println("quanth: reinviteSession - sendVideo(): " + sendVideoRes);
+            
+            // Cập nhật cuộc gọi để thêm video stream
+            int updateRes = Engine.Instance().getEngine().updateCall(currentLine.sessionID, true, true);
+            System.out.println("quanth: reinviteSession - updateCall(): " + updateRes);
+
+            System.out.println("quanth: Successfully updated call with video for session: " + sessionId);
+            return true;
+        } else {
+            System.out.println("quanth: SessionId not match. SIP message ID: " + messageSesssionId + ", Request: " + sessionId);
+            return false;
+        }
     }
 }

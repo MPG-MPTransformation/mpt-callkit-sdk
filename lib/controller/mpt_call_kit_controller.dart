@@ -20,7 +20,7 @@ class MptCallKitController {
   String extension = '';
   Map<String, dynamic>? userData;
   Map<String, dynamic>? currentUserInfo;
-  ExtensionData? _extensionData;
+  ExtensionData? extensionData;
   Map<String, dynamic>? _configuration;
 
   static const MethodChannel channel = MethodChannel('mpt_callkit');
@@ -173,7 +173,7 @@ class MptCallKitController {
   }) async {
     // Get extension data from current user info
     if (currentUserInfo != null) {
-      _extensionData = ExtensionData(
+      extensionData = ExtensionData(
         username: currentUserInfo!["user"]["extension"],
         password: currentUserInfo!["user"]["sipPassword"],
         domain: currentUserInfo!["tenant"]["domainContext"],
@@ -181,17 +181,17 @@ class MptCallKitController {
         port: 5060,
       );
 
-      if (_extensionData != null) {
+      if (extensionData != null) {
         // Register to SIP server
         await MptCallKitController().online(
-          username: _extensionData!.username!,
-          displayName: _extensionData!.username!, // ??
+          username: extensionData!.username!,
+          displayName: extensionData!.username!, // ??
           srtpType: 0,
-          authName: _extensionData!.username!, // ??
-          password: _extensionData!.password!,
-          userDomain: _extensionData!.domain!,
-          sipServer: _extensionData!.sipServer!,
-          sipServerPort: _extensionData!.port ?? 5060,
+          authName: extensionData!.username!, // ??
+          password: extensionData!.password!,
+          userDomain: extensionData!.domain!,
+          sipServer: extensionData!.sipServer!,
+          sipServerPort: extensionData!.port ?? 5060,
           transportType: 0,
           onError: (p0) {
             print("Error in register to sip server: ${p0.toString()}");

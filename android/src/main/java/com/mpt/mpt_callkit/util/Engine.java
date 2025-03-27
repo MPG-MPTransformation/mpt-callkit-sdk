@@ -109,4 +109,12 @@ public class Engine {
     public PortSipSdk getEngine() {
         return mEngine;
     }
+
+    public String getHeaderValueFromCurrentSession(String headerName) {
+        Session currentSession = CallManager.Instance().getCurrentSession();
+        if (currentSession != null && currentSession.sipMessage != null) {
+            return getEngine().getSipMessageHeaderValue(currentSession.sipMessage, headerName);
+        }
+        return "";
+    }
 }
