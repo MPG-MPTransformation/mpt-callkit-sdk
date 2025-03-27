@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:example/call_pad.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
-import 'package:mpt_callkit/models/extension_model.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
 
@@ -25,7 +24,6 @@ class LoginResultScreen extends StatefulWidget {
 }
 
 class _LoginResultScreenState extends State<LoginResultScreen> {
-  ExtensionData? _extensionData;
   final TextEditingController _destinationController =
       TextEditingController(text: "10045");
   late StreamSubscription<String> _callStateSubscription;
@@ -64,15 +62,17 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
 
   // register SIP
   Future<bool> doRegister() async {
+    var extensionData = MptCallKitController().extensionData;
+
     return await MptCallKitController().online(
-      username: _extensionData!.username!,
-      displayName: _extensionData!.username!, // ??
+      username: extensionData!.username!,
+      displayName: extensionData.username!, // ??
       srtpType: 0,
-      authName: _extensionData!.username!, // ??
-      password: _extensionData!.password!,
-      userDomain: _extensionData!.domain!,
-      sipServer: _extensionData!.sipServer!,
-      sipServerPort: _extensionData!.port ?? 5060,
+      authName: extensionData.username!, // ??
+      password: extensionData.password!,
+      userDomain: extensionData.domain!,
+      sipServer: extensionData.sipServer!,
+      sipServerPort: extensionData.port ?? 5060,
       transportType: 0,
       onError: (p0) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -258,7 +258,9 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                                           await doUnregiter();
                                         } else {
                                           // Nếu đang offline thì chuyển sang online
-                                          if (_extensionData != null) {
+                                          if (MptCallKitController()
+                                                  .extensionData !=
+                                              null) {
                                             await doRegister();
                                           } else {
                                             ScaffoldMessenger.of(context)
