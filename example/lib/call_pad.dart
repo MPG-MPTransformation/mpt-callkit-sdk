@@ -266,6 +266,9 @@ class _CallPadState extends State<CallPad> {
       case 'reject':
         MptCallKitController().rejectCall();
         break;
+      case 'switchCamera':
+        MptCallKitController().switchCamera();
+        break;
       default:
         print('Function $functionName not implemented');
     }

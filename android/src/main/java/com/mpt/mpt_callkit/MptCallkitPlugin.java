@@ -35,7 +35,6 @@ import android.os.Handler;
 import io.flutter.embedding.engine.FlutterEngine;
 import com.mpt.mpt_callkit.LocalViewFactory;
 import com.mpt.mpt_callkit.RemoteViewFactory;
-
 public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
 
     /// The MethodChannel that will the communication between Flutter and native Android
@@ -59,11 +58,11 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
         // Đăng ký LocalViewFactory
         flutterPluginBinding
-            .getPlatformViewRegistry()
-            .registerViewFactory("LocalView", new LocalViewFactory(flutterPluginBinding.getApplicationContext()));
-         flutterPluginBinding
-             .getPlatformViewRegistry()
-             .registerViewFactory("RemoteView", new RemoteViewFactory(flutterPluginBinding.getApplicationContext()));
+                .getPlatformViewRegistry()
+                .registerViewFactory("LocalView", new LocalViewFactory(flutterPluginBinding.getApplicationContext()));
+        flutterPluginBinding
+                .getPlatformViewRegistry()
+                .registerViewFactory("RemoteView", new RemoteViewFactory(flutterPluginBinding.getApplicationContext()));
     }
 
     @Override
@@ -129,6 +128,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 break;
             case "answer":
                 answerCall();
+                break;
+            case "switchCamera":
+                boolean switchResult = switchCamera();
+                result.success(switchResult);
                 break;
             case "reject":
                 rejectCall();
@@ -403,7 +406,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     void toggleCamera(boolean enable) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (currentLine != null && currentLine.sessionID > 0) {
-            currentLine.bMuteVideo = enable;
+            currentLine.bMuteVideo = !enable;
             Engine.Instance().getEngine().muteSession(
                     currentLine.sessionID,
                     currentLine.bMuteAudioInComing,
@@ -421,7 +424,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         System.out.println("quanth: Answer call sessionID: " + currentLine.sessionID);
         System.out.println("quanth: Answer call state: " + currentLine.state);
         if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING) {
-            int result = Engine.Instance().getEngine().answerCall(currentLine.sessionID, true);
+            int result = Engine.Instance().getEngine().answerCall(currentLine.sessionID, currentLine.hasVideo);
             System.out.println("quanth: Answer call with video: " + currentLine.hasVideo);
             System.out.println("quanth: Answer call result: " + result);
             if (result == 0) {
@@ -468,8 +471,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             return false;
         }
 
-        System.out.println("quanth: sessionId received: " + sessionId);
-        
+        System.out.println("quanth: SIP message Session-Id: " + sessionId);
+
         // Lấy X-Session-Id từ sipMessage
         String messageSesssionId = Engine.Instance().getEngine()
                 .getSipMessageHeaderValue(currentLine.sipMessage, "X-Session-Id").toString();
@@ -480,10 +483,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             // Cập nhật trạng thái video của session
             currentLine.hasVideo = true;
 
-             // Gửi video từ camera
-             int sendVideoRes = Engine.Instance().getEngine().sendVideo(currentLine.sessionID, true);
-             System.out.println("quanth: reinviteSession - sendVideo(): " + sendVideoRes);
-            
+            // Gửi video từ camera
+            int sendVideoRes = Engine.Instance().getEngine().sendVideo(currentLine.sessionID, true);
+            System.out.println("quanth: reinviteSession - sendVideo(): " + sendVideoRes);
+
             // Cập nhật cuộc gọi để thêm video stream
             int updateRes = Engine.Instance().getEngine().updateCall(currentLine.sessionID, true, true);
             System.out.println("quanth: reinviteSession - updateCall(): " + updateRes);
@@ -493,6 +496,24 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         } else {
             System.out.println("quanth: SessionId not match. SIP message ID: " + messageSesssionId + ", Request: " + sessionId);
             return false;
+        }
+    }
+
+    boolean switchCamera() {
+        boolean value = !Engine.Instance().mUseFrontCamera;
+        SetCamera(Engine.Instance().getEngine(), value);
+        Engine.Instance().mUseFrontCamera = value;
+
+        // Log để debug
+        System.out.println("quanth: Camera switched to " + (value ? "front" : "back"));
+        return value;
+    }
+
+    private void SetCamera(PortSipSdk portSipLib, boolean userFront) {
+        if (userFront) {
+            portSipLib.setVideoDeviceId(0);
+        } else {
+            portSipLib.setVideoDeviceId(1);
         }
     }
 }

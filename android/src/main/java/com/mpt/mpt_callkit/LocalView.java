@@ -14,7 +14,6 @@ import com.mpt.mpt_callkit.util.Engine;
 import com.mpt.mpt_callkit.util.Session;
 import com.portsip.PortSIPVideoRenderer;
 import com.portsip.PortSipSdk;
-
 public class LocalView implements PlatformView {
     private final FrameLayout containerView;
     private PortSIPVideoRenderer localRenderVideoView;
@@ -60,20 +59,6 @@ public class LocalView implements PlatformView {
         }
     }
 
-    private void handleSwitchCamera() {
-        boolean value = !Engine.Instance().mUseFrontCamera;
-        SetCamera(Engine.Instance().getEngine(), value);
-        Engine.Instance().mUseFrontCamera = value;
-    }
-
-    private void SetCamera(PortSipSdk portSipLib, boolean userFront) {
-        if (userFront) {
-            portSipLib.setVideoDeviceId(0);
-        } else {
-            portSipLib.setVideoDeviceId(1);
-        }
-    }
-
     private void updateVideo(PortSipSdk portSipLib) {
         CallManager callManager = CallManager.Instance();
         Session cur = CallManager.Instance().getCurrentSession();
@@ -84,19 +69,24 @@ public class LocalView implements PlatformView {
             System.out.println("quanth: application.mConference = false");
 
             if (cur != null && !cur.IsIdle() && cur.sessionID != -1) {
-
-                /*HAVE TO HANDLE CHANGE VOICE CALL TO VIDEO CALL FIRST THEN REMOVE THIS COMMENT*/
-            
-                // if (cur.hasVideo) {
-                //     portSipLib.displayLocalVideo(true, true, localRenderVideoView);
-                //     portSipLib.sendVideo(cur.sessionID, true);
-                // } else {
-                //     localRenderVideoView.setVisibility(View.GONE);
-                //     portSipLib.displayLocalVideo(false, false, null);
-                // }
-
-                portSipLib.displayLocalVideo(true, true, localRenderVideoView);
+                // Kiểm tra xem video có bị mute không
+                if (cur.bMuteVideo) {
+                    // Nếu video bị mute, ẩn local view
+                    System.out.println("quanth: Video is muted, hiding local view");
+                    localRenderVideoView.setVisibility(View.GONE);
+                    // Vẫn có thể tiếp tục gửi video nếu cần, nhưng không hiển thị
+                    portSipLib.displayLocalVideo(false, true, null);
+                } else {
+                    // Nếu video không bị mute, hiển thị local view
+                    System.out.println("quanth: Video is not muted, showing local view");
+                    localRenderVideoView.setVisibility(View.VISIBLE);
+                    portSipLib.displayLocalVideo(true, true, localRenderVideoView);
+                    portSipLib.sendVideo(cur.sessionID, true);
+                }
             } else {
+                // Không có cuộc gọi đang diễn ra, tắt video
+                System.out.println("quanth: No active call, hide local view");
+                localRenderVideoView.setVisibility(View.GONE);
                 portSipLib.displayLocalVideo(false, false, null);
             }
         }
@@ -104,12 +94,14 @@ public class LocalView implements PlatformView {
 
     private void setupReceiver() {
         // Thêm xử lý sự kiện broadcast
-        receiver.broadcastReceiver = new PortMessageReceiver.BroadcastListener() {
-            @Override
-            public void onBroadcastReceiver(Intent intent) {
-                handleBroadcastReceiver(intent);
-            }
-        };
+        if (receiver != null) {
+            receiver.broadcastReceiver = new PortMessageReceiver.BroadcastListener() {
+                @Override
+                public void onBroadcastReceiver(Intent intent) {
+                    handleBroadcastReceiver(intent);
+                }
+            };
+        }
     }
 
     private void handleBroadcastReceiver(Intent intent) {
@@ -124,8 +116,6 @@ public class LocalView implements PlatformView {
 
             if (session != null) {
                 switch (session.state) {
-                    case INCOMING:
-                        break;
                     case TRYING:
                     case CONNECTED:
                         updateVideo(Engine.Instance().getEngine());
@@ -137,6 +127,9 @@ public class LocalView implements PlatformView {
                         break;
                 }
             }
+        } else if (action != null && action.equals("VIDEO_MUTE_STATE_CHANGED")) {
+            // Thêm phần xử lý khi trạng thái mute video thay đổi
+            updateVideo(Engine.Instance().getEngine());
         }
     }
 }

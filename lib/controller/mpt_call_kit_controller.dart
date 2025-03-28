@@ -5,12 +5,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:mpt_callkit/views/camera_view.dart';
 import 'package:mpt_callkit/models/extension_model.dart';
 import 'package:mpt_callkit/models/release_extension_model.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
 import 'package:mpt_callkit/mpt_callkit_auth_method.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
+import 'package:mpt_callkit/views/camera_view.dart';
 
 import 'mpt_call_kit_controller_repo.dart';
 
@@ -829,6 +829,16 @@ class MptCallKitController {
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'answer' mothod: '${e.message}'.");
+      return false;
+    }
+  }
+
+  Future<bool> switchCamera() async {
+    try {
+      final result = await channel.invokeMethod('switchCamera');
+      return result ?? false;
+    } catch (e) {
+      print('Error switching camera: $e');
       return false;
     }
   }

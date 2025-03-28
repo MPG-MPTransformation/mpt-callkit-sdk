@@ -156,21 +156,45 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
   }
 
   // change status method
-  void changeStatus({
+  Future<bool> changeStatus({
     required String statusName,
     required int reasonCodeId,
   }) async {
-    await MptCallKitController().changeAgentStatus(
+    bool result = await MptCallKitController().changeAgentStatus(
       reasonCodeId: reasonCodeId,
       statusName: statusName,
       onError: (error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error ?? 'Change status failed!'),
-          ),
-        );
+        print("Change status failed! $error");
       },
     );
+
+    if (!result) {
+      //so dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Socket server has disconnected'),
+          content: const Text('Logout?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+              child: const Text('No'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop(true);
+                await logout();
+              },
+              child: const Text('Yes'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return result;
   }
 
   @override
@@ -211,6 +235,44 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                           children: [
                             Text(
                               "Login status: ${widget.title}",
+                            ),
+                            StreamBuilder<bool>(
+                              stream: MptSocketSocketServer.connectionStatus,
+                              initialData: MptSocketSocketServer
+                                  .getCurrentConnectionState(),
+                              builder: (context, snapshot) {
+                                final isSocketConnected =
+                                    snapshot.data ?? false;
+
+                                return Row(
+                                  children: [
+                                    Text(
+                                      "Socket server connection: ${isSocketConnected ? 'Connected' : 'Disconnected'}",
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    IconButton(
+                                      onPressed: () {
+                                        // Khi cần kết nối lại thủ công
+                                        if (!isSocketConnected) {
+                                          // Khởi tạo lại kết nối nếu cần
+                                          _initDataWhenLoginSuccess();
+                                        }
+                                      },
+                                      icon: Icon(
+                                        isSocketConnected
+                                            ? Icons.check_circle
+                                            : Icons.undo,
+                                      ),
+                                      color: isSocketConnected
+                                          ? Colors.green
+                                          : Colors.deepOrange,
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                             const SizedBox(height: 10),
                             const Text(
@@ -389,12 +451,29 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
 
   Future<void> _makeCallOutbound() async {
     final String destination = _destinationController.text.trim();
-    if (destination.isEmpty || MptCallKitController().isOnline == false) {
+
+    if (destination.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-              "Failed: Please enter destination number and make sure registered to SIP server"),
-          backgroundColor: Colors.red,
+          content: Text("Please enter destination number!"),
+        ),
+      );
+      return;
+    }
+
+    if (MptCallKitController().isOnline == false) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("SIP server has not registered!"),
+        ),
+      );
+      return;
+    }
+
+    if (MptSocketSocketServer.instance.checkConnection() == false) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Socket server has disconnected!"),
         ),
       );
       return;

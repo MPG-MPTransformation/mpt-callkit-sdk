@@ -54,6 +54,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   
    var _enableForceBackground: Bool?
   
+   var mUseFrontCamera: Bool = true
+  
    enum CallState: String {
        case INCOMING = "INCOMING"
        case TRYING = "TRYING"
@@ -545,27 +547,30 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            NSLog("Not exist this SessionId = \(sessionId)")
            return
        }
-      
+       
        result.session.sessionState = true
        result.session.videoState = existsVideo
-      
+       result.session.videoMuted = !existsVideo
+       
        if existsVideo {
+           // Đảm bảo camera được thiết lập đúng
+           setCamera(useFrontCamera: mUseFrontCamera)
            videoViewController.onStartVideo(sessionId)
        }
-      
-       if existsAudio {}
-      
-      
+       
+       // Cập nhật trạng thái video
+       updateVideo(sessionId: sessionId)
+       
        if result.session.isReferCall {
            result.session.isReferCall = false
            result.session.originCallSessionId = -1
        }
-      
+       
        if isConference == true {
            _callManager.joinToConference(sessionid: sessionId)
        }
        _ = mSoundService.stopRingBackTone()
-      
+       
        // Gửi trạng thái về Flutter
        sendCallStateToFlutter(.CONNECTED)
    }
@@ -620,35 +625,19 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    }
   
     public func onInviteUpdated(_ sessionId: Int, audioCodecs: String!, videoCodecs: String!, screenCodecs: String!, existsAudio: Bool, existsVideo: Bool, existsScreen: Bool, sipMessage: String!) {
-       NSLog("onInviteUpdated... sessionId: \(sessionId) audioCodecs: \(String(describing: audioCodecs)) videoCodecs: \(String(describing: videoCodecs)) screenCodecs: \(String(describing: screenCodecs)) existsAudio: \(existsAudio) existsVideo: \(existsVideo) existsScreen: \(existsScreen) sipMessage: \(String(describing: sipMessage))")
+       NSLog("onInviteUpdated... sessionId: \(sessionId) existsVideo: \(existsVideo)")
        guard let result = _callManager.findCallBySessionID(sessionId) else {
-           return ;
+           return
        }
-      
-       // Checking does this call has video
-       result.session.videoState = existsVideo;
-       result.session.screenShare = existsScreen;
-
-
-       print("videoViewController.speakState: \(videoViewController.speakState)")
-       if videoViewController.speakState == 0{
-           setLoudspeakerStatus(true)
-       } else{
-           setLoudspeakerStatus(false)
-       }
-      
-       if existsVideo {
-           if (!isVideoCall) {
-               isVideoCall = true
-               videoViewController.initVideoViews()
-               videoViewController.initButtons()
-           }
-           videoViewController.onStartVideo(sessionId)
-          
-       }
-       if existsAudio {}
-
-
+       
+       // Cập nhật trạng thái video
+       result.session.videoState = existsVideo
+       result.session.videoMuted = !existsVideo
+       result.session.screenShare = existsScreen
+       
+       // Cập nhật giao diện
+       updateVideo(sessionId: sessionId)
+       
        print("The call has been updated on line \(result.index)")
    }
 
@@ -1369,6 +1358,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        } else {
            result(FlutterError(code: "INVALID_ARGUMENT", message: "Destination is required for transfer", details: nil))
        }
+       case "switchCamera":
+           let switchResult = switchCamera()
+           result(switchResult)
        default:
            result(FlutterMethodNotImplemented)
        }
@@ -1466,6 +1458,113 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    // Gửi trạng thái microphone
    func sendMicrophoneStateToFlutter(_ isOn: Bool) {
        methodChannel?.invokeMethod("microphoneState", arguments: isOn)
+   }
+
+   func switchCamera() -> Bool {
+       let value = !mUseFrontCamera
+       setCamera(useFrontCamera: value)
+       mUseFrontCamera = value
+       
+       // Log để debug
+       print("quanth: Camera switched to \(value ? "front" : "back")")
+       return value
+   }
+
+   private func setCamera(useFrontCamera: Bool) {
+       if useFrontCamera {
+           print("quanth: Setting front camera (ID 0)")
+           portSIPSDK.setVideoDeviceId(0)
+       } else {
+           print("quanth: Setting back camera (ID 1)")
+           portSIPSDK.setVideoDeviceId(1)
+       }
+   }
+
+   private func initLocalView() {
+       // Thiết lập camera dựa vào trạng thái hiện tại
+       setCamera(useFrontCamera: mUseFrontCamera)
+       
+       // ... existing code ...
+   }
+
+   // Thêm phương thức để xử lý video
+   func updateVideo(sessionId: CLong) {
+       if let result = _callManager.findCallBySessionID(sessionId) {
+           if Engine.Instance().mConference {
+               print("quanth: application.mConference = true && setConferenceVideoWindow")
+           } else {
+               print("quanth: application.mConference = false")
+               
+               if sessionId > 0 && result.session.sessionState {
+                   // Kiểm tra trạng thái mute video
+                   if result.session.videoMuted {
+                       // Nếu video bị mute, ẩn local view
+                       print("quanth: Video is muted, hiding local view")
+                       videoViewController.viewLocalVideo?.isHidden = true
+                       
+                       // Vẫn có thể tiếp tục gửi video nếu cần, nhưng không hiển thị
+                       portSIPSDK.displayLocalVideo(false, useOpenGL: true, videoView: nil)
+                   } else {
+                       // Nếu video không bị mute, hiển thị local view
+                       print("quanth: Video is not muted, showing local view")
+                       videoViewController.viewLocalVideo?.isHidden = false
+                       portSIPSDK.displayLocalVideo(true, useOpenGL: true, videoView: videoViewController.viewLocalVideo)
+                       portSIPSDK.sendVideo(sessionId, sendState: true)
+                   }
+               } else {
+                   // Không có cuộc gọi đang diễn ra, tắt video
+                   print("quanth: No active call, hide local view")
+                   videoViewController.viewLocalVideo?.isHidden = true
+                   portSIPSDK.displayLocalVideo(false, useOpenGL: false, videoView: nil)
+               }
+           }
+       }
+   }
+
+   // Thêm phương thức để gửi thông báo
+   private func sendNotification(name: String, userInfo: [AnyHashable: Any]? = nil) {
+       NotificationCenter.default.post(name: NSNotification.Name(name), object: nil, userInfo: userInfo)
+   }
+
+   // Cập nhật các phương thức để gửi thông báo khi trạng thái thay đổi
+   func toggleVideo(_ enable: Bool) {
+       if activeSessionid != CLong(INVALID_SESSION_ID) {
+           let result = _callManager.findCallBySessionID(activeSessionid)
+           if result != nil {
+               result!.session.videoMuted = !enable
+               portSIPSDK.muteSession(activeSessionid, 
+                                      muteIncomingAudio: false, 
+                                      muteOutgoingAudio: false, 
+                                      muteIncomingVideo: false, 
+                                      muteOutgoingVideo: !enable)
+               
+               // Gửi thông báo cho LocalView và RemoteView
+               sendNotification(name: "VIDEO_MUTE_STATE_CHANGED")
+               
+               // Gửi trạng thái đến Flutter
+               methodChannel?.invokeMethod("cameraState", arguments: enable)
+           }
+       }
+   }
+
+   func sendCallStateToFlutter(_ state: CallState) {
+       // Gửi trạng thái cơ bản
+       methodChannel?.invokeMethod("callState", arguments: state.rawValue)
+       
+       // Gửi thêm thông tin chi tiết nếu có cuộc gọi đang hoạt động
+       if activeSessionid != CLong(INVALID_SESSION_ID) {
+           if let result = _callManager.findCallBySessionID(activeSessionid) {
+               let callDetails: [String: Any] = [
+                   "sessionId": activeSessionid,
+                   "hasVideo": result.session.videoState,
+                   "state": state.rawValue
+               ]
+               methodChannel?.invokeMethod("callDetails", arguments: callDetails)
+           }
+       }
+       
+       // Gửi thông báo cho LocalView và RemoteView
+       sendNotification(name: "CALL_STATE_CHANGED")
    }
 }
 

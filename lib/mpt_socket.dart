@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:ably_flutter/ably_flutter.dart' as ably;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
@@ -198,10 +197,16 @@ class MptSocketSocketServer {
   ably.RealtimeChannel? channel;
   ably.RealtimeChannel? conversationChannel;
   Function(ably.Message)? onMessageReceived;
+
+  // Stream cho trạng thái agent
   StreamController<String> _agentStatusController =
       StreamController<String>.broadcast();
-
   Stream<String> get statusStream => _agentStatusController.stream;
+
+  // Thêm Stream cho trạng thái kết nối socket
+  StreamController<bool> _connectionStatusController =
+      StreamController<bool>.broadcast();
+  Stream<bool> get connectionStatusStream => _connectionStatusController.stream;
 
   // Constructor private
   MptSocketSocketServer._internal();
@@ -216,6 +221,11 @@ class MptSocketSocketServer {
     /// Create a new stream controller if it is closed
     if (_agentStatusController.isClosed) {
       _agentStatusController = StreamController<String>.broadcast();
+    }
+
+    // Tạo lại connection status controller nếu đã đóng
+    if (_connectionStatusController.isClosed) {
+      _connectionStatusController = StreamController<bool>.broadcast();
     }
 
     // Gán tham số vào thuộc tính của lớp
@@ -253,11 +263,18 @@ class MptSocketSocketServer {
         .on()
         .listen((ably.ConnectionStateChange stateChange) {
       print("Ably connection state changed: ${stateChange.current}");
-      if (stateChange.current == ably.ConnectionState.connected) {
+
+      // Cập nhật trạng thái kết nối khi có thay đổi
+      bool isConnected = stateChange.current == ably.ConnectionState.connected;
+      if (!_connectionStatusController.isClosed) {
+        _connectionStatusController.add(isConnected);
+      }
+
+      if (isConnected) {
         print("Ably socket connected");
         isConnecting = true;
         _subscribeToChannelAgentStatus();
-        _subscribeToConversationChannel(); // Subscribe to conversation channel right after connection
+        _subscribeToConversationChannel();
       } else {
         print("Ably state change: ${stateChange.current}");
         isConnecting = false;
@@ -332,16 +349,14 @@ class MptSocketSocketServer {
           if (message.data is Map) {
             Map<dynamic, dynamic> data = message.data as Map<dynamic, dynamic>;
             var sessionId = data['sessionId'];
+            print("hienhh: Session ID: $sessionId");
 
-            // Kiểm tra cẩn thận dữ liệu lồng nhau
-            if (data.containsKey('extraInfo') && data['extraInfo'] is Map) {
-              var extraInfo = data['extraInfo'] as Map<dynamic, dynamic>;
+            if (data.containsKey('extraInfo')) {
+              var extraInfo = jsonDecode(data['extraInfo']);
 
-              // Sử dụng containsKey để kiểm tra key tồn tại
               if (extraInfo.containsKey('type')) {
                 var callType = extraInfo['type'];
 
-                // So sánh callType với một string để tránh lỗi type
                 if (callType.toString() == CallType.VIDEO.toString()) {
                   // Xử lý cuộc gọi video
                   try {
@@ -352,8 +367,14 @@ class MptSocketSocketServer {
                   } catch (e) {
                     print("Error invoking reinvite method: $e");
                   }
+                } else {
+                  print("hienhh: Call type has no video");
                 }
+              } else {
+                print("hienhh: ExtraInfo has no type");
               }
+            } else {
+              print("hienhh: Data has no extraInfo");
             }
           }
         }
@@ -476,6 +497,11 @@ class MptSocketSocketServer {
       if (!_agentStatusController.isClosed) {
         _agentStatusController.close();
       }
+
+      // Đóng connection status controller
+      if (!_connectionStatusController.isClosed) {
+        _connectionStatusController.close();
+      }
     } catch (e) {
       print("Error disposing MptSocketAbly instance: $e");
     }
@@ -526,6 +552,14 @@ class MptSocketSocketServer {
 
   /// Check connection
   static bool isConnected() {
+    return _instance != null && _instance!.checkConnection();
+  }
+
+  /// Stream static getter cho trạng thái kết nối
+  static Stream<bool> get connectionStatus => instance.connectionStatusStream;
+
+  /// Truy cập trạng thái kết nối hiện tại
+  static bool getCurrentConnectionState() {
     return _instance != null && _instance!.checkConnection();
   }
 }

@@ -31,6 +31,9 @@ class RemoteView: NSObject, FlutterPlatformView {
         
         // Tạo và cấu hình remoteVideoView
         createRemoteView()
+        
+        // Cập nhật trạng thái video dựa trên phiên hiện tại
+        updateVideoState()
     }
     
     func view() -> UIView {
@@ -53,14 +56,73 @@ class RemoteView: NSObject, FlutterPlatformView {
                 remoteVideoView.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
                 remoteVideoView.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
             ])
+            
+            // Thiết lập remote video window
+            if let plugin = MptCallkitPlugin.shared, plugin.activeSessionid > 0 {
+                plugin.portSIPSDK.setRemoteVideoWindow(plugin.activeSessionid, remoteVideoWindow: remoteVideoView)
+            }
         }
+        
+        // Đăng ký lắng nghe sự kiện broadcast
+        setupReceiver()
+    }
+    
+    private func updateVideoState() {
+        // Kiểm tra phiên hiện tại để quyết định hiển thị hay ẩn remote video
+        if let plugin = MptCallkitPlugin.shared, 
+           let currentSession = plugin._callManager.findCallBySessionID(plugin.activeSessionid) {
+            
+            if currentSession.session.sessionState && currentSession.session.videoState {
+                // Phiên kết nối và có video
+                remoteVideoView?.isHidden = false
+                
+                if let remoteVideoView = remoteVideoView {
+                    plugin.portSIPSDK.setRemoteVideoWindow(plugin.activeSessionid, remoteVideoWindow: remoteVideoView)
+                }
+            } else {
+                // Phiên không kết nối hoặc không có video
+                remoteVideoView?.isHidden = true
+                plugin.portSIPSDK.setRemoteVideoWindow(plugin.activeSessionid, remoteVideoWindow: nil)
+            }
+        }
+    }
+    
+    private func setupReceiver() {
+        // Đăng ký lắng nghe thông báo để cập nhật trạng thái video
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleCallStateChanged),
+            name: NSNotification.Name("CALL_STATE_CHANGED"),
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleVideoStateChanged),
+            name: NSNotification.Name("VIDEO_MUTE_STATE_CHANGED"),
+            object: nil
+        )
+    }
+    
+    @objc private func handleCallStateChanged(_ notification: Notification) {
+        updateVideoState()
+    }
+    
+    @objc private func handleVideoStateChanged(_ notification: Notification) {
+        updateVideoState()
     }
     
     // Giải phóng tài nguyên khi view bị hủy
     deinit {
+        // Hủy đăng ký thông báo
+        NotificationCenter.default.removeObserver(self)
+        
         if let remoteVideoView = remoteVideoView {
-            // Gọi method để giải phóng tài nguyên video renderer nếu cần
-            // remoteVideoView.release()
+            // Gọi method để giải phóng tài nguyên video renderer
+            if let plugin = MptCallkitPlugin.shared, plugin.activeSessionid > 0 {
+                plugin.portSIPSDK.setRemoteVideoWindow(plugin.activeSessionid, remoteVideoWindow: nil)
+            }
+            remoteVideoView.releaseDrawer()
         }
     }
 }
