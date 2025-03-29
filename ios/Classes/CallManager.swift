@@ -56,13 +56,8 @@ class CallManager: NSObject {
             sessionArray.append(Session())
         }
 
-        if #available(iOS 10.0, *) {
-            _enableCallKit = true
-        } else {
-            _enableCallKit = false
-        }
-        // Force disable CallKit
-        // _enableCallKit = false
+        _enableCallKit = false
+        _portSIPSDK.enableCallKit(false)
 
         _portSIPSDK.enableCallKit(_enableCallKit)
     }

@@ -137,11 +137,24 @@ class LoginViewController {
     
     func offLine() {
         if sipInitialized {
+            // Hủy bỏ cuộc gọi đang diễn ra nếu có
+            if let activeSessionId = MptCallkitPlugin.shared.activeSessionid,
+               let callManager = MptCallkitPlugin.shared._callManager {
+                if let currentCall = callManager.findCallBySessionID(activeSessionId) {
+                    callManager.hungUpCall(uuid: currentCall.session.uuid)
+                }
+            }
+            
+            // Unregister và cleanup
             portSIPSDK.unRegisterServer(90)
             portSIPSDK.unInitialize()
             sipInitialized = false
-            sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_OFFLINE
+            sipRegistrationStatus = .LOGIN_STATUS_OFFLINE
+            
+            // Thông báo về trạng thái offline
             MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: false)
+            
+            print("SIP Unregistered and Offline")
         }
         print("Offline and Unregistered")
     }
@@ -165,10 +178,10 @@ class LoginViewController {
     
     func unRegister() {
         if sipRegistrationStatus == .LOGIN_STATUS_LOGIN || sipRegistrationStatus == .LOGIN_STATUS_ONLINE {
-            print("Unregistered when in background")
-            sipRegistrationStatus = .LOGIN_STATUS_FAILUE
+            print("Force unregister SIP")
+            offLine()
         }
-        refreshRegister()
+        // refreshRegister()
     }
     
     func onRegisterSuccess(statusText: String) {

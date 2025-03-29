@@ -288,6 +288,35 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         // TODO: your plugin is no longer associated with an Activity.
         // Clean up references.
         System.out.println("quanth: onDetachedFromActivity");
+        // Unregister SIP khi app bị destroy
+        unregisterSipAndCleanup();
+    }
+
+    private void unregisterSipAndCleanup() {
+        if (CallManager.Instance().online) {
+            // Unregister SIP
+            Engine.Instance().getEngine().unRegisterServer(100);
+            Engine.Instance().getEngine().removeUser();
+            Engine.Instance().getEngine().unInitialize();
+            
+            // Reset các trạng thái
+            CallManager.Instance().online = false;
+            CallManager.Instance().isRegistered = false;
+            
+            // Dọn dẹp resources
+            if (activity != null && Engine.Instance().getReceiver() != null) {
+                try {
+                    activity.unregisterReceiver(Engine.Instance().getReceiver());
+                } catch (Exception e) {
+                    System.out.println("quanth: Error unregistering receiver: " + e.getMessage());
+                }
+            }
+            
+            // Stop service nếu đang chạy
+            if (context != null) {
+                context.stopService(new Intent(context, PortSipService.class));
+            }
+        }
     }
 
     public void requestPermissions(Activity activity, MethodChannel.Result result) {

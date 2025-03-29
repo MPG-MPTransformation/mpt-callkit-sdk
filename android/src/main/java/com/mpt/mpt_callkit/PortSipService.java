@@ -189,13 +189,17 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(channelID, getResourceFromContext(context, "app_name"), NotificationManager.IMPORTANCE_DEFAULT);
+            NotificationChannel channel = new NotificationChannel(channelID, 
+                getResourceFromContext(context, "app_name"), 
+                NotificationManager.IMPORTANCE_DEFAULT);
             channel.enableLights(true);
-            NotificationChannel callChannel = new NotificationChannel(callChannelID, getResourceFromContext(context, "app_name"), NotificationManager.IMPORTANCE_HIGH);
+            NotificationChannel callChannel = new NotificationChannel(callChannelID, 
+                getResourceFromContext(context, "app_name"), 
+                NotificationManager.IMPORTANCE_HIGH);
             mNotificationManager.createNotificationChannel(channel);
             mNotificationManager.createNotificationChannel(callChannel);
         }
-        showServiceNotifiCation();
+        // showServiceNotifiCation();
 
         registerReceiver();
     }
@@ -203,6 +207,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     @Override
     public void onDestroy() {
         super.onDestroy();
+        System.out.println("quanth: onDestroy called!");
         Engine.Instance().getEngine().destroyConference();
         unregisterReceiver();
         if (mCpuLock != null) {
@@ -1098,11 +1103,12 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     public static void startServiceCompatibility(@NonNull Context context, @NonNull Intent intent) {
         System.out.println("quanth: startServiceCompatibility");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent);
-        } else {
-            context.startService(intent);
-        }
+        // if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        //     context.startForegroundService(intent);
+        // } else {
+        //     context.startService(intent);
+        // }
+        context.startService(intent);
     }
 
     //--------------------

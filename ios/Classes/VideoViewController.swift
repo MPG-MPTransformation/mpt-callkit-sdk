@@ -689,41 +689,38 @@ class VideoViewController: UIViewController {
     
     func onClearState() {
         DispatchQueue.main.async {
-            self.stopCallTimer() // Stop the timer
+            self.stopCallTimer()
+            
+            // Cleanup audio
             self.speakState = 0
             self.portSIPSDK.setLoudspeakerStatus(true)
-            self.muteButton.setImage(UIImage(systemName: "speaker.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
-            self.muteMic = true
             self.muteState = true
-            self.portSIPSDK.muteSession(self.sessionId, muteIncomingAudio: false, muteOutgoingAudio: false, muteIncomingVideo: false, muteOutgoingVideo: false)
-            self.buttonSpeaker.setImage(UIImage(systemName: "mic.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+            self.muteMic = true
             
-            self.viewLocalVideo?.releaseVideoRender()
-            self.viewLocalVideo?.removeFromSuperview()
-            self.viewLocalVideo?.isHidden = true
-            
-            let appDelegate = MptCallkitPlugin.shared
-            let isVideoCall = appDelegate.isVideoCall
-            if isVideoCall {
+            // Cleanup video resources
+            if let appDelegate = MptCallkitPlugin.shared,
+               appDelegate.isVideoCall {
                 self.portSIPSDK.displayLocalVideo(false, mirror: true, localVideoWindow: nil)
-                self.viewLocalVideo.releaseVideoRender()
+                self.viewLocalVideo?.releaseVideoRender()
+                
                 if self.isStartVideo {
                     self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: nil)
                     self.portSIPSDK.setRemoteScreenWindow(self.sessionId, remoteScreenWindow: nil)
                     
-                    self.viewRemoteVideo.releaseVideoRender()
-                    // viewRemoteVideoSmall.releaseVideoRender()
-                    
-                    self.viewRemoteVideo.removeFromSuperview()
-                    // viewRemoteVideoSmall.removeFromSuperview()
+                    self.viewRemoteVideo?.releaseVideoRender()
+                    self.viewRemoteVideo?.removeFromSuperview()
                 }
-                self.portSIPSDK.sendVideo(self.sessionId, sendState: false)
                 
-                self.isStartVideo = false
-                self.sessionId = 0
+                self.portSIPSDK.sendVideo(self.sessionId, sendState: false)
             }
+            
+            // Reset session
+            self.isStartVideo = false
+            self.sessionId = 0
+            
+            // Force unregister SIP
+            MptCallkitPlugin.shared.loginViewController.offLine()
         }
-        self.dismiss(animated: true, completion: nil)
     }
     
     func startCallTimer() {
