@@ -1,3 +1,5 @@
+import 'package:mpt_callkit/mpt_callkit_auth_method.dart';
+
 import 'mpt_callkit_platform_interface.dart';
 
 class MptCallkit {
@@ -22,12 +24,12 @@ class MptCallkit {
         .registrationStateStream(onSuccess: onSuccess, onFailure: onFailure);
   }
 
-  Future<bool> unregisterConnection() async{
+  Future<bool> unregisterConnection() async {
     return await MptCallkitPlatform.instance.unregisterConnection();
   }
 
-  bool call(String phone) {
-    return MptCallkitPlatform.instance.call(phone);
+  bool call(String phone, bool isVideoCall) {
+    return MptCallkitPlatform.instance.call(phone, isVideoCall);
   }
 
   void hangup() {

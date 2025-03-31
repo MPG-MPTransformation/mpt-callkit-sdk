@@ -66,6 +66,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     public static final String ACTION_PUSH_TOKEN = "PortSip.AndroidSample.Test.PushToken";
     public static final String ACTION_SIP_REGIEST = "PortSip.AndroidSample.Test.REGIEST";
     public static final String ACTION_SIP_UNREGIEST = "PortSip.AndroidSample.Test.UNREGIEST";
+    public static final String ACTION_STOP = "PortSip.AndroidSample.Test.STOP";
     public static final String EXTRA_CALL_DESCRIPTION = "Description";
     public static final String ACTION_SIP_AUDIODEVICE = "PortSip.AndroidSample.Test.AudioDeviceUpdate";
     public static final String EXTRA_CALL_SEESIONID = "SessionID";
@@ -141,17 +142,21 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         } else {
             activitys = getActivePackagesCompat(this);
         }
+        System.out.println("quanth: isForeground - Checking if app is in foreground");
         if (activitys.length > 0) {
             String packagename = getPackageName();
             //String processName= getProcessName();||activityname.contains(processName)
             for (String activityname : activitys) {
-
+                System.out.println("quanth: isForeground - Active package: " + activityname);
                 if (activityname.contains(packagename)) {
+                    System.out.println("quanth: isForeground - App is in foreground");
                     return true;
                 }
             }
+            System.out.println("quanth: isForeground - App is NOT in foreground");
             return false;
         }
+        System.out.println("quanth: isForeground - No active packages found");
         return false;
     }
 
@@ -184,13 +189,17 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(channelID, getResourceFromContext(context, "app_name"), NotificationManager.IMPORTANCE_DEFAULT);
+            NotificationChannel channel = new NotificationChannel(channelID, 
+                getResourceFromContext(context, "app_name"), 
+                NotificationManager.IMPORTANCE_DEFAULT);
             channel.enableLights(true);
-            NotificationChannel callChannel = new NotificationChannel(callChannelID, getResourceFromContext(context, "app_name"), NotificationManager.IMPORTANCE_HIGH);
+            NotificationChannel callChannel = new NotificationChannel(callChannelID, 
+                getResourceFromContext(context, "app_name"), 
+                NotificationManager.IMPORTANCE_HIGH);
             mNotificationManager.createNotificationChannel(channel);
             mNotificationManager.createNotificationChannel(callChannel);
         }
-        showServiceNotifiCation();
+        // showServiceNotifiCation();
 
         registerReceiver();
     }
@@ -198,6 +207,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     @Override
     public void onDestroy() {
         super.onDestroy();
+        System.out.println("quanth: onDestroy called!");
         Engine.Instance().getEngine().destroyConference();
         unregisterReceiver();
         if (mCpuLock != null) {
@@ -242,6 +252,8 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                 Engine.Instance().getMethodChannel().invokeMethod("releaseExtension", true);
                 context.stopService(new Intent(this, PortSipService.class));
                 System.out.println("quanth: service unregisterToServer done");
+            } else if (ACTION_STOP.equals(intent.getAction())) {
+                return START_NOT_STICKY;
             }
         }
         return result;
@@ -320,11 +332,13 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     }
 
     public void unregisterToServer() {
+        System.out.println("quanth: unregisterToServer");
         if (CallManager.Instance().online) {
             Engine.Instance().getEngine().unRegisterServer(100);
             Engine.Instance().getEngine().removeUser();
             Engine.Instance().getEngine().unInitialize();
             CallManager.Instance().online = false;
+            Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", false);
             CallManager.Instance().isRegistered = false;
         }
     }
@@ -370,6 +384,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     private int initialSDK() {
         Engine.Instance().getEngine().setOnPortSIPEvent(this);
         CallManager.Instance().online = true;
+        // Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
         String dataPath = getExternalFilesDir(null).getAbsolutePath();
         String certRoot = dataPath + "/certs";
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -436,6 +451,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     @Override
     public void onRegisterSuccess(String statusText, int statusCode, String sipMessage) {
         System.out.println("quanth: onRegisterSuccess");
+        Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
         CallManager.Instance().isRegistered = true;
         Intent broadIntent = new Intent(REGISTER_CHANGE_ACTION);
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);
@@ -468,26 +484,30 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             boolean existsVideo,
             String sipMessage) {
 
+        System.out.println("quanth: onInviteIncoming - existsVideo: " + existsVideo);
+        System.out.println("quanth: onInviteIncoming - videoCodecNames: " + videoCodecNames);
+        System.out.println("quanth: onInviteIncoming - Debug info:");
+        System.out.println("quanth: caller = " + caller);
+        System.out.println("quanth: callee = " + callee);
+        System.out.println("quanth: sessionId = " + sessionId);
+        System.out.println("quanth: existsVideo = " + existsVideo);
+        System.out.println("quanth: sipMessage = " + sipMessage);
+        // System.out.println("quanth: answer-mode = " + Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "Answer-Mode").toString());
+        // System.out.println("quanth: answer-mode = " + Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "X-Session-Id").toString());
         if (CallManager.Instance().findIncomingCall() != null) {
-            Engine.Instance().getEngine().rejectCall(sessionId, 486);//busy
+            Engine.Instance().getEngine().rejectCall(sessionId, 486); //busy
+            System.out.println("quanth: Rejected call - already in a call");
             return;
         }
         Session session = CallManager.Instance().findIdleSession();
         session.state = Session.CALL_STATE_FLAG.INCOMING;
-        // session.hasVideo = existsVideo;
         session.sessionID = sessionId;
         session.remote = caller;
         session.displayName = callerDisplayName;
+        
+        // Lưu trữ sipMessage
+        session.setSipMessage(sipMessage);
 
-        Intent activityIntent = new Intent(this, IncomingActivity.class);
-        activityIntent.putExtra(EXTRA_CALL_SEESIONID, sessionId);
-        activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-
-        if (isForeground()) {
-            startActivity(activityIntent);
-        } else {
-            showPendingCallNotification(this, callerDisplayName, caller, activityIntent);
-        }
         Intent broadIntent = new Intent(CALL_CHANGE_ACTION);
         String description = session.lineName + " onInviteIncoming";
 
@@ -497,10 +517,58 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         sendPortSipMessage(description, broadIntent);
 
         Ring.getInstance(this).startRingTone();
+
+        // Gửi thông tin cuộc gọi đến đến Flutter
+        sendCallStateToFlutter("INCOMING");
+
+        // Gửi thêm thông tin chi tiết về người gọi
+        if (Engine.Instance().getMethodChannel() != null) {
+            try {
+                // Tạo đối tượng chứa thông tin cuộc gọi để gửi về Flutter
+                java.util.Map<String, Object> callInfo = new java.util.HashMap<>();
+                callInfo.put("sessionId", sessionId);
+                callInfo.put("callerName", callerDisplayName);
+                callInfo.put("callerNumber", caller);
+                callInfo.put("hasVideo", existsVideo);
+
+                Engine.Instance().getMethodChannel().invokeMethod("incomingCall", callInfo);
+            } catch (Exception e) {
+                System.out.println("quanth: Error sending call info to Flutter: " + e.getMessage());
+            }
+        }
+
+        // Lưu thông tin về video capability
+        session.hasVideo = existsVideo;
+        
+        // Answer call
+        if (Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "Answer-Mode").toString().equals("Auto;require")) {
+            System.out.println("quanth: Auto answering call with video preference: " + existsVideo);
+            // Answer với video status hiện tại (có thể là false)
+            Engine.Instance().getEngine().answerCall(sessionId, existsVideo);
+            System.out.println("quanth: On auto answer call");
+        }
     }
 
     public void showPendingCallNotification(Context context, String contenTitle, String contenText, Intent intent) {
-        PendingIntent contentIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+        System.out.println("quanth: showPendingCallNotification - Creating notification for incoming call");
+        System.out.println("quanth: showPendingCallNotification - contenTitle: " + contenTitle);
+        System.out.println("quanth: showPendingCallNotification - contenText: " + contenText);
+
+        // Đảm bảo intent không bị clear khi nhiều notification được tạo
+        intent.setAction("INCOMING_CALL_" + System.currentTimeMillis());
+
+        // Quan trọng: thêm flag để mở activity từ notification
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+
+        // Sử dụng flag FLAG_UPDATE_CURRENT để cập nhật PendingIntent nếu đã tồn tại
+        PendingIntent contentIntent = PendingIntent.getActivity(
+                context,
+                (int) System.currentTimeMillis(),
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, callChannelID)
                 .setSmallIcon(R.drawable.icon)
@@ -508,14 +576,26 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                 .setContentText(contenText)
                 .setAutoCancel(true)
                 .setShowWhen(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setContentIntent(contentIntent)
                 .setFullScreenIntent(contentIntent, true);
+
+        System.out.println("quanth: showPendingCallNotification - Displaying notification with ID: " + PENDINGCALL_NOTIFICATION);
         mNotificationManager.notify(PENDINGCALL_NOTIFICATION, builder.build());
+
+        // Thử mở trực tiếp activity nếu notification không hoạt động
+        try {
+            context.startActivity(intent);
+            System.out.println("quanth: showPendingCallNotification - Started IncomingActivity directly");
+        } catch (Exception e) {
+            System.out.println("quanth: showPendingCallNotification - Failed to start activity: " + e.getMessage());
+        }
     }
 
     @Override
     public void onInviteTrying(long l) {
-
+        sendCallStateToFlutter("TRYING");
     }
 
     @Override
@@ -571,6 +651,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         }
 
         Ring.getInstance(this).stopRingBackTone();
+        sendCallStateToFlutter("CONNECTED");
     }
 
     @Override
@@ -597,16 +678,21 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         }
 
         Ring.getInstance(this).stopRingBackTone();
+        sendCallStateToFlutter("FAILED");
     }
 
     @Override
     public void onInviteUpdated(long sessionId, String audioCodecs, String videoCodecs, String screenCodecs, boolean existsAudio, boolean existsVideo, boolean existsScreen, String sipMessage) {
-        System.out.println("quanth: onInviteUpdated");
+        System.out.println("quanth: onInviteUpdated with videoCodecs: " + videoCodecs);
+        System.out.println("quanth: onInviteUpdated - existsVideo before: " + (CallManager.Instance().getCurrentSession() != null ? CallManager.Instance().getCurrentSession().hasVideo : "null"));
+        System.out.println("quanth: onInviteUpdated - existsVideo from event: " + existsVideo);
+        
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 
         if (session != null) {
             session.state = Session.CALL_STATE_FLAG.CONNECTED;
             session.hasVideo = existsVideo;
+            System.out.println("quanth: onInviteUpdated - existsVideo: " + existsVideo);
             session.bScreenShare = existsScreen;
 
             Intent broadIntent = new Intent(CALL_CHANGE_ACTION);
@@ -615,6 +701,15 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             broadIntent.putExtra(EXTRA_CALL_DESCRIPTION, description);
 
             sendPortSipMessage(description, broadIntent);
+
+            // // Cập nhật cuộc gọi để thêm video stream
+            // int result = Engine.Instance().getEngine().updateCall(sessionId, true, true);
+            // System.out.println("quanth: onInviteUpdated - updateCall(): " + result);
+        }
+
+        // Nếu video codecs là rỗng, có thể đó là lý do existsVideo = false
+        if (videoCodecs == null || videoCodecs.isEmpty()) {
+            System.out.println("quanth: No video codecs available in updated session");
         }
     }
 
@@ -638,6 +733,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
             sendPortSipMessage(description, broadIntent);
         }
+        sendCallStateToFlutter("CONNECTED");
     }
 
     @Override
@@ -662,6 +758,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         }
         Ring.getInstance(this).stopRingTone();
         mNotificationManager.cancel(PENDINGCALL_NOTIFICATION);
+        sendCallStateToFlutter("CLOSED");
     }
 
     @Override
@@ -1006,11 +1103,12 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     public static void startServiceCompatibility(@NonNull Context context, @NonNull Intent intent) {
         System.out.println("quanth: startServiceCompatibility");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent);
-        } else {
-            context.startService(intent);
-        }
+        // if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        //     context.startForegroundService(intent);
+        // } else {
+        //     context.startService(intent);
+        // }
+        context.startService(intent);
     }
 
     //--------------------
@@ -1032,5 +1130,11 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 //
 //        mNotificationManager.notify(1, builder.build());
         sendBroadcast(broadIntent);
+    }
+
+    private void sendCallStateToFlutter(String state) {
+        if (Engine.Instance().getMethodChannel() != null) {
+            Engine.Instance().getMethodChannel().invokeMethod("callState", state);
+        }
     }
 }

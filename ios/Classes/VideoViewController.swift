@@ -3,7 +3,7 @@ import PortSIPVoIPSDK
 
 class VideoViewController: UIViewController {
     var mCameraDeviceId: Int = 1 // 1 - FrontCamera 0 - BackCamera
-    var speakState: Int = 0 // 1 - Headphone 0 - mic
+    var speakState: Int = 0 // 1 - Headphone 0 - speaker
     var mSoundService: SoundService!
     var muteState: Bool = true
     var muteMic: Bool = true
@@ -26,7 +26,7 @@ class VideoViewController: UIViewController {
     // Create video render views and buttons programmatically
     var viewLocalVideo: PortSIPVideoRenderView!
     var viewRemoteVideo: PortSIPVideoRenderView!
-    var viewRemoteVideoSmall: PortSIPVideoRenderView!
+    // var viewRemoteVideoSmall: PortSIPVideoRenderView!
     var buttonConference: UIButton!
     var buttonSpeaker: UIButton!
     var buttonSendingVideo: UIButton!
@@ -48,10 +48,13 @@ class VideoViewController: UIViewController {
         mSoundService = SoundService()
         initVideoViews()
         initButtons()
+        hideButtons()
         initCallingLabel()
     }
     
     func initVideoViews() {
+        self.viewLocalVideo?.removeFromSuperview()
+        self.viewLocalVideo?.isHidden = true
         ///Khởi tạo với isVideoCall = true
         let appDelegate = MptCallkitPlugin.shared
         NSLog("isVideoCall init: \(appDelegate.isVideoCall)")
@@ -66,9 +69,9 @@ class VideoViewController: UIViewController {
             viewLocalVideo.layer.cornerRadius = 10
             viewLocalVideo.layer.masksToBounds = true
             self.view.addSubview(viewLocalVideo)
-            viewRemoteVideoSmall = PortSIPVideoRenderView()
-            viewRemoteVideoSmall.translatesAutoresizingMaskIntoConstraints = false
-            self.view.addSubview(viewRemoteVideoSmall)
+            // viewRemoteVideoSmall = PortSIPVideoRenderView()
+            // viewRemoteVideoSmall.translatesAutoresizingMaskIntoConstraints = false
+            // self.view.addSubview(viewRemoteVideoSmall)
             
             NSLayoutConstraint.activate([
                 // Constraints for the remote video (full screen)
@@ -84,10 +87,10 @@ class VideoViewController: UIViewController {
                 viewLocalVideo.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10),
                 
                 // Constraints for the small remote video (top right corner)
-                viewRemoteVideoSmall.widthAnchor.constraint(equalToConstant: 144),
-                viewRemoteVideoSmall.heightAnchor.constraint(equalTo: viewRemoteVideoSmall.widthAnchor),
-                viewRemoteVideoSmall.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-                viewRemoteVideoSmall.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10)
+                // viewRemoteVideoSmall.widthAnchor.constraint(equalToConstant: 144),
+                // viewRemoteVideoSmall.heightAnchor.constraint(equalTo: viewRemoteVideoSmall.widthAnchor),
+                // viewRemoteVideoSmall.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+                // viewRemoteVideoSmall.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10)
             ])
             // Check if the outlets are properly initialized
             isInitVideo = true
@@ -95,16 +98,20 @@ class VideoViewController: UIViewController {
             viewLocalVideo.initVideoRender()
             viewRemoteVideo.initVideoRender()
             viewRemoteVideo.contentMode = .scaleAspectFit
-            viewRemoteVideoSmall.initVideoRender()
+            // viewRemoteVideoSmall.initVideoRender()
             updateLocalVideoPosition(UIScreen.main.bounds.size)
 
-            portSIPSDK.displayLocalVideo(true, mirror: mCameraDeviceId == 0, localVideoWindow: viewLocalVideo)
+            portSIPSDK.displayLocalVideo(true, mirror: mCameraDeviceId == 1, localVideoWindow: viewLocalVideo)
             
             let tapGesture = UITapGestureRecognizer(target: self, action: #selector(onSwichShareScreenClick(action:)))
-            viewRemoteVideoSmall.addGestureRecognizer(tapGesture)
+            // viewRemoteVideoSmall.addGestureRecognizer(tapGesture)
             
             updateLocalVideoPosition(UIScreen.main.bounds.size)
             return;
+        } else {
+            viewLocalVideo?.releaseVideoRender()
+            viewLocalVideo?.removeFromSuperview()
+            viewLocalVideo?.isHidden = true
         }
     }
     
@@ -117,9 +124,9 @@ class VideoViewController: UIViewController {
             viewRemoteVideo.translatesAutoresizingMaskIntoConstraints = false
             viewRemoteVideo.backgroundColor = .black
             self.view.addSubview(viewRemoteVideo)
-            viewRemoteVideoSmall = PortSIPVideoRenderView()
-            viewRemoteVideoSmall.translatesAutoresizingMaskIntoConstraints = false
-            self.view.addSubview(viewRemoteVideoSmall)
+            // viewRemoteVideoSmall = PortSIPVideoRenderView()
+            // viewRemoteVideoSmall.translatesAutoresizingMaskIntoConstraints = false
+            // self.view.addSubview(viewRemoteVideoSmall)
             self.view.addSubview(viewLocalVideo)
             NSLayoutConstraint.activate([
                 // Constraints for the remote video (full screen)
@@ -135,21 +142,21 @@ class VideoViewController: UIViewController {
                 viewLocalVideo.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10),
                 
                 // Constraints for the small remote video (top right corner)
-                viewRemoteVideoSmall.widthAnchor.constraint(equalToConstant: 144),
-                viewRemoteVideoSmall.heightAnchor.constraint(equalTo: viewRemoteVideoSmall.widthAnchor),
-                viewRemoteVideoSmall.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-                viewRemoteVideoSmall.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10)
+                // viewRemoteVideoSmall.widthAnchor.constraint(equalToConstant: 144),
+                // viewRemoteVideoSmall.heightAnchor.constraint(equalTo: viewRemoteVideoSmall.widthAnchor),
+                // viewRemoteVideoSmall.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+                // viewRemoteVideoSmall.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10)
             ])
             // Check if the outlets are properly initialized
             isInitVideo = true
             
             viewRemoteVideo.initVideoRender()
             viewRemoteVideo.contentMode = .scaleAspectFit
-            viewRemoteVideoSmall.initVideoRender()
+            // viewRemoteVideoSmall.initVideoRender()
             updateLocalVideoPosition(UIScreen.main.bounds.size)
             
             let tapGesture = UITapGestureRecognizer(target: self, action: #selector(onSwichShareScreenClick(action:)))
-            viewRemoteVideoSmall.addGestureRecognizer(tapGesture)
+            // viewRemoteVideoSmall.addGestureRecognizer(tapGesture)
             
             updateLocalVideoPosition(UIScreen.main.bounds.size)
             return;
@@ -195,7 +202,6 @@ class VideoViewController: UIViewController {
     func initButtons() {
         let appDelegate = MptCallkitPlugin.shared
         let isVideoCall = appDelegate.isVideoCall
-        
         // Initialize Back Button
         addBackButton()
         
@@ -341,17 +347,32 @@ class VideoViewController: UIViewController {
         smallVideoCallButton.imageView?.contentMode = .scaleAspectFit
         smallVideoCallButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
     }
+
+    func hideButtons() {
+        DispatchQueue.main.async {
+            self.swapButton.isHidden = true
+            self.hangupButton.isHidden = true
+            self.smallVideoCallButton.isHidden = true
+            self.muteButton.isHidden = true
+            self.buttonSpeaker.isHidden = true
+            self.buttonSendingVideo.isHidden = true
+        }
+    }
+
+    func showButtons() {
+        
+    }
     
     func initMuteButton() {
-        if speakState == 0 {
-            portSIPSDK.setLoudspeakerStatus(true)
-        } else {
-            portSIPSDK.setLoudspeakerStatus(false)
-        }
-
         muteButton?.removeFromSuperview()
         muteButton = UIButton(type: .system)
-        muteButton.setImage(UIImage(systemName: "speaker.3.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+        if speakState == 0{
+            portSIPSDK.setLoudspeakerStatus(true)
+            muteButton.setImage(UIImage(systemName: "speaker.3.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+        } else{
+            portSIPSDK.setLoudspeakerStatus(false)
+            muteButton.setImage(UIImage(systemName: "speaker.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+        }
         muteButton.tintColor = .white
         muteButton.backgroundColor = UIColor.gray.withAlphaComponent(0.5)
         
@@ -369,7 +390,14 @@ class VideoViewController: UIViewController {
     func speakButton() {
         buttonSpeaker?.removeFromSuperview()
         buttonSpeaker = UIButton(type: .system)
-        buttonSpeaker.setImage(UIImage(systemName: "mic.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+        if muteMic {
+            portSIPSDK.muteSession(sessionId, muteIncomingAudio: false, muteOutgoingAudio: false, muteIncomingVideo: false, muteOutgoingVideo: false)
+            buttonSpeaker.setImage(UIImage(systemName: "mic.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+        } else {
+            portSIPSDK.muteSession(sessionId, muteIncomingAudio: false, muteOutgoingAudio: true, muteIncomingVideo: false, muteOutgoingVideo: false)
+            buttonSpeaker.setImage(UIImage(systemName: "mic.slash.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+        }
+
         buttonSpeaker.tintColor = .white
         buttonSpeaker.backgroundColor = UIColor.gray.withAlphaComponent(0.5)
         
@@ -441,11 +469,15 @@ class VideoViewController: UIViewController {
         if mCameraDeviceId == 0 {
             if portSIPSDK.setVideoDeviceId(1) == 0 {
                 mCameraDeviceId = 1
+                // Khi chuyển sang camera trước, bật mirror
+                portSIPSDK.displayLocalVideo(true, mirror: true, localVideoWindow: viewLocalVideo)
                 swapButton.setImage(UIImage(systemName: "camera.rotate.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
             }
         } else {
             if portSIPSDK.setVideoDeviceId(0) == 0 {
                 mCameraDeviceId = 0
+                // Khi chuyển sang camera sau, tắt mirror
+                portSIPSDK.displayLocalVideo(true, mirror: false, localVideoWindow: viewLocalVideo)
                 swapButton.setImage(UIImage(systemName: "camera.rotate", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
             }
         }
@@ -530,11 +562,11 @@ class VideoViewController: UIViewController {
             return
         }
         
-        if isInitVideo {
-            if isStartVideo {
-                self.viewRemoteVideoSmall.isHidden = !result.session.screenShare
+        if self.isInitVideo {
+            if self.isStartVideo {
+                // self.viewRemoteVideoSmall.isHidden = !result.session.screenShare
                 if self.shareInSmallWindow {
-                    portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: viewRemoteVideoSmall)
+                    portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: viewRemoteVideo)
                     if appDelegate.isConference! {
                         portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
                         portSIPSDK.setConferenceVideoWindow(viewRemoteVideo)
@@ -546,18 +578,20 @@ class VideoViewController: UIViewController {
                     portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: viewRemoteVideo)
                     if appDelegate.isConference! {
                         portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
-                        portSIPSDK.setConferenceVideoWindow(viewRemoteVideoSmall)
+                        portSIPSDK.setConferenceVideoWindow(viewRemoteVideo)
                     } else {
-                        portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: viewRemoteVideoSmall)
+                        portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: viewRemoteVideo)
                         portSIPSDK.setConferenceVideoWindow(nil)
                     }
                 }
                 portSIPSDK.sendVideo(sessionId, sendState: true)
             } else {
-                self.viewRemoteVideoSmall?.isHidden = true
+                // self.viewRemoteVideoSmall?.isHidden = true
                 portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
                 portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
             }
+            
+            
         }
     }
     
@@ -571,11 +605,11 @@ class VideoViewController: UIViewController {
             self.callingLabel.isHidden = false
             self.startCallTimer()
             self.viewRemoteVideo.isHidden = false
-            self.viewRemoteVideoSmall.isHidden = false
+            // self.viewRemoteVideoSmall.isHidden = false
             
             self.initializeVideoViews()
             self.viewRemoteVideo.initVideoRender()
-            self.viewRemoteVideoSmall.initVideoRender()
+            // self.viewRemoteVideoSmall.initVideoRender()
             
             // Display local video and set remote video windows
             self.checkDisplayVideo()
@@ -622,16 +656,16 @@ class VideoViewController: UIViewController {
     }
     
     @objc func hangup(_ sender: AnyObject) {
-        onClearState()
         MptCallkitPlugin.shared.hungUpCall()
         MptCallkitPlugin.shared.loginViewController.unRegister()
+        onClearState()
         self.dismiss(animated: true, completion: nil)
     }
     
     func initializeVideoViews() {
-        // Remove previous views if they exist (in case cleanup wasn’t complete)
+        // Remove previous views if they exist (in case cleanup wasn't complete)
         viewRemoteVideo?.removeFromSuperview()
-        viewRemoteVideoSmall?.removeFromSuperview()
+        // viewRemoteVideoSmall?.removeFromSuperview()
         
         // Re-add and initialize views
         initRemoteVideo() // This will reset and add constraints
@@ -645,43 +679,48 @@ class VideoViewController: UIViewController {
         if isVideoCall {
             viewRemoteVideo.initVideoRender()
             viewRemoteVideo.contentMode = .scaleAspectFit
-            viewRemoteVideoSmall.initVideoRender()
+            // viewRemoteVideoSmall.initVideoRender()
             
             let tapGesture = UITapGestureRecognizer(target: self, action: #selector(onSwichShareScreenClick(action:)))
             viewRemoteVideo.isHidden = false
-            viewRemoteVideoSmall.isHidden = false
+            // viewRemoteVideoSmall.isHidden = false
         }
     }
     
     func onClearState() {
-        stopCallTimer() // Stop the timer
-
-        viewLocalVideo?.releaseVideoRender()
-        viewLocalVideo?.removeFromSuperview()
-        viewLocalVideo?.isHidden = true
-
-        let appDelegate = MptCallkitPlugin.shared
-        let isVideoCall = appDelegate.isVideoCall
-        if isVideoCall {
-            portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
-            viewLocalVideo.releaseVideoRender()
-            if isStartVideo {
-                portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
-                portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
-                
-                viewRemoteVideo.releaseVideoRender()
-                viewRemoteVideoSmall.releaseVideoRender()
-                
-                viewRemoteVideo.removeFromSuperview()
-                viewRemoteVideoSmall.removeFromSuperview()
-            }
-            portSIPSDK.sendVideo(sessionId, sendState: false)
+        DispatchQueue.main.async {
+            self.stopCallTimer()
             
-            isStartVideo = false
-            sessionId = 0
+            // Cleanup audio
+            self.speakState = 0
+            self.portSIPSDK.setLoudspeakerStatus(true)
+            self.muteState = true
+            self.muteMic = true
+            
+            // Cleanup video resources
+            if let appDelegate = MptCallkitPlugin.shared,
+               appDelegate.isVideoCall {
+                self.portSIPSDK.displayLocalVideo(false, mirror: true, localVideoWindow: nil)
+                self.viewLocalVideo?.releaseVideoRender()
+                
+                if self.isStartVideo {
+                    self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: nil)
+                    self.portSIPSDK.setRemoteScreenWindow(self.sessionId, remoteScreenWindow: nil)
+                    
+                    self.viewRemoteVideo?.releaseVideoRender()
+                    self.viewRemoteVideo?.removeFromSuperview()
+                }
+                
+                self.portSIPSDK.sendVideo(self.sessionId, sendState: false)
+            }
+            
+            // Reset session
+            self.isStartVideo = false
+            self.sessionId = 0
+            
+            // Force unregister SIP
+            MptCallkitPlugin.shared.loginViewController.offLine()
         }
-        
-        self.dismiss(animated: true, completion: nil)
     }
     
     func startCallTimer() {

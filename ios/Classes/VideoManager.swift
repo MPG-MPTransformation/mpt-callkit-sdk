@@ -2,7 +2,7 @@ import Foundation
 import PortSIPVoIPSDK
 
 class VideoManager {
-    private var mCameraDeviceId: Int = 1 // 1 - FrontCamra, 0 - BackCamra
+    private var mCameraDeviceId: Int = 1 // 1 - FrontCamera, 0 - BackCamera
     private var mLocalVideoWidth: Int = 352
     private var mLocalVideoHeight: Int = 288
     private var isStartVideo = false
@@ -71,7 +71,7 @@ class VideoManager {
         guard isInitVideo else { return }
 
         if isStartVideo {
-            portSIPSDK.displayLocalVideo(true, mirror: mCameraDeviceId == 0, localVideoWindow: nil)
+            portSIPSDK.displayLocalVideo(true, mirror: mCameraDeviceId == 1, localVideoWindow: nil)
             portSIPSDK.sendVideo(sessionId, sendState: true)
         } else {
             portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)

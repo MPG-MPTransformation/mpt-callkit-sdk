@@ -77,12 +77,14 @@
         <activity
                 android:name=".IncomingActivity"
                 android:launchMode="singleInstance"
+                android:exported="true"
                 android:noHistory="true"/>
         <meta-data
                 android:name="flutterEmbedding"
                 android:value="2"/>
         <service
                 android:name=".PortSipService"
+                android:exported="true"
                 android:foregroundServiceType="microphone|camera|mediaPlayback">
         </service>
     </application>
