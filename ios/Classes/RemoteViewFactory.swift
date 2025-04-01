@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import PortSIPVoIPSDK
 
 class RemoteViewFactory: NSObject, FlutterPlatformViewFactory {
     private var messenger: FlutterBinaryMessenger
@@ -20,7 +21,7 @@ class RemoteViewFactory: NSObject, FlutterPlatformViewFactory {
 
 class RemoteView: NSObject, FlutterPlatformView {
     private var _view: UIView
-    private var remoteVideoView: PortSIPVideoRenderer?
+    private var remoteVideoView: PortSIPVideoRenderView?
     
     init(frame: CGRect, viewIdentifier viewId: Int64, arguments args: Any?, messenger: FlutterBinaryMessenger) {
         _view = UIView(frame: frame)
@@ -42,7 +43,7 @@ class RemoteView: NSObject, FlutterPlatformView {
     
     private func createRemoteView() {
         // Tạo video view
-        remoteVideoView = PortSIPVideoRenderer(frame: CGRect(x: 0, y: 0, width: _view.frame.width, height: _view.frame.height))
+        remoteVideoView = PortSIPVideoRenderView(frame: CGRect(x: 0, y: 0, width: _view.frame.width, height: _view.frame.height))
         
         // Đảm bảo remoteVideoView tự điều chỉnh kích thước theo container
         if let remoteVideoView = remoteVideoView {
@@ -122,7 +123,7 @@ class RemoteView: NSObject, FlutterPlatformView {
             if let plugin = MptCallkitPlugin.shared, plugin.activeSessionid > 0 {
                 plugin.portSIPSDK.setRemoteVideoWindow(plugin.activeSessionid, remoteVideoWindow: nil)
             }
-            remoteVideoView.releaseDrawer()
+            // remoteVideoView.releaseDrawer()
         }
     }
 }

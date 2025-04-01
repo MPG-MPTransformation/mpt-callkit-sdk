@@ -698,8 +698,10 @@ class VideoViewController: UIViewController {
             self.muteMic = true
             
             // Cleanup video resources
-            if let appDelegate = MptCallkitPlugin.shared,
-               appDelegate.isVideoCall {
+            // if let appDelegate = MptCallkitPlugin.shared,
+            //    appDelegate.isVideoCall {
+            if let plugin = MptCallkitPlugin.shared,
+                plugin.isVideoCall{
                 self.portSIPSDK.displayLocalVideo(false, mirror: true, localVideoWindow: nil)
                 self.viewLocalVideo?.releaseVideoRender()
                 
