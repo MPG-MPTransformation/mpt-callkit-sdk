@@ -1268,7 +1268,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                    transportType: 0,
                    srtpType: 0
                )
-               result(loginViewController.sipInitialized)
+            //    result(loginViewController.sipInitialized)
+               result(true)
            } else {
                result(FlutterError(code: "INVALID_ARGUMENTS",
                                  message: "Missing or invalid arguments for login",
@@ -1470,7 +1471,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        return value
    }
 
-   private func setCamera(useFrontCamera: Bool) {
+//    private func setCamera(useFrontCamera: Bool) {
+    public func setCamera(useFrontCamera: Bool) {
        if useFrontCamera {
            print("quanth: Setting front camera (ID 0)")
            portSIPSDK.setVideoDeviceId(0)
@@ -1490,32 +1492,37 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    // Thêm phương thức để xử lý video
    func updateVideo(sessionId: CLong) {
        if let result = _callManager.findCallBySessionID(sessionId) {
-           if Engine.Instance().mConference {
+        //    if Engine.Instance().mConference {
+        if isConference {
                print("quanth: application.mConference = true && setConferenceVideoWindow")
            } else {
                print("quanth: application.mConference = false")
                
                if sessionId > 0 && result.session.sessionState {
                    // Kiểm tra trạng thái mute video
-                   if result.session.videoMuted {
+                //    if result.session.videoMuted {
+                if !result.session.videoState {
                        // Nếu video bị mute, ẩn local view
                        print("quanth: Video is muted, hiding local view")
                        videoViewController.viewLocalVideo?.isHidden = true
                        
                        // Vẫn có thể tiếp tục gửi video nếu cần, nhưng không hiển thị
-                       portSIPSDK.displayLocalVideo(false, useOpenGL: true, videoView: nil)
+                    //    portSIPSDK.displayLocalVideo(false, useOpenGL: true, videoView: nil)
+                       portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
                    } else {
                        // Nếu video không bị mute, hiển thị local view
                        print("quanth: Video is not muted, showing local view")
                        videoViewController.viewLocalVideo?.isHidden = false
-                       portSIPSDK.displayLocalVideo(true, useOpenGL: true, videoView: videoViewController.viewLocalVideo)
+                    //    portSIPSDK.displayLocalVideo(true, useOpenGL: true, videoView: videoViewController.viewLocalVideo)
+                       portSIPSDK.displayLocalVideo(true, mirror: true, localVideoWindow: videoViewController.viewLocalVideo)
                        portSIPSDK.sendVideo(sessionId, sendState: true)
                    }
                } else {
                    // Không có cuộc gọi đang diễn ra, tắt video
                    print("quanth: No active call, hide local view")
                    videoViewController.viewLocalVideo?.isHidden = true
-                   portSIPSDK.displayLocalVideo(false, useOpenGL: false, videoView: nil)
+                //    portSIPSDK.displayLocalVideo(false, useOpenGL: false, videoView: nil)
+                   portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
                }
            }
        }
@@ -1547,25 +1554,36 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        }
    }
 
-   func sendCallStateToFlutter(_ state: CallState) {
-       // Gửi trạng thái cơ bản
-       methodChannel?.invokeMethod("callState", arguments: state.rawValue)
+//    func sendCallStateToFlutter(_ state: CallState) {
+//        // Gửi trạng thái cơ bản
+//        methodChannel?.invokeMethod("callState", arguments: state.rawValue)
        
-       // Gửi thêm thông tin chi tiết nếu có cuộc gọi đang hoạt động
-       if activeSessionid != CLong(INVALID_SESSION_ID) {
-           if let result = _callManager.findCallBySessionID(activeSessionid) {
-               let callDetails: [String: Any] = [
-                   "sessionId": activeSessionid,
-                   "hasVideo": result.session.videoState,
-                   "state": state.rawValue
-               ]
-               methodChannel?.invokeMethod("callDetails", arguments: callDetails)
-           }
-       }
+//        // Gửi thêm thông tin chi tiết nếu có cuộc gọi đang hoạt động
+//        if activeSessionid != CLong(INVALID_SESSION_ID) {
+//            if let result = _callManager.findCallBySessionID(activeSessionid) {
+//                let callDetails: [String: Any] = [
+//                    "sessionId": activeSessionid,
+//                    "hasVideo": result.session.videoState,
+//                    "state": state.rawValue
+//                ]
+//                methodChannel?.invokeMethod("callDetails", arguments: callDetails)
+//            }
+//        }
        
-       // Gửi thông báo cho LocalView và RemoteView
-       sendNotification(name: "CALL_STATE_CHANGED")
-   }
+//        // Gửi thông báo cho LocalView và RemoteView
+//        sendNotification(name: "CALL_STATE_CHANGED")
+//    }
+
+    extension Session {
+        var videoState: Bool {
+            get {
+                return !videoMuted
+            }
+            set {
+                videoMuted = !newValue
+            }
+        }
+    }
 }
 
 

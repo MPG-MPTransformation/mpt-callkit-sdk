@@ -15,19 +15,19 @@ import UIKit
   override func applicationWillTerminate(_ application: UIApplication) {
     super.applicationWillTerminate(application)
     
-    // Unregister SIP
-    if let plugin = MptCallkitPlugin.shared {
-      plugin.loginViewController.offLine()
-    }
+    // // Unregister SIP
+    // if let plugin = MptCallkitPlugin.shared {
+    //   plugin.loginViewController.offLine()
+    // }
   }
   
   // Thêm xử lý khi app enter background
   override func applicationDidEnterBackground(_ application: UIApplication) {
     super.applicationDidEnterBackground(application)
     
-    // Unregister SIP
-    if let plugin = MptCallkitPlugin.shared {
-      plugin.loginViewController.offLine()
-    }
+    // // Unregister SIP
+    // if let plugin = MptCallkitPlugin.shared {
+    //   plugin.loginViewController.offLine()
+    // }
   }
 }

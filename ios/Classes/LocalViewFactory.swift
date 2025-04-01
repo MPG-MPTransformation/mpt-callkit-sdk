@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import PortSIPVoIPSDK
 
 class LocalViewFactory: NSObject, FlutterPlatformViewFactory {
     private var messenger: FlutterBinaryMessenger
@@ -20,7 +21,7 @@ class LocalViewFactory: NSObject, FlutterPlatformViewFactory {
 
 class LocalView: NSObject, FlutterPlatformView {
     private var _view: UIView
-    private var localVideoView: PortSIPVideoRenderer?
+    private var localVideoView: PortSIPVideoRenderView?
     
     init(frame: CGRect, viewIdentifier viewId: Int64, arguments args: Any?, messenger: FlutterBinaryMessenger) {
         _view = UIView(frame: frame)
@@ -47,7 +48,7 @@ class LocalView: NSObject, FlutterPlatformView {
     
     private func createLocalView() {
         // Tạo video view
-        localVideoView = PortSIPVideoRenderer(frame: CGRect(x: 0, y: 0, width: _view.frame.width, height: _view.frame.height))
+        localVideoView = PortSIPVideoRenderView(frame: CGRect(x: 0, y: 0, width: _view.frame.width, height: _view.frame.height))
         
         // Đảm bảo localVideoView tự điều chỉnh kích thước theo container
         if let localVideoView = localVideoView {
@@ -64,7 +65,7 @@ class LocalView: NSObject, FlutterPlatformView {
             
             // Hiển thị local video
             if let plugin = MptCallkitPlugin.shared {
-                plugin.portSIPSDK.displayLocalVideo(true, useOpenGL: true, videoView: localVideoView)
+                plugin.portSIPSDK.displayLocalVideo(true, mirror: true, localVideoWindow: localVideoView)
             }
         }
         
@@ -77,17 +78,17 @@ class LocalView: NSObject, FlutterPlatformView {
         if let plugin = MptCallkitPlugin.shared, 
            let currentSession = plugin._callManager.findCallBySessionID(plugin.activeSessionid) {
             
-            if currentSession.session.sessionState && !currentSession.session.videoMuted {
+            if currentSession.session.sessionState && !currentSession.session.videoState {
                 // Phiên kết nối và video không bị mute
                 localVideoView?.isHidden = false
                 
                 if let localVideoView = localVideoView {
-                    plugin.portSIPSDK.displayLocalVideo(true, useOpenGL: true, videoView: localVideoView)
+                    plugin.portSIPSDK.displayLocalVideo(true, mirror: true, localVideoWindow: localVideoView)
                 }
             } else {
                 // Phiên không kết nối hoặc video bị mute
                 localVideoView?.isHidden = true
-                plugin.portSIPSDK.displayLocalVideo(false, useOpenGL: false, videoView: nil)
+                plugin.portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
             }
         }
     }
@@ -128,9 +129,14 @@ class LocalView: NSObject, FlutterPlatformView {
         if let localVideoView = localVideoView {
             // Gọi method để giải phóng tài nguyên video renderer
             if let plugin = MptCallkitPlugin.shared {
-                plugin.portSIPSDK.displayLocalVideo(false, useOpenGL: false, videoView: nil)
+                plugin.portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
             }
+
+            if localVideoView.responds(to: #selector(releaseDrawer)) {
             localVideoView.releaseDrawer()
         }
+    }
+
+    @objc private func releaseDrawer() {
     }
 }
