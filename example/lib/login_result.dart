@@ -342,9 +342,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                                         }
                                       },
                                       style: ElevatedButton.styleFrom(
-                                        primary: snapshot.data == true
-                                            ? Colors.deepOrange
-                                            : Colors.blueGrey,
+                                        backgroundColor: Colors.blueGrey,
                                       ),
                                       child: Text(
                                         snapshot.data == true

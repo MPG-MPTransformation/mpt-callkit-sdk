@@ -431,10 +431,13 @@ class VideoViewController: UIViewController {
     }
     
     @objc func onSwitchSpeakerClick(_ sender: AnyObject) {
-        let sessionId = MptCallkitPlugin.shared.activeSessionid
-        if (sessionId == nil) {
+        let plugin = MptCallkitPlugin.shared
+        let sessionId = plugin.activeSessionid
+        
+        if sessionId == nil || sessionId == 0 {
             return
         }
+        
         if muteMic {
             muteMic = false
             portSIPSDK.muteSession(sessionId!, muteIncomingAudio: false, muteOutgoingAudio: true, muteIncomingVideo: false, muteOutgoingVideo: false)
@@ -455,7 +458,8 @@ class VideoViewController: UIViewController {
         alert.addAction(cancelAction)
         
         // Add a custom action
-        let customAction = UIAlertAction(title: "OK", style: .destructive) { action in
+        let customAction = UIAlertAction(title: "OK", style: .destructive) { [weak self] action in
+            guard let self = self else { return }
             self.onClearState()
             MptCallkitPlugin.shared.hungUpCall()
             MptCallkitPlugin.shared.loginViewController.unRegister()
@@ -503,10 +507,12 @@ class VideoViewController: UIViewController {
     }
     
     @objc func onMuteClick(_ sender: AnyObject) {
-        let sessionId = MptCallkitPlugin.shared.activeSessionid
-        if (sessionId == nil) {
+        let plugin = MptCallkitPlugin.shared
+        let sessionId = plugin.activeSessionid
+        if sessionId == nil || sessionId == 0 {
             return
         }
+        
         if speakState == 0 {
             speakState = 1
             portSIPSDK.setLoudspeakerStatus(false)
@@ -700,8 +706,8 @@ class VideoViewController: UIViewController {
             // Cleanup video resources
             // if let appDelegate = MptCallkitPlugin.shared,
             //    appDelegate.isVideoCall {
-            if let plugin = MptCallkitPlugin.shared,
-                plugin.isVideoCall{
+            let plugin = MptCallkitPlugin.shared
+            if plugin.isVideoCall{
                 self.portSIPSDK.displayLocalVideo(false, mirror: true, localVideoWindow: nil)
                 self.viewLocalVideo?.releaseVideoRender()
                 

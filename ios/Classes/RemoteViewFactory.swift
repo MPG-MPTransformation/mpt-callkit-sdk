@@ -22,9 +22,11 @@ class RemoteViewFactory: NSObject, FlutterPlatformViewFactory {
 class RemoteView: NSObject, FlutterPlatformView {
     private var _view: UIView
     private var remoteVideoView: PortSIPVideoRenderView?
+    private weak var plugin: MptCallkitPlugin?
     
     init(frame: CGRect, viewIdentifier viewId: Int64, arguments args: Any?, messenger: FlutterBinaryMessenger) {
         _view = UIView(frame: frame)
+        plugin = MptCallkitPlugin.shared
         super.init()
         
         // Thiết lập view
@@ -46,22 +48,23 @@ class RemoteView: NSObject, FlutterPlatformView {
         remoteVideoView = PortSIPVideoRenderView(frame: CGRect(x: 0, y: 0, width: _view.frame.width, height: _view.frame.height))
         
         // Đảm bảo remoteVideoView tự điều chỉnh kích thước theo container
-        if let remoteVideoView = remoteVideoView {
-            remoteVideoView.translatesAutoresizingMaskIntoConstraints = false
-            _view.addSubview(remoteVideoView)
-            
-            // Thiết lập constraints để fill toàn bộ view cha
-            NSLayoutConstraint.activate([
-                remoteVideoView.topAnchor.constraint(equalTo: _view.topAnchor),
-                remoteVideoView.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
-                remoteVideoView.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
-                remoteVideoView.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
-            ])
-            
-            // Thiết lập remote video window
-            if let plugin = MptCallkitPlugin.shared, plugin.activeSessionid > 0 {
-                plugin.portSIPSDK.setRemoteVideoWindow(plugin.activeSessionid, remoteVideoWindow: remoteVideoView)
-            }
+        guard let remoteVideoView = remoteVideoView else { return }
+        
+        remoteVideoView.translatesAutoresizingMaskIntoConstraints = false
+        _view.addSubview(remoteVideoView)
+        
+        // Thiết lập constraints để fill toàn bộ view cha
+        NSLayoutConstraint.activate([
+            remoteVideoView.topAnchor.constraint(equalTo: _view.topAnchor),
+            remoteVideoView.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
+            remoteVideoView.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
+            remoteVideoView.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
+        ])
+        
+        // Hiển thị remote video
+        if let plugin = plugin,
+           let activeSessionId = plugin.activeSessionid {
+            plugin.portSIPSDK.setRemoteVideoWindow(activeSessionId, remoteVideoWindow: remoteVideoView)
         }
         
         // Đăng ký lắng nghe sự kiện broadcast
@@ -69,22 +72,23 @@ class RemoteView: NSObject, FlutterPlatformView {
     }
     
     private func updateVideoState() {
-        // Kiểm tra phiên hiện tại để quyết định hiển thị hay ẩn remote video
-        if let plugin = MptCallkitPlugin.shared, 
-           let currentSession = plugin._callManager.findCallBySessionID(plugin.activeSessionid) {
+        guard let plugin = plugin,
+              let activeSessionId = plugin.activeSessionid,
+              let currentSession = plugin._callManager.findCallBySessionID(activeSessionId) else {
+            return
+        }
+        
+        if currentSession.session.sessionState && !currentSession.session.videoState {
+            // Phiên kết nối và video không bị mute
+            remoteVideoView?.isHidden = false
             
-            if currentSession.session.sessionState && currentSession.session.videoState {
-                // Phiên kết nối và có video
-                remoteVideoView?.isHidden = false
-                
-                if let remoteVideoView = remoteVideoView {
-                    plugin.portSIPSDK.setRemoteVideoWindow(plugin.activeSessionid, remoteVideoWindow: remoteVideoView)
-                }
-            } else {
-                // Phiên không kết nối hoặc không có video
-                remoteVideoView?.isHidden = true
-                plugin.portSIPSDK.setRemoteVideoWindow(plugin.activeSessionid, remoteVideoWindow: nil)
+            if let remoteVideoView = remoteVideoView {
+                plugin.portSIPSDK.setRemoteVideoWindow(activeSessionId, remoteVideoWindow: remoteVideoView)
             }
+        } else {
+            // Phiên không kết nối hoặc video bị mute
+            remoteVideoView?.isHidden = true
+            plugin.portSIPSDK.setRemoteVideoWindow(activeSessionId, remoteVideoWindow: nil)
         }
     }
     
@@ -92,21 +96,10 @@ class RemoteView: NSObject, FlutterPlatformView {
         // Đăng ký lắng nghe thông báo để cập nhật trạng thái video
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(handleCallStateChanged),
-            name: NSNotification.Name("CALL_STATE_CHANGED"),
-            object: nil
-        )
-        
-        NotificationCenter.default.addObserver(
-            self,
             selector: #selector(handleVideoStateChanged),
             name: NSNotification.Name("VIDEO_MUTE_STATE_CHANGED"),
             object: nil
         )
-    }
-    
-    @objc private func handleCallStateChanged(_ notification: Notification) {
-        updateVideoState()
     }
     
     @objc private func handleVideoStateChanged(_ notification: Notification) {
@@ -118,12 +111,12 @@ class RemoteView: NSObject, FlutterPlatformView {
         // Hủy đăng ký thông báo
         NotificationCenter.default.removeObserver(self)
         
-        if let remoteVideoView = remoteVideoView {
-            // Gọi method để giải phóng tài nguyên video renderer
-            if let plugin = MptCallkitPlugin.shared, plugin.activeSessionid > 0 {
-                plugin.portSIPSDK.setRemoteVideoWindow(plugin.activeSessionid, remoteVideoWindow: nil)
-            }
-            // remoteVideoView.releaseDrawer()
+        // Giải phóng video renderer
+        if let remoteVideoView = remoteVideoView,
+           let plugin = plugin,
+           let activeSessionId = plugin.activeSessionid {
+            plugin.portSIPSDK.setRemoteVideoWindow(activeSessionId, remoteVideoWindow: nil)
+            remoteVideoView.removeFromSuperview()
         }
     }
 }

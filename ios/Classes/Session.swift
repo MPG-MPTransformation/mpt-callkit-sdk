@@ -19,7 +19,23 @@ class Session {
     var isReferCall: Bool
     var originCallSessionId: Int
     var existEarlyMedia: Bool
-    var videoState: Bool
+    private var _videoMuted: Bool
+    var videoState: Bool {
+        get {
+            return !_videoMuted
+        }
+        set {
+            _videoMuted = !newValue
+        }
+    }
+    var videoMuted: Bool {
+        get {
+            return _videoMuted
+        }
+        set {
+            _videoMuted = newValue
+        }
+    }
     var screenShare: Bool
     var uuid: UUID
     var groupUUID: UUID?
@@ -38,7 +54,7 @@ class Session {
         isReferCall = false
         originCallSessionId = Int(INVALID_SESSION_ID)
         existEarlyMedia = false
-        videoState = false
+        _videoMuted = false
         screenShare = false;
         outgoing = false
         uuid = UUID()
@@ -58,7 +74,7 @@ class Session {
         isReferCall = false
         originCallSessionId = Int(INVALID_SESSION_ID)
         existEarlyMedia = false
-        videoState = false
+        _videoMuted = false
         outgoing = false
         uuid = UUID()
         groupUUID = nil

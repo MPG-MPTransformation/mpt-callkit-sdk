@@ -1436,7 +1436,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    func sendCallStateToFlutter(_ state: CallState) {
        // Gửi trạng thái cơ bản
        methodChannel?.invokeMethod("callState", arguments: state.rawValue)
-      
+       
        // Gửi thêm thông tin chi tiết nếu có cuộc gọi đang hoạt động
        if activeSessionid != CLong(INVALID_SESSION_ID) {
            if let result = _callManager.findCallBySessionID(activeSessionid) {
@@ -1448,6 +1448,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                methodChannel?.invokeMethod("callDetails", arguments: callDetails)
            }
        }
+       
+       // Gửi thông báo cho LocalView và RemoteView
    }
   
    // Gửi trạng thái camera
@@ -1553,37 +1555,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            }
        }
    }
-
-//    func sendCallStateToFlutter(_ state: CallState) {
-//        // Gửi trạng thái cơ bản
-//        methodChannel?.invokeMethod("callState", arguments: state.rawValue)
-       
-//        // Gửi thêm thông tin chi tiết nếu có cuộc gọi đang hoạt động
-//        if activeSessionid != CLong(INVALID_SESSION_ID) {
-//            if let result = _callManager.findCallBySessionID(activeSessionid) {
-//                let callDetails: [String: Any] = [
-//                    "sessionId": activeSessionid,
-//                    "hasVideo": result.session.videoState,
-//                    "state": state.rawValue
-//                ]
-//                methodChannel?.invokeMethod("callDetails", arguments: callDetails)
-//            }
-//        }
-       
-//        // Gửi thông báo cho LocalView và RemoteView
-//        sendNotification(name: "CALL_STATE_CHANGED")
-//    }
-
-    extension Session {
-        var videoState: Bool {
-            get {
-                return !videoMuted
-            }
-            set {
-                videoMuted = !newValue
-            }
-        }
-    }
 }
 
 
