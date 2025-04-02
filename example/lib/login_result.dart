@@ -1,10 +1,11 @@
 import 'dart:async';
 
-import 'package:example1/call_pad.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
+
+import '/call_pad.dart';
 
 class LoginResultScreen extends StatefulWidget {
   const LoginResultScreen({
@@ -342,7 +343,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                                         }
                                       },
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.blueGrey,
+                                        primary: Colors.blueGrey,
                                       ),
                                       child: Text(
                                         snapshot.data == true

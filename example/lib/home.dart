@@ -1,7 +1,7 @@
-import 'package:example1/login_method.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 
+import '/login_method.dart';
 import 'components/callkit_constants.dart';
 
 class HomeScreen extends StatefulWidget {

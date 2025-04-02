@@ -1,14 +1,12 @@
-import 'package:example1/login_method_view/login.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 
+import '/login_method_view/login.dart';
 import 'components/callkit_constants.dart';
 import 'login_method_view/login_sso.dart';
 
 class LoginMethod extends StatefulWidget {
-  const LoginMethod({
-    Key? key,
-  }) : super(key: key);
+  const LoginMethod({Key? key}) : super(key: key);
 
   @override
   State<LoginMethod> createState() => _LoginMethodState();

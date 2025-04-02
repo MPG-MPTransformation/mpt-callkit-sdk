@@ -1320,22 +1320,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            toggleCamera(false)
            result(true)
        case "answer":
-           if activeSessionid != CLong(INVALID_SESSION_ID) {
-               let sessionResult = _callManager.findCallBySessionID(activeSessionid)
-               if sessionResult != nil && !sessionResult!.session.sessionState {
-                   let isVideo = sessionResult!.session.videoState
-                   if _callManager.answerCall(sessionId: activeSessionid, isVideo: isVideo) {
-                       // Không mở VideoView - để Flutter tự xử lý UI
-                       result(true)
-                   } else {
-                       result(false)
-                   }
-               } else {
-                   result(false)
-               }
-           } else {
-               result(false)
-           }
+           answerCall()
+           result(true)
        case "reject":
            if activeSessionid != CLong(INVALID_SESSION_ID) {
                let sessionResult = _callManager.findCallBySessionID(activeSessionid)
@@ -1362,6 +1348,16 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        case "switchCamera":
            let switchResult = switchCamera()
            result(switchResult)
+        case "reInvite":
+           if let args = call.arguments as? [String: Any],
+              let sessionId = args["sessionId"] as? String {
+               reInvite(sessionId)
+               result(true)
+           } else {
+               result(FlutterError(code: "INVALID_ARGUMENTS",
+                                 message: "Missing or invalid arguments for reInvite",
+                                 details: nil))
+           }
        default:
            result(FlutterMethodNotImplemented)
        }
@@ -1555,6 +1551,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            }
        }
    }
+   
+    func reInvite() {}
 }
 
 

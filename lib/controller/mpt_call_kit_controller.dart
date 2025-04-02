@@ -49,6 +49,11 @@ class MptCallKitController {
   final StreamController<bool> _microState = StreamController<bool>.broadcast();
   Stream<bool> get microState => _microState.stream;
 
+  /// microphone state stream
+  final StreamController<bool> _holdCallState =
+      StreamController<bool>.broadcast();
+  Stream<bool> get holdCallState => _holdCallState.stream;
+
   ///
 
   bool? _isOnline = false;
@@ -74,6 +79,10 @@ class MptCallKitController {
 
       if (call.method == 'microphoneState') {
         _microState.add(call.arguments as bool);
+      }
+
+      if (call.method == 'holdCallState') {
+        _holdCallState.add(call.arguments as bool);
       }
     });
   }

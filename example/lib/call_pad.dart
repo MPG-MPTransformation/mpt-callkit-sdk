@@ -8,9 +8,7 @@ import 'package:mpt_callkit/views/local_view.dart';
 import 'package:mpt_callkit/views/remote_view.dart';
 
 class CallPad extends StatefulWidget {
-  const CallPad({
-    Key? key,
-  }) : super(key: key);
+  const CallPad({Key? key}) : super(key: key);
 
   @override
   State<CallPad> createState() => _CallPadState();
@@ -33,12 +31,14 @@ class _CallPadState extends State<CallPad> {
 
   bool _isMuted = false;
   bool _isCameraOn = true;
+  bool _isOnHold = false;
   String _agentStatus = "";
 
   late StreamSubscription<String> _callStateSubscription;
   late StreamSubscription<String> _agentStatusSubscription;
   late StreamSubscription<bool> _microphoneStateSubscription;
   late StreamSubscription<bool> _cameraStateSubscription;
+  late StreamSubscription<bool> _holdCallStateSubscription;
 
   @override
   void initState() {
@@ -68,7 +68,7 @@ class _CallPadState extends State<CallPad> {
         MptCallKitController().microState.listen((isActive) {
       if (mounted) {
         setState(() {
-          _isMuted = !isActive; // true when microphone is off
+          _isMuted = isActive; // true when microphone is off
         });
       }
     });
@@ -89,6 +89,16 @@ class _CallPadState extends State<CallPad> {
       if (mounted) {
         setState(() {
           _agentStatus = status;
+        });
+      }
+    });
+
+    // hold call state listener
+    _holdCallStateSubscription =
+        MptCallKitController().holdCallState.listen((isOnHold) {
+      if (mounted) {
+        setState(() {
+          _isOnHold = isOnHold;
         });
       }
     });
@@ -145,6 +155,13 @@ class _CallPadState extends State<CallPad> {
                 ),
                 Text(
                   'Camera: ${_isCameraOn ? "ON" : "OFF"}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Hold Call: $_isOnHold',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

@@ -399,6 +399,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             }
             currentLine.bHold = true;
             System.out.println("quanth: Hold call success");
+            Engine.Instance().getMethodChannel().invokeMethod("holdCallState", currentLine.bHold);
         }
     }
 
@@ -413,6 +414,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             }
             currentLine.bHold = false;
             System.out.println("quanth: Unhold call success");
+            Engine.Instance().getMethodChannel().invokeMethod("holdCallState", currentLine.bHold);
         }
     }
 
@@ -428,7 +430,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     currentLine.bMuteVideo
             );
             System.out.println("quanth: Mute call result: " + result);
-            Engine.Instance().getMethodChannel().invokeMethod("microphoneState", currentLine.bMute);
+            Engine.Instance().getMethodChannel().invokeMethod("microphoneState", currentLine.bMuteAudioOutGoing);
         }
     }
 
