@@ -33,12 +33,14 @@ class _CallPadState extends State<CallPad> {
   bool _isCameraOn = true;
   bool _isOnHold = false;
   String _agentStatus = "";
+  String _callType = "";
 
-  late StreamSubscription<String> _callStateSubscription;
-  late StreamSubscription<String> _agentStatusSubscription;
-  late StreamSubscription<bool> _microphoneStateSubscription;
-  late StreamSubscription<bool> _cameraStateSubscription;
-  late StreamSubscription<bool> _holdCallStateSubscription;
+  StreamSubscription<String>? _callStateSubscription;
+  StreamSubscription<String>? _agentStatusSubscription;
+  StreamSubscription<bool>? _microphoneStateSubscription;
+  StreamSubscription<bool>? _cameraStateSubscription;
+  StreamSubscription<bool>? _holdCallStateSubscription;
+  StreamSubscription<String>? _callTypeSubscription;
 
   @override
   void initState() {
@@ -102,14 +104,24 @@ class _CallPadState extends State<CallPad> {
         });
       }
     });
+
+    _callTypeSubscription = MptCallKitController().callType.listen((type) {
+      if (mounted) {
+        setState(() {
+          _callType = type;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
-    _callStateSubscription.cancel();
-    _microphoneStateSubscription.cancel();
-    _cameraStateSubscription.cancel();
-    _agentStatusSubscription.cancel();
+    _callStateSubscription?.cancel();
+    _microphoneStateSubscription?.cancel();
+    _cameraStateSubscription?.cancel();
+    _agentStatusSubscription?.cancel();
+    _holdCallStateSubscription?.cancel();
+    _callTypeSubscription?.cancel();
     super.dispose();
   }
 

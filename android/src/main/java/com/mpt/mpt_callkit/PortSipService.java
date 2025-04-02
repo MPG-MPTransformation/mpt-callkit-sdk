@@ -546,6 +546,11 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             // Answer với video status hiện tại (có thể là false)
             Engine.Instance().getEngine().answerCall(sessionId, existsVideo);
             System.out.println("quanth: On auto answer call");
+            sendCallTypeToFlutter("OUTGOING_CALL");
+        }
+        else{
+            System.out.println("quanth: On not auto answer call");
+            sendCallTypeToFlutter("INCOMING_CALL");
         }
     }
 
@@ -679,6 +684,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         Ring.getInstance(this).stopRingBackTone();
         sendCallStateToFlutter("FAILED");
+        sendCallTypeToFlutter("ENDED");
     }
 
     @Override
@@ -759,6 +765,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         Ring.getInstance(this).stopRingTone();
         mNotificationManager.cancel(PENDINGCALL_NOTIFICATION);
         sendCallStateToFlutter("CLOSED");
+        sendCallTypeToFlutter("ENDED");
     }
 
     @Override
@@ -1135,6 +1142,12 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     private void sendCallStateToFlutter(String state) {
         if (Engine.Instance().getMethodChannel() != null) {
             Engine.Instance().getMethodChannel().invokeMethod("callState", state);
+        }
+    }
+
+    private void sendCallTypeToFlutter(String state) {
+        if (Engine.Instance().getMethodChannel() != null) {
+            Engine.Instance().getMethodChannel().invokeMethod("callType", state);
         }
     }
 }

@@ -27,7 +27,8 @@ class LoginResultScreen extends StatefulWidget {
 class _LoginResultScreenState extends State<LoginResultScreen> {
   final TextEditingController _destinationController =
       TextEditingController(text: "10001");
-  late StreamSubscription<String> _callStateSubscription;
+  StreamSubscription<String>? _callStateSubscription;
+  StreamSubscription<String>? _callTypeSubscription;
 
   @override
   void initState() {
@@ -38,9 +39,18 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
       }
     });
 
-    _callStateSubscription = MptCallKitController().callEvent.listen((state) {
-      // Chỉ khi nhận được INCOMING mới route đến call_pad
-      if (state == CallStateConstants.INCOMING) {
+    // _callStateSubscription = MptCallKitController().callEvent.listen((state) {
+    //   // Chỉ khi nhận được INCOMING mới route đến call_pad
+    //   if (state == CallStateConstants.INCOMING && mounted) {
+    //     _navigateToCallPad();
+    //   }
+    // });
+
+    /* Route to CallPad if call session established */
+    _callTypeSubscription = MptCallKitController().callType.listen((type) {
+      if ((type == CallTypeConstants.INCOMING_CALL ||
+              type == CallTypeConstants.OUTGOING_CALL) &&
+          mounted) {
         _navigateToCallPad();
       }
     });
@@ -129,7 +139,8 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
   @override
   void dispose() {
     _destinationController.dispose();
-    _callStateSubscription.cancel();
+    _callStateSubscription?.cancel();
+    _callTypeSubscription?.cancel();
     super.dispose();
   }
 

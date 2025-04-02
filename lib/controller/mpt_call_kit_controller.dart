@@ -49,10 +49,15 @@ class MptCallKitController {
   final StreamController<bool> _microState = StreamController<bool>.broadcast();
   Stream<bool> get microState => _microState.stream;
 
-  /// microphone state stream
+  /// hold call state stream
   final StreamController<bool> _holdCallState =
       StreamController<bool>.broadcast();
   Stream<bool> get holdCallState => _holdCallState.stream;
+
+  /// call type state stream
+  final StreamController<String> _callType =
+      StreamController<String>.broadcast();
+  Stream<String> get callType => _callType.stream;
 
   ///
 
@@ -83,6 +88,10 @@ class MptCallKitController {
 
       if (call.method == 'holdCallState') {
         _holdCallState.add(call.arguments as bool);
+      }
+
+      if (call.method == 'callType') {
+        _callType.add(call.arguments as String);
       }
     });
   }
@@ -390,18 +399,19 @@ class MptCallKitController {
                   await offline();
                   if (isShowNativeView) {
                     {
-                      if (Platform.isIOS)
+                      if (Platform.isIOS) {
                         Navigator.pop(context);
-                      else
+                      } else {
                         await channel.invokeMethod("finishActivity");
+                      }
                     }
                   }
                 }
               } else {
                 print('quanth: registration has failed');
-                if (Platform.isIOS)
+                if (Platform.isIOS) {
                   Navigator.pop(context);
-                else {
+                } else {
                   await channel.invokeMethod("finishActivity");
                 }
               }
@@ -435,10 +445,11 @@ class MptCallKitController {
         onError?.call('Tổng đài bận, liên hệ hỗ trợ');
         if (isShowNativeView) {
           {
-            if (Platform.isIOS)
+            if (Platform.isIOS) {
               Navigator.pop(context);
-            else
+            } else {
               await channel.invokeMethod("finishActivity");
+            }
           }
         }
       }
@@ -625,10 +636,11 @@ class MptCallKitController {
       }
     } on PlatformException catch (e) {
       debugPrint("Login failed: ${e.message}");
-      if (Platform.isIOS)
+      if (Platform.isIOS) {
         Navigator.pop(context);
-      else
+      } else {
         await channel.invokeMethod("finishActivity");
+      }
       return false;
     }
   }

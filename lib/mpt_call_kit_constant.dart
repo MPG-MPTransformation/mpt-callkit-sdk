@@ -58,3 +58,9 @@ class MessageAbly {
   static const String TRANSFER_ANSWER = "TRANSFER_ANSWER";
   static const String TRANSFER_ACCEPTED = "TRANSFER_ACCEPTED";
 }
+
+class CallTypeConstants {
+  static const String INCOMING_CALL = "INCOMING_CALL";
+  static const String OUTGOING_CALL = "OUTGOING_CALL";
+  static const String ENDED = "ENDED";
+}
