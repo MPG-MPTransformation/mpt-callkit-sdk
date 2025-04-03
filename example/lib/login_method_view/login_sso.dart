@@ -25,32 +25,34 @@ class _LoginSSOState extends State<LoginSSO> {
   @override
   Widget build(BuildContext context) {
     void login() async {
-      var result = await MptCallKitController().loginSSORequest(
-        ssoToken: ssoTokenController.text,
-        organization: organizationController.text,
-        baseUrl: baseUrl,
-        onError: (error) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error ?? 'Login SSO failed')),
-          );
-        },
-        data: (data) {
-          userData = data;
-          print("Response data: $data");
-        },
-      );
-
-      if (result) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => LoginResultScreen(
-                    title: 'Login SSO Successful',
-                    userData: userData,
-                    baseUrl: baseUrl,
-                    apiKey: apiKey,
-                  )),
+      if (formKey.currentState!.validate()) {
+        var result = await MptCallKitController().loginSSORequest(
+          ssoToken: ssoTokenController.text,
+          organization: organizationController.text,
+          baseUrl: baseUrl,
+          onError: (error) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(error ?? 'Login SSO failed')),
+            );
+          },
+          data: (data) {
+            userData = data;
+            print("Response data: $data");
+          },
         );
+
+        if (result) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => LoginResultScreen(
+                      title: 'Login SSO Successful',
+                      userData: userData,
+                      baseUrl: baseUrl,
+                      apiKey: apiKey,
+                    )),
+          );
+        }
       }
     }
 

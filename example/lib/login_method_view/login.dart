@@ -24,29 +24,31 @@ class _LoginState extends State<Login> {
   @override
   Widget build(BuildContext context) {
     void login() async {
-      var result = await MptCallKitController().loginRequest(
-        username: usernameController.text,
-        password: passwordController.text,
-        tenantId: tenantId,
-        baseUrl: _baseUrl,
-        onError: (error) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error ?? 'Login failed')),
-          );
-        },
-      );
-
-      if (result) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => LoginResultScreen(
-                    title: 'Login Successful',
-                    userData: userData,
-                    baseUrl: _baseUrl,
-                    apiKey: _apiKey,
-                  )),
+      if (formKey.currentState!.validate()) {
+        var result = await MptCallKitController().loginRequest(
+          username: usernameController.text,
+          password: passwordController.text,
+          tenantId: tenantId,
+          baseUrl: _baseUrl,
+          onError: (error) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(error ?? 'Login failed')),
+            );
+          },
         );
+
+        if (result) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => LoginResultScreen(
+                      title: 'Login Successful',
+                      userData: userData,
+                      baseUrl: _baseUrl,
+                      apiKey: _apiKey,
+                    )),
+          );
+        }
       }
     }
 
