@@ -354,7 +354,9 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                                         }
                                       },
                                       style: ElevatedButton.styleFrom(
-                                        primary: Colors.blueGrey,
+                                        backgroundColor: snapshot.data == true
+                                            ? Colors.deepOrange
+                                            : Colors.blueGrey,
                                       ),
                                       child: Text(
                                         snapshot.data == true
@@ -435,13 +437,11 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                                   onPressed: () async {
                                     await _makeCallOutbound();
                                   },
-                                  style: ButtonStyle(
-                                    backgroundColor: MaterialStateProperty.all(
-                                        Colors.blueGrey),
-                                    foregroundColor:
-                                        MaterialStateProperty.all(Colors.white),
-                                    minimumSize: MaterialStateProperty.all(
-                                        const Size(double.infinity, 50)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blueGrey,
+                                    foregroundColor: Colors.white,
+                                    minimumSize:
+                                        const Size(double.infinity, 50),
                                   ),
                                   child: const Text('Call'),
                                 );

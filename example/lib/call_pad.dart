@@ -353,8 +353,8 @@ class _CallPadState extends State<CallPad> {
               // Close call_pad screen
               Navigator.of(context).pop();
             },
-            style: ButtonStyle(
-              foregroundColor: MaterialStateProperty.all<Color>(Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
             ),
             child: const Text('End call'),
           ),
