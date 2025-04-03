@@ -49,6 +49,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    var _VoIPPushToken: NSString!
    var _APNsPushToken: NSString!
    var _backtaskIdentifier: UIBackgroundTaskIdentifier = UIBackgroundTaskIdentifier.invalid
+    
+  var currentSessionid: String = ""
   
    var _enablePushNotification: Bool?
   
@@ -482,6 +484,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
       
        _callManager.incomingCall(sessionid: sessionId, existsVideo: existsVideo, remoteParty: remoteParty!, remoteDisplayName: remoteDisplayName!, callUUID: uuid!, completionHandle: {})
       
+       self.currentSessionid = portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "X-Session-Id")
+       
        // Auto answer call
        if portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "Answer-Mode") == "Auto;require" {
             print("onInviteIncoming - Outgoing call API")
@@ -1571,18 +1575,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
         
         // Get the SIP message from active session
-        let sipMessage = portSIPSDK.getSipMessage(sessionResult.session.sessionId)
-        if sipMessage == nil {
-            NSLog("No SIP message found for session ID: \(activeSessionid)")
-            return
-        }
-        
-        // Get X-Session-Id from SIP message
-        let messageSesssionId = portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "X-Session-Id")
-        NSLog("SIP message X-Session-Id: \(messageSesssionId ?? "nil")")
+        NSLog("SIP message X-Session-Id: \(self.currentSessionid  ?? "nil")")
         
         // Compare with the provided sessionId
-        if messageSesssionId == sessionId {
+        if self.currentSessionid  == sessionId {
             // Update video state
             sessionResult.session.videoState = true
             
@@ -1600,7 +1596,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             
             NSLog("Successfully updated call with video for session: \(sessionId)")
         } else {
-            NSLog("SessionId not match. SIP message ID: \(messageSesssionId ?? "nil"), Request: \(sessionId)")
+            NSLog("SessionId not match. SIP message ID: \(self.currentSessionid  ?? "nil"), Request: \(sessionId)")
         }
     }
 }
