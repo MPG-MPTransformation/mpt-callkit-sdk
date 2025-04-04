@@ -13,7 +13,7 @@ class MptAESHelper {
 
   static String decryptAesB64(String encrypted) {
     final key = Key.fromUtf8(MptAESHelper.key);
-    final iv = IV.fromLength(16);
+    final iv = IV.allZerosOfLength(16);
     final encrypter = Encrypter(AES(key, mode: AESMode.cbc, padding: 'PKCS7'));
     final decrypted =
         encrypter.decrypt(Encrypted.fromBase64(encrypted), iv: iv);

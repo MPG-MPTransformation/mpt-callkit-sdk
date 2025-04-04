@@ -198,15 +198,20 @@ class MptCallkitAuthMethod {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = convert.jsonDecode(response.body);
-        if (responseData != null) {
-          if (responseData["success"]) {
-            var result =
-                convert.jsonDecode(decryptText(responseData["result"]));
+        if (responseData != null && responseData["success"]) {
+          try {
+            String decryptedText = decryptText(responseData["result"]);
+            print("Decrypted text: $decryptedText");
+            var result = convert.jsonDecode(decryptedText);
             print("CurrentUserInfo: $result");
             return result;
+          } catch (e) {
+            print("Error decrypting or parsing user info: $e");
+            onError?.call("Failed to decrypt or parse user info: $e");
+            return null;
           }
-          return null;
         }
+        onError?.call("Failed to get user info: ${responseData?["error"]}");
         return null;
       } else {
         print('Failed to get data. Status code: ${response.statusCode}');
