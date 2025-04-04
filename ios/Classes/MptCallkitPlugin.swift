@@ -460,6 +460,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    // Call Event
    public func onInviteIncoming(_ sessionId: Int, callerDisplayName: String!, caller: String!, calleeDisplayName: String!, callee: String!, audioCodecs: String!, videoCodecs: String!, existsAudio: Bool, existsVideo: Bool, sipMessage: String!) {
        NSLog("onInviteIncoming...")
+       self.activeSessionid = sessionId
+//       portSIPSDK.answerCall(sessionId, videoCall: true)
        let num = _callManager.getConnectCallNum()
        let index = findIdleLine()
        if num >= MAX_LINES || index < 0 {
@@ -658,13 +660,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
 
        print("The call is connected on line \(findSession(sessionid: sessionId))")
-       if result.session.videoState {
-           videoViewController.onStartVideo(sessionId)
-           // setLoudspeakerStatus(true)
-       } else {
-           videoViewController.onStartVoiceCall(sessionId)
-           // setLoudspeakerStatus(false)
-       }
+    //    if result.session.videoState {
+    //        videoViewController.onStartVideo(sessionId)
+    //        // setLoudspeakerStatus(true)
+    //    } else {
+    //        videoViewController.onStartVoiceCall(sessionId)
+    //        // setLoudspeakerStatus(false)
+    //    }
       
        // Gửi trạng thái về Flutter
        sendCallStateToFlutter(.CONNECTED)
@@ -1113,11 +1115,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        NSLog("onNewOutgoingCall")
        lineSessions[_activeLine] = sessionid
        videoViewController.initVideoViews()
-       if isVideoCall {
-           videoViewController.onStartVideo(sessionid)
-       } else {
-           videoViewController.onStartVoiceCall(sessionid)
-       }
+    //    if isVideoCall {
+    //        videoViewController.onStartVideo(sessionid)
+    //    } else {
+    //        videoViewController.onStartVoiceCall(sessionid)
+    //    }
    }
   
    func onAnsweredCall(sessionId: CLong) {
@@ -1138,8 +1140,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            }
        }
       
-       _ = mSoundService.stopRingTone()
-       _ = mSoundService.stopRingBackTone()
+       mSoundService.stopRingTone()
+       mSoundService.stopRingBackTone()
       
        if activeSessionid == CLong(INVALID_SESSION_ID) {
            activeSessionid = sessionId
@@ -1154,9 +1156,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
       
        let result = _callManager.findCallBySessionID(sessionId)
        if result != nil {
-           if result!.session.videoState {
-               videoViewController.onStopVideo(sessionId)
-           }
+        //    if result!.session.videoState {
+        //        videoViewController.onStopVideo(sessionId)
+        //    }
           
            _callManager.removeCall(call: result!.session)
        }
@@ -1414,14 +1416,16 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    // Thêm phương thức để trả lời cuộc gọi
    func answerCall() {
        NSLog("answerCall")
-       if activeSessionid != CLong(INVALID_SESSION_ID) {
-           let result = _callManager.findCallBySessionID(activeSessionid)
-           if result != nil && !result!.session.sessionState {
-            //    _ = _callManager.answerCall(sessionId: activeSessionid, isVideo: result!.session.videoState)
-               portSIPSDK.answerCall(activeSessionid, videoCall: result!.session.videoState)
-               print("Call answered")
-           }
-       }
+        if activeSessionid != CLong(INVALID_SESSION_ID) {
+            let result = _callManager.findCallBySessionID(activeSessionid)
+            if result != nil {
+             //    _ = _callManager.answerCall(sessionId: activeSessionid, isVideo: result!.session.videoState)
+                mSoundService.stopRingTone()
+                mSoundService.stopRingBackTone()
+                portSIPSDK.answerCall(activeSessionid, videoCall: result!.session.videoState)
+                print("Call answered")
+            }
+        }
    }
   
    // Thêm phương thức để từ chối cuộc gọi
@@ -1600,8 +1604,3 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
     }
 }
-
-
-
-
-
