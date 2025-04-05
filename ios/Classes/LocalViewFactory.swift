@@ -4,14 +4,25 @@ import PortSIPVoIPSDK
 
 class LocalViewFactory: NSObject, FlutterPlatformViewFactory {
     private var messenger: FlutterBinaryMessenger
+    var localViewController: LocalViewController!
     
-    init(messenger: FlutterBinaryMessenger) {
+    init(messenger: FlutterBinaryMessenger, localViewController: LocalViewController) {
         self.messenger = messenger
+        self.localViewController = localViewController
         super.init()
     }
     
-    func create(withFrame frame: CGRect, viewIdentifier viewId: Int64, arguments args: Any?) -> FlutterPlatformView {
-        return LocalView(frame: frame, viewIdentifier: viewId, arguments: args, messenger: messenger)
+    func create(
+        withFrame frame: CGRect,
+        viewIdentifier viewId: Int64,
+        arguments args: Any?
+    ) -> FlutterPlatformView {
+        return LocalView(
+            frame: frame,
+            viewIdentifier: viewId,
+            arguments: args,
+            binaryMessenger: messenger,
+            localViewController: localViewController)
     }
     
     public func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol {
@@ -21,111 +32,43 @@ class LocalViewFactory: NSObject, FlutterPlatformViewFactory {
 
 class LocalView: NSObject, FlutterPlatformView {
     private var _view: UIView
-    private var localVideoView: PortSIPVideoRenderView?
-    private weak var plugin: MptCallkitPlugin?
+    var localViewController: LocalViewController!
     
-    init(frame: CGRect, viewIdentifier viewId: Int64, arguments args: Any?, messenger: FlutterBinaryMessenger) {
-        _view = UIView(frame: frame)
-        plugin = MptCallkitPlugin.shared
+    init(
+        frame: CGRect,
+        viewIdentifier viewId: Int64,
+        arguments args: Any?,
+        binaryMessenger messenger: FlutterBinaryMessenger?,
+        localViewController: LocalViewController
+    ) {
+        _view = UIView()
         super.init()
-        
-        // Thiết lập view
-        _view.backgroundColor = UIColor.black
-        
-        // Thiết lập camera dựa vào trạng thái hiện tại của mUseFrontCamera
-        plugin?.setCamera(useFrontCamera: plugin?.mUseFrontCamera ?? true)
-        
-        // Tạo và cấu hình localVideoView
-        createLocalView()
-        
-        // Cập nhật trạng thái video dựa trên phiên hiện tại
-        updateVideoState()
+        createNativeView(view: _view, arguments: args, localViewController: localViewController)
     }
     
     func view() -> UIView {
         return _view
     }
     
-    private func createLocalView() {
-        // Tạo video view
-        localVideoView = PortSIPVideoRenderView(frame: CGRect(x: 0, y: 0, width: _view.frame.width, height: _view.frame.height))
+    func createNativeView(view _view: UIView, arguments args: Any?, localViewController: LocalViewController) {
+        let keyWindow = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) ?? UIApplication.shared.windows.first
+        let topController = keyWindow?.rootViewController
+        let flutterView = localViewController
         
-        // Đảm bảo localVideoView tự điều chỉnh kích thước theo container
-        guard let localVideoView = localVideoView else { return }
-        
-        localVideoView.translatesAutoresizingMaskIntoConstraints = false
-        _view.addSubview(localVideoView)
-        
-        // Thiết lập constraints để fill toàn bộ view cha
+        let view = flutterView.view
+        view?.translatesAutoresizingMaskIntoConstraints = false
+
+        topController?.addChild(flutterView)
+        _view.addSubview(view!)
+
         NSLayoutConstraint.activate([
-            localVideoView.topAnchor.constraint(equalTo: _view.topAnchor),
-            localVideoView.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
-            localVideoView.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
-            localVideoView.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
+            view!.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
+            view!.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
+            view!.topAnchor.constraint(equalTo: _view.topAnchor),
+            view!.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
         ])
-        
-        // Hiển thị local video
-        plugin?.portSIPSDK.displayLocalVideo(true, mirror: true, localVideoWindow: localVideoView)
-        
-        // Đăng ký lắng nghe sự kiện broadcast
-        setupReceiver()
+
+        flutterView.didMove(toParent: topController)
     }
     
-    private func updateVideoState() {
-        guard let plugin = plugin,
-              let activeSessionId = plugin.activeSessionid,
-              let currentSession = plugin._callManager.findCallBySessionID(activeSessionId) else {
-            return
-        }
-        
-        if currentSession.session.sessionState && !currentSession.session.videoState {
-            // Phiên kết nối và video không bị mute
-            localVideoView?.isHidden = false
-            
-            if let localVideoView = localVideoView {
-                plugin.portSIPSDK.displayLocalVideo(true, mirror: true, localVideoWindow: localVideoView)
-            }
-        } else {
-            // Phiên không kết nối hoặc video bị mute
-            localVideoView?.isHidden = true
-            plugin.portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
-        }
-    }
-    
-    private func setupReceiver() {
-        // Đăng ký lắng nghe thông báo để cập nhật trạng thái video
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleVideoStateChanged),
-            name: NSNotification.Name("VIDEO_MUTE_STATE_CHANGED"),
-            object: nil
-        )
-        
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleCameraSwitch),
-            name: NSNotification.Name("CAMERA_SWITCH_ACTION"),
-            object: nil
-        )
-    }
-    
-    @objc private func handleVideoStateChanged(_ notification: Notification) {
-        updateVideoState()
-    }
-    
-    @objc private func handleCameraSwitch(_ notification: Notification) {
-        plugin?.switchCamera()
-    }
-    
-    // Giải phóng tài nguyên khi view bị hủy
-    deinit {
-        // Hủy đăng ký thông báo
-        NotificationCenter.default.removeObserver(self)
-        
-        // Giải phóng video renderer
-        if let localVideoView = localVideoView {
-            plugin?.portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
-            localVideoView.removeFromSuperview()
-        }
-    }
 }
