@@ -33,7 +33,7 @@ public class LocalView implements PlatformView {
         
         localRenderVideoView = containerView.findViewById(R.id.local_video_view);
 
-        portSipLib.displayLocalVideo(true, true, localRenderVideoView);
+        portSipLib.displayLocalVideo(true, Engine.Instance().mUseFrontCamera, localRenderVideoView);
 
         updateVideo(Engine.Instance().getEngine());
 
@@ -51,7 +51,7 @@ public class LocalView implements PlatformView {
             // Giải phóng tài nguyên video
             PortSipSdk portSipLib = Engine.Instance().getEngine();
             if (portSipLib != null) {
-                portSipLib.displayLocalVideo(false, false, null);
+                portSipLib.displayLocalVideo(false, Engine.Instance().mUseFrontCamera, null);
             }
 
             if (localRenderVideoView != null) {
@@ -86,14 +86,14 @@ public class LocalView implements PlatformView {
                         localRenderVideoView.setVisibility(View.GONE);
                     }
                     // Vẫn có thể tiếp tục gửi video nếu cần, nhưng không hiển thị
-                    portSipLib.displayLocalVideo(false, true, null);
+                    portSipLib.displayLocalVideo(false, Engine.Instance().mUseFrontCamera, null);
                 } else {
                     // Nếu video không bị mute, hiển thị local view
                     System.out.println("quanth: Video is not muted, showing local view");
                     if (localRenderVideoView != null) {
                         localRenderVideoView.setVisibility(View.VISIBLE);
                     }
-                    portSipLib.displayLocalVideo(true, true, localRenderVideoView);
+                    portSipLib.displayLocalVideo(true, Engine.Instance().mUseFrontCamera, localRenderVideoView);
                     portSipLib.sendVideo(cur.sessionID, true);
                 }
             } else {
@@ -102,7 +102,7 @@ public class LocalView implements PlatformView {
                 if (localRenderVideoView != null) {
                     localRenderVideoView.setVisibility(View.GONE);
                 }
-                portSipLib.displayLocalVideo(false, false, null);
+                portSipLib.displayLocalVideo(false, Engine.Instance().mUseFrontCamera, null);
             }
         }
     }

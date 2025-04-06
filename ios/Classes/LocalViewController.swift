@@ -78,20 +78,16 @@ class LocalViewController: UIViewController {
     
     func switchCamera() {
         print("LocalViewController - switchCamera: current device ID = \(mCameraDeviceId)")
-        if mCameraDeviceId == 0 {
-            if portSIPSDK.setVideoDeviceId(1) == 0 {
-                mCameraDeviceId = 1
-                // Enable mirror when using front camera
-                portSIPSDK.displayLocalVideo(true, mirror: true, localVideoWindow: viewLocalVideo)
-                print("LocalViewController - Switched to front camera")
-            }
-        } else {
-            if portSIPSDK.setVideoDeviceId(0) == 0 {
-                mCameraDeviceId = 0
-                // Disable mirror when using back camera
-                portSIPSDK.displayLocalVideo(true, mirror: false, localVideoWindow: viewLocalVideo)
-                print("LocalViewController - Switched to back camera")
-            }
+        
+        // Toggle camera ID (1 -> 0 OR 0 -> 1)
+        let newCameraId = mCameraDeviceId == 1 ? 0 : 1
+        
+        if portSIPSDK.setVideoDeviceId(newCameraId) == 0 {
+            mCameraDeviceId = newCameraId
+            // Enable mirror only for front camera (ID = 1)
+            let shouldMirror = mCameraDeviceId == 1
+            portSIPSDK.displayLocalVideo(true, mirror: shouldMirror, localVideoWindow: viewLocalVideo)
+            print("LocalViewController - Switched to \(shouldMirror ? "front" : "back") camera with mirror \(shouldMirror ? "enabled" : "disabled")")
         }
         
         // Make sure the view is visible

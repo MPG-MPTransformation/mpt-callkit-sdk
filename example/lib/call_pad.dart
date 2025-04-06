@@ -223,6 +223,11 @@ class _CallPadState extends State<CallPad> {
                 ),
                 const SizedBox(height: 16),
                 const Text("Camera"),
+                ElevatedButton(
+                    onPressed: () {
+                      switchCamera();
+                    },
+                    child: const Icon(Icons.flip_camera_ios_outlined)),
                 const SizedBox(
                   height: 300,
                   width: 300,
@@ -293,9 +298,6 @@ class _CallPadState extends State<CallPad> {
       case 'reject':
         MptCallKitController().rejectCall();
         break;
-      case 'switchCamera':
-        MptCallKitController().switchCamera();
-        break;
       default:
         print('Function $functionName not implemented');
     }
@@ -361,5 +363,9 @@ class _CallPadState extends State<CallPad> {
         ],
       ),
     );
+  }
+
+  void switchCamera() async {
+    await MptCallKitController().switchCamera();
   }
 }

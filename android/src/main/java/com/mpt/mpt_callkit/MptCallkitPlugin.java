@@ -121,10 +121,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 muteMicrophone(false);
                 break;
             case "cameraOn":
-                toggleCamera(true);
+                toggleCameraOn(true);
                 break;
             case "cameraOff":
-                toggleCamera(false);
+                toggleCameraOn(false);
                 break;
             case "answer":
                 answerCall();
@@ -434,7 +434,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
-    void toggleCamera(boolean enable) {
+    void toggleCameraOn(boolean enable) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (currentLine != null && currentLine.sessionID > 0) {
             currentLine.bMuteVideo = !enable;

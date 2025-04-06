@@ -1532,7 +1532,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
    func switchCamera() -> Bool {
        let value = !mUseFrontCamera
-       setCamera(useFrontCamera: value)
+       localViewController.mCameraDeviceId = value == true ? 1: 0
+        //    setCamera(useFrontCamera: value)
+       localViewController.switchCamera()
        mUseFrontCamera = value
        
        // Log để debug
