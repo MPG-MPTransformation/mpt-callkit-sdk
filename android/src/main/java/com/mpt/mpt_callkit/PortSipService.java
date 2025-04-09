@@ -544,7 +544,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         if (Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "Answer-Mode").toString().equals("Auto;require")) {
             System.out.println("quanth: Auto answering call with video preference: " + existsVideo);
             Ring.getInstance(this).stopRingTone();
-            Ring.getInstance(this).startRingBackTone();
+            // Ring.getInstance(this).startRingBackTone();
             // Answer với video status hiện tại (có thể là false)
             Engine.Instance().getEngine().answerCall(sessionId, existsVideo);
             System.out.println("quanth: On auto answer call");

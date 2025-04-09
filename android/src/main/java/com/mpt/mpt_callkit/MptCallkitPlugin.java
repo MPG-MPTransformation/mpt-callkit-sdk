@@ -497,6 +497,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     boolean reinviteSession(String sessionId) {
         Session currentLine = CallManager.Instance().getCurrentSession();
+        System.out.println("quanth: reInvite currentLine: " + currentLine);
+        System.out.println("quanth: reInvite sessionID: " + currentLine.sessionID);
+        System.out.println("quanth: reInvite sipMessage: " + currentLine.sipMessage);
         if (currentLine == null || currentLine.sessionID <= 0 || currentLine.sipMessage == null) {
             System.out.println("quanth: Cannot reinvite - no active session or missing SIP message");
             return false;
