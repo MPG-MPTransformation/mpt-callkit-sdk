@@ -52,14 +52,6 @@ class _LoginMethodState extends State<LoginMethod> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const Text("Choose a login method"),
-            // Hiển thị FCM Token
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                'FCM Token: ${_fcmToken != null && _fcmToken!.length > 20 ? _fcmToken!.substring(0, 20) + "..." : _fcmToken ?? "Loading..."}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ),
             const SizedBox(height: 10),
             OutlinedButton(
               onPressed: () {

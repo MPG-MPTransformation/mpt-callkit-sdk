@@ -322,9 +322,9 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         if (!TextUtils.isEmpty(pushToken) && !TextUtils.isEmpty(appId)) {
             String pushMessage = "device-os=android;device-uid=" + pushToken + ";allow-call-push=true;allow-message-push=true;app-id=" + appId;
-             Engine.Instance().getEngine().addSipMessageHeader(-1, "REGISTER", 1, "portsip-push", pushMessage);
+            //  Engine.Instance().getEngine().addSipMessageHeader(-1, "REGISTER", 1, "portsip-push", pushMessage);
             //new version
-            Engine.Instance().getEngine().addSipMessageHeader(-1, "REGISTER", 1, "x-p-push", pushMessage);
+            Engine.Instance().getEngine().addSipMessageHeader(-1, "REGISTER", 1, "X-Push", pushMessage);
             System.out.println("quanth: registerToServer - pushToken or appId not empty" + pushMessage);
         } else {
             System.out.println("quanth: registerToServer - pushToken or appId is empty");

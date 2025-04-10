@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'notification_service.dart';
 
 class FirebaseService {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  final NotificationService _notificationService = NotificationService();
   String? _tokenFCM = "";
   static const String _tokenKey = 'fcm_token';
 
@@ -31,11 +33,22 @@ class FirebaseService {
   String? get token => _tokenFCM;
 
   Future<void> _initializeFCM() async {
+    // Initialize local notifications
+    await _notificationService.init();
+
     // Request permission for FCM
     await _firebaseMessaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
+    );
+
+    // Turn off automatic notification presentation
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+      alert: false,
+      badge: false,
+      sound: false,
     );
 
     // Save FCM token
@@ -58,7 +71,8 @@ class FirebaseService {
     // Listen for incoming messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('Received message: ${message.notification?.title}');
-      // Handle message
+      // Show local notification
+      _notificationService.showNotification(message);
     });
 
     // Listen for notifications when app is opened from background

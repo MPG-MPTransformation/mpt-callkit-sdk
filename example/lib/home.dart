@@ -96,14 +96,6 @@ class _HomeScreenState extends State<HomeScreen> {
           const Text(
             'Click button to make a call',
           ),
-          // Hiển thị FCM Token
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              'FCM Token: ${_fcmToken != null && _fcmToken!.length > 20 ? _fcmToken!.substring(0, 20) + "..." : _fcmToken ?? "Loading..."}',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ),
           const SizedBox(height: 30),
           const Text("OR"),
           const SizedBox(height: 10),
