@@ -3,6 +3,7 @@ import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 
 import '/login_method.dart';
 import 'components/callkit_constants.dart';
+import 'services/firebase_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -16,12 +17,24 @@ class _HomeScreenState extends State<HomeScreen> {
   final String _baseUrl = CallkitConstants.BASE_URL;
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _callTo = TextEditingController();
+  FirebaseService? _firebaseService;
+  String? _fcmToken;
 
   @override
   void initState() {
     super.initState();
     _phoneController.text = "200011";
     _callTo.text = "20015";
+    _initFirebaseService();
+  }
+
+  Future<void> _initFirebaseService() async {
+    _firebaseService = FirebaseService();
+    await Future.delayed(const Duration(milliseconds: 500));
+    setState(() {
+      _fcmToken = _firebaseService?.token;
+    });
+    print('FCM Token in Home: $_fcmToken');
   }
 
   @override
@@ -32,6 +45,8 @@ class _HomeScreenState extends State<HomeScreen> {
           MptCallKitController().initSdk(
             apiKey: _apiKey,
             baseUrl: _baseUrl,
+            pushToken: _fcmToken,
+            appId: CallkitConstants.APP_ID,
           );
           MptCallKitController().makeCallByGuest(
               context: context,
@@ -80,6 +95,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const Text(
             'Click button to make a call',
+          ),
+          // Hiển thị FCM Token
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              'FCM Token: ${_fcmToken != null && _fcmToken!.length > 20 ? _fcmToken!.substring(0, 20) + "..." : _fcmToken ?? "Loading..."}',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
           ),
           const SizedBox(height: 30),
           const Text("OR"),

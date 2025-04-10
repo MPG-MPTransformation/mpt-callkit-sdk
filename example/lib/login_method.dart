@@ -4,6 +4,7 @@ import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import '/login_method_view/login.dart';
 import 'components/callkit_constants.dart';
 import 'login_method_view/login_sso.dart';
+import 'services/firebase_service.dart';
 
 class LoginMethod extends StatefulWidget {
   const LoginMethod({Key? key}) : super(key: key);
@@ -13,13 +14,30 @@ class LoginMethod extends StatefulWidget {
 }
 
 class _LoginMethodState extends State<LoginMethod> {
+  FirebaseService? _firebaseService;
+  String? _fcmToken;
+
   @override
   void initState() {
+    super.initState();
+    _initFirebaseService();
+  }
+
+  Future<void> _initFirebaseService() async {
+    _firebaseService = FirebaseService();
+    await Future.delayed(const Duration(milliseconds: 500));
+    setState(() {
+      _fcmToken = _firebaseService?.token;
+    });
+    print('FCM Token in LoginMethod: $_fcmToken');
+
+    // Initialize SDK after getting FCM token
     MptCallKitController().initSdk(
       apiKey: CallkitConstants.API_KEY,
       baseUrl: CallkitConstants.BASE_URL,
+      pushToken: _fcmToken,
+      appId: CallkitConstants.APP_ID,
     );
-    super.initState();
   }
 
   @override
@@ -34,6 +52,14 @@ class _LoginMethodState extends State<LoginMethod> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const Text("Choose a login method"),
+            // Hiển thị FCM Token
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                'FCM Token: ${_fcmToken != null && _fcmToken!.length > 20 ? _fcmToken!.substring(0, 20) + "..." : _fcmToken ?? "Loading..."}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ),
             const SizedBox(height: 10),
             OutlinedButton(
               onPressed: () {

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "293091602393",
+    "project_id": "mpt-call-1bc64",
+    "storage_bucket": "mpt-call-1bc64.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:293091602393:android:49aed15de55ef3b05933c8",
+        "android_client_info": {
+          "package_name": "com.example.example1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-OY6HehYpKZmZTHKBai8-_5S0u3BNSU4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

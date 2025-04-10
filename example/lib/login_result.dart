@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:example1/components/callkit_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
@@ -101,6 +102,8 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
         );
       },
       context: context,
+      pushToken: MptCallKitController().pushToken,
+      appId: CallkitConstants.APP_ID,
     );
   }
 

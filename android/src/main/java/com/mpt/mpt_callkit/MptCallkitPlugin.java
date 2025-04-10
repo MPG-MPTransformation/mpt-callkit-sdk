@@ -38,13 +38,13 @@ import com.mpt.mpt_callkit.RemoteViewFactory;
 public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
 
     /// The MethodChannel that will the communication between Flutter and native Android
-  ///
-  /// This local reference serves to register the plugin with the Flutter Engine and unregister it
-  /// when the Flutter Engine is detached from the Activity
-  public Context context;
+    ///
+    /// This local reference serves to register the plugin with the Flutter Engine and unregister it
+    /// when the Flutter Engine is detached from the Activity
+    public Context context;
     public Activity activity;
-    public String pushToken = "e3TKpdmDSJqzW20HYsDe9h:APA91bFdWS9ALxW1I7Zuq7uXsYTL6-8F-A3AARhcrLMY6pB6ecUbWX7RbABnLrzCGjGBWIxJ8QaCQkwkOjrv2BOJjEGfFgIGjlIekFqKQR-dtutszyRLZy1Im6KXNIqDzicWIGKdbcWD";
-    public String APPID = "com.portsip.sipsample";
+    // public String pushToken = "e3TKpdmDSJqzW20HYsDe9h:APA91bFdWS9ALxW1I7Zuq7uXsYTL6-8F-A3AARhcrLMY6pB6ecUbWX7RbABnLrzCGjGBWIxJ8QaCQkwkOjrv2BOJjEGfFgIGjlIekFqKQR-dtutszyRLZy1Im6KXNIqDzicWIGKdbcWD";
+    // public String APPID = "com.portsip.sipsample";
     private MethodChannel.Result pendingResult;
 
     @Override
@@ -172,6 +172,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 String transportType = call.argument("transportType") + "";
                 String srtpType = call.argument("srtpType") + "";
                 String sipServerPort = call.argument("sipServerPort") + "";
+                String appId = call.argument("appId");
+                String pushToken = call.argument("pushToken");
                 if (CallManager.Instance().online) {
                     System.out.println("quanth: Already online");
                     Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
@@ -186,6 +188,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     onLineIntent.putExtra("displayName", displayName);
                     onLineIntent.putExtra("transportType", transportType);
                     onLineIntent.putExtra("srtpType", srtpType);
+                    onLineIntent.putExtra("appId", appId);
+                    onLineIntent.putExtra("pushToken", pushToken);
                     PortSipService.startServiceCompatibility(context, onLineIntent);
                     System.out.println("quanth: RegisterServer..");
                     pendingResult = result;
@@ -298,11 +302,11 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             Engine.Instance().getEngine().unRegisterServer(100);
             Engine.Instance().getEngine().removeUser();
             Engine.Instance().getEngine().unInitialize();
-            
+
             // Reset các trạng thái
             CallManager.Instance().online = false;
             CallManager.Instance().isRegistered = false;
-            
+
             // Dọn dẹp resources
             if (activity != null && Engine.Instance().getReceiver() != null) {
                 try {
@@ -311,7 +315,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     System.out.println("quanth: Error unregistering receiver: " + e.getMessage());
                 }
             }
-            
+
             // Stop service nếu đang chạy
             if (context != null) {
                 context.stopService(new Intent(context, PortSipService.class));
@@ -325,8 +329,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             System.out.println("quanth: request permission");
             pendingResult = result;
             ActivityCompat.requestPermissions(activity, new String[]{
-                Manifest.permission.CAMERA,
-                Manifest.permission.RECORD_AUDIO},
+                            Manifest.permission.CAMERA,
+                            Manifest.permission.RECORD_AUDIO},
                     REQ_DANGERS_PERMISSION);
 
             return;

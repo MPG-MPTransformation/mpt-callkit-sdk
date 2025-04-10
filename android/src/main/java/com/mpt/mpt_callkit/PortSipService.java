@@ -189,13 +189,13 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(channelID, 
-                getResourceFromContext(context, "app_name"), 
-                NotificationManager.IMPORTANCE_DEFAULT);
+            NotificationChannel channel = new NotificationChannel(channelID,
+                    getResourceFromContext(context, "app_name"),
+                    NotificationManager.IMPORTANCE_DEFAULT);
             channel.enableLights(true);
-            NotificationChannel callChannel = new NotificationChannel(callChannelID, 
-                getResourceFromContext(context, "app_name"), 
-                NotificationManager.IMPORTANCE_HIGH);
+            NotificationChannel callChannel = new NotificationChannel(callChannelID,
+                    getResourceFromContext(context, "app_name"),
+                    NotificationManager.IMPORTANCE_HIGH);
             mNotificationManager.createNotificationChannel(channel);
             mNotificationManager.createNotificationChannel(callChannel);
         }
@@ -231,6 +231,8 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         String sipServer = intent.getStringExtra("sipServer");
         String port = intent.getStringExtra("port");
         String displayName = intent.getStringExtra("displayName");
+        String pushToken = intent.getStringExtra("pushToken");
+        String appId = intent.getStringExtra("appId");
         int result = super.onStartCommand(intent, flags, startId);
         if (intent != null) {
             /*if(ACTION_PUSH_MESSAGE.equals(intent.getAction())){
@@ -244,7 +246,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             if (ACTION_SIP_REGIEST.equals(intent.getAction())) {
                 if (!CallManager.Instance().online) {
                     initialSDK();
-                    registerToServer(username, password, domain, sipServer, port, displayName);
+                    registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
                 }
             } else if (ACTION_SIP_UNREGIEST.equals(intent.getAction())) {
                 System.out.println("quanth: service is doing unregisterToServer...");
@@ -265,7 +267,9 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             String userDomain,
             String sipServer,
             String serverPort,
-            String displayName
+            String displayName,
+            String appId,
+            String pushToken
     ) {
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         int srtpType = preferences.getInt(SRTP, 0);
@@ -316,11 +320,14 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         Engine.Instance().getEngine().enable3GppTags(false);
 
-        if (!TextUtils.isEmpty(pushToken)) {
-            String pushMessage = "device-os=android;device-uid=" + pushToken + ";allow-call-push=true;allow-message-push=true;app-id=" + APPID;
-            Engine.Instance().getEngine().addSipMessageHeader(-1, "REGISTER", 1, "portsip-push", pushMessage);
+        if (!TextUtils.isEmpty(pushToken) && !TextUtils.isEmpty(appId)) {
+            String pushMessage = "device-os=android;device-uid=" + pushToken + ";allow-call-push=true;allow-message-push=true;app-id=" + appId;
+             Engine.Instance().getEngine().addSipMessageHeader(-1, "REGISTER", 1, "portsip-push", pushMessage);
             //new version
             Engine.Instance().getEngine().addSipMessageHeader(-1, "REGISTER", 1, "x-p-push", pushMessage);
+            System.out.println("quanth: registerToServer - pushToken or appId not empty" + pushMessage);
+        } else {
+            System.out.println("quanth: registerToServer - pushToken or appId is empty");
         }
 
         result = Engine.Instance().getEngine().registerServer(90, 0);
@@ -474,15 +481,15 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onInviteIncoming(long sessionId,
-            String callerDisplayName,
-            String caller,
-            String calleeDisplayName,
-            String callee,
-            String audioCodecNames,
-            String videoCodecNames,
-            boolean existsAudio,
-            boolean existsVideo,
-            String sipMessage) {
+                                 String callerDisplayName,
+                                 String caller,
+                                 String calleeDisplayName,
+                                 String callee,
+                                 String audioCodecNames,
+                                 String videoCodecNames,
+                                 boolean existsAudio,
+                                 boolean existsVideo,
+                                 String sipMessage) {
 
         System.out.println("quanth: onInviteIncoming - existsVideo: " + existsVideo);
         System.out.println("quanth: onInviteIncoming - videoCodecNames: " + videoCodecNames);
@@ -504,7 +511,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         session.sessionID = sessionId;
         session.remote = caller;
         session.displayName = callerDisplayName;
-        
+
         // Lưu trữ sipMessage
         session.setSipMessage(sipMessage);
 
@@ -539,7 +546,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         // Lưu thông tin về video capability
         session.hasVideo = existsVideo;
-        
+
         // Answer call
         if (Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "Answer-Mode").toString().equals("Auto;require")) {
             System.out.println("quanth: Auto answering call with video preference: " + existsVideo);
@@ -632,15 +639,15 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onInviteAnswered(long sessionId,
-            String callerDisplayName,
-            String caller,
-            String calleeDisplayName,
-            String callee,
-            String audioCodecNames,
-            String videoCodecNames,
-            boolean existsAudio,
-            boolean existsVideo,
-            String sipMessage) {
+                                 String callerDisplayName,
+                                 String caller,
+                                 String calleeDisplayName,
+                                 String callee,
+                                 String audioCodecNames,
+                                 String videoCodecNames,
+                                 boolean existsAudio,
+                                 boolean existsVideo,
+                                 String sipMessage) {
         System.out.println("quanth: onInviteAnswered");
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 
@@ -663,12 +670,12 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onInviteFailure(long sessionId, String callerDisplayName,
-            String caller,
-            String calleeDisplayName,
-            String callee,
-            String reason,
-            int code,
-            String sipMessage) {
+                                String caller,
+                                String calleeDisplayName,
+                                String callee,
+                                String reason,
+                                int code,
+                                String sipMessage) {
         System.out.println("quanth: onInviteFailure");
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 
@@ -694,7 +701,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         System.out.println("quanth: onInviteUpdated with videoCodecs: " + videoCodecs);
         System.out.println("quanth: onInviteUpdated - existsVideo before: " + (CallManager.Instance().getCurrentSession() != null ? CallManager.Instance().getCurrentSession().hasVideo : "null"));
         System.out.println("quanth: onInviteUpdated - existsVideo from event: " + existsVideo);
-        
+
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 
         if (session != null) {
@@ -768,7 +775,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         mNotificationManager.cancel(PENDINGCALL_NOTIFICATION);
         sendCallStateToFlutter("CLOSED");
         sendCallTypeToFlutter("ENDED");
-        
+
         // Reset camera to front camera when call ends
         Engine.Instance().mUseFrontCamera = true;
         Engine.Instance().getEngine().setVideoDeviceId(1);
@@ -903,9 +910,9 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onPresenceRecvSubscribe(long subscribeId,
-            String fromDisplayName,
-            String from,
-            String subject) {
+                                        String fromDisplayName,
+                                        String from,
+                                        String subject) {
         System.out.println("quanth: onPresenceRecvSubscribe");
         Contact contact = ContactManager.Instance().findContactBySipAddr(from);
         if (contact == null) {
