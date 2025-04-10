@@ -445,7 +445,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     false,
                     currentLine.bMuteVideo
             );
-            Engine.Instance().getMethodChannel().invokeMethod("cameraState", currentLine.bMuteVideo);
+            Engine.Instance().getMethodChannel().invokeMethod("cameraState", enable);
         }
     }
 
