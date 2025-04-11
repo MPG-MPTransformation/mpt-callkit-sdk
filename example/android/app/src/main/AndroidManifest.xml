@@ -62,4 +62,7 @@
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
+    
+    <!-- Quyền thông báo đẩy -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 </manifest>

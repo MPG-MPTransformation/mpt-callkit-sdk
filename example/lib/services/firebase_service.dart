@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../components/callkit_constants.dart';
 import '../login_result.dart';
+import 'notification_service.dart';
 
 // Background message handler
 @pragma('vm:entry-point')
@@ -21,6 +22,7 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class FirebaseService {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  final NotificationService _notificationService = NotificationService();
   String? _tokenFCM = "";
   static const String _tokenKey = 'fcm_token';
   static const String _usernameKey = 'saved_username';
@@ -99,11 +101,22 @@ class FirebaseService {
     // Register background message handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
+    // Initialize local notifications
+    await _notificationService.init();
+
     // Request permission for FCM
     await _firebaseMessaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
+    );
+
+    // Turn off automatic notification presentation
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+      alert: false,
+      badge: false,
+      sound: false,
     );
 
     // Save FCM token
@@ -126,7 +139,8 @@ class FirebaseService {
     // Listen for incoming messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('Received message: ${message.notification?.title}');
-      // Handle message
+      // Show local notification
+      _notificationService.showNotification(message);
     });
 
     // Listen for notifications when app is opened from background
