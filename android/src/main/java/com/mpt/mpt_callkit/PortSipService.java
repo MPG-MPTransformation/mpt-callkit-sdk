@@ -87,7 +87,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     public Context context;
     private String pushToken;
-    private final String APPID = "com.mpt.mpt_callkit";
+    private String appId;
     protected PowerManager.WakeLock mCpuLock;
 
     private String getResourceFromContext(Context context, String resName) {
@@ -158,6 +158,20 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         }
         System.out.println("quanth: isForeground - No active packages found");
         return false;
+    }
+
+    private void refreshPushToken(){
+        if (!TextUtils.isEmpty(pushToken)&&CallManager.Instance().isRegistered)
+        {
+            String pushMessage = "device-os=android;device-uid=" + pushToken + ";allow-call-push=true;allow-message-push=true;app-id=" + appId;
+            //old version
+            //mEngine.addSipMessageHeader(-1, "REGISTER", 1, "portsip-push", pushMessage);
+            //new version
+            Engine.Instance().getEngine().addSipMessageHeader(-1, "REGISTER", 1, "X-Push", pushMessage);
+
+            Engine.Instance().getEngine().refreshRegistration(0);
+
+        }
     }
 
     private String[] getActivePackagesCompat(Context context) {
@@ -231,8 +245,8 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         String sipServer = intent.getStringExtra("sipServer");
         String port = intent.getStringExtra("port");
         String displayName = intent.getStringExtra("displayName");
-        String pushToken = intent.getStringExtra("pushToken");
-        String appId = intent.getStringExtra("appId");
+        pushToken = intent.getStringExtra("pushToken");
+        appId = intent.getStringExtra("appId");
         int result = super.onStartCommand(intent, flags, startId);
         if (intent != null) {
             /*if(ACTION_PUSH_MESSAGE.equals(intent.getAction())){
@@ -322,10 +336,9 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         if (!TextUtils.isEmpty(pushToken) && !TextUtils.isEmpty(appId)) {
             String pushMessage = "device-os=android;device-uid=" + pushToken + ";allow-call-push=true;allow-message-push=true;app-id=" + appId;
-             Engine.Instance().getEngine().addSipMessageHeader(-1, "REGISTER", 1, "portsip-push", pushMessage);
             //new version
-            Engine.Instance().getEngine().addSipMessageHeader(-1, "REGISTER", 1, "x-p-push", pushMessage);
-            System.out.println("quanth: registerToServer - pushToken or appId not empty" + pushMessage);
+            Engine.Instance().getEngine().addSipMessageHeader(-1,"REGISTER",1,"X-Push",pushMessage);
+            System.out.println("quanth: registerToServer - pushToken and appId not empty" + pushMessage);
         } else {
             System.out.println("quanth: registerToServer - pushToken or appId is empty");
         }
@@ -345,7 +358,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             Engine.Instance().getEngine().removeUser();
             Engine.Instance().getEngine().unInitialize();
             CallManager.Instance().online = false;
-            Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", false);
+            Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", CallManager.Instance().online);
             CallManager.Instance().isRegistered = false;
         }
     }
@@ -391,7 +404,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     private int initialSDK() {
         Engine.Instance().getEngine().setOnPortSIPEvent(this);
         CallManager.Instance().online = true;
-        // Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
+        // Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", CallManager.Instance().online);
         String dataPath = getExternalFilesDir(null).getAbsolutePath();
         String certRoot = dataPath + "/certs";
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -458,7 +471,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     @Override
     public void onRegisterSuccess(String statusText, int statusCode, String sipMessage) {
         System.out.println("quanth: onRegisterSuccess");
-        Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
+        Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", CallManager.Instance().online);
         CallManager.Instance().isRegistered = true;
         Intent broadIntent = new Intent(REGISTER_CHANGE_ACTION);
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);

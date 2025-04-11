@@ -176,7 +176,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 String pushToken = call.argument("pushToken");
                 if (CallManager.Instance().online) {
                     System.out.println("quanth: Already online");
-                    Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
+                    Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", CallManager.Instance().online);
                 } else {
                     Intent onLineIntent = new Intent(activity, PortSipService.class);
                     onLineIntent.setAction(PortSipService.ACTION_SIP_REGIEST);

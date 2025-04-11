@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '/login_method_view/login.dart';
 import 'components/callkit_constants.dart';
 import 'login_method_view/login_sso.dart';
-import 'services/firebase_service.dart';
 
 class LoginMethod extends StatefulWidget {
   const LoginMethod({Key? key}) : super(key: key);
@@ -14,20 +14,19 @@ class LoginMethod extends StatefulWidget {
 }
 
 class _LoginMethodState extends State<LoginMethod> {
-  FirebaseService? _firebaseService;
   String? _fcmToken;
+  static const String _tokenKey = 'fcm_token';
 
   @override
   void initState() {
     super.initState();
-    _initFirebaseService();
+    _loadFcmToken();
   }
 
-  Future<void> _initFirebaseService() async {
-    _firebaseService = FirebaseService();
-    await Future.delayed(const Duration(milliseconds: 500));
+  Future<void> _loadFcmToken() async {
+    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _fcmToken = _firebaseService?.token;
+      _fcmToken = prefs.getString(_tokenKey);
     });
     print('FCM Token in LoginMethod: $_fcmToken');
 
@@ -36,7 +35,7 @@ class _LoginMethodState extends State<LoginMethod> {
       apiKey: CallkitConstants.API_KEY,
       baseUrl: CallkitConstants.BASE_URL,
       pushToken: _fcmToken,
-      appId: CallkitConstants.APP_ID,
+      appId: CallkitConstants.ANDROID_APP_ID,
     );
   }
 
@@ -52,14 +51,6 @@ class _LoginMethodState extends State<LoginMethod> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const Text("Choose a login method"),
-            // Hiển thị FCM Token
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                'FCM Token: ${_fcmToken != null && _fcmToken!.length > 20 ? _fcmToken!.substring(0, 20) + "..." : _fcmToken ?? "Loading..."}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ),
             const SizedBox(height: 10),
             OutlinedButton(
               onPressed: () {

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '/login_method.dart';
 import 'components/callkit_constants.dart';
-import 'services/firebase_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -17,22 +17,21 @@ class _HomeScreenState extends State<HomeScreen> {
   final String _baseUrl = CallkitConstants.BASE_URL;
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _callTo = TextEditingController();
-  FirebaseService? _firebaseService;
   String? _fcmToken;
+  static const String _tokenKey = 'fcm_token';
 
   @override
   void initState() {
     super.initState();
     _phoneController.text = "200011";
     _callTo.text = "20015";
-    _initFirebaseService();
+    _loadFcmToken();
   }
 
-  Future<void> _initFirebaseService() async {
-    _firebaseService = FirebaseService();
-    await Future.delayed(const Duration(milliseconds: 500));
+  Future<void> _loadFcmToken() async {
+    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _fcmToken = _firebaseService?.token;
+      _fcmToken = prefs.getString(_tokenKey);
     });
     print('FCM Token in Home: $_fcmToken');
   }
@@ -46,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
             apiKey: _apiKey,
             baseUrl: _baseUrl,
             pushToken: _fcmToken,
-            appId: CallkitConstants.APP_ID,
+            appId: CallkitConstants.ANDROID_APP_ID,
           );
           MptCallKitController().makeCallByGuest(
               context: context,
@@ -95,14 +94,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const Text(
             'Click button to make a call',
-          ),
-          // Hiển thị FCM Token
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              'FCM Token: ${_fcmToken != null && _fcmToken!.length > 20 ? _fcmToken!.substring(0, 20) + "..." : _fcmToken ?? "Loading..."}',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
           ),
           const SizedBox(height: 30),
           const Text("OR"),

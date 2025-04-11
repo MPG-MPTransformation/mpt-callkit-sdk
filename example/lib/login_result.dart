@@ -103,7 +103,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
       },
       context: context,
       pushToken: MptCallKitController().pushToken,
-      appId: CallkitConstants.APP_ID,
+      appId: CallkitConstants.ANDROID_APP_ID,
     );
   }
 
