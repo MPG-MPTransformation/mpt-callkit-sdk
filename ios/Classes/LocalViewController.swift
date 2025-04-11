@@ -2,7 +2,7 @@ import UIKit
 import PortSIPVoIPSDK
 
 class LocalViewController: UIViewController {
-    var mCameraDeviceId: Int = 1 // 1 - FrontCamera 0 - BackCamera
+    var mCameraDeviceId: Int32 = 1 // 1 - FrontCamera 0 - BackCamera
     var viewLocalVideo: PortSIPVideoRenderView!
     var portSIPSDK: PortSIPSDK!
     var isVideoInitialized: Bool = false
@@ -80,7 +80,7 @@ class LocalViewController: UIViewController {
         print("LocalViewController - switchCamera: current device ID = \(mCameraDeviceId)")
         
         // Toggle camera ID (1 -> 0 OR 0 -> 1)
-        let newCameraId = mCameraDeviceId == 1 ? 0 : 1
+        let newCameraId: Int32 = mCameraDeviceId == 1 ? 0 : 1
         
         if portSIPSDK.setVideoDeviceId(newCameraId) == 0 {
             mCameraDeviceId = newCameraId
