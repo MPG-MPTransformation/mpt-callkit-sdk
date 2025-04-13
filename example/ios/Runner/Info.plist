@@ -58,5 +58,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Chúng tôi cần gửi thông báo đến bạn về các tin nhắn và cuộc gọi quan trọng</string>
 </dict>
 </plist>

@@ -18,6 +18,8 @@ class MptCallKitController {
   String apiKey = '';
   String baseUrl = '';
   String extension = '';
+  String pushToken = "";
+  String appId = "";
   Map<String, dynamic>? userData;
   Map<String, dynamic>? currentUserInfo;
   ExtensionData? extensionData;
@@ -103,11 +105,19 @@ class MptCallKitController {
   void initSdk({
     required String apiKey,
     String? baseUrl,
+    String? pushToken,
+    String? appId,
   }) async {
     this.apiKey = apiKey;
     this.baseUrl = baseUrl != null && baseUrl.isNotEmpty
         ? baseUrl
         : "https://crm-dev-v2.metechvn.com";
+    this.pushToken = pushToken ?? "";
+    this.appId = appId ?? "";
+
+    print("init pushToken: $pushToken");
+    print("init appId: $appId");
+
     _appEvent.add(AppEventConstants.READY);
   }
 
@@ -211,6 +221,8 @@ class MptCallKitController {
           sipServer: extensionData!.sipServer!,
           sipServerPort: extensionData!.port ?? 5060,
           transportType: 0,
+          pushToken: pushToken,
+          appId: appId,
           onError: (p0) {
             print("Error in register to sip server: ${p0.toString()}");
           },
@@ -434,6 +446,8 @@ class MptCallKitController {
           transportType: 0,
           srtpType: 0,
           context: context,
+          appId: appId,
+          pushToken: pushToken,
         );
         // Navigator.push(
         //   context,
@@ -606,6 +620,8 @@ class MptCallKitController {
     required int srtpType,
     Function(String?)? onError,
     required BuildContext context,
+    String? pushToken,
+    String? appId,
   }) async {
     try {
       final hasPermission = await requestPermission(context);
@@ -629,6 +645,8 @@ class MptCallKitController {
             'sipServerPort': sipServerPort,
             'transportType': transportType,
             'srtpType': srtpType,
+            "pushToken": pushToken ?? "",
+            "appId": appId ?? "",
           },
         );
 

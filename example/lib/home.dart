@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '/login_method.dart';
 import 'components/callkit_constants.dart';
@@ -16,12 +17,23 @@ class _HomeScreenState extends State<HomeScreen> {
   final String _baseUrl = CallkitConstants.BASE_URL;
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _callTo = TextEditingController();
+  String? _fcmToken;
+  static const String _tokenKey = 'fcm_token';
 
   @override
   void initState() {
     super.initState();
     _phoneController.text = "200011";
     _callTo.text = "20015";
+    _loadFcmToken();
+  }
+
+  Future<void> _loadFcmToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _fcmToken = prefs.getString(_tokenKey);
+    });
+    print('FCM Token in Home: $_fcmToken');
   }
 
   @override
@@ -32,6 +44,8 @@ class _HomeScreenState extends State<HomeScreen> {
           MptCallKitController().initSdk(
             apiKey: _apiKey,
             baseUrl: _baseUrl,
+            pushToken: _fcmToken,
+            appId: CallkitConstants.ANDROID_APP_ID,
           );
           MptCallKitController().makeCallByGuest(
               context: context,

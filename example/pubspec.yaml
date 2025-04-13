@@ -36,6 +36,10 @@ dependencies:
   cupertino_icons: ^1.0.2
   mpt_callkit:
     path: ../
+  firebase_core: ^2.8.0
+  firebase_messaging: ^14.3.0
+  flutter_local_notifications: ^12.0.4
+  shared_preferences: ^2.0.17
   # mpt_callkit:
   #   git:
   #     url: https://github.com/MPG-MPTransformation/mpt-callkit-sdk.git

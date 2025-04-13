@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '/login_result.dart';
 import '../components/callkit_constants.dart';
@@ -18,16 +19,29 @@ class _LoginState extends State<Login> {
   final passwordController = TextEditingController(text: "123456aA@");
   final String _baseUrl = CallkitConstants.BASE_URL;
   final String _apiKey = CallkitConstants.API_KEY;
-  final tenantId = 4;
+  final tenantId = CallkitConstants.TENANT_ID;
   Map<String, dynamic>? userData;
+
+  static const String _usernameKey = 'saved_username';
+  static const String _passwordKey = 'saved_password';
+
+  Future<void> _saveCredentials(String username, String password) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_usernameKey, username);
+    await prefs.setString(_passwordKey, password);
+    print('Saved credentials: $username, $password');
+  }
 
   @override
   Widget build(BuildContext context) {
     void login() async {
       if (formKey.currentState!.validate()) {
+        var username = usernameController.text;
+        var password = passwordController.text;
+
         var result = await MptCallKitController().loginRequest(
-          username: usernameController.text,
-          password: passwordController.text,
+          username: username,
+          password: password,
           tenantId: tenantId,
           baseUrl: _baseUrl,
           onError: (error) {
@@ -38,6 +52,9 @@ class _LoginState extends State<Login> {
         );
 
         if (result) {
+          // Lưu thông tin đăng nhập khi đăng nhập thành công
+          await _saveCredentials(username, password);
+
           Navigator.push(
             context,
             MaterialPageRoute(

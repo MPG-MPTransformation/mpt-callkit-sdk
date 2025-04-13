@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '/login_method_view/login.dart';
 import 'components/callkit_constants.dart';
@@ -13,13 +14,29 @@ class LoginMethod extends StatefulWidget {
 }
 
 class _LoginMethodState extends State<LoginMethod> {
+  String? _fcmToken;
+  static const String _tokenKey = 'fcm_token';
+
   @override
   void initState() {
+    super.initState();
+    _loadFcmToken();
+  }
+
+  Future<void> _loadFcmToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _fcmToken = prefs.getString(_tokenKey);
+    });
+    print('FCM Token in LoginMethod: $_fcmToken');
+
+    // Initialize SDK after getting FCM token
     MptCallKitController().initSdk(
       apiKey: CallkitConstants.API_KEY,
       baseUrl: CallkitConstants.BASE_URL,
+      pushToken: _fcmToken,
+      appId: CallkitConstants.ANDROID_APP_ID,
     );
-    super.initState();
   }
 
   @override
