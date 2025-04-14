@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -7,12 +8,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../components/callkit_constants.dart';
 import '../login_result.dart';
+import '../push_notifications.dart';
 
-// Background message handler
+// // Background message handler
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('Handling a background message: ${message.messageId}');
+  print('Handling a background message: ${jsonEncode(message.data)}');
   // You can handle background messages here
+
+  PushNotifications.showSimpleNotification(
+      title: message.data['msg_title'],
+      body: message.data['msg_content'],
+      payload: jsonEncode(message.data));
   // For example, you might want to show a local notification
 }
 
@@ -96,8 +103,8 @@ class FirebaseService {
 
   Future<void> _initializeFCM() async {
     print("initializeFCM");
-    // Register background message handler
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    // // Register background message handler
+    // FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     // Request permission for FCM
     await _firebaseMessaging.requestPermission(
@@ -126,8 +133,11 @@ class FirebaseService {
     // Listen for incoming messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('Received message: ${message.notification?.title}');
+
       // Handle message
     });
+
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     // Listen for notifications when app is opened from background
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {

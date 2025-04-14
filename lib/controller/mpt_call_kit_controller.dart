@@ -306,11 +306,11 @@ class MptCallKitController {
     // Ngắt kết nối socket
     await MptSocketSocketServer.disconnect();
 
-    if (isOnline == true) {
-      isLogoutAccountSuccess = await offline();
-    } else {
-      isLogoutAccountSuccess = true;
-    }
+    isLogoutAccountSuccess = await offline();
+    // if (isOnline == true) {
+    // } else {
+    //   isLogoutAccountSuccess = true;
+    // }
 
     isUnregistered = await logoutRequest(
       cloudAgentId: currentUserInfo!["user"]["id"],
@@ -769,13 +769,13 @@ class MptCallKitController {
   // Method do unregister from SIP server
   Future<bool> offline({Function(String?)? onError}) async {
     try {
-      if (isOnline == false) {
-        onError?.call("You need register to SIP server first");
-        return false;
-      } else {
-        var result = await channel.invokeMethod(MptCallKitConstants.offline);
-        return result;
-      }
+      // if (isOnline == false) {
+      //   onError?.call("You need register to SIP server first");
+      //   return false;
+      // } else {
+      var result = await channel.invokeMethod(MptCallKitConstants.offline);
+      return result;
+      // }
     } on PlatformException catch (e) {
       debugPrint("Failed to go offline: '${e.message}'.");
       return false;

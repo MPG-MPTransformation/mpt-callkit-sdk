@@ -1,4 +1,4 @@
-package com.example.example1
+package com.metechvn.omicxvn
 
 import io.flutter.embedding.android.FlutterActivity
 
