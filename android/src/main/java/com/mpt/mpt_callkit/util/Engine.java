@@ -12,7 +12,7 @@ public class Engine {
     private PortSipSdk mEngine;
     public boolean mConference = false;
     private static Object locker = new Object();
-    public boolean mUseFrontCamera = false;
+    public boolean mUseFrontCamera = true;
     private PortMessageReceiver receiver;
     private MethodChannel channel;
 

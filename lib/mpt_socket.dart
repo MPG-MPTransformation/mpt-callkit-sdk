@@ -349,7 +349,7 @@ class MptSocketSocketServer {
           if (message.data is Map) {
             Map<dynamic, dynamic> data = message.data as Map<dynamic, dynamic>;
             var sessionId = data['sessionId'];
-            print("hienhh: Session ID: $sessionId");
+            print("subscribed: Session ID: $sessionId");
 
             if (data.containsKey('extraInfo')) {
               var extraInfo = jsonDecode(data['extraInfo']);
@@ -368,13 +368,13 @@ class MptSocketSocketServer {
                     print("Error invoking reinvite method: $e");
                   }
                 } else {
-                  print("hienhh: Call type has no video");
+                  print("subscribed: Call type has no video");
                 }
               } else {
-                print("hienhh: ExtraInfo has no type");
+                print("subscribed: ExtraInfo has no type");
               }
             } else {
-              print("hienhh: Data has no extraInfo");
+              print("subscribed: Data has no extraInfo");
             }
           }
         }

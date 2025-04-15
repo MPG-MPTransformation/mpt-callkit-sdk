@@ -266,6 +266,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                 System.out.println("quanth: service is doing unregisterToServer...");
                 unregisterToServer();
                 Engine.Instance().getMethodChannel().invokeMethod("releaseExtension", true);
+                MptCallkitPlugin.sendToFlutter("releaseExtension", true);
                 context.stopService(new Intent(this, PortSipService.class));
                 System.out.println("quanth: service unregisterToServer done");
             } else if (ACTION_STOP.equals(intent.getAction())) {
@@ -361,6 +362,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             Engine.Instance().getEngine().unInitialize();
             CallManager.Instance().online = false;
             Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", CallManager.Instance().online);
+            MptCallkitPlugin.sendToFlutter("onlineStatus", CallManager.Instance().online);
             CallManager.Instance().isRegistered = false;
         }
     }
@@ -474,12 +476,14 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     public void onRegisterSuccess(String statusText, int statusCode, String sipMessage) {
         System.out.println("quanth: onRegisterSuccess");
         Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", CallManager.Instance().online);
+        MptCallkitPlugin.sendToFlutter("onlineStatus", CallManager.Instance().online);
         CallManager.Instance().isRegistered = true;
         Intent broadIntent = new Intent(REGISTER_CHANGE_ACTION);
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);
 //        sendPortSipMessage("onRegisterSuccess", broadIntent);
         keepCpuRun(true);
         Engine.Instance().getMethodChannel().invokeMethod("registrationStateStream", true);
+        MptCallkitPlugin.sendToFlutter("registrationStateStream", true);
     }
 
     @Override
@@ -554,6 +558,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                 callInfo.put("hasVideo", existsVideo);
 
                 Engine.Instance().getMethodChannel().invokeMethod("incomingCall", callInfo);
+                MptCallkitPlugin.sendToFlutter("incomingCall", callInfo);
             } catch (Exception e) {
                 System.out.println("quanth: Error sending call info to Flutter: " + e.getMessage());
             }
@@ -1170,12 +1175,14 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     private void sendCallStateToFlutter(String state) {
         if (Engine.Instance().getMethodChannel() != null) {
             Engine.Instance().getMethodChannel().invokeMethod("callState", state);
+            MptCallkitPlugin.sendToFlutter("callState", state);
         }
     }
 
     private void sendCallTypeToFlutter(String state) {
         if (Engine.Instance().getMethodChannel() != null) {
             Engine.Instance().getMethodChannel().invokeMethod("callType", state);
+            MptCallkitPlugin.sendToFlutter("callType", state);
         }
     }
 }
