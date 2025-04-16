@@ -85,9 +85,23 @@ class PushNotifications {
               iOS: initializationSettingsDarwin,
               linux: initializationSettingsLinux);
 
-      await _flutterLocalNotificationsPlugin.initialize(initializationSettings,
-          onDidReceiveNotificationResponse: onNotificationTap,
-          onDidReceiveBackgroundNotificationResponse: onNotificationTap);
+      // Đăng ký callback cho foreground và background notification tap
+      await _flutterLocalNotificationsPlugin.initialize(
+        initializationSettings,
+        onDidReceiveNotificationResponse:
+            (NotificationResponse notificationResponse) {
+          print(
+              "Notification tapped with payload: ${notificationResponse.payload}");
+        },
+        onDidReceiveBackgroundNotificationResponse:
+            (NotificationResponse notificationResponse) {
+          print(
+              "Notification tapped with payload: ${notificationResponse.payload}");
+        },
+      );
+
+      print(
+          "Local notification callbacks registered: onDidReceiveNotificationResponse & notificationTapBackground");
 
       // Create the channel on Android devices
       if (!kIsWeb && !Platform.isIOS && !Platform.isMacOS) {
@@ -104,12 +118,6 @@ class PushNotifications {
       print("Error initializing local notifications: $e");
       _isLocalNotificationInitialized = false;
     }
-  }
-
-  // on tap local notification in foreground
-  static void onNotificationTap(NotificationResponse notificationResponse) {
-    print("Notification tapped with payload: ${notificationResponse.payload}");
-    // Navigate or perform action based on payload
   }
 
   // show a simple notification

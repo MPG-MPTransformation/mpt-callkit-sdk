@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -10,17 +9,28 @@ import '../components/callkit_constants.dart';
 import '../login_result.dart';
 import '../push_notifications.dart';
 
-// // Background message handler
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('Handling a background message: ${jsonEncode(message.data)}');
-  // You can handle background messages here
+  print('🔹 Background Message: ${message.data.toString()}');
 
-  PushNotifications.showSimpleNotification(
-      title: message.data['msg_title'],
-      body: message.data['msg_content'],
-      payload: jsonEncode(message.data));
-  // For example, you might want to show a local notification
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('navigate_from_notification', true);
+    print(
+        'Set navigate_from_notification flag to true from background handler');
+
+    // Lưu thêm dữ liệu message để xử lý sau khi mở lại ứng dụng nếu cần
+    await prefs.setString('last_message_data', message.data.toString());
+  } catch (e) {
+    print('Error saving notification state: $e');
+  }
+
+  if (message.data['msg_title'] == "Received a new call.") {
+    PushNotifications.showSimpleNotification(
+        title: message.data['msg_title'] ?? "Thông báo mới",
+        body: message.data['msg_content'] ?? "Nhấn để xem chi tiết",
+        payload: message.data.toString());
+  }
 }
 
 // GlobalKey để truy cập Navigator
@@ -104,7 +114,7 @@ class FirebaseService {
   Future<void> _initializeFCM() async {
     print("initializeFCM");
     // // Register background message handler
-    // FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     // Request permission for FCM
     await _firebaseMessaging.requestPermission(
@@ -137,15 +147,14 @@ class FirebaseService {
       // Handle message
     });
 
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
     // Listen for notifications when app is opened from background
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       print('App opened from notification: ${message.notification?.title}');
       // Handle message
       // When app waked up from background, if has call incoming, register to SIP server
       // Attempt auto login when app is opened from notification
-      _navigateAfterLogin();
+      print('Calling navigateAfterLogin from onMessageOpenedApp');
+      navigateAfterLogin();
     });
 
     // Check for initial message (app opened from terminated state)
@@ -156,23 +165,72 @@ class FirebaseService {
         print(
             'App opened from terminated state: ${message.notification?.title}');
         // Handle message and auto login
-        _navigateAfterLogin();
+        print('Calling navigateAfterLogin from getInitialMessage');
+        navigateAfterLogin();
       }
     });
   }
 
   // This method will be called when app is opened from background
-  void _navigateAfterLogin() async {
+  void navigateAfterLogin() async {
+    print('======================================================');
+    print('navigateAfterLogin: Token FCM: $_tokenFCM');
+    print('======================================================');
+
     MptCallKitController().initSdk(
       apiKey: CallkitConstants.API_KEY,
       baseUrl: CallkitConstants.BASE_URL,
-      pushToken: _tokenKey,
+      pushToken: _tokenFCM,
       appId: CallkitConstants.ANDROID_APP_ID,
     );
-    //
+
+    // Kiểm tra flag từ SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final shouldNavigate = prefs.getBool('navigate_from_notification') ?? false;
+    final lastMessageData = prefs.getString('last_message_data');
+
+    print('navigateAfterLogin: shouldNavigate = $shouldNavigate');
+    print('navigateAfterLogin: lastMessageData = $lastMessageData');
+
+    if (shouldNavigate) {
+      print('Navigate from notification flag is true, resetting it');
+      await prefs.setBool('navigate_from_notification', false);
+
+      // Làm sạch dữ liệu thông báo sau khi đã sử dụng
+      if (lastMessageData != null) {
+        await prefs.remove('last_message_data');
+      }
+    }
+
     // Auto login with GlobalKey context
     if (navigatorKey.currentContext != null) {
+      print('navigateAfterLogin: Context available, attempting auto login');
       await _autoLogin(navigatorKey.currentContext);
+    } else if (shouldNavigate) {
+      // Nếu không có context nhưng flag là true, ghi log để debug
+      print(
+          'No context available but navigation flag was set, waiting for context');
+
+      // Cố gắng đợi và kiểm tra context sau một khoảng thời gian
+      Future.delayed(const Duration(seconds: 2), () {
+        if (navigatorKey.currentContext != null) {
+          print('Context now available after delay, attempting auto login');
+          _autoLogin(navigatorKey.currentContext);
+        } else {
+          print(
+              'Still no context available after delay, trying one more time with longer delay');
+          // Thử thêm lần nữa với delay dài hơn
+          Future.delayed(const Duration(seconds: 5), () {
+            if (navigatorKey.currentContext != null) {
+              print(
+                  'Context available after longer delay, attempting auto login');
+              _autoLogin(navigatorKey.currentContext);
+            } else {
+              print('Still no context available after longer delay, giving up');
+            }
+          });
+        }
+      });
     } else {
       // If no context, do nothing
       print('Auto login executed but no navigator available for routing');
