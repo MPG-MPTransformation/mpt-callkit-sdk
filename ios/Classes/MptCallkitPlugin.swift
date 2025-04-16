@@ -105,9 +105,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        portSIPSDK.delegate = self
        mSoundService = SoundService()
        // change "CallKit" to true if wanna use iOS CallKit
-       UserDefaults.standard.register(defaults: ["CallKit": false])
+       UserDefaults.standard.register(defaults: ["CallKit": true])
        UserDefaults.standard.register(defaults: ["PushNotification": true])
-       UserDefaults.standard.register(defaults: ["ForceBackground": false])
+       UserDefaults.standard.register(defaults: ["ForceBackground": true])
       
        let enableCallKit = UserDefaults.standard.bool(forKey: "CallKit")
        _enablePushNotification = UserDefaults.standard.bool(forKey: "PushNotification")
