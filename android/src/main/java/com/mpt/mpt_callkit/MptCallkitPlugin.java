@@ -52,7 +52,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     // "e3TKpdmDSJqzW20HYsDe9h:APA91bFdWS9ALxW1I7Zuq7uXsYTL6-8F-A3AARhcrLMY6pB6ecUbWX7RbABnLrzCGjGBWIxJ8QaCQkwkOjrv2BOJjEGfFgIGjlIekFqKQR-dtutszyRLZy1Im6KXNIqDzicWIGKdbcWD";
     // public String APPID = "com.portsip.sipsample";
     private MethodChannel.Result pendingResult;
-    private static final String CHANNEL = "com.example/native_events";
+    private static final String CHANNEL = "native_events";
     private static EventChannel.EventSink eventSink;
 
     @Override

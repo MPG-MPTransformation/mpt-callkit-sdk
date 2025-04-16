@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -44,8 +46,8 @@ class _HomeScreenState extends State<HomeScreen> {
           MptCallKitController().initSdk(
             apiKey: _apiKey,
             baseUrl: _baseUrl,
-            pushToken: _fcmToken,
-            appId: CallkitConstants.ANDROID_APP_ID,
+            pushToken: Platform.isAndroid ? _fcmToken : null,
+            appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
           );
           MptCallKitController().makeCallByGuest(
               context: context,

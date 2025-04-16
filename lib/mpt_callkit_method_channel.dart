@@ -2,9 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:mpt_callkit/models/extension_model.dart';
 import 'package:http/http.dart' as http;
+import 'package:mpt_callkit/models/extension_model.dart';
 import 'package:mpt_callkit/models/release_extension_model.dart';
+
 import 'mpt_callkit_platform_interface.dart';
 
 /// An implementation of [MptCallkitPlatform] that uses method channels.
@@ -33,7 +34,11 @@ class MethodChannelMptCallkit extends MptCallkitPlatform {
     String? baseUrl,
     required String userPhoneNumber,
   }) async {
-    initSdk(apiKey: apiKey, userPhoneNumber: userPhoneNumber, baseUrl: baseUrl);
+    initSdk(
+      apiKey: apiKey,
+      userPhoneNumber: userPhoneNumber,
+      baseUrl: baseUrl,
+    );
     final extension = await getExtension();
     if (extension == null) {
       methodChannel.invokeMethod('registrationStateStream', false);

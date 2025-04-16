@@ -26,7 +26,7 @@ class MptCallKitController {
   Map<String, dynamic>? _configuration;
 
   static const MethodChannel channel = MethodChannel('mpt_callkit');
-  static const eventChannel = EventChannel('com.example/native_events');
+  static const eventChannel = EventChannel('native_events');
 
   StreamSubscription? _subscription;
 
@@ -128,6 +128,11 @@ class MptCallKitController {
 
       if (call.method == 'callType') {
         _callType.add(call.arguments as String);
+      }
+
+      if (call.method == 'callKitAnswerReceived') {
+        print(
+            'Received callKitAnswerReceived event from native: ${call.arguments}');
       }
     });
   }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,10 +16,13 @@ Future<void> _saveTokenToLocal(String token) async {
 }
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  // Initialize Firebase
-  await Firebase.initializeApp();
-  FirebaseService firebaseService = FirebaseService();
+  if (Platform.isAndroid) {
+    WidgetsFlutterBinding.ensureInitialized();
+    // Initialize Firebase
+    await Firebase.initializeApp();
+    FirebaseService firebaseService = FirebaseService();
+  }
+
   runApp(const MyApp());
 }
 

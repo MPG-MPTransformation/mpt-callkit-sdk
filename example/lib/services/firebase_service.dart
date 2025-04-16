@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -180,8 +181,8 @@ class FirebaseService {
     MptCallKitController().initSdk(
       apiKey: CallkitConstants.API_KEY,
       baseUrl: CallkitConstants.BASE_URL,
-      pushToken: _tokenFCM,
-      appId: CallkitConstants.ANDROID_APP_ID,
+      pushToken: Platform.isAndroid ? _tokenFCM : null,
+      appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
     );
 
     // Kiểm tra flag từ SharedPreferences

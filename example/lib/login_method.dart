@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -34,8 +36,8 @@ class _LoginMethodState extends State<LoginMethod> {
     MptCallKitController().initSdk(
       apiKey: CallkitConstants.API_KEY,
       baseUrl: CallkitConstants.BASE_URL,
-      pushToken: _fcmToken,
-      appId: CallkitConstants.ANDROID_APP_ID,
+      pushToken: Platform.isAndroid ? _fcmToken : null,
+      appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
     );
   }
 

@@ -651,7 +651,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        videoViewController.onClearState()
 //       remoteViewController.onClearState()
 //       localViewController.onClearState()
-       loginViewController.unRegister()
+    //    loginViewController.unRegister()
       
        // Gửi trạng thái về Flutter
        sendCallStateToFlutter(.FAILED)
@@ -716,7 +716,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        videoViewController.onClearState()
 //       localViewController.onClearState()
 //       remoteViewController.onClearState()
-       loginViewController.unRegister()
+    //    loginViewController.unRegister()
        NSLog("onInviteClosed...")
       
        // Gửi trạng thái về Flutter
