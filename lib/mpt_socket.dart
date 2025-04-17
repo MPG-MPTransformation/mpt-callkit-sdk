@@ -184,6 +184,7 @@ class MptSocketLiveConnect {
 ///SocketAbly class - socket server
 class MptSocketSocketServer {
   static MptSocketSocketServer? _instance;
+  static String? _currentSessionId; // Lưu trữ sessionId hiện tại
 
   static MptSocketSocketServer get instance {
     _instance ??= MptSocketSocketServer._internal();
@@ -351,6 +352,12 @@ class MptSocketSocketServer {
             var sessionId = data['sessionId'];
             print("subscribed: Session ID: $sessionId");
 
+            // Lưu sessionId hiện tại
+            if (sessionId != null) {
+              _currentSessionId = sessionId.toString();
+              print("Current session ID set to: $_currentSessionId");
+            }
+
             if (data.containsKey('extraInfo')) {
               var extraInfo = jsonDecode(data['extraInfo']);
 
@@ -467,6 +474,60 @@ class MptSocketSocketServer {
     }
   }
 
+  /// Subscribe to a custom channel with a specific name
+  Future<ably.RealtimeChannel?> subscribeToCustomChannel(
+    String channelName,
+    Function(ably.Message) onMessageCallback,
+  ) async {
+    if (ablyClient == null) {
+      print("Cannot subscribe to channel: ablyClient is null");
+      return null;
+    }
+
+    print("Subscribing to custom channel: $channelName");
+
+    try {
+      final customChannel = ablyClient!.channels.get(channelName);
+
+      customChannel.subscribe().listen((ably.Message message) {
+        print(
+            "Received message on custom channel $channelName: ${message.name} - ${message.data}");
+        onMessageCallback(message);
+      }, onError: (error) {
+        print("Error subscribing to custom channel $channelName: $error");
+      });
+
+      print("Successfully subscribed to custom channel $channelName");
+      return customChannel;
+    } catch (e) {
+      print("Exception while subscribing to custom channel $channelName: $e");
+      return null;
+    }
+  }
+
+  /// Send message to a custom channel
+  Future<bool> sendMessageToCustomChannel(
+    String channelName,
+    String messageName,
+    dynamic messageData,
+  ) async {
+    if (ablyClient == null) {
+      print("Cannot send message: ablyClient is null");
+      return false;
+    }
+
+    try {
+      final customChannel = ablyClient!.channels.get(channelName);
+      await customChannel.publish(name: messageName, data: messageData);
+      print(
+          "Message sent to custom channel $channelName: $messageName - $messageData");
+      return true;
+    } catch (e) {
+      print("Error sending message to custom channel $channelName: $e");
+      return false;
+    }
+  }
+
   /// Close connection
   Future<void> closeConnection() async {
     try {
@@ -561,5 +622,41 @@ class MptSocketSocketServer {
   /// Truy cập trạng thái kết nối hiện tại
   static bool getCurrentConnectionState() {
     return _instance != null && _instance!.checkConnection();
+  }
+
+  /// Lấy sessionId hiện tại của cuộc gọi
+  static String? get currentSessionId => _currentSessionId;
+
+  /// Xóa sessionId hiện tại khi kết thúc cuộc gọi
+  static void clearCurrentSessionId() {
+    _currentSessionId = null;
+    print("Cleared current session ID");
+  }
+
+  /// Static methods for custom channels
+  static Future<ably.RealtimeChannel?> subscribeToChannel(
+    String channelName,
+    Function(ably.Message) onMessageCallback,
+  ) async {
+    if (_instance == null) {
+      print(
+          "Cannot subscribe to channel: MptSocketSocketServer instance is null");
+      return null;
+    }
+    return await _instance!
+        .subscribeToCustomChannel(channelName, onMessageCallback);
+  }
+
+  static Future<bool> sendToChannel(
+    String channelName,
+    String messageName,
+    dynamic messageData,
+  ) async {
+    if (_instance == null) {
+      print("Cannot send message: MptSocketSocketServer instance is null");
+      return false;
+    }
+    return await _instance!
+        .sendMessageToCustomChannel(channelName, messageName, messageData);
   }
 }

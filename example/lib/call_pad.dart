@@ -7,6 +7,8 @@ import 'package:mpt_callkit/mpt_socket.dart';
 import 'package:mpt_callkit/views/local_view.dart';
 import 'package:mpt_callkit/views/remote_view.dart';
 
+import 'call/call_media_manager.dart';
+
 class CallPad extends StatefulWidget {
   const CallPad({Key? key}) : super(key: key);
 
@@ -35,6 +37,10 @@ class _CallPadState extends State<CallPad> {
   String _agentStatus = "";
   String _callType = "";
 
+  // Trạng thái media của đối phương
+  bool _remoteUserMicEnabled = true;
+  bool _remoteUserCameraEnabled = true;
+
   StreamSubscription<String>? _callStateSubscription;
   StreamSubscription<String>? _agentStatusSubscription;
   StreamSubscription<bool>? _microphoneStateSubscription;
@@ -56,6 +62,9 @@ class _CallPadState extends State<CallPad> {
         // show dialog when call ended
         if (state == CallStateConstants.CLOSED ||
             state == CallStateConstants.FAILED) {
+          // Xóa dữ liệu trạng thái media khi kết thúc cuộc gọi
+          CallMediaManager.clearCallData();
+
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
               _showCallEndedDialog(state);
@@ -67,21 +76,32 @@ class _CallPadState extends State<CallPad> {
 
     // microphone state listener
     _microphoneStateSubscription =
-        MptCallKitController().microState.listen((isActive) {
+        MptCallKitController().microState.listen((isActive) async {
       if (mounted) {
         setState(() {
           _isMuted = isActive; // true when microphone is off
         });
+
+        // Cập nhật trạng thái micro lên kênh (không phát âm = true, phát âm = false)
+        final success =
+            await CallMediaManager.updateMicrophoneStatus(!isActive);
+        print(
+            "Local microphone state changed: ${!isActive ? 'ON' : 'OFF'}, Socket update: ${success ? 'Success' : 'Failed'}");
       }
     });
 
     // camera state listener
     _cameraStateSubscription =
-        MptCallKitController().cameraState.listen((isActive) {
+        MptCallKitController().cameraState.listen((isActive) async {
       if (mounted) {
         setState(() {
           _isCameraOn = isActive; // true when camera is on
         });
+
+        // Cập nhật trạng thái camera lên kênh
+        final success = await CallMediaManager.updateCameraStatus(isActive);
+        print(
+            "Local camera state changed: ${isActive ? 'ON' : 'OFF'}, Socket update: ${success ? 'Success' : 'Failed'}");
       }
     });
 
@@ -105,11 +125,76 @@ class _CallPadState extends State<CallPad> {
       }
     });
 
-    _callTypeSubscription = MptCallKitController().callType.listen((type) {
+    _callTypeSubscription =
+        MptCallKitController().callType.listen((type) async {
       if (mounted) {
         setState(() {
           _callType = type;
         });
+
+        // Lấy sessionId từ MptSocketSocketServer nếu có, hoặc tạo mới nếu chưa có
+        final String sessionId = MptSocketSocketServer.currentSessionId ??
+            DateTime.now().millisecondsSinceEpoch.toString();
+
+        // Xác định loại cuộc gọi (đi hay đến)
+        final String mediaCallType = type == CallTypeConstants.OUTGOING_CALL
+            ? MediaCallType.OUTGOING_CALL
+            : MediaCallType.INCOMING_CALL;
+
+        print(
+            "Initializing CallMediaManager with sessionId: $sessionId, callType: $mediaCallType");
+
+        // Khởi tạo CallMediaManager và đợi kết quả
+        final success = await CallMediaManager.initializeCall(
+            sessionId: sessionId, callType: mediaCallType);
+
+        if (success) {
+          print("CallMediaManager initialized successfully");
+          // Chỉ lắng nghe cập nhật nếu khởi tạo thành công
+          _listenForRemoteMediaUpdates();
+        } else {
+          print("Failed to initialize CallMediaManager");
+        }
+      }
+    });
+  }
+
+  void _listenForRemoteMediaUpdates() {
+    CallMediaManager.subscribeToMediaUpdates((mediaData) {
+      if (CallMediaManager.isCurrentUserCaller()) {
+        bool? calleeMicEnabled = mediaData['calleeMicEnabled'];
+        bool? calleeCameraEnabled = mediaData['calleeCameraEnabled'];
+
+        if (calleeMicEnabled != null) {
+          setState(() {
+            _remoteUserMicEnabled = calleeMicEnabled;
+          });
+          print("Callee Mic status: $calleeMicEnabled");
+        }
+
+        if (calleeCameraEnabled != null) {
+          setState(() {
+            _remoteUserCameraEnabled = calleeCameraEnabled;
+          });
+          print("Callee camera status: $calleeCameraEnabled");
+        }
+      } else {
+        bool? callerMicEnabled = mediaData['callerMicEnabled'];
+        bool? callerCameraEnabled = mediaData['callerCameraEnabled'];
+
+        if (callerMicEnabled != null) {
+          setState(() {
+            _remoteUserMicEnabled = callerMicEnabled;
+          });
+          print("Caller mic status: $callerMicEnabled");
+        }
+
+        if (callerCameraEnabled != null) {
+          setState(() {
+            _remoteUserCameraEnabled = callerCameraEnabled;
+          });
+          print("Caller camera status: $callerCameraEnabled");
+        }
       }
     });
   }
@@ -184,6 +269,33 @@ class _CallPadState extends State<CallPad> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+                // Hiển thị trạng thái mic và camera của đối phương
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  margin: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Remote User Microphone: ${_remoteUserMicEnabled ? "ON" : "OFF"}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Remote User Camera: ${_remoteUserCameraEnabled ? "ON" : "OFF"}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 GridView.builder(
@@ -265,38 +377,60 @@ class _CallPadState extends State<CallPad> {
     }
   }
 
-  void _executeToggleFunction(String functionName) {
+  void _executeToggleFunction(String functionName) async {
     print('Executing $functionName function');
 
     switch (functionName) {
       case 'answer':
-        MptCallKitController().answerCall();
+        await MptCallKitController().answerCall();
         break;
       case 'hangup':
-        MptCallKitController().hangup();
-        // Close call_pad screen
-        Navigator.of(context).pop();
+        await MptCallKitController().hangup();
+
         break;
       case 'hold':
         MptCallKitController().hold();
+
         break;
       case 'unhold':
-        MptCallKitController().unhold();
+        await MptCallKitController().unhold();
+
         break;
       case 'mute':
-        MptCallKitController().mute();
+        final result = await MptCallKitController().mute();
+        if (result) {
+          // Cập nhật trạng thái micro lên socket channel khi mute thành công
+          CallMediaManager.updateMicrophoneStatus(false);
+          print('Microphone muted successfully and status updated to socket');
+        }
         break;
       case 'unmute':
-        MptCallKitController().unmute();
+        final result = await MptCallKitController().unmute();
+        if (result) {
+          // Cập nhật trạng thái micro lên socket channel khi unmute thành công
+          CallMediaManager.updateMicrophoneStatus(true);
+          print('Microphone unmuted successfully and status updated to socket');
+        }
         break;
       case 'cameraOff':
-        MptCallKitController().cameraOff();
+        final result = await MptCallKitController().cameraOff();
+        if (result) {
+          // Cập nhật trạng thái camera lên socket channel khi tắt thành công
+          CallMediaManager.updateCameraStatus(false);
+          print('Camera turned off successfully and status updated to socket');
+        }
         break;
       case 'cameraOn':
-        MptCallKitController().cameraOn();
+        final result = await MptCallKitController().cameraOn();
+        if (result) {
+          // Cập nhật trạng thái camera lên socket channel khi bật thành công
+          CallMediaManager.updateCameraStatus(true);
+          print('Camera turned on successfully and status updated to socket');
+        }
         break;
       case 'reject':
-        MptCallKitController().rejectCall();
+        await MptCallKitController().rejectCall();
+
         break;
       default:
         print('Function $functionName not implemented');
@@ -306,6 +440,11 @@ class _CallPadState extends State<CallPad> {
   void _showCallEndedDialog(String state) {
     String message =
         state == CallStateConstants.CLOSED ? "Call ended" : "Call failed";
+
+    // Xóa dữ liệu trạng thái media
+    CallMediaManager.clearCallData();
+    // Xóa sessionId từ socket
+    MptSocketSocketServer.clearCurrentSessionId();
 
     showDialog(
       context: context,
@@ -348,6 +487,10 @@ class _CallPadState extends State<CallPad> {
             onPressed: () {
               // End call
               MptCallKitController().hangup();
+              // Xóa dữ liệu trạng thái media
+              CallMediaManager.clearCallData();
+              // Xóa sessionId từ socket
+              MptSocketSocketServer.clearCurrentSessionId();
 
               // Go back to previous screen
               // Close dialog
@@ -366,6 +509,13 @@ class _CallPadState extends State<CallPad> {
   }
 
   void switchCamera() async {
-    await MptCallKitController().switchCamera();
+    final result = await MptCallKitController().switchCamera();
+
+    // Đảm bảo camera vẫn bật sau khi chuyển đổi (nếu đang bật)
+    if (result && _isCameraOn) {
+      final updateResult = CallMediaManager.updateCameraStatus(true);
+      print(
+          'Camera switched successfully. Socket update result: $updateResult');
+    }
   }
 }
