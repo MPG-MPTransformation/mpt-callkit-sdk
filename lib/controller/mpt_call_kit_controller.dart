@@ -73,36 +73,36 @@ class MptCallKitController {
       MptCallKitController._internal();
 
   MptCallKitController._internal() {
-    _subscription = eventChannel.receiveBroadcastStream().listen((event) {
-      print('🔥 Received event from native: $event');
-      if (event is Map) {
-        // Handle map events with message and data
-        final String message = event['message'];
-        final dynamic data = event['data'];
+    // _subscription = eventChannel.receiveBroadcastStream().listen((event) {
+    //   print('🔥 Received event from native: $event');
+    //   if (event is Map) {
+    //     // Handle map events with message and data
+    //     final String message = event['message'];
+    //     final dynamic data = event['data'];
 
-        switch (message) {
-          case 'onlineStatus':
-            _isOnline = data as bool;
-            _onlineStatuslistener.add(data);
-            break;
-          case 'callState':
-            _callEvent.add(data.toString());
-            break;
-          case 'cameraState':
-            _cameraState.add(data as bool);
-            break;
-          case 'microphoneState':
-            _microState.add(data as bool);
-            break;
-          case 'holdCallState':
-            _holdCallState.add(data as bool);
-            break;
-          case 'callType':
-            _callType.add(data.toString());
-            break;
-        }
-      }
-    });
+    //     switch (message) {
+    //       case 'onlineStatus':
+    //         _isOnline = data as bool;
+    //         _onlineStatuslistener.add(data);
+    //         break;
+    //       case 'callState':
+    //         _callEvent.add(data.toString());
+    //         break;
+    //       case 'cameraState':
+    //         _cameraState.add(data as bool);
+    //         break;
+    //       case 'microphoneState':
+    //         _microState.add(data as bool);
+    //         break;
+    //       case 'holdCallState':
+    //         _holdCallState.add(data as bool);
+    //         break;
+    //       case 'callType':
+    //         _callType.add(data.toString());
+    //         break;
+    //     }
+    //   }
+    // });
 
     channel.setMethodCallHandler((call) async {
       if (call.method == 'onlineStatus') {
@@ -293,10 +293,9 @@ class MptCallKitController {
     print("connectToSocketServer");
     if (_configuration != null) {
       MptSocketSocketServer.initialize(
-        ablyKeyParam: _configuration!["ABLY_KEY"],
-        tenantIdParam: currentUserInfo!["tenant"]["id"],
-        userIdParam: currentUserInfo!["user"]["id"],
-        userNameParam: currentUserInfo!["user"]["userName"],
+        serverUrlParam: _configuration!["socketIoCallConfig"]["url"],
+        tokenParam: userData!["result"]["accessToken"],
+        currentUserInfo: currentUserInfo!,
         onMessageReceivedParam: (p0) {
           print("Message received in callback: $p0");
         },

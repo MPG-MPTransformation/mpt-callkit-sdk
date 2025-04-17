@@ -33,7 +33,7 @@ class CallType {
   static const String VOICE = "VOICE";
 }
 
-class MessageAbly {
+class MessageSocket {
   static const String INBOUND_CALL = "INIT";
   static const String OFFER_CALL = "OFFER";
   static const String ANSWER_CALL = "ANSWER";
@@ -63,4 +63,16 @@ class CallTypeConstants {
   static const String INCOMING_CALL = "INCOMING_CALL";
   static const String OUTGOING_CALL = "OUTGOING_CALL";
   static const String ENDED = "ENDED";
+}
+
+class ChannelConstants {
+  static const String FB_MESSAGE = "FB_MESSAGE";
+  static const String ZL_MESSAGE = "ZL_MESSAGE";
+  static const String VB_MESSAGE = "VB_MESSAGE";
+  static const String TL_MESSAGE = "TL_MESSAGE";
+  static const String WA_MESSAGE = "WA_MESSAGE";
+  static const String VOICE = "VOICE";
+  static const String GMAIL = "GMAIL";
+  static const String CALL = "CALL";
+  static const String LIVE_CONNECT = "LIVE_CONNECT";
 }

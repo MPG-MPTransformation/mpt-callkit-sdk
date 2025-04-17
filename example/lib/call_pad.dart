@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
@@ -34,6 +35,13 @@ class _CallPadState extends State<CallPad> {
   bool _isOnHold = false;
   String _agentStatus = "";
   String _callType = "";
+  String? _sessionId;
+
+  // Trạng thái media của cả caller và callee
+  bool _callerCameraState = true;
+  bool _calleeCameraState = true;
+  bool _callerMicState = true;
+  bool _calleeMicState = true;
 
   StreamSubscription<String>? _callStateSubscription;
   StreamSubscription<String>? _agentStatusSubscription;
@@ -41,6 +49,9 @@ class _CallPadState extends State<CallPad> {
   StreamSubscription<bool>? _cameraStateSubscription;
   StreamSubscription<bool>? _holdCallStateSubscription;
   StreamSubscription<String>? _callTypeSubscription;
+
+  // Biến theo dõi trạng thái gửi đi gần nhất
+  Map<String, dynamic>? _lastSentMediaStatus;
 
   @override
   void initState() {
@@ -62,6 +73,11 @@ class _CallPadState extends State<CallPad> {
             }
           });
         }
+
+        // Subscribe to media status channel when call is connected
+        if (state == CallStateConstants.CONNECTED) {
+          _subscribeToMediaStatusChannel();
+        }
       }
     });
 
@@ -72,6 +88,9 @@ class _CallPadState extends State<CallPad> {
         setState(() {
           _isMuted = isActive; // true when microphone is off
         });
+
+        // Gửi trạng thái mới khi microphone thay đổi
+        _sendMediaStatus();
       }
     });
 
@@ -82,6 +101,9 @@ class _CallPadState extends State<CallPad> {
         setState(() {
           _isCameraOn = isActive; // true when camera is on
         });
+
+        // Gửi trạng thái mới khi camera thay đổi
+        _sendMediaStatus();
       }
     });
 
@@ -114,6 +136,125 @@ class _CallPadState extends State<CallPad> {
     });
   }
 
+  // Subscribe to media status channel
+  Future<void> _subscribeToMediaStatusChannel() async {
+    try {
+      // Get session ID from MptSocketSocketServer
+      _sessionId = MptSocketSocketServer.currentSessionId;
+
+      if (_sessionId != null && _sessionId!.isNotEmpty) {
+        print('Subscribing to event: call_media_status_$_sessionId');
+
+        // Subscribe to the socket event
+        MptSocketSocketServer.subscribeToEventStatic(
+            'call_media_status_$_sessionId', (data) {
+          print('Received media status message: $data');
+          _handleMediaStatusMessage(data);
+        });
+      } else {
+        print(
+            'Cannot subscribe to media status event: sessionId is null or empty');
+
+        // If there's no sessionId, wait 1s and check again
+        await Future.delayed(const Duration(seconds: 1));
+        _sessionId = MptSocketSocketServer.currentSessionId;
+
+        if (_sessionId != null && _sessionId!.isNotEmpty) {
+          print('Retrying subscribe to event: call_media_status_$_sessionId');
+          MptSocketSocketServer.subscribeToEventStatic(
+              'call_media_status_$_sessionId', (data) {
+            print('Received media status message: $data');
+            _handleMediaStatusMessage(data);
+          });
+        } else {
+          print('Still cannot get sessionId after retry');
+        }
+      }
+    } catch (e) {
+      print('Error subscribing to media status event: $e');
+    }
+  }
+
+  // Handle media status message
+  void _handleMediaStatusMessage(dynamic messageData) {
+    try {
+      // Parse message data
+      Map<dynamic, dynamic>? data;
+      if (messageData is Map) {
+        data = messageData;
+      } else if (messageData is String) {
+        data = Map<String, dynamic>.from(jsonDecode(messageData));
+      }
+
+      if (data != null) {
+        // Process media status message based on your app's requirements
+        print('Media status data: $data');
+
+        //
+        bool isCaller = _callType == CallTypeConstants.OUTGOING_CALL;
+
+        // Variables to store the state of the remote device
+        bool? remoteCamera;
+        bool? remoteMic;
+
+        // Handle camera state
+        if (data.containsKey('callerCameraState') &&
+            data['callerCameraState'] != null) {
+          bool callerCameraState = data['callerCameraState'] as bool;
+          setState(() {
+            _callerCameraState = callerCameraState;
+          });
+          print('Caller camera state: $callerCameraState');
+          if (!isCaller) {
+            // If the current device is callee, update the camera state of the caller
+            remoteCamera = callerCameraState;
+          }
+        }
+
+        if (data.containsKey('calleeCameraState') &&
+            data['calleeCameraState'] != null) {
+          bool calleeCameraState = data['calleeCameraState'] as bool;
+          setState(() {
+            _calleeCameraState = calleeCameraState;
+          });
+          print('Callee camera state: $calleeCameraState');
+          if (isCaller) {
+            // If the current device is caller, update the camera state of the callee
+            remoteCamera = calleeCameraState;
+          }
+        }
+
+        if (data.containsKey('callerMicState') &&
+            data['callerMicState'] != null) {
+          bool callerMicState = data['callerMicState'] as bool;
+          setState(() {
+            _callerMicState = callerMicState;
+          });
+          print('Caller microphone state: $callerMicState');
+          if (!isCaller) {
+            // If the current device is callee, update the microphone state of the caller
+            remoteMic = callerMicState;
+          }
+        }
+
+        if (data.containsKey('calleeMicState') &&
+            data['calleeMicState'] != null) {
+          bool calleeMicState = data['calleeMicState'] as bool;
+          setState(() {
+            _calleeMicState = calleeMicState;
+          });
+          print('Callee microphone state: $calleeMicState');
+          if (isCaller) {
+            // If the current device is caller, update the microphone state of the callee
+            remoteMic = calleeMicState;
+          }
+        }
+      }
+    } catch (e) {
+      print('Error handling media status message: $e');
+    }
+  }
+
   @override
   void dispose() {
     _callStateSubscription?.cancel();
@@ -122,6 +263,7 @@ class _CallPadState extends State<CallPad> {
     _agentStatusSubscription?.cancel();
     _holdCallStateSubscription?.cancel();
     _callTypeSubscription?.cancel();
+
     super.dispose();
   }
 
@@ -184,6 +326,47 @@ class _CallPadState extends State<CallPad> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Container(
+                  margin: const EdgeInsets.only(top: 10, bottom: 16),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Caller Camera: ${_callerCameraState ? "ON" : "OFF"}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Caller Microphone: ${_callerMicState ? "ON" : "OFF"}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Callee Camera: ${_calleeCameraState ? "ON" : "OFF"}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Callee Microphone: ${_calleeMicState ? "ON" : "OFF"}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 GridView.builder(
@@ -300,6 +483,60 @@ class _CallPadState extends State<CallPad> {
         break;
       default:
         print('Function $functionName not implemented');
+    }
+  }
+
+  // Send media status to socket event
+  Future<void> _sendMediaStatus() async {
+    if (_sessionId == null || _sessionId!.isEmpty) {
+      print('Cannot send media status: sessionId is null or empty');
+      return;
+    }
+
+    try {
+      // Determine the role of the device as caller or callee - for example based on callType
+      bool isCaller = _callType == CallTypeConstants.OUTGOING_CALL;
+
+      // Create new media status
+      Map<String, dynamic> mediaStatus = {};
+
+      // Only send the status of the current device
+      if (isCaller) {
+        mediaStatus['callerCameraState'] = _isCameraOn;
+        mediaStatus['callerMicState'] =
+            !_isMuted; // _isMuted = true when mic is off
+      } else {
+        mediaStatus['calleeCameraState'] = _isCameraOn;
+        mediaStatus['calleeMicState'] = !_isMuted;
+      }
+
+      // Check if there is a change in the state compared to the previous send
+      bool shouldSend = true;
+      if (_lastSentMediaStatus != null) {
+        bool hasChanges = false;
+        mediaStatus.forEach((key, value) {
+          // If any value changes, need to send again
+          if (_lastSentMediaStatus![key] != value) {
+            hasChanges = true;
+          }
+        });
+        shouldSend = hasChanges;
+      }
+
+      if (shouldSend) {
+        // Send message using Socket.IO event
+        await MptSocketSocketServer.instance
+            .sendMessage('call_media_status_$_sessionId', mediaStatus);
+
+        // Save the sent state
+        _lastSentMediaStatus = Map<String, dynamic>.from(mediaStatus);
+
+        print('Sent media status update: $mediaStatus');
+      } else {
+        print('Skip sending identical media status: $mediaStatus');
+      }
+    } catch (e) {
+      print('Error sending media status: $e');
     }
   }
 
