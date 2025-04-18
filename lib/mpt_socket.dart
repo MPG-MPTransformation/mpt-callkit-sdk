@@ -357,6 +357,7 @@ class MptSocketSocketServer {
                 });
 
                 _currentSessionId = sessionId.toString();
+                print("currentSessionId: $_currentSessionId");
               } catch (e) {
                 print("Error invoking reinvite method: $e");
               }
@@ -403,6 +404,7 @@ class MptSocketSocketServer {
             "call_event_$tenantId",
             "${tenantId}_$userId",
             "agent_status_${tenantId}_$userId",
+            "agent_status_chat",
           ],
         },
         ack: (data) {
@@ -565,6 +567,17 @@ class MptSocketSocketServer {
     }
 
     print("Subscribing to event: $eventName");
+
+    socket!.emitWithAck(
+      "agent_join_rooms",
+      {
+        "rooms": [eventName],
+      },
+      ack: (data) {
+        print("Agent join new room: $data");
+      },
+    );
+
     socket!.on(eventName, (data) {
       print("Received message for event $eventName: $data");
       callback(data);
