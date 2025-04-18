@@ -356,7 +356,7 @@ class MptSocketSocketServer {
                   'sessionId': sessionId.toString(),
                 });
 
-                _currentSessionId = sessionId.toString();
+                setSessionId(sessionId);
                 print("currentSessionId: $_currentSessionId");
               } catch (e) {
                 print("Error invoking reinvite method: $e");
@@ -461,8 +461,13 @@ class MptSocketSocketServer {
     }
 
     try {
-      socket!.emit(eventName, data);
-      print("Socket.IO sent message: $eventName - $data");
+      socket!.emitWithAck("send_message", {
+        "rooms": [eventName],
+        "event": eventName,
+        "data": data,
+      }, ack: (response) {
+        print("Socket.IO sent message: $eventName - $data - $response");
+      });
     } catch (e) {
       print("Error sending message: $e");
     }
@@ -566,7 +571,7 @@ class MptSocketSocketServer {
       return;
     }
 
-    print("Subscribing to event: $eventName");
+    print("Subscribing to event in socket: $eventName");
 
     socket!.emitWithAck(
       "agent_join_rooms",
@@ -588,6 +593,24 @@ class MptSocketSocketServer {
   static void subscribeToEventStatic(
       String eventName, Function(dynamic) callback) {
     instance.subscribeToEvent(eventName, callback);
+  }
+
+  static void subscribeToMediaStatusChannel(Function(dynamic) callback) {
+    instance.subscribeToEvent("call_media_$_currentSessionId", callback);
+  }
+
+  Future<void> sendMediaStatusMessage(dynamic data) async {
+    await instance.sendMessage("call_media_$_currentSessionId", data);
+  }
+
+  static void leaveCallMediaRoomChannel() {
+    instance.socket!.emitWithAck("agent_leave_rooms", {
+      "rooms": [
+        "call_media_$_currentSessionId",
+      ],
+    }, ack: (data) {
+      print("Agent leave room: $data");
+    });
   }
 
   /// Static getter for current session ID

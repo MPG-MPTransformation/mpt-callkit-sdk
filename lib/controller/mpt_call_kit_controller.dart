@@ -64,6 +64,14 @@ class MptCallKitController {
       StreamController<String>.broadcast();
   Stream<String> get callType => _callType.stream;
 
+  /// current session id stream
+  final StreamController<String> _sessionId =
+      StreamController<String>.broadcast();
+  Stream<String> get sessionId => _sessionId.stream;
+
+  String? setCurrentSessionId = "";
+  String? get currentSessionId => setCurrentSessionId;
+
   ///
 
   bool? _isOnline = false;
@@ -100,6 +108,10 @@ class MptCallKitController {
     //       case 'callType':
     //         _callType.add(data.toString());
     //         break;
+    //       case 'curr_sessionId':
+    //          _currentSessionId = call.arguments as String;
+    //          _sessionId.add(call.arguments as String);
+    //         break;
     //     }
     //   }
     // });
@@ -128,6 +140,10 @@ class MptCallKitController {
 
       if (call.method == 'callType') {
         _callType.add(call.arguments as String);
+      }
+
+      if (call.method == 'curr_sessionId') {
+        _sessionId.add(call.arguments as String);
       }
 
       if (call.method == 'callKitAnswerReceived') {

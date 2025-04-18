@@ -64,6 +64,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        case INCOMING = "INCOMING"
        case TRYING = "TRYING"
        case CONNECTED = "CONNECTED"
+       case IN_CONFERENCE = "IN_CONFERENCE"
        case FAILED = "FAILED"
        case CLOSED = "CLOSED"
    }
@@ -668,7 +669,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        result.session.videoState = existsVideo
        result.session.videoMuted = !existsVideo
        result.session.screenShare = existsScreen
-       
+
+       sendCallStateToFlutter(.IN_CONFERENCE)
+    
        // Cập nhật giao diện
        updateVideo(sessionId: sessionId)
        

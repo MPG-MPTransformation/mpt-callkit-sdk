@@ -565,6 +565,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             // Cập nhật trạng thái video của session
             currentLine.hasVideo = true;
 
+            Engine.Instance().getMethodChannel().invokeMethod("curr_sessionId", messageSesssionId);
+            MptCallkitPlugin.sendToFlutter("curr_sessionId", messageSesssionId);
+
             // Gửi video từ camera
             int sendVideoRes = Engine.Instance().getEngine().sendVideo(currentLine.sessionID, true);
             System.out.println("quanth: reinviteSession - sendVideo(): " + sendVideoRes);
