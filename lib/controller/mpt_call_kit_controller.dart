@@ -28,8 +28,6 @@ class MptCallKitController {
   static const MethodChannel channel = MethodChannel('mpt_callkit');
   static const eventChannel = EventChannel('native_events');
 
-  StreamSubscription? _subscription;
-
   /// online status stream
   final StreamController<bool> _onlineStatuslistener =
       StreamController<bool>.broadcast();
@@ -81,7 +79,7 @@ class MptCallKitController {
       MptCallKitController._internal();
 
   MptCallKitController._internal() {
-    // _subscription = eventChannel.receiveBroadcastStream().listen((event) {
+    // eventChannel.receiveBroadcastStream().listen((event) {
     //   print('🔥 Received event from native: $event');
     //   if (event is Map) {
     //     // Handle map events with message and data
@@ -255,13 +253,13 @@ class MptCallKitController {
     required BuildContext context,
   }) async {
     // Get extension data from current user info
-    if (currentUserInfo != null) {
+    if (currentUserInfo != null && _configuration != null) {
       extensionData = ExtensionData(
         username: currentUserInfo!["user"]["extension"],
         password: currentUserInfo!["user"]["sipPassword"],
         domain: currentUserInfo!["tenant"]["domainContext"],
-        sipServer: "portsip.omicx.vn",
-        port: 5060,
+        sipServer: _configuration!["MOBILE_SIP_URL"],
+        port: _configuration!["MOBILE_SIP_PORT"],
       );
 
       if (extensionData != null) {
@@ -309,8 +307,8 @@ class MptCallKitController {
     print("connectToSocketServer");
     if (_configuration != null) {
       MptSocketSocketServer.initialize(
-        serverUrlParam: _configuration!["socketIoCallConfig"]["url"],
         tokenParam: userData!["result"]["accessToken"],
+        configuration: _configuration!,
         currentUserInfo: currentUserInfo!,
         onMessageReceivedParam: (p0) {
           print("Message received in callback: $p0");

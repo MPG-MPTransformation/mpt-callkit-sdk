@@ -195,6 +195,7 @@ class MptSocketSocketServer {
   int? userId;
   String? userName;
   Map<String, dynamic>? currentUserInfo;
+  Map<String, dynamic>? configuration;
   bool isConnecting = false;
   IO.Socket? socket;
   Function(dynamic)? onMessageReceived;
@@ -225,7 +226,8 @@ class MptSocketSocketServer {
     required String serverUrlParam,
     required String tokenParam,
     required Function(dynamic) onMessageReceivedParam,
-    required Map<String, dynamic> currentUserInfo,
+    required Map<String, dynamic> currentUserInfoParam,
+    required Map<String, dynamic> configurationParam,
   }) {
     /// Create a new stream controller if it is closed
     if (_agentStatusController.isClosed) {
@@ -241,10 +243,11 @@ class MptSocketSocketServer {
     serverUrl = serverUrlParam;
     token = tokenParam;
     onMessageReceived = onMessageReceivedParam;
-    tenantId = currentUserInfo["tenant"]["id"];
-    userId = currentUserInfo["user"]["id"];
-    userName = currentUserInfo["user"]["userName"];
-
+    tenantId = currentUserInfoParam["tenant"]["id"];
+    userId = currentUserInfoParam["user"]["id"];
+    userName = currentUserInfoParam["user"]["userName"];
+    currentUserInfo = currentUserInfoParam;
+    configuration = configurationParam;
     _initSocket();
   }
 
@@ -265,24 +268,38 @@ class MptSocketSocketServer {
     print(
         "Initializing Socket.IO with clientId: ${tenantId}_${userId}_$userName");
 
+    final socketOptionsBuilder = IO.OptionBuilder()
+        .setPath(configuration!["socketIoCallConfig"]["options"]["path"])
+        .setTimeout(configuration!["socketIoCallConfig"]["options"]["timeout"])
+        .setTransports(List<String>.from(
+            configuration!["socketIoCallConfig"]["options"]["transports"]))
+        .setReconnectionAttempts(configuration!["socketIoCallConfig"]["options"]
+            ["reconnectionAttempts"])
+        .setReconnectionDelay(configuration!["socketIoCallConfig"]["options"]
+            ["reconnectionDelay"])
+        .setAuth({"token": token}).setQuery({
+      "participantType": participantType,
+      "participantId": userId,
+      "tenantId": tenantId,
+      "channels": chanels.join(","),
+      "fullName": userName,
+      "forceNew": configuration!["socketIoCallConfig"]["options"]["forceNew"],
+    });
+
+    // enable reconnection if configured
+    if (configuration!["socketIoCallConfig"]["options"]["reconnection"] ==
+        true) {
+      socketOptionsBuilder.enableReconnection();
+    }
+
+    // enable auto connect if configured
+    if (configuration!["socketIoCallConfig"]["options"]["autoConnect"] ==
+        true) {
+      socketOptionsBuilder.enableAutoConnect();
+    }
+
     // Create Socket.IO instance
-    socket = IO.io(
-      serverUrl,
-      IO.OptionBuilder()
-          .setPath("/wsi")
-          .enableReconnection()
-          .disableAutoConnect()
-          .setReconnectionDelay(1000)
-          .setTransports(["websocket", "polling"]).setAuth(
-              {"token": token}).setQuery({
-        "participantType": participantType,
-        "participantId": userId,
-        "tenantId": tenantId,
-        "channels": chanels.join(","),
-        "fullName": userName,
-        "forceNew": true,
-      }).build(),
-    );
+    socket = IO.io(serverUrl, socketOptionsBuilder.build());
 
     // Connect to socket
     socket!.connect();
@@ -527,17 +544,18 @@ class MptSocketSocketServer {
 
   /// Create a single instance
   static void initialize({
-    required String serverUrlParam,
     required String tokenParam,
     required Function(dynamic) onMessageReceivedParam,
     required Map<String, dynamic> currentUserInfo,
+    required Map<String, dynamic> configuration,
   }) {
     // Ensure parameters are passed correctly
     instance.setup(
-      serverUrlParam: serverUrlParam,
+      serverUrlParam: configuration["socketIoCallConfig"]["url"],
       tokenParam: tokenParam,
       onMessageReceivedParam: onMessageReceivedParam,
-      currentUserInfo: currentUserInfo,
+      currentUserInfoParam: currentUserInfo,
+      configurationParam: configuration,
     );
   }
 
