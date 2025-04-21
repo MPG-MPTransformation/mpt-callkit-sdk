@@ -934,6 +934,18 @@ class MptCallKitController {
     }
   }
 
+  Future<bool> setSpeaker({required bool enable}) async {
+    try {
+      final result = await channel.invokeMethod('setSpeaker', {
+        'enable': enable,
+      });
+      return result ?? false;
+    } catch (e) {
+      print('Error setting speaker: $e');
+      return false;
+    }
+  }
+
   Future<bool> transfer({required String destination}) async {
     try {
       final result = await channel.invokeMethod("transfer", {

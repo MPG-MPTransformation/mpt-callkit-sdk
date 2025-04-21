@@ -172,6 +172,15 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             case "reject":
                 rejectCall();
                 break;
+            case "setSpeaker":
+                if (call.hasArgument("enable")) {
+                    boolean enable = call.argument("enable");
+                    setSpeakerStatus(enable);
+                    result.success(true);
+                } else {
+                    result.error("INVALID_ARGUMENTS", "Missing or invalid arguments for setSpeaker", null);
+                }
+                break;
             case "transfer":
                 String destination = call.argument("destination");
                 if (destination != null && !destination.isEmpty()) {
@@ -601,5 +610,17 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         } else {
             portSipLib.setVideoDeviceId(1);
         }
+    }
+    
+    void setSpeakerStatus(boolean enable) {
+        Session currentLine = CallManager.Instance().getCurrentSession();
+        if (currentLine != null && currentLine.sessionID > 0) {
+            if (enable){
+                CallManager.Instance().setAudioDevice(Engine.Instance().getEngine(), PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
+            } else {
+                CallManager.Instance().setAudioDevice(Engine.Instance().getEngine(), PortSipEnumDefine.AudioDevice.EARPIECE);
+            }
+        }
+        System.out.println("quanth: Speaker status set to " + enable);
     }
 }
