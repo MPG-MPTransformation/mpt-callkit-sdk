@@ -79,76 +79,77 @@ class MptCallKitController {
       MptCallKitController._internal();
 
   MptCallKitController._internal() {
-    // eventChannel.receiveBroadcastStream().listen((event) {
-    //   print('🔥 Received event from native: $event');
-    //   if (event is Map) {
-    //     // Handle map events with message and data
-    //     final String message = event['message'];
-    //     final dynamic data = event['data'];
+    if (Platform.isAndroid) {
+      eventChannel.receiveBroadcastStream().listen((event) {
+        print('🔥 Received event from native: $event');
+        if (event is Map) {
+          // Handle map events with message and data
+          final String message = event['message'];
+          final dynamic data = event['data'];
 
-    //     switch (message) {
-    //       case 'onlineStatus':
-    //         _isOnline = data as bool;
-    //         _onlineStatuslistener.add(data);
-    //         break;
-    //       case 'callState':
-    //         _callEvent.add(data.toString());
-    //         break;
-    //       case 'cameraState':
-    //         _cameraState.add(data as bool);
-    //         break;
-    //       case 'microphoneState':
-    //         _microState.add(data as bool);
-    //         break;
-    //       case 'holdCallState':
-    //         _holdCallState.add(data as bool);
-    //         break;
-    //       case 'callType':
-    //         _callType.add(data.toString());
-    //         break;
-    //       case 'curr_sessionId':
-    //          _currentSessionId = call.arguments as String;
-    //          _sessionId.add(call.arguments as String);
-    //         break;
-    //     }
-    //   }
-    // });
+          switch (message) {
+            case 'onlineStatus':
+              _isOnline = data as bool;
+              _onlineStatuslistener.add(data);
+              break;
+            case 'callState':
+              _callEvent.add(data.toString());
+              break;
+            case 'cameraState':
+              _cameraState.add(data as bool);
+              break;
+            case 'microphoneState':
+              _microState.add(data as bool);
+              break;
+            case 'holdCallState':
+              _holdCallState.add(data as bool);
+              break;
+            case 'callType':
+              _callType.add(data.toString());
+              break;
+            case 'curr_sessionId':
+              _sessionId.add(data as String);
+              break;
+          }
+        }
+      });
+    } else {
+      channel.setMethodCallHandler((call) async {
+        if (call.method == 'onlineStatus') {
+          _isOnline = call.arguments as bool;
+          _onlineStatuslistener.add(call.arguments as bool);
+        }
 
-    channel.setMethodCallHandler((call) async {
-      if (call.method == 'onlineStatus') {
-        _isOnline = call.arguments as bool;
-        _onlineStatuslistener.add(call.arguments as bool);
-      }
+        if (call.method == 'callState') {
+          _callEvent.add(call.arguments as String);
+        }
 
-      if (call.method == 'callState') {
-        _callEvent.add(call.arguments as String);
-      }
+        if (call.method == 'cameraState') {
+          _cameraState.add(call.arguments as bool);
+        }
 
-      if (call.method == 'cameraState') {
-        _cameraState.add(call.arguments as bool);
-      }
+        if (call.method == 'microphoneState') {
+          _microState.add(call.arguments as bool);
+        }
 
-      if (call.method == 'microphoneState') {
-        _microState.add(call.arguments as bool);
-      }
+        if (call.method == 'holdCallState') {
+          _holdCallState.add(call.arguments as bool);
+        }
 
-      if (call.method == 'holdCallState') {
-        _holdCallState.add(call.arguments as bool);
-      }
+        if (call.method == 'callType') {
+          _callType.add(call.arguments as String);
+        }
 
-      if (call.method == 'callType') {
-        _callType.add(call.arguments as String);
-      }
+        if (call.method == 'curr_sessionId') {
+          _sessionId.add(call.arguments as String);
+        }
 
-      if (call.method == 'curr_sessionId') {
-        _sessionId.add(call.arguments as String);
-      }
-
-      if (call.method == 'callKitAnswerReceived') {
-        print(
-            'Received callKitAnswerReceived event from native: ${call.arguments}');
-      }
-    });
+        if (call.method == 'callKitAnswerReceived') {
+          print(
+              'Received callKitAnswerReceived event from native: ${call.arguments}');
+        }
+      });
+    }
   }
 
   factory MptCallKitController() {

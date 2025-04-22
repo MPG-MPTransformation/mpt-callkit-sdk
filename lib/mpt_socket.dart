@@ -268,38 +268,52 @@ class MptSocketSocketServer {
     print(
         "Initializing Socket.IO with clientId: ${tenantId}_${userId}_$userName");
 
+    final _serverUrl = configuration!["socketIoCallConfig"]["url"];
+    final _path = configuration!["socketIoCallConfig"]["options"]["path"];
+    final _timeout = configuration!["socketIoCallConfig"]["options"]["timeout"];
+    final _transports = List<String>.from(
+        configuration!["socketIoCallConfig"]["options"]["transports"]);
+    final _reconnectionAttempts =
+        configuration!["socketIoCallConfig"]["options"]["reconnectionAttempts"];
+    final _reconnectionDelay =
+        configuration!["socketIoCallConfig"]["options"]["reconnectionDelay"];
+    final _forceNew =
+        configuration!["socketIoCallConfig"]["options"]["forceNew"];
+    final _reconnection =
+        configuration!["socketIoCallConfig"]["options"]["reconnection"];
+    final _autoConnect =
+        configuration!["socketIoCallConfig"]["options"]["autoConnect"];
+
     final socketOptionsBuilder = IO.OptionBuilder()
-        .setPath(configuration!["socketIoCallConfig"]["options"]["path"])
-        .setTimeout(configuration!["socketIoCallConfig"]["options"]["timeout"])
-        .setTransports(List<String>.from(
-            configuration!["socketIoCallConfig"]["options"]["transports"]))
-        .setReconnectionAttempts(configuration!["socketIoCallConfig"]["options"]
-            ["reconnectionAttempts"])
-        .setReconnectionDelay(configuration!["socketIoCallConfig"]["options"]
-            ["reconnectionDelay"])
+        .setPath("/wsi")
+        .setTimeout(30000)
+        .setTransports(["websocket"])
+        // .setReconnectionAttempts(_reconnectionAttempts)
+        // .setReconnectionDelay(_reconnectionDelay)
         .setAuth({"token": token}).setQuery({
       "participantType": participantType,
       "participantId": userId,
       "tenantId": tenantId,
       "channels": chanels.join(","),
       "fullName": userName,
-      "forceNew": configuration!["socketIoCallConfig"]["options"]["forceNew"],
+      "forceNew": _forceNew,
     });
 
     // enable reconnection if configured
-    if (configuration!["socketIoCallConfig"]["options"]["reconnection"] ==
-        true) {
+    if (_reconnection == true) {
       socketOptionsBuilder.enableReconnection();
     }
 
     // enable auto connect if configured
-    if (configuration!["socketIoCallConfig"]["options"]["autoConnect"] ==
-        true) {
+    if (_autoConnect == true) {
       socketOptionsBuilder.enableAutoConnect();
     }
 
+    print(
+        "socketUrl: $_serverUrl, path: $_path, timeout: $_timeout, transports: $_transports, reconnectionAttempts: $_reconnectionAttempts, reconnectionDelay: $_reconnectionDelay, forceNew: $_forceNew, reconnection: $_reconnection, autoConnect: $_autoConnect");
+
     // Create Socket.IO instance
-    socket = IO.io(serverUrl, socketOptionsBuilder.build());
+    socket = IO.io(_serverUrl, socketOptionsBuilder.build());
 
     // Connect to socket
     socket!.connect();
