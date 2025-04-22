@@ -615,12 +615,15 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     void setSpeakerStatus(boolean enable) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (currentLine != null && currentLine.sessionID > 0) {
+            System.out.println("quanth: onSpeakerStatusChanged " + enable);
             if (enable){
                 CallManager.Instance().setAudioDevice(Engine.Instance().getEngine(), PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
             } else {
                 CallManager.Instance().setAudioDevice(Engine.Instance().getEngine(), PortSipEnumDefine.AudioDevice.EARPIECE);
             }
+        } else{
+            System.out.println("quanth: No active call to set speaker status");
         }
-        System.out.println("quanth: Speaker status set to " + enable);
+        System.out.println("quanth: Loud speaker status set to " + enable);
     }
 }
