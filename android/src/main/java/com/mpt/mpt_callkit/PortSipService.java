@@ -520,13 +520,8 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         System.out.println("quanth: sipMessage = " + sipMessage);
         // System.out.println("quanth: answer-mode = " + Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "Answer-Mode").toString());
         // System.out.println("quanth: answer-mode = " + Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "X-Session-Id").toString());
-        // Lấy X-Session-Id từ sipMessage
-        String messageSesssionId = Engine.Instance().getEngine()
-                .getSipMessageHeaderValue(CallManager.Instance().getCurrentSession().sipMessage, "X-Session-Id").toString();
 
-        Engine.Instance().getMethodChannel().invokeMethod("curr_sessionId", messageSesssionId);
 
-        MptCallkitPlugin.sendToFlutter("curr_sessionId", messageSesssionId);
         if (CallManager.Instance().findIncomingCall() != null) {
             Engine.Instance().getEngine().rejectCall(sessionId, 486); //busy
             System.out.println("quanth: Rejected call - already in a call");
@@ -588,6 +583,17 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             System.out.println("quanth: On not auto answer call");
             sendCallTypeToFlutter("INCOMING_CALL");
         }
+
+        // Lấy X-Session-Id từ sipMessage
+        String messageSesssionId = Engine.Instance().getEngine()
+                .getSipMessageHeaderValue(CallManager.Instance().getCurrentSession().sipMessage, "X-Session-Id").toString();
+
+        Engine.Instance().getMethodChannel().invokeMethod("curr_sessionId", messageSesssionId);
+
+        MptCallkitPlugin.sendToFlutter("curr_sessionId", messageSesssionId);
+        System.out.println("quanth: onInviteIncoming X-Session-Id = " + messageSesssionId);
+
+        // sendCallStateToFlutter("IN_CONFERENCE");
     }
 
     public void showPendingCallNotification(Context context, String contenTitle, String contenText, Intent intent) {
@@ -728,8 +734,6 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         System.out.println("quanth: onInviteUpdated with videoCodecs: " + videoCodecs);
         System.out.println("quanth: onInviteUpdated - existsVideo before: " + (CallManager.Instance().getCurrentSession() != null ? CallManager.Instance().getCurrentSession().hasVideo : "null"));
         System.out.println("quanth: onInviteUpdated - existsVideo from event: " + existsVideo);
-
-        sendCallStateToFlutter("IN_CONFERENCE");
 
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 

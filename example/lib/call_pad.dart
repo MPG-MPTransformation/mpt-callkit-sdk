@@ -80,7 +80,7 @@ class _CallPadState extends State<CallPad> {
         }
 
         // Subscribe to media status channel when call is answered
-        if (state == CallStateConstants.IN_CONFERENCE) {
+        if (state == CallStateConstants.CONNECTED) {
           _subscribeToMediaStatusChannel();
         }
       }
@@ -149,7 +149,7 @@ class _CallPadState extends State<CallPad> {
   Future<void> _subscribeToMediaStatusChannel() async {
     try {
       // Get session ID from MptSocketSocketServer
-      _sessionId = MptSocketSocketServer.currentSessionId;
+      _sessionId = MptCallKitController().currentSessionId;
 
       if (_sessionId != null && _sessionId!.isNotEmpty) {
         print('Subscribing to event with sessionId: $_sessionId');
@@ -165,7 +165,7 @@ class _CallPadState extends State<CallPad> {
 
         // If there's no sessionId, wait 1s and check again
         await Future.delayed(const Duration(seconds: 1));
-        _sessionId = MptSocketSocketServer.currentSessionId;
+        _sessionId = MptCallKitController().currentSessionId;
 
         if (_sessionId != null && _sessionId!.isNotEmpty) {
           print('Retrying subscribe to event with sessionId: $_sessionId');

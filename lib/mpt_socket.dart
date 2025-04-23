@@ -285,11 +285,11 @@ class MptSocketSocketServer {
         configuration!["socketIoCallConfig"]["options"]["autoConnect"];
 
     final socketOptionsBuilder = IO.OptionBuilder()
-        .setPath("/wsi")
-        .setTimeout(30000)
-        .setTransports(["websocket"])
-        // .setReconnectionAttempts(_reconnectionAttempts)
-        // .setReconnectionDelay(_reconnectionDelay)
+        .setPath(_path)
+        .setTimeout(_timeout)
+        .setTransports(_transports)
+        .setReconnectionAttempts(_reconnectionAttempts)
+        .setReconnectionDelay(_reconnectionDelay)
         .setAuth({"token": token}).setQuery({
       "participantType": participantType,
       "participantId": userId,
