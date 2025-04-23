@@ -103,7 +103,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     @Override
     public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
-        System.out.println("quanth: onMethodCall" + call.method);
+        System.out.println("quanth: onMethodCall " + call.method);
         Intent offLineIntent = null;
         Intent myIntent = null;
         Intent stopIntent = null;
@@ -567,15 +567,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         // Lấy X-Session-Id từ sipMessage
         String messageSesssionId = Engine.Instance().getEngine()
                 .getSipMessageHeaderValue(currentLine.sipMessage, "X-Session-Id").toString();
-        System.out.println("quanth: SIP message X-Session-Id: " + messageSesssionId);
-
         // So sánh với sessionId được truyền vào
         if (messageSesssionId.equals(sessionId)) {
             // Cập nhật trạng thái video của session
             currentLine.hasVideo = true;
-
-            Engine.Instance().getMethodChannel().invokeMethod("curr_sessionId", messageSesssionId);
-            MptCallkitPlugin.sendToFlutter("curr_sessionId", messageSesssionId);
 
             // Gửi video từ camera
             int sendVideoRes = Engine.Instance().getEngine().sendVideo(currentLine.sessionID, true);

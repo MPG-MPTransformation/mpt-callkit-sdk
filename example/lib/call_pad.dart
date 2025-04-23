@@ -80,7 +80,7 @@ class _CallPadState extends State<CallPad> {
         }
 
         // Subscribe to media status channel when call is answered
-        if (state == CallStateConstants.IN_CONFERENCE) {
+        if (state == CallStateConstants.CONNECTED) {
           _subscribeToMediaStatusChannel();
         }
       }
@@ -149,13 +149,14 @@ class _CallPadState extends State<CallPad> {
   Future<void> _subscribeToMediaStatusChannel() async {
     try {
       // Get session ID from MptSocketSocketServer
-      _sessionId = MptSocketSocketServer.currentSessionId;
+      _sessionId = MptCallKitController().currentSessionId;
 
       if (_sessionId != null && _sessionId!.isNotEmpty) {
         print('Subscribing to event with sessionId: $_sessionId');
 
         // Subscribe to the socket event
-        MptSocketSocketServer.subscribeToMediaStatusChannel((data) {
+        MptSocketSocketServer.subscribeToMediaStatusChannel(_sessionId!,
+            (data) {
           print('Received media status message: $data');
           _handleMediaStatusMessage(data);
         });
@@ -165,11 +166,12 @@ class _CallPadState extends State<CallPad> {
 
         // If there's no sessionId, wait 1s and check again
         await Future.delayed(const Duration(seconds: 1));
-        _sessionId = MptSocketSocketServer.currentSessionId;
+        _sessionId = MptCallKitController().currentSessionId;
 
         if (_sessionId != null && _sessionId!.isNotEmpty) {
           print('Retrying subscribe to event with sessionId: $_sessionId');
-          MptSocketSocketServer.subscribeToMediaStatusChannel((data) {
+          MptSocketSocketServer.subscribeToMediaStatusChannel(_sessionId!,
+              (data) {
             print('Received media status message: $data');
             _handleMediaStatusMessage(data);
           });
@@ -429,7 +431,7 @@ class _CallPadState extends State<CallPad> {
         break;
       case 'hangup':
         MptCallKitController().hangup();
-        MptSocketSocketServer.leaveCallMediaRoomChannel();
+        MptSocketSocketServer.leaveCallMediaRoomChannel(_sessionId!);
         // Close call_pad screen
         Navigator.of(context).pop();
         break;
@@ -496,7 +498,7 @@ class _CallPadState extends State<CallPad> {
       if (shouldSend) {
         // Gửi tin nhắn sử dụng sự kiện Socket.IO
         await MptSocketSocketServer.instance
-            .sendMediaStatusMessage(mediaStatus);
+            .sendMediaStatusMessage(_sessionId!, mediaStatus);
 
         // Lưu trạng thái đã gửi
         _lastSentMediaStatus = Map<String, dynamic>.from(mediaStatus);
@@ -524,8 +526,7 @@ class _CallPadState extends State<CallPad> {
           actions: [
             TextButton(
               onPressed: () {
-                MptSocketSocketServer.leaveCallMediaRoomChannel();
-
+                MptSocketSocketServer.leaveCallMediaRoomChannel(_sessionId!);
                 // Close dialog
                 Navigator.of(context).pop();
                 // Close call_pad screen

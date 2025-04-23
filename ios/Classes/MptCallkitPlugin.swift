@@ -494,6 +494,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        _callManager.incomingCall(sessionid: sessionId, existsVideo: existsVideo, remoteParty: remoteParty!, remoteDisplayName: remoteDisplayName!, callUUID: uuid!, completionHandle: {})
       
        self.currentSessionid = portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "X-Session-Id")
+
+       methodChannel?.invokeMethod("curr_sessionId", arguments: self.currentSessionid)
        
        // Auto answer call
        if portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "Answer-Mode") == "Auto;require" {
@@ -505,6 +507,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             print("onInviteIncoming - Incoming call API")
             methodChannel?.invokeMethod("callType", arguments: "INCOMING_CALL")
        }
+
+    //    sendCallStateToFlutter(.IN_CONFERENCE)
    }
   
    public func onInviteTrying(_ sessionId: Int) {
@@ -669,9 +673,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        result.session.videoState = existsVideo
        result.session.videoMuted = !existsVideo
        result.session.screenShare = existsScreen
-
-       sendCallStateToFlutter(.IN_CONFERENCE)
-    
        // Cập nhật giao diện
        updateVideo(sessionId: sessionId)
        
@@ -1715,7 +1716,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            // Update call to add video stream
            let updateRes = portSIPSDK.updateCall(sessionResult.session.sessionId, enableAudio: true, enableVideo: true)
            NSLog("reinviteSession - updateCall(): \(updateRes)")
-           
            // Update the video UI
            updateVideo(sessionId: Int(sessionResult.session.sessionId))
            

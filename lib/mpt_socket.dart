@@ -199,7 +199,6 @@ class MptSocketSocketServer {
   bool isConnecting = false;
   IO.Socket? socket;
   Function(dynamic)? onMessageReceived;
-  static String? _currentSessionId;
 
   // Stream for agent status
   StreamController<String> _agentStatusController =
@@ -285,11 +284,11 @@ class MptSocketSocketServer {
         configuration!["socketIoCallConfig"]["options"]["autoConnect"];
 
     final socketOptionsBuilder = IO.OptionBuilder()
-        .setPath("/wsi")
-        .setTimeout(30000)
-        .setTransports(["websocket"])
-        // .setReconnectionAttempts(_reconnectionAttempts)
-        // .setReconnectionDelay(_reconnectionDelay)
+        .setPath(_path)
+        .setTimeout(_timeout)
+        .setTransports(_transports)
+        .setReconnectionAttempts(_reconnectionAttempts)
+        .setReconnectionDelay(_reconnectionDelay)
         .setAuth({"token": token}).setQuery({
       "participantType": participantType,
       "participantId": userId,
@@ -387,8 +386,7 @@ class MptSocketSocketServer {
                   'sessionId': sessionId.toString(),
                 });
 
-                setSessionId(sessionId);
-                print("currentSessionId: $_currentSessionId");
+                print("currentSessionId: $sessionId");
               } catch (e) {
                 print("Error invoking reinvite method: $e");
               }
@@ -627,18 +625,19 @@ class MptSocketSocketServer {
     instance.subscribeToEvent(eventName, callback);
   }
 
-  static void subscribeToMediaStatusChannel(Function(dynamic) callback) {
-    instance.subscribeToEvent("call_media_$_currentSessionId", callback);
+  static void subscribeToMediaStatusChannel(
+      String sessionId, Function(dynamic) callback) {
+    instance.subscribeToEvent("call_media_$sessionId", callback);
   }
 
-  Future<void> sendMediaStatusMessage(dynamic data) async {
-    await instance.sendMessage("call_media_$_currentSessionId", data);
+  Future<void> sendMediaStatusMessage(String sessionId, dynamic data) async {
+    await instance.sendMessage("call_media_$sessionId", data);
   }
 
-  static void leaveCallMediaRoomChannel() {
+  static void leaveCallMediaRoomChannel(String sessionId) {
     instance.socket!.emitWithAck("agent_leave_rooms", {
       "rooms": [
-        "call_media_$_currentSessionId",
+        "call_media_$sessionId",
       ],
     }, ack: (data) {
       print("Agent leave room: $data");
@@ -646,10 +645,6 @@ class MptSocketSocketServer {
   }
 
   /// Static getter for current session ID
-  static String? get currentSessionId => _currentSessionId;
 
   /// Static method to set session ID
-  static void setSessionId(String? sessionId) {
-    _currentSessionId = sessionId;
-  }
 }
