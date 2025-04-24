@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '/call_pad.dart';
 
@@ -12,13 +13,11 @@ class LoginResultScreen extends StatefulWidget {
   const LoginResultScreen({
     Key? key,
     required this.title,
-    required this.userData,
     required this.baseUrl,
     required this.apiKey,
   }) : super(key: key);
 
   final String title;
-  final Map<String, dynamic>? userData;
   final String baseUrl;
   final String apiKey;
   @override
@@ -135,6 +134,12 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
     );
 
     if (result) {
+      // Remove saved credentials
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove("fcm_token");
+      await prefs.remove("saved_username");
+      await prefs.remove("saved_password");
+
       Navigator.pop(context);
     }
   }

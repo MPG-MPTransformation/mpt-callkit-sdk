@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '/login_method.dart';
 import 'components/callkit_constants.dart';
+import 'login_result.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -28,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _phoneController.text = "200011";
     _callTo.text = "20015";
     _loadFcmToken();
+    _checkSavedCredentials();
   }
 
   Future<void> _loadFcmToken() async {
@@ -36,6 +38,63 @@ class _HomeScreenState extends State<HomeScreen> {
       _fcmToken = prefs.getString(_tokenKey);
     });
     print('FCM Token in Home: $_fcmToken');
+  }
+
+  Future<void> _checkSavedCredentials() async {
+    await autoLogin(context);
+  }
+
+  // Auto login with saved credentials - Login by account and password
+  Future<bool> autoLogin(BuildContext? context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final username = prefs.getString("saved_username");
+    final password = prefs.getString("saved_password");
+
+    if (username != null &&
+        password != null &&
+        username.isNotEmpty &&
+        password.isNotEmpty) {
+      print('Auto login with saved credentials: $username');
+
+      MptCallKitController().initSdk(
+        apiKey: CallkitConstants.API_KEY,
+        baseUrl: CallkitConstants.BASE_URL,
+        pushToken: Platform.isAndroid ? prefs.getString(_tokenKey) : null,
+        appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
+      );
+
+      var result = await MptCallKitController().loginRequest(
+        username: username,
+        password: password,
+        tenantId: CallkitConstants.TENANT_ID,
+        baseUrl: CallkitConstants.BASE_URL,
+        onError: (error) {
+          print('Auto login failed: $error');
+        },
+      );
+
+      if (result && context != null) {
+        print('Auto login successful');
+
+        // Chuyển hướng đến màn hình LoginResultScreen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const LoginResultScreen(
+              title: 'Login Successful',
+              baseUrl: CallkitConstants.BASE_URL,
+              apiKey: CallkitConstants.API_KEY,
+            ),
+          ),
+        );
+
+        return true;
+      }
+    } else {
+      print('No saved credentials found for auto login');
+    }
+
+    return false;
   }
 
   @override

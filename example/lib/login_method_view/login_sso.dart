@@ -47,7 +47,6 @@ class _LoginSSOState extends State<LoginSSO> {
             MaterialPageRoute(
                 builder: (context) => LoginResultScreen(
                       title: 'Login SSO Successful',
-                      userData: userData,
                       baseUrl: baseUrl,
                       apiKey: apiKey,
                     )),

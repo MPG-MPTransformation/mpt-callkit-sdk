@@ -15,22 +15,30 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('🔹 Background Message: ${message.data.toString()}');
 
   try {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('navigate_from_notification', true);
-    print(
-        'Set navigate_from_notification flag to true from background handler');
+    // Đảm bảo khởi tạo flutter_local_notifications trước khi sử dụng
+    await PushNotifications.localNotiInit();
 
-    // Lưu thêm dữ liệu message để xử lý sau khi mở lại ứng dụng nếu cần
-    await prefs.setString('last_message_data', message.data.toString());
+    // Giải quyết vấn đề với SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('navigate_from_notification', true);
+      print(
+          'Set navigate_from_notification flag to true from background handler');
+
+      // Lưu thêm dữ liệu message để xử lý sau khi mở lại ứng dụng nếu cần
+      await prefs.setString('last_message_data', message.data.toString());
+    } catch (e) {
+      print('Error saving notification state: $e');
+    }
+
+    if (message.data['msg_title'] == "Received a new call.") {
+      await PushNotifications.showSimpleNotification(
+          title: message.data['msg_title'] ?? "Thông báo mới",
+          body: message.data['msg_content'] ?? "Nhấn để xem chi tiết",
+          payload: message.data.toString());
+    }
   } catch (e) {
-    print('Error saving notification state: $e');
-  }
-
-  if (message.data['msg_title'] == "Received a new call.") {
-    PushNotifications.showSimpleNotification(
-        title: message.data['msg_title'] ?? "Thông báo mới",
-        body: message.data['msg_content'] ?? "Nhấn để xem chi tiết",
-        payload: message.data.toString());
+    print('Error in background handler: $e');
   }
 }
 
@@ -66,7 +74,7 @@ class FirebaseService {
 
   String? get token => _tokenFCM;
 
-  Future<bool> _autoLogin(BuildContext? context) async {
+  Future<bool> autoLogin(BuildContext? context) async {
     final prefs = await SharedPreferences.getInstance();
     final username = prefs.getString(_usernameKey);
     final password = prefs.getString(_passwordKey);
@@ -76,6 +84,13 @@ class FirebaseService {
         username.isNotEmpty &&
         password.isNotEmpty) {
       print('Auto login with saved credentials: $username');
+
+      MptCallKitController().initSdk(
+        apiKey: CallkitConstants.API_KEY,
+        baseUrl: CallkitConstants.BASE_URL,
+        pushToken: Platform.isAndroid ? prefs.getString(_tokenKey) : null,
+        appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
+      );
 
       var result = await MptCallKitController().loginRequest(
         username: username,
@@ -94,9 +109,8 @@ class FirebaseService {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => LoginResultScreen(
+            builder: (context) => const LoginResultScreen(
               title: 'Login Successful',
-              userData: MptCallKitController().userData,
               baseUrl: CallkitConstants.BASE_URL,
               apiKey: CallkitConstants.API_KEY,
             ),
@@ -206,7 +220,7 @@ class FirebaseService {
     // Auto login with GlobalKey context
     if (navigatorKey.currentContext != null) {
       print('navigateAfterLogin: Context available, attempting auto login');
-      await _autoLogin(navigatorKey.currentContext);
+      await autoLogin(navigatorKey.currentContext);
     } else if (shouldNavigate) {
       // Nếu không có context nhưng flag là true, ghi log để debug
       print(
@@ -216,7 +230,7 @@ class FirebaseService {
       Future.delayed(const Duration(seconds: 2), () {
         if (navigatorKey.currentContext != null) {
           print('Context now available after delay, attempting auto login');
-          _autoLogin(navigatorKey.currentContext);
+          autoLogin(navigatorKey.currentContext);
         } else {
           print(
               'Still no context available after delay, trying one more time with longer delay');
@@ -225,7 +239,7 @@ class FirebaseService {
             if (navigatorKey.currentContext != null) {
               print(
                   'Context available after longer delay, attempting auto login');
-              _autoLogin(navigatorKey.currentContext);
+              autoLogin(navigatorKey.currentContext);
             } else {
               print('Still no context available after longer delay, giving up');
             }

@@ -60,7 +60,6 @@ class _LoginState extends State<Login> {
             MaterialPageRoute(
                 builder: (context) => LoginResultScreen(
                       title: 'Login Successful',
-                      userData: userData,
                       baseUrl: _baseUrl,
                       apiKey: _apiKey,
                     )),

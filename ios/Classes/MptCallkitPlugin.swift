@@ -1448,7 +1448,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        NSLog("Status: \(String(describing: statusText)), Message: \(String(describing: sipMessage))")
        sipRegistered = false
        methodChannel?.invokeMethod("onlineStatus", arguments: false)
-       loginViewController.unRegister()
+    //    loginViewController.unRegister()
        NSLog("onRegisterFailure")
    }
   

@@ -4,6 +4,12 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+// Khai báo callback function ở top-level
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse notificationResponse) {
+  print("Background notification tapped with payload");
+}
+
 class PushNotifications {
   static final _firebaseMessaging = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin
@@ -25,24 +31,16 @@ class PushNotifications {
     // Initialize local notifications first
     await localNotiInit();
 
-    getFCMToken();
+    // getFCMToken();
   }
 
 // get the fcm device token
   static Future getFCMToken({int maxRetires = 3}) async {
     try {
       String? token;
-      if (kIsWeb) {
-        // get the device fcm token
-        token = await _firebaseMessaging.getToken(
-            vapidKey:
-                "BJzRufH-VxRc7wLunA6WOaf-gVurFKhDluPRFB8644PQHw6OfWH8uzybtYsFBTA326_yy3PEG-L7OK_ojVsMmrI");
-        print("for web device token: $token");
-      } else {
-        // get the device fcm token
-        token = await _firebaseMessaging.getToken();
-        print("for android device token: $token");
-      }
+      // get the device fcm token
+      token = await _firebaseMessaging.getToken();
+      print("for android device token: $token");
       return token;
     } catch (e) {
       print("failed to get device token");
@@ -72,13 +70,16 @@ class PushNotifications {
 
       // initialise the plugin. app_icon needs to be a added as a drawable resource to the Android head project
       const AndroidInitializationSettings initializationSettingsAndroid =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
+          AndroidInitializationSettings('@drawable/ic_notification');
+
       final DarwinInitializationSettings initializationSettingsDarwin =
           DarwinInitializationSettings(
         onDidReceiveLocalNotification: (id, title, body, payload) => null,
       );
+
       const LinuxInitializationSettings initializationSettingsLinux =
           LinuxInitializationSettings(defaultActionName: 'Open notification');
+
       final InitializationSettings initializationSettings =
           InitializationSettings(
               android: initializationSettingsAndroid,
@@ -93,11 +94,7 @@ class PushNotifications {
           print(
               "Notification tapped with payload: ${notificationResponse.payload}");
         },
-        onDidReceiveBackgroundNotificationResponse:
-            (NotificationResponse notificationResponse) {
-          print(
-              "Notification tapped with payload: ${notificationResponse.payload}");
-        },
+        onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
       );
 
       print(
@@ -145,6 +142,7 @@ class PushNotifications {
         importance: Importance.high,
         priority: Priority.high,
         showWhen: true,
+        icon: '@drawable/ic_notification',
       );
 
       const NotificationDetails notificationDetails =
