@@ -30,28 +30,6 @@ class PushNotifications {
 
     // Initialize local notifications first
     await localNotiInit();
-
-    // getFCMToken();
-  }
-
-// get the fcm device token
-  static Future getFCMToken({int maxRetires = 3}) async {
-    try {
-      String? token;
-      // get the device fcm token
-      token = await _firebaseMessaging.getToken();
-      print("for android device token: $token");
-      return token;
-    } catch (e) {
-      print("failed to get device token");
-      if (maxRetires > 0) {
-        print("try after 10 sec");
-        await Future.delayed(const Duration(seconds: 10));
-        return getFCMToken(maxRetires: maxRetires - 1);
-      } else {
-        return null;
-      }
-    }
   }
 
 // initalize local notifications

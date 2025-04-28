@@ -31,6 +31,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       print('Error saving notification state: $e');
     }
 
+    /* ------------------------------------------------------------
+   Show call notification if have call incoming:
+    1. Make sure app is in background.
+    2. Or if app terminated, you have to auto login step by step (follow the code in HomeScreen()):
+    2.1. Call to method MptCallKitController().initSdk().
+    2.2. Call to method login (login with account or sso login)
+    with saved credentials and navigate to LoginResultScreen to get call incoming.
+    -------------------------------------------------------------*/
     if (message.data['msg_title'] == "Received a new call.") {
       await PushNotifications.showSimpleNotification(
           title: message.data['msg_title'] ?? "Thông báo mới",
@@ -169,7 +177,6 @@ class FirebaseService {
       // When app waked up from background, if has call incoming, register to SIP server
       // Attempt auto login when app is opened from notification
       print('Calling navigateAfterLogin from onMessageOpenedApp');
-      navigateAfterLogin();
     });
 
     // Check for initial message (app opened from terminated state)
@@ -181,74 +188,7 @@ class FirebaseService {
             'App opened from terminated state: ${message.notification?.title}');
         // Handle message and auto login
         print('Calling navigateAfterLogin from getInitialMessage');
-        navigateAfterLogin();
       }
     });
-  }
-
-  // This method will be called when app is opened from background
-  void navigateAfterLogin() async {
-    print('======================================================');
-    print('navigateAfterLogin: Token FCM: $_tokenFCM');
-    print('======================================================');
-
-    MptCallKitController().initSdk(
-      apiKey: CallkitConstants.API_KEY,
-      baseUrl: CallkitConstants.BASE_URL,
-      pushToken: Platform.isAndroid ? _tokenFCM : null,
-      appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
-    );
-
-    // Kiểm tra flag từ SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    final shouldNavigate = prefs.getBool('navigate_from_notification') ?? false;
-    final lastMessageData = prefs.getString('last_message_data');
-
-    print('navigateAfterLogin: shouldNavigate = $shouldNavigate');
-    print('navigateAfterLogin: lastMessageData = $lastMessageData');
-
-    if (shouldNavigate) {
-      print('Navigate from notification flag is true, resetting it');
-      await prefs.setBool('navigate_from_notification', false);
-
-      // Làm sạch dữ liệu thông báo sau khi đã sử dụng
-      if (lastMessageData != null) {
-        await prefs.remove('last_message_data');
-      }
-    }
-
-    // Auto login with GlobalKey context
-    if (navigatorKey.currentContext != null) {
-      print('navigateAfterLogin: Context available, attempting auto login');
-      await autoLogin(navigatorKey.currentContext);
-    } else if (shouldNavigate) {
-      // Nếu không có context nhưng flag là true, ghi log để debug
-      print(
-          'No context available but navigation flag was set, waiting for context');
-
-      // Cố gắng đợi và kiểm tra context sau một khoảng thời gian
-      Future.delayed(const Duration(seconds: 2), () {
-        if (navigatorKey.currentContext != null) {
-          print('Context now available after delay, attempting auto login');
-          autoLogin(navigatorKey.currentContext);
-        } else {
-          print(
-              'Still no context available after delay, trying one more time with longer delay');
-          // Thử thêm lần nữa với delay dài hơn
-          Future.delayed(const Duration(seconds: 5), () {
-            if (navigatorKey.currentContext != null) {
-              print(
-                  'Context available after longer delay, attempting auto login');
-              autoLogin(navigatorKey.currentContext);
-            } else {
-              print('Still no context available after longer delay, giving up');
-            }
-          });
-        }
-      });
-    } else {
-      // If no context, do nothing
-      print('Auto login executed but no navigator available for routing');
-    }
   }
 }
