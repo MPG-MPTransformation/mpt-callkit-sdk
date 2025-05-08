@@ -183,6 +183,8 @@ class MptSocketLiveConnect {
 ///SocketAbly class - socket server
 class MptSocketSocketServer {
   static MptSocketSocketServer? _instance;
+  // Add a Set to store subscribed rooms
+  final Set<String> _subscribedRooms = {};
 
   static MptSocketSocketServer get instance {
     _instance ??= MptSocketSocketServer._internal();
@@ -329,6 +331,20 @@ class MptSocketSocketServer {
       if (!_connectionStatusController.isClosed) {
         _connectionStatusController.add(true);
       }
+      _listenEventChannels();
+      // Rejoin all subscribed rooms after reconnection
+      _rejoinSubscribedRooms();
+    });
+
+    socket!.onReconnect((data) {
+      print("Socket.IO reconnected");
+      isConnecting = true;
+      if (!_connectionStatusController.isClosed) {
+        _connectionStatusController.add(true);
+      }
+      _listenEventChannels();
+      // Rejoin all subscribed rooms after reconnection
+      _rejoinSubscribedRooms();
     });
 
     socket!.onDisconnect((_) {
@@ -350,28 +366,48 @@ class MptSocketSocketServer {
     socket!.onError((error) {
       print("Socket.IO error: $error");
     });
+  }
+
+  void _listenEventChannels() {
+    // Remove existing listeners first
+    socket!.off("agent_status_chat");
+    socket!.off("CALL_EVENT");
+    socket!.off("message");
+    socket!.off("AGENT_STATUS_CHANGED");
 
     socket!.on("agent_status_chat", (data) {
-      print("Received agent status chat message: $data");
+      print("Socket server - AGENT_STATUS_CHAT - Received message: $data");
       _handleAgentStatusMessage(data);
     });
 
     // Listen for call events
     socket!.on("CALL_EVENT", (data) async {
-      print("Received call message: $data");
+      print("Socket server - CALL_EVENT - Received message: $data");
 
       if (data is Map) {
         if (data['state'] != MessageSocket.ANSWER_CALL) {
           return;
         }
-        print("subscribed: Call state is ANSWER_CALL");
         var sessionId = data['sessionId'];
-        print("subscribed: Session ID: $sessionId");
+        print("Socket server - CALL_EVENT - Received sessionId - $sessionId");
 
         if (data.containsKey('extraInfo')) {
           var extraInfo;
           if (data['extraInfo'] is String) {
-            extraInfo = jsonDecode(data['extraInfo']);
+            try {
+              final extraInfoStr = data['extraInfo'] as String;
+              if (extraInfoStr.isNotEmpty) {
+                extraInfo = jsonDecode(extraInfoStr);
+              } else {
+                print(
+                    "Socket server - CALL_EVENT - extraInfo is an empty string");
+                return;
+              }
+            } catch (e) {
+              print(
+                  "Socket server - CALL_EVENT - Error parsing extraInfo JSON: $e");
+              return;
+            }
           } else {
             extraInfo = data['extraInfo'];
           }
@@ -386,18 +422,20 @@ class MptSocketSocketServer {
                   'sessionId': sessionId.toString(),
                 });
 
-                print("currentSessionId: $sessionId");
+                print(
+                    "Socket server - CALL_EVENT - currentSessionId: $sessionId");
               } catch (e) {
-                print("Error invoking reinvite method: $e");
+                print(
+                    "Socket server - CALL_EVENT - Error invoking reinvite method: $e");
               }
             } else {
-              print("subscribed: Call type has no video");
+              print("Socket server - CALL_EVENT - Call type has no video");
             }
           } else {
-            print("subscribed: ExtraInfo has no type");
+            print("Socket server - CALL_EVENT - ExtraInfo has no type");
           }
         } else {
-          print("subscribed: Data has no extraInfo");
+          print("Socket server - CALL_EVENT - Data has no extraInfo");
         }
       }
 
@@ -443,7 +481,7 @@ class MptSocketSocketServer {
     });
 
     socket!.on("AGENT_STATUS_CHANGED", (data) {
-      print("Received agent status message: $data");
+      print("Socket server - AGENT_STATUS_CHANGED - Received message: $data");
       _handleAgentStatusMessage(data);
     });
   }
@@ -457,35 +495,49 @@ class MptSocketSocketServer {
       if (data is Map) {
         statusData = data;
       } else if (data is String) {
-        statusData = Map<String, dynamic>.from(jsonDecode(data));
+        final dataStr = data;
+        if (dataStr.isNotEmpty) {
+          statusData = Map<String, dynamic>.from(jsonDecode(dataStr));
+        } else {
+          print(
+              "Socket server - AGENT_STATUS_CHANGED - Received empty string for agent status message");
+          return;
+        }
       }
     } catch (e) {
-      print("Error parsing message data: $e");
+      print(
+          "Socket server - AGENT_STATUS_CHANGED - Error parsing message data: $e");
+      return;
     }
 
     if (statusData != null) {
       final statusName = statusData['statusName'] as String?;
       if (statusName != null) {
         if (!_agentStatusController.isClosed) {
-          print("Adding status to stream: $statusName");
+          print(
+              "Socket server - AGENT_STATUS_CHANGED - Adding status to stream: $statusName");
           _agentStatusController.add(statusName);
         } else {
-          print("Warning: Controller is closed. Creating a new one.");
+          print(
+              "Socket server - AGENT_STATUS_CHANGED - Controller is closed. Creating a new one.");
           _agentStatusController = StreamController<String>.broadcast();
           _agentStatusController.add(statusName);
         }
       } else {
-        print("statusName is null in data: $statusData");
+        print(
+            "Socket server - AGENT_STATUS_CHANGED - statusName is null in data: $statusData");
       }
     } else {
-      print("Could not parse data from message: $data");
+      print(
+          "Socket server - AGENT_STATUS_CHANGED - Could not parse data from message: $data");
     }
   }
 
   /// Send message through socket
   Future<void> sendMessage(String eventName, dynamic data) async {
     if (socket == null || !socket!.connected) {
-      print("Cannot send message: socket is null or not connected");
+      print(
+          "Socket server - SEND_MESSAGE - Cannot send message: socket is null or not connected");
       return;
     }
 
@@ -495,10 +547,11 @@ class MptSocketSocketServer {
         "event": eventName,
         "data": data,
       }, ack: (response) {
-        print("Socket.IO sent message: $eventName - $data - $response");
+        print(
+            "Socket server - SEND_MESSAGE - Sent message: $eventName - $data - $response");
       });
     } catch (e) {
-      print("Error sending message: $e");
+      print("Socket server - SEND_MESSAGE - Error sending message: $e");
     }
   }
 
@@ -526,6 +579,7 @@ class MptSocketSocketServer {
   Future<void> releaseResources() async {
     try {
       await closeConnection();
+      _subscribedRooms.clear();
 
       if (!_agentStatusController.isClosed) {
         _agentStatusController.close();
@@ -603,13 +657,16 @@ class MptSocketSocketServer {
 
     print("Subscribing to event in socket: $eventName");
 
+    // Store the room in the Set
+    _subscribedRooms.add(eventName);
+
     socket!.emitWithAck(
       "agent_join_rooms",
       {
         "rooms": [eventName],
       },
       ack: (data) {
-        print("Agent join new room: $data");
+        print("Socket server - AGENT_JOIN_ROOMS - Agent join new room: $data");
       },
     );
 
@@ -640,11 +697,46 @@ class MptSocketSocketServer {
         "call_media_$sessionId",
       ],
     }, ack: (data) {
-      print("Agent leave room: $data");
+      print("Socket server - AGENT_LEAVE_ROOMS - Agent leave room: $data");
     });
   }
 
   /// Static getter for current session ID
 
   /// Static method to set session ID
+
+  // Add new method to rejoin subscribed rooms
+  void _rejoinSubscribedRooms() {
+    if (_subscribedRooms.isEmpty) return;
+
+    print("Rejoining subscribed rooms: $_subscribedRooms");
+    socket!.emitWithAck(
+      "agent_join_rooms",
+      {
+        "rooms": _subscribedRooms.toList(),
+      },
+      ack: (data) {
+        print("Socket server - AGENT_JOIN_ROOMS - Rejoined rooms: $data");
+      },
+    );
+  }
+
+  // Add method to unsubscribe from a room
+  void unsubscribeFromEvent(String eventName) {
+    if (socket == null) {
+      print("Cannot unsubscribe: Socket is not initialized");
+      return;
+    }
+
+    _subscribedRooms.remove(eventName);
+    socket!.emitWithAck(
+      "agent_leave_rooms",
+      {
+        "rooms": [eventName],
+      },
+      ack: (data) {
+        print("Socket server - AGENT_LEAVE_ROOMS - Left room: $data");
+      },
+    );
+  }
 }

@@ -39,6 +39,19 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     2.2. Call to method login (login with account or sso login)
     with saved credentials and navigate to LoginResultScreen to get call incoming.
     -------------------------------------------------------------*/
+
+    /* dictionaryPayload JSON Format
+        Payload: {
+        "message_id" = "96854b5d-9d0b-4644-af6d-8d97798d9c5b";
+        "msg_content" = "Received a call.";
+        "msg_title" = "Received a new call";
+        "msg_type" = "call";// im message is "im"
+        "X-Push-Id" = "pvqxCpo-j485AYo9J1cP5A..";
+        "send_from" = "102";
+        "send_to" = "sip:105@portsip.com";
+        }
+      */
+
     if (message.data['msg_title'] == "Received a new call.") {
       await PushNotifications.showSimpleNotification(
           title: message.data['msg_title'] ?? "Thông báo mới",

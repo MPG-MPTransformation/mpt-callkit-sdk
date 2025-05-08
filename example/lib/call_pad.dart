@@ -73,6 +73,12 @@ class _CallPadState extends State<CallPad> {
         if (state == CallStateConstants.CLOSED ||
             state == CallStateConstants.FAILED) {
           Future.delayed(const Duration(milliseconds: 500), () {
+            if (_sessionId != null && _sessionId!.isNotEmpty) {
+              MptSocketSocketServer.leaveCallMediaRoomChannel(_sessionId!);
+            } else {
+              print('Session ID is null or empty');
+            }
+
             if (mounted) {
               _showCallEndedDialog(state);
             }
@@ -431,7 +437,11 @@ class _CallPadState extends State<CallPad> {
         break;
       case 'hangup':
         MptCallKitController().hangup();
-        MptSocketSocketServer.leaveCallMediaRoomChannel(_sessionId!);
+        if (_sessionId != null && _sessionId!.isNotEmpty) {
+          MptSocketSocketServer.leaveCallMediaRoomChannel(_sessionId!);
+        } else {
+          print('Session ID is null or empty');
+        }
         // Close call_pad screen
         Navigator.of(context).pop();
         break;
@@ -526,7 +536,6 @@ class _CallPadState extends State<CallPad> {
           actions: [
             TextButton(
               onPressed: () {
-                MptSocketSocketServer.leaveCallMediaRoomChannel(_sessionId!);
                 // Close dialog
                 Navigator.of(context).pop();
                 // Close call_pad screen

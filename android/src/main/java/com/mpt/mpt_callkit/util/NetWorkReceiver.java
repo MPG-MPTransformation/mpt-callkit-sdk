@@ -44,9 +44,10 @@ public class NetWorkReceiver extends BroadcastReceiver{
             NetworkInfo activeNetworkInfo = connectivityManager
                     .getActiveNetworkInfo();
             if (activeNetworkInfo != null && activeNetworkInfo.isConnected()) {
+                System.out.println("quanth: getNetWorkState - " + activeNetworkInfo.getType());
                 if (activeNetworkInfo.getType() == (ConnectivityManager.TYPE_WIFI)) {
                     return ConnectivityManager.TYPE_WIFI;
-                } else if (activeNetworkInfo.getType() == (ConnectivityManager.TYPE_WIFI)) {
+                } else {
                     return ConnectivityManager.TYPE_WIFI;
                 }
             } else {
