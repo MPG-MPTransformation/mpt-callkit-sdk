@@ -726,8 +726,8 @@ class VideoViewController: UIViewController {
             self.isStartVideo = false
             self.sessionId = 0
             
-            // Force unregister SIP
-            MptCallkitPlugin.shared.loginViewController.offLine()
+//            // Force unregister SIP
+//            MptCallkitPlugin.shared.loginViewController.offLine()
         }
     }
     

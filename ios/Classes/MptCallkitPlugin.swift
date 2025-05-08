@@ -11,6 +11,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   
    public static let shared = MptCallkitPlugin()
    var methodChannel: FlutterMethodChannel?
+   
+   // public method để set APNs push token
+   public func setAPNsPushToken(_ token: String) {
+       _APNsPushToken = token as NSString
+   }
+   
    public static func register(with registrar: FlutterPluginRegistrar) {
        let channel = FlutterMethodChannel(name: "mpt_callkit", binaryMessenger: registrar.messenger())
        let instance = shared
@@ -211,6 +217,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    // MARK: - VoIP PUSH
   
    func addPushSupportWithPortPBX(_ enablePush: Bool) {
+        print("addPushSupportWithPortPBX:{\(enablePush)}")
+        print("addPushSupportWithPortPBX:{\(_VoIPPushToken)}")
+        print("addPushSupportWithPortPBX:{\(_APNsPushToken)}")
        if _VoIPPushToken == nil || _APNsPushToken == nil {
            return
        }
@@ -631,14 +640,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        if result.session.isReferCall {
            let originSession = _callManager.findCallByOrignalSessionID(sessionID: result.session.originCallSessionId)
 
-
            if originSession != nil {
                print("Call failure on line \(findSession(sessionid: sessionId)) , \(String(describing: tempreaon)) , \(code)")
 
-
                portSIPSDK.unHold(originSession!.session.sessionId)
                originSession!.session.holdState = false
-
 
                _activeLine = findSession(sessionid: sessionId)
            }
@@ -654,6 +660,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        mSoundService.stopRingBackTone()
        // setLoudspeakerStatus(true)
        videoViewController.onClearState()
+    //    loginViewController.offLine()
+        
 //       remoteViewController.onClearState()
 //       localViewController.onClearState()
     //    loginViewController.unRegister()
@@ -678,7 +686,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        
        print("The call has been updated on line \(result.index)")
    }
-
 
    public func onInviteConnected(_ sessionId: Int) {
        NSLog("onInviteConnected... sessionId: \(sessionId)")
@@ -718,6 +725,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            activeSessionid = CLong(INVALID_SESSION_ID)
        }
        videoViewController.onClearState()
+       //    loginViewController.offLine()
+
 //       localViewController.onClearState()
 //       remoteViewController.onClearState()
     //    loginViewController.unRegister()
@@ -748,11 +757,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        if index == -1 {
            return
        }
-      
    }
-  
+
    // Transfer Event
-  
    public func onReceivedRefer(_ sessionId: Int, referId: Int, to: String!, from: String!, referSipMessage: String!) {
       
        NSLog("onReceivedRefer...")
