@@ -515,6 +515,11 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             System.out.println("quanth: Answer call with video: " + currentLine.hasVideo);
             System.out.println("quanth: Answer call result: " + result);
             if (result == 0) {
+                if (Engine.Instance().getMethodChannel() != null) {
+                    Engine.Instance().getMethodChannel().invokeMethod("callState", "ANSWERED");
+                    MptCallkitPlugin.sendToFlutter("callState", "ANSWERED");
+                    System.out.println("quanth: callState - ANSWERED");
+                }
                 currentLine.state = Session.CALL_STATE_FLAG.CONNECTED;
                 Engine.Instance().getEngine().joinToConference(currentLine.sessionID);
             } else {

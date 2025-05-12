@@ -617,7 +617,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        mSoundService.stopRingTone()
        
        // Gửi trạng thái về Flutter
-       sendCallStateToFlutter(.CONNECTED)
+       sendCallStateToFlutter(.ANSWERED)
    }
   
    public func onInviteFailure(_ sessionId: Int, callerDisplayName: String!, caller: String!, calleeDisplayName: String!, callee: String!, reason: String!, code: Int32, sipMessage: String!) {
@@ -1493,6 +1493,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 mSoundService.stopRingTone()
                 mSoundService.stopRingBackTone()
                 portSIPSDK.answerCall(activeSessionid, videoCall: result!.session.videoState)
+                sendCallStateToFlutter(.ANSWERED)
                 
                 // Đảm bảo video được hiển thị nếu là cuộc gọi video
                 if result!.session.videoState {

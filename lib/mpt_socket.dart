@@ -326,7 +326,7 @@ class MptSocketSocketServer {
   /// Set up socket event listeners
   void _setupSocketListeners() {
     socket!.onConnect((_) {
-      print("Socket.IO connected");
+      print("Socket server connected");
       isConnecting = true;
       if (!_connectionStatusController.isClosed) {
         _connectionStatusController.add(true);
@@ -365,6 +365,38 @@ class MptSocketSocketServer {
 
     socket!.onError((error) {
       print("Socket.IO error: $error");
+    });
+
+    socket!.emitWithAck("agent_initialize", {
+      "cloudTenantId": tenantId,
+      "cloudAgentId": userId,
+      "agentName":
+          "${currentUserInfo?["user"]["fullName"]} (${currentUserInfo?["user"]["userName"]})",
+      "applicationIds": currentUserInfo?["user"]["supportApplicationIds"],
+      "fsAgentId": currentUserInfo?["user"]["fsAgentId"],
+      "domainContext": currentUserInfo?["tenant"]["domainId"],
+      "isEnableEmail": true,
+      "isEnableChat": true,
+    }, ack: (data) {
+      final initialRooms = [
+        "call_event_$tenantId",
+        "${tenantId}_$userId",
+        "agent_status_${tenantId}_$userId",
+        "agent_status_chat",
+      ];
+
+      // Thêm vào _subscribedRooms
+      _subscribedRooms.addAll(initialRooms);
+
+      socket!.emitWithAck(
+        "agent_join_rooms",
+        {
+          "rooms": initialRooms,
+        },
+        ack: (data) {
+          print("Agent initialized: $data");
+        },
+      );
     });
   }
 
@@ -452,34 +484,6 @@ class MptSocketSocketServer {
       }
     });
 
-    socket!.emitWithAck("agent_initialize", {
-      "cloudTenantId": tenantId,
-      "cloudAgentId": userId,
-      "agentName":
-          "${currentUserInfo?["user"]["fullName"]} (${currentUserInfo?["user"]["userName"]})",
-      "applicationIds": currentUserInfo?["user"]["supportApplicationIds"],
-      "fsAgentId": currentUserInfo?["user"]["fsAgentId"],
-      "domainContext": currentUserInfo?["tenant"]["domainId"],
-      "isEnableEmail": true,
-      "isEnableChat": true,
-    }, ack: (data) {
-      socket!.emitWithAck(
-        "agent_join_rooms",
-        {
-          "rooms": [
-            // "room_test",
-            "call_event_$tenantId",
-            "${tenantId}_$userId",
-            "agent_status_${tenantId}_$userId",
-            "agent_status_chat",
-          ],
-        },
-        ack: (data) {
-          print("Agent initialized: $data");
-        },
-      );
-    });
-
     socket!.on("AGENT_STATUS_CHANGED", (data) {
       print("Socket server - AGENT_STATUS_CHANGED - Received message: $data");
       _handleAgentStatusMessage(data);
@@ -565,6 +569,21 @@ class MptSocketSocketServer {
   Future<void> closeConnection() async {
     try {
       if (socket != null && socket!.connected) {
+        // Unsubscribe from all rooms before disconnecting
+        if (_subscribedRooms.isNotEmpty) {
+          socket!.emitWithAck(
+            "agent_leave_rooms",
+            {
+              "rooms": _subscribedRooms.toList(),
+            },
+            ack: (data) {
+              print(
+                  "Socket server - AGENT_LEAVE_ROOMS - Left all rooms: $data");
+            },
+          );
+          _subscribedRooms.clear();
+        }
+
         socket!.disconnect();
         print("Socket.IO disconnected");
       } else {

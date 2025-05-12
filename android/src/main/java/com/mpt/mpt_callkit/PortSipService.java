@@ -575,9 +575,14 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             Ring.getInstance(this).stopRingTone();
             // Ring.getInstance(this).startRingBackTone();
             // Answer với video status hiện tại (có thể là false)
-            Engine.Instance().getEngine().answerCall(sessionId, existsVideo);
+            int result = Engine.Instance().getEngine().answerCall(sessionId, existsVideo);
             System.out.println("quanth: On auto answer call");
             sendCallTypeToFlutter("OUTGOING_CALL");
+            if (result == 0){
+                sendCallStateToFlutter("ANSWERED");
+            } else{
+                System.out.println("quanth: auto answer call failed with code: " + result);
+            }
         }
         else{
             System.out.println("quanth: On not auto answer call");
@@ -698,7 +703,6 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         }
 
         Ring.getInstance(this).stopRingBackTone();
-        sendCallStateToFlutter("CONNECTED");
     }
 
     @Override
@@ -1189,6 +1193,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         if (Engine.Instance().getMethodChannel() != null) {
             Engine.Instance().getMethodChannel().invokeMethod("callState", state);
             MptCallkitPlugin.sendToFlutter("callState", state);
+            System.out.println("quanth: callState - " + state);
         }
     }
 

@@ -8,6 +8,7 @@ class CallStateConstants {
   static const String INCOMING = "INCOMING";
   static const String TRYING = "TRYING  ";
   static const String CONNECTED = "CONNECTED";
+  static const String ANSWERED = "ANSWERED";
   static const String FAILED = "FAILED";
   static const String CLOSED = "CLOSED";
 }
