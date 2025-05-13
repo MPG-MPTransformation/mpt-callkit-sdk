@@ -24,9 +24,13 @@ class MptCallKitController {
   Map<String, dynamic>? currentUserInfo;
   ExtensionData? extensionData;
   Map<String, dynamic>? _configuration;
+  bool? _isOnline = false;
+  bool? get isOnline => _isOnline;
 
   static const MethodChannel channel = MethodChannel('mpt_callkit');
   static const eventChannel = EventChannel('native_events');
+  static final MptCallKitController _instance =
+      MptCallKitController._internal();
 
   /// online status stream
   final StreamController<bool> _onlineStatuslistener =
@@ -67,16 +71,46 @@ class MptCallKitController {
       StreamController<String>.broadcast();
   Stream<String> get sessionId => _sessionId.stream;
 
+  /// local camera state stream
+  final StreamController<bool> _localCamStateController =
+      StreamController<bool>.broadcast();
+  Stream<bool> get localCamStateStream => _localCamStateController.stream;
+
+  /// local microphone state stream
+  final StreamController<bool> _localMicStateController =
+      StreamController<bool>.broadcast();
+  Stream<bool> get localMicStateStream => _localMicStateController.stream;
+
+  /// remote camera state stream
+  final StreamController<bool> _remoteCamStateController =
+      StreamController<bool>.broadcast();
+  Stream<bool> get remoteCamStateStream => _remoteCamStateController.stream;
+
+  /// remote microphone state stream
+  final StreamController<bool> _remoteMicStateController =
+      StreamController<bool>.broadcast();
+  Stream<bool> get remoteMicStateStream => _remoteMicStateController.stream;
+
   String? _currentSessionId = "";
   String? get currentSessionId => _currentSessionId;
 
+  // Media states
+  bool _localCamState = true;
+  bool get localCamState => _localCamState;
+
+  bool _localMicState = true;
+  bool get localMicState => _localMicState;
+
+  bool _remoteCamState = true;
+  bool get remoteCamState => _remoteCamState;
+
+  bool _remoteMicState = true;
+  bool get remoteMicState => _remoteMicState;
+
+  // Track the last sent media status
+  Map<String, dynamic>? _lastSentMediaStatus;
+
   ///
-
-  bool? _isOnline = false;
-  bool? get isOnline => _isOnline;
-
-  static final MptCallKitController _instance =
-      MptCallKitController._internal();
 
   MptCallKitController._internal() {
     if (Platform.isAndroid) {
@@ -958,6 +992,186 @@ class MptCallKitController {
     } on PlatformException catch (e) {
       debugPrint("Failed in 'transfer' mothod: '${e.message}'.");
       return false;
+    }
+  }
+
+  // Subscribe to media status channel
+  Future<void> subscribeToMediaStatusChannel() async {
+    try {
+      // Get session ID
+      if (_currentSessionId != null && _currentSessionId!.isNotEmpty) {
+        print('Subscribing to event with sessionId: $_currentSessionId');
+
+        // Subscribe to the socket event
+        MptSocketSocketServer.subscribeToMediaStatusChannel(_currentSessionId!,
+            (data) {
+          print('Received media status message: $data');
+          handleMediaStatusMessage(data);
+        });
+      } else {
+        print(
+            'Cannot subscribe to media status event: sessionId is null or empty');
+
+        // If there's no sessionId, wait 1s and check again
+        await Future.delayed(const Duration(seconds: 1));
+
+        if (_currentSessionId != null && _currentSessionId!.isNotEmpty) {
+          print(
+              'Retrying subscribe to event with sessionId: $_currentSessionId');
+          MptSocketSocketServer.subscribeToMediaStatusChannel(
+              _currentSessionId!, (data) {
+            print('Received media status message: $data');
+            handleMediaStatusMessage(data);
+          });
+        } else {
+          print('Still cannot get sessionId after retry');
+        }
+      }
+    } catch (e) {
+      print('Error subscribing to media status event: $e');
+    }
+  }
+
+  // Handle media status message
+  void handleMediaStatusMessage(dynamic messageData) {
+    try {
+      // Parse message data
+      Map<dynamic, dynamic>? data;
+      if (messageData is Map) {
+        data = messageData;
+      } else if (messageData is String) {
+        data = Map<String, dynamic>.from(jsonDecode(messageData));
+      }
+
+      if (data != null) {
+        // Process media status message based on your app's requirements
+        print('Media status data: $data');
+
+        // Check if message has the expected format with agentId, cameraState, and mircroState
+        if (data.containsKey('agentId') &&
+            data.containsKey('cameraState') &&
+            data.containsKey('mircroState')) {
+          final messageUserId = data['agentId'];
+          final cameraState = data['cameraState'] as bool;
+          final micState = data['mircroState'] as bool;
+
+          // Determine if the message is from the current user
+          if (messageUserId == currentUserInfo?["user"]["id"]) {
+            // Message from the current user, update local status
+            _localCamState = cameraState;
+            _localMicState = micState;
+            _cameraState.add(cameraState);
+            _microState.add(!micState); // _isMuted is true when mic is off
+
+            // Broadcast the updated states
+            _localCamStateController.add(cameraState);
+            _localMicStateController.add(micState);
+
+            print('Updated local status: camera=$cameraState, mic=$micState');
+          } else {
+            // Message from remote user, update their status
+            _remoteCamState = cameraState;
+            _remoteMicState = micState;
+
+            // Broadcast the updated states
+            _remoteCamStateController.add(cameraState);
+            _remoteMicStateController.add(micState);
+
+            print(
+                'Updated remote media status: camera=$cameraState, mic=$micState');
+          }
+        } else {
+          print('Cannot recognize media message format');
+        }
+      }
+    } catch (e) {
+      print('Error processing media status message: $e');
+    }
+  }
+
+  // Send media status to socket event
+  Future<void> sendMediaStatus() async {
+    if (_currentSessionId == null || _currentSessionId!.isEmpty) {
+      print('Cannot send media status: sessionId is null or empty');
+      return;
+    }
+
+    try {
+      // Create new media status format
+      Map<String, dynamic> mediaStatus = {
+        'agentId': currentUserInfo?["user"]["id"],
+        'cameraState': _localCamState,
+        'mircroState': _localMicState,
+      };
+
+      // Check if status has changed since last sent
+      bool shouldSend = true;
+      if (_lastSentMediaStatus != null) {
+        bool hasChanges = false;
+        mediaStatus.forEach((key, value) {
+          // If any value has changed, need to send again
+          if (_lastSentMediaStatus![key] != value) {
+            hasChanges = true;
+          }
+        });
+        shouldSend = hasChanges;
+      }
+
+      if (shouldSend) {
+        // Send message using Socket.IO event
+        await MptSocketSocketServer.instance
+            .sendMediaStatusMessage(_currentSessionId!, mediaStatus);
+
+        // Save sent status
+        _lastSentMediaStatus = Map<String, dynamic>.from(mediaStatus);
+
+        print('Updated media status: $mediaStatus');
+      } else {
+        print('Skipping media status update: $mediaStatus');
+      }
+    } catch (e) {
+      print('Error sending media status: $e');
+    }
+  }
+
+  // Update camera state
+  void updateLocalCameraState(bool state) {
+    _localCamState = state;
+    _localCamStateController.add(state);
+    // Send updated state
+    sendMediaStatus();
+  }
+
+  // Update microphone state
+  void updateLocalMicrophoneState(bool state) {
+    _localMicState = state;
+    _localMicStateController.add(state);
+    // Send updated state
+    sendMediaStatus();
+  }
+
+  void leaveCallMediaRoomChannel() {
+    if (_currentSessionId != null && _currentSessionId!.isNotEmpty) {
+      MptSocketSocketServer.leaveCallMediaRoomChannel(_currentSessionId!);
+
+      // Reset media states when leaving the call
+      _localCamState = true;
+      _localMicState = true;
+      _remoteCamState = true;
+      _remoteMicState = true;
+
+      // Broadcast the reset states to streams
+      _localCamStateController.add(true);
+      _localMicStateController.add(true);
+      _remoteCamStateController.add(true);
+      _remoteMicStateController.add(true);
+
+      // Reset the last sent media status
+      _lastSentMediaStatus = null;
+
+      print('Reset all media states after leaving call channel');
+    } else {
+      print('Session ID is null or empty');
     }
   }
 }

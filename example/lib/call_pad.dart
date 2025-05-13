@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
@@ -36,32 +35,29 @@ class _CallPadState extends State<CallPad> {
   bool _isCameraOn = true;
   bool _isOnHold = false;
   String _agentStatus = "";
-  String _callType = "";
-  String? _sessionId;
 
-  // Thay thế các biến callerCameraState, calleeCameraState, callerMicState, calleeMicState
-  bool _myCamState = true; // Trạng thái camera của người dùng hiện tại
-  bool _myMicState = true; // Trạng thái mic của người dùng hiện tại
-  bool _otherCamState = true; // Trạng thái camera của người khác
-  bool _otherMicState = true; // Trạng thái mic của người khác
-  final int _myUserId = MptCallKitController().currentUserInfo!["user"]
-      ["id"]; // UserId của người dùng hiện tại
+  // Media states using the controller's values
+  bool _localCamState = true;
+  bool _localMicState = true;
+  bool _remoteCamState = true;
+  bool _remoteMicState = true;
 
   StreamSubscription<String>? _callStateSubscription;
   StreamSubscription<String>? _agentStatusSubscription;
   StreamSubscription<bool>? _microphoneStateSubscription;
   StreamSubscription<bool>? _cameraStateSubscription;
   StreamSubscription<bool>? _holdCallStateSubscription;
-  StreamSubscription<String>? _callTypeSubscription;
 
-  // Biến theo dõi trạng thái gửi đi gần nhất
-  Map<String, dynamic>? _lastSentMediaStatus;
+  // New subscriptions for media states
+  StreamSubscription<bool>? _localCamStateSubscription;
+  StreamSubscription<bool>? _localMicStateSubscription;
+  StreamSubscription<bool>? _remoteCamStateSubscription;
+  StreamSubscription<bool>? _remoteMicStateSubscription;
 
   @override
   void initState() {
     super.initState();
 
-    // Giả định userId của người dùng hiện tại, có thể lấy từ hệ thống
     // call state listener
     _callStateSubscription = MptCallKitController().callEvent.listen((state) {
       if (mounted) {
@@ -69,25 +65,20 @@ class _CallPadState extends State<CallPad> {
           _callState = state;
         });
 
+        if (state == CallStateConstants.CONNECTED) {
+          MptCallKitController().subscribeToMediaStatusChannel();
+        }
+
         // show dialog when call ended
         if (state == CallStateConstants.CLOSED ||
             state == CallStateConstants.FAILED) {
           Future.delayed(const Duration(milliseconds: 500), () {
-            if (_sessionId != null && _sessionId!.isNotEmpty) {
-              MptSocketSocketServer.leaveCallMediaRoomChannel(_sessionId!);
-            } else {
-              print('Session ID is null or empty');
-            }
+            MptCallKitController().leaveCallMediaRoomChannel();
 
             if (mounted) {
               _showCallEndedDialog(state);
             }
           });
-        }
-
-        // Subscribe to media status channel when call is answered
-        if (state == CallStateConstants.CONNECTED) {
-          _subscribeToMediaStatusChannel();
         }
       }
     });
@@ -98,12 +89,11 @@ class _CallPadState extends State<CallPad> {
       if (mounted) {
         setState(() {
           _isMuted = isActive; // true when microphone is off
-          _myMicState =
-              !isActive; // cập nhật trạng thái mic của người dùng hiện tại
+          _localMicState = !isActive; // update local microphone state
         });
 
-        // Gửi trạng thái mới khi microphone thay đổi
-        _sendMediaStatus();
+        // Update controller's microphone state
+        MptCallKitController().updateLocalMicrophoneState(!isActive);
       }
     });
 
@@ -113,12 +103,11 @@ class _CallPadState extends State<CallPad> {
       if (mounted) {
         setState(() {
           _isCameraOn = isActive; // true when camera is on
-          _myCamState =
-              isActive; // cập nhật trạng thái camera của người dùng hiện tại
+          _localCamState = isActive; // update local camera state
         });
 
-        // Gửi trạng thái mới khi camera thay đổi
-        _sendMediaStatus();
+        // Update controller's camera state
+        MptCallKitController().updateLocalCameraState(isActive);
       }
     });
 
@@ -142,102 +131,42 @@ class _CallPadState extends State<CallPad> {
       }
     });
 
-    _callTypeSubscription = MptCallKitController().callType.listen((type) {
+    // Listen to media state changes from controller
+    _localCamStateSubscription =
+        MptCallKitController().localCamStateStream.listen((state) {
       if (mounted) {
         setState(() {
-          _callType = type;
+          _localCamState = state;
         });
       }
     });
-  }
 
-  // Subscribe to media status channel
-  Future<void> _subscribeToMediaStatusChannel() async {
-    try {
-      // Get session ID from MptSocketSocketServer
-      _sessionId = MptCallKitController().currentSessionId;
-
-      if (_sessionId != null && _sessionId!.isNotEmpty) {
-        print('Subscribing to event with sessionId: $_sessionId');
-
-        // Subscribe to the socket event
-        MptSocketSocketServer.subscribeToMediaStatusChannel(_sessionId!,
-            (data) {
-          print('Received media status message: $data');
-          _handleMediaStatusMessage(data);
+    _localMicStateSubscription =
+        MptCallKitController().localMicStateStream.listen((state) {
+      if (mounted) {
+        setState(() {
+          _localMicState = state;
         });
-      } else {
-        print(
-            'Cannot subscribe to media status event: sessionId is null or empty');
-
-        // If there's no sessionId, wait 1s and check again
-        await Future.delayed(const Duration(seconds: 1));
-        _sessionId = MptCallKitController().currentSessionId;
-
-        if (_sessionId != null && _sessionId!.isNotEmpty) {
-          print('Retrying subscribe to event with sessionId: $_sessionId');
-          MptSocketSocketServer.subscribeToMediaStatusChannel(_sessionId!,
-              (data) {
-            print('Received media status message: $data');
-            _handleMediaStatusMessage(data);
-          });
-        } else {
-          print('Still cannot get sessionId after retry');
-        }
       }
-    } catch (e) {
-      print('Error subscribing to media status event: $e');
-    }
-  }
+    });
 
-  // Handle media status message
-  void _handleMediaStatusMessage(dynamic messageData) {
-    try {
-      // Parse message data
-      Map<dynamic, dynamic>? data;
-      if (messageData is Map) {
-        data = messageData;
-      } else if (messageData is String) {
-        data = Map<String, dynamic>.from(jsonDecode(messageData));
+    _remoteCamStateSubscription =
+        MptCallKitController().remoteCamStateStream.listen((state) {
+      if (mounted) {
+        setState(() {
+          _remoteCamState = state;
+        });
       }
+    });
 
-      if (data != null) {
-        // Process media status message based on your app's requirements
-        print('Media status data: $data');
-
-        // Kiểm tra tin nhắn có định dạng mới với agentId, cameraState, và mircroState
-        if (data.containsKey('agentId') &&
-            data.containsKey('cameraState') &&
-            data.containsKey('mircroState')) {
-          final messageUserId = data['agentId'];
-          final cameraState = data['cameraState'] as bool;
-          final micState = data['mircroState'] as bool;
-
-          // Determine if the message is from the current user
-          if (messageUserId == _myUserId) {
-            // Message from the current user, update local status
-            setState(() {
-              _myCamState = cameraState;
-              _myMicState = micState;
-              _isCameraOn = cameraState;
-              _isMuted = !micState; // _isMuted is true when mic is off
-            });
-            print('Updated my status: camera=$cameraState, mic=$micState');
-          } else {
-            // Message from other user, update their status
-            setState(() {
-              _otherCamState = cameraState;
-              _otherMicState = micState;
-            });
-            print('Updated other status: camera=$cameraState, mic=$micState');
-          }
-        } else {
-          print('Cannot recognize media message format');
-        }
+    _remoteMicStateSubscription =
+        MptCallKitController().remoteMicStateStream.listen((state) {
+      if (mounted) {
+        setState(() {
+          _remoteMicState = state;
+        });
       }
-    } catch (e) {
-      print('Error processing media status message: $e');
-    }
+    });
   }
 
   @override
@@ -247,7 +176,10 @@ class _CallPadState extends State<CallPad> {
     _cameraStateSubscription?.cancel();
     _agentStatusSubscription?.cancel();
     _holdCallStateSubscription?.cancel();
-    _callTypeSubscription?.cancel();
+    _localCamStateSubscription?.cancel();
+    _localMicStateSubscription?.cancel();
+    _remoteCamStateSubscription?.cancel();
+    _remoteMicStateSubscription?.cancel();
 
     super.dispose();
   }
@@ -324,28 +256,28 @@ class _CallPadState extends State<CallPad> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'My Camera: ${_myCamState ? "ON" : "OFF"}',
+                        'Local Camera: ${_localCamState ? "ON" : "OFF"}',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        'My Microphone: ${_myMicState ? "ON" : "OFF"}',
+                        'Local Microphone: ${_localMicState ? "ON" : "OFF"}',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        'Other Camera: ${_otherCamState ? "ON" : "OFF"}',
+                        'Remote Camera: ${_remoteCamState ? "ON" : "OFF"}',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        'Other Microphone: ${_otherMicState ? "ON" : "OFF"}',
+                        'Remote Microphone: ${_remoteMicState ? "ON" : "OFF"}',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -437,11 +369,7 @@ class _CallPadState extends State<CallPad> {
         break;
       case 'hangup':
         MptCallKitController().hangup();
-        if (_sessionId != null && _sessionId!.isNotEmpty) {
-          MptSocketSocketServer.leaveCallMediaRoomChannel(_sessionId!);
-        } else {
-          print('Session ID is null or empty');
-        }
+        MptCallKitController().leaveCallMediaRoomChannel();
         // Close call_pad screen
         Navigator.of(context).pop();
         break;
@@ -474,51 +402,6 @@ class _CallPadState extends State<CallPad> {
         break;
       default:
         print('Function $functionName not implemented');
-    }
-  }
-
-  // Send media status to socket event
-  Future<void> _sendMediaStatus() async {
-    if (_sessionId == null || _sessionId!.isEmpty) {
-      print('Cannot send media status: sessionId is null or empty');
-      return;
-    }
-
-    try {
-      // Tạo định dạng trạng thái media mới
-      Map<String, dynamic> mediaStatus = {
-        'agentId': _myUserId,
-        'cameraState': _myCamState,
-        'mircroState': _myMicState,
-      };
-
-      // Kiểm tra có thay đổi trạng thái so với lần gửi trước
-      bool shouldSend = true;
-      if (_lastSentMediaStatus != null) {
-        bool hasChanges = false;
-        mediaStatus.forEach((key, value) {
-          // Nếu có bất kỳ giá trị nào thay đổi, cần gửi lại
-          if (_lastSentMediaStatus![key] != value) {
-            hasChanges = true;
-          }
-        });
-        shouldSend = hasChanges;
-      }
-
-      if (shouldSend) {
-        // Gửi tin nhắn sử dụng sự kiện Socket.IO
-        await MptSocketSocketServer.instance
-            .sendMediaStatusMessage(_sessionId!, mediaStatus);
-
-        // Lưu trạng thái đã gửi
-        _lastSentMediaStatus = Map<String, dynamic>.from(mediaStatus);
-
-        print('Updated media status: $mediaStatus');
-      } else {
-        print('Skipping media status update: $mediaStatus');
-      }
-    } catch (e) {
-      print('Error sending media status: $e');
     }
   }
 

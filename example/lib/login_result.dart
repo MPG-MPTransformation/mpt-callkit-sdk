@@ -136,7 +136,6 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
     if (result) {
       // Remove saved credentials
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove("fcm_token");
       await prefs.remove("saved_username");
       await prefs.remove("saved_password");
 
