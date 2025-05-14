@@ -71,6 +71,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        case TRYING = "TRYING"
        case CONNECTED = "CONNECTED"
        case IN_CONFERENCE = "IN_CONFERENCE"
+       case ANSWERED = "ANSWERED"
        case FAILED = "FAILED"
        case CLOSED = "CLOSED"
    }
