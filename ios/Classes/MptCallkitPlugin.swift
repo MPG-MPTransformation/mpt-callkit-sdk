@@ -517,8 +517,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             print("onInviteIncoming - Incoming call API")
             methodChannel?.invokeMethod("callType", arguments: "INCOMING_CALL")
        }
-
-    //    sendCallStateToFlutter(.IN_CONFERENCE)
+       
+           // Setting speakers for sound output (The system default behavior)
+       setLoudspeakerStatus(true)
    }
   
    public func onInviteTrying(_ sessionId: Int) {
@@ -719,8 +720,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        }
        _ = mSoundService.stopRingTone()
        _ = mSoundService.stopRingBackTone()
-       // Setting speakers for sound output (The system default behavior)
-       setLoudspeakerStatus(true)
       
        if activeSessionid == sessionId {
            activeSessionid = CLong(INVALID_SESSION_ID)
@@ -749,7 +748,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        if index == -1 {
            return
        }
-      
    }
   
    public func onRemoteUnHold(_ sessionId: Int, audioCodecs: String!, videoCodecs: String!, existsAudio: Bool, existsVideo: Bool) {
@@ -1083,7 +1081,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    }
   
    func setLoudspeakerStatus(_ enable: Bool) {
-       portSIPSDK.setLoudspeakerStatus(enable)
+       do {
+           portSIPSDK.setLoudspeakerStatus(enable)
+           methodChannel?.invokeMethod("currentAudioDevice", arguments: enable ? "SPEAKER_PHONE" : "EARPIECE")
+           NSLog("Speaker status changed to: \(enable ? "SPEAKER_PHONE" : "EARPIECE")")
+       } catch {
+           NSLog("Error setting speaker status")
+       }
    }
   
    func didSelectLine(_ activedline: Int) {

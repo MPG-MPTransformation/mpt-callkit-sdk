@@ -38,6 +38,9 @@ import com.mpt.mpt_callkit.RemoteViewFactory;
 import io.flutter.plugin.common.EventChannel;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Set;
 public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
 
     /// The MethodChannel that will the communication between Flutter and native
@@ -173,13 +176,17 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 rejectCall();
                 break;
             case "setSpeaker":
-                if (call.hasArgument("enable")) {
-                    boolean enable = call.argument("enable");
-                    setSpeakerStatus(enable);
+                if (call.hasArgument("state")) {
+                    String state = call.argument("state");
+                    setSpeaker(state);
                     result.success(true);
                 } else {
                     result.error("INVALID_ARGUMENTS", "Missing or invalid arguments for setSpeaker", null);
                 }
+                break;
+            case "getAudioDevices":
+                getAudioDevices();
+                result.success(true);
                 break;
             case "transfer":
                 String destination = call.argument("destination");
@@ -375,14 +382,16 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         if (PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity,
                 Manifest.permission.CAMERA)
                 || PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity,
-                Manifest.permission.RECORD_AUDIO)) {
+                Manifest.permission.RECORD_AUDIO)
+                || PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity,
+                Manifest.permission.BLUETOOTH_CONNECT)) {
             System.out.println("quanth: request permission");
             pendingResult = result;
             ActivityCompat.requestPermissions(activity, new String[] {
                             Manifest.permission.CAMERA,
-                            Manifest.permission.RECORD_AUDIO },
+                            Manifest.permission.RECORD_AUDIO,
+                            Manifest.permission.BLUETOOTH_CONNECT},
                     REQ_DANGERS_PERMISSION);
-
             return;
         }
         result.success(true);
@@ -612,18 +621,67 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
     
-    void setSpeakerStatus(boolean enable) {
+    void setSpeaker(String state) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (currentLine != null && currentLine.sessionID > 0) {
-            System.out.println("quanth: onSpeakerStatusChanged " + enable);
-            if (enable){
-                CallManager.Instance().setAudioDevice(Engine.Instance().getEngine(), PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
-            } else {
-                CallManager.Instance().setAudioDevice(Engine.Instance().getEngine(), PortSipEnumDefine.AudioDevice.EARPIECE);
+            System.out.println("quanth: setSpeaker to " + state);
+            PortSipEnumDefine.AudioDevice audioDevice = null;
+            try {
+                switch (state) {
+                    case "EARPIECE":
+                        audioDevice = PortSipEnumDefine.AudioDevice.EARPIECE;
+                        break;
+                    case "SPEAKER_PHONE":
+                        audioDevice = PortSipEnumDefine.AudioDevice.SPEAKER_PHONE;
+                        break;
+                    case "BLUETOOTH":
+                        audioDevice = PortSipEnumDefine.AudioDevice.BLUETOOTH;
+                        break;
+                    case "WIRED_HEADSET":
+                        audioDevice = PortSipEnumDefine.AudioDevice.WIRED_HEADSET;
+                        break;
+                    default:
+                        System.out.println("quanth: Invalid speaker state: " + state);
+                        return;
+                }
+                
+                // Kiểm tra xem thiết bị có sẵn không
+                Set<PortSipEnumDefine.AudioDevice> availableDevices = Engine.Instance().getEngine().getAudioDevices();
+                if (availableDevices.contains(audioDevice)) {
+                    CallManager.Instance().setAudioDevice(Engine.Instance().getEngine(), audioDevice);
+                    // Gửi thông báo về thiết bị âm thanh hiện tại cho Flutter
+                    Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice", state);
+                    MptCallkitPlugin.sendToFlutter("currentAudioDevice", state);
+                    System.out.println("quanth: Audio device set to " + state);
+                } else {
+                    System.out.println("quanth: Audio device " + state + " is not available. Available devices: " + availableDevices);
+                }
+            } catch (Exception e) {
+                System.out.println("quanth: Error setting audio device: " + e.getMessage());
+                e.printStackTrace();
             }
-        } else{
+        } else {
             System.out.println("quanth: No active call to set speaker status");
         }
-        System.out.println("quanth: Loud speaker status set to " + enable);
+    }
+
+    void getAudioDevices() {
+        Set<PortSipEnumDefine.AudioDevice> deviceSet = Engine.Instance().getEngine().getAudioDevices();
+        List<String> deviceNames = new ArrayList<>();
+        for (PortSipEnumDefine.AudioDevice device : deviceSet) {
+            deviceNames.add(device.name());
+        }
+
+        System.out.println("quanth: audio devices available: " + deviceNames);
+        Engine.Instance().getMethodChannel().invokeMethod("audioDevices", deviceNames);
+        MptCallkitPlugin.sendToFlutter("audioDevices", deviceNames);
+        
+        // Gửi thông báo về thiết bị âm thanh hiện tại
+        PortSipEnumDefine.AudioDevice currentDevice = CallManager.Instance().getCurrentAudioDevice();
+        if (currentDevice != null) {
+            String currentDeviceName = currentDevice.name();
+            Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice", currentDeviceName);
+            MptCallkitPlugin.sendToFlutter("currentAudioDevice", currentDeviceName);
+        }
     }
 }

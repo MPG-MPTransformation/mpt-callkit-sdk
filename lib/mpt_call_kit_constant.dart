@@ -77,3 +77,10 @@ class ChannelConstants {
   static const String CALL = "CALL";
   static const String LIVE_CONNECT = "LIVE_CONNECT";
 }
+
+class SpeakerStatusConstants {
+  static const String SPEAKER_PHONE = "SPEAKER_PHONE";
+  static const String EARPIECE = "EARPIECE";
+  static const String BLUETOOTH = "BLUETOOTH";
+  static const String WIRED_HEADSET = "WIRED_HEADSET";
+}

@@ -71,6 +71,12 @@ class MptCallKitController {
       StreamController<String>.broadcast();
   Stream<String> get sessionId => _sessionId.stream;
 
+  /// current audio device stream
+  final StreamController<String> _currentAudioDeviceStream =
+      StreamController<String>.broadcast();
+  Stream<String> get currentAudioDeviceStream =>
+      _currentAudioDeviceStream.stream;
+
   /// local camera state stream
   final StreamController<bool> _localCamStateController =
       StreamController<bool>.broadcast();
@@ -106,6 +112,9 @@ class MptCallKitController {
 
   bool _remoteMicState = true;
   bool get remoteMicState => _remoteMicState;
+
+  String? _currentAudioDevice = "";
+  String? get currentAudioDevice => _currentAudioDevice;
 
   // Track the last sent media status
   Map<String, dynamic>? _lastSentMediaStatus;
@@ -145,6 +154,10 @@ class MptCallKitController {
               _sessionId.add(data as String);
               _currentSessionId = data;
               break;
+            case 'currentAudioDevice':
+              _currentAudioDevice = data.toString();
+              _currentAudioDeviceStream.add(data.toString());
+              break;
           }
         }
       });
@@ -178,6 +191,11 @@ class MptCallKitController {
         if (call.method == 'curr_sessionId') {
           _sessionId.add(call.arguments as String);
           _currentSessionId = call.arguments as String;
+        }
+
+        if (call.method == 'currentAudioDevice') {
+          _currentAudioDevice = call.arguments as String;
+          _currentAudioDeviceStream.add(call.arguments as String);
         }
 
         if (call.method == 'callKitAnswerReceived') {
@@ -677,8 +695,8 @@ class MptCallKitController {
                   ),
                   ElevatedButton(
                     onPressed: () async {
-                      await channel.invokeMethod('openAppSetting');
                       Navigator.of(context).pop();
+                      await channel.invokeMethod('openAppSetting');
                     },
                     child: const Text('Go to Settings'),
                   ),
@@ -971,15 +989,24 @@ class MptCallKitController {
     }
   }
 
-  Future<bool> setSpeaker({required bool enable}) async {
+  Future<bool> setSpeaker({required String state}) async {
     try {
       final result = await channel.invokeMethod('setSpeaker', {
-        'enable': enable,
+        'state': state,
       });
       return result ?? false;
     } catch (e) {
       print('Error setting speaker: $e');
       return false;
+    }
+  }
+
+  Future<void> getAudioDevices() async {
+    try {
+      final result = await channel.invokeMethod('getAudioDevices');
+      print('Audio devices: $result');
+    } catch (e) {
+      print('Error getting audio devices: $e');
     }
   }
 

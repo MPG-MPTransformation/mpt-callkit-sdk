@@ -24,8 +24,11 @@ class _CallPadState extends State<CallPad> {
     'unmute',
     'cameraOn',
     'cameraOff',
-    'loudSpeakerOn',
-    'loudSpeakerOff',
+    'speakerLoud',
+    'speakerEarphone',
+    // 'speakerBluetooth',
+    // 'speakerWiredHeadset',
+    // 'getAudioDevices',
     'hangup',
   ];
 
@@ -42,11 +45,15 @@ class _CallPadState extends State<CallPad> {
   bool _remoteCamState = true;
   bool _remoteMicState = true;
 
+  String _currentAudioDevice = MptCallKitController().currentAudioDevice ?? "";
+
   StreamSubscription<String>? _callStateSubscription;
   StreamSubscription<String>? _agentStatusSubscription;
   StreamSubscription<bool>? _microphoneStateSubscription;
   StreamSubscription<bool>? _cameraStateSubscription;
   StreamSubscription<bool>? _holdCallStateSubscription;
+  StreamSubscription<String>?
+      _currentAudioDeviceSubscription; // Thêm subscription cho currentAudioDeviceStream
 
   // New subscriptions for media states
   StreamSubscription<bool>? _localCamStateSubscription;
@@ -167,6 +174,16 @@ class _CallPadState extends State<CallPad> {
         });
       }
     });
+
+    // Lắng nghe sự kiện thay đổi thiết bị âm thanh
+    _currentAudioDeviceSubscription =
+        MptCallKitController().currentAudioDeviceStream.listen((deviceName) {
+      if (mounted) {
+        setState(() {
+          _currentAudioDevice = deviceName;
+        });
+      }
+    });
   }
 
   @override
@@ -180,6 +197,8 @@ class _CallPadState extends State<CallPad> {
     _localMicStateSubscription?.cancel();
     _remoteCamStateSubscription?.cancel();
     _remoteMicStateSubscription?.cancel();
+    _currentAudioDeviceSubscription
+        ?.cancel(); // Hủy subscription khi widget bị dispose
 
     super.dispose();
   }
@@ -240,6 +259,13 @@ class _CallPadState extends State<CallPad> {
                 ),
                 Text(
                   'Agent Status: ${_agentStatus.isEmpty ? "OFFLINE" : _agentStatus}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Current Audio Device: $_currentAudioDevice',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -391,12 +417,25 @@ class _CallPadState extends State<CallPad> {
       case 'cameraOn':
         MptCallKitController().cameraOn();
         break;
-      case 'loudSpeakerOn':
-        MptCallKitController().setSpeaker(enable: true);
+      case 'speakerLoud': // loa ngoài
+        MptCallKitController()
+            .setSpeaker(state: SpeakerStatusConstants.SPEAKER_PHONE);
         break;
-      case 'loudSpeakerOff':
-        MptCallKitController().setSpeaker(enable: false);
+      case 'speakerEarphone': // loa nhỏ
+        MptCallKitController()
+            .setSpeaker(state: SpeakerStatusConstants.EARPIECE);
         break;
+      // case 'speakerBluetooth': // bluetooth
+      //   MptCallKitController()
+      //       .setSpeaker(state: SpeakerStatusConstants.BLUETOOTH);
+      //   break;
+      // case 'speakerWiredHeadset': // tai nghe dây cắm
+      //   MptCallKitController()
+      //       .setSpeaker(state: SpeakerStatusConstants.WIRED_HEADSET);
+      //   break;
+      // case 'getAudioDevices':
+      //   MptCallKitController().getAudioDevices();
+      //   break;
       case 'reject':
         MptCallKitController().rejectCall();
         break;

@@ -90,6 +90,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     private String appId;
     protected PowerManager.WakeLock mCpuLock;
 
+
     private String getResourceFromContext(Context context, String resName) {
         final int stringRes = context.getResources().getIdentifier(resName, "string", context.getPackageName());
         if (stringRes == 0) {
@@ -328,6 +329,8 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         Engine.Instance().getEngine().enableAudioManager(true);
 
         Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
+        Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice", PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
+        MptCallkitPlugin.sendToFlutter("currentAudioDevice", PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
         Engine.Instance().getEngine().setVideoDeviceId(1);
 
         Engine.Instance().getEngine().setSrtpPolicy(srtpType);
@@ -599,6 +602,10 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         System.out.println("quanth: onInviteIncoming X-Session-Id = " + messageSesssionId);
 
         // sendCallStateToFlutter("IN_CONFERENCE");
+
+        Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
+        Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice", PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
+        MptCallkitPlugin.sendToFlutter("currentAudioDevice", PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
     }
 
     public void showPendingCallNotification(Context context, String contenTitle, String contenText, Intent intent) {
@@ -1056,7 +1063,11 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     @Override
     public void onAudioDeviceChanged(PortSipEnumDefine.AudioDevice audioDevice, Set<PortSipEnumDefine.AudioDevice> set) {
+        System.out.println("quanth: onAudioDeviceChanged - " + audioDevice);
         CallManager.Instance().setSelectableAudioDevice(audioDevice, set);
+
+        Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice", audioDevice.toString());
+        MptCallkitPlugin.sendToFlutter("currentAudioDevice", audioDevice.toString());
 
         Intent intent = new Intent();
         intent.setAction(ACTION_SIP_AUDIODEVICE);
