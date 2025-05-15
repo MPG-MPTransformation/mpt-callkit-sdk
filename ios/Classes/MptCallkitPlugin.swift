@@ -1423,10 +1423,23 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            let switchResult = switchCamera()
            result(switchResult)
        case "setSpeaker":
-           if let args = call.arguments as? [String: Any],
-              let enable = args["enable"] as? Bool {
-               setLoudspeakerStatus(enable)
-               result(true)
+           if let args = call.arguments as? [String: Any] {
+               // Check for 'state' parameter first (from Flutter)
+               if let state = args["state"] as? String {
+                   let enableSpeaker = (state == "SPEAKER_PHONE")
+                   setLoudspeakerStatus(enableSpeaker)
+                   result(true)
+               }
+               // Check for 'enable' parameter as fallback (legacy)
+               else if let enable = args["enable"] as? Bool {
+                   setLoudspeakerStatus(enable)
+                   result(true)
+               }
+               else {
+                   result(FlutterError(code: "INVALID_ARGUMENTS",
+                                     message: "Missing or invalid arguments for setSpeaker",
+                                     details: nil))
+               }
            } else {
                result(FlutterError(code: "INVALID_ARGUMENTS",
                                  message: "Missing or invalid arguments for setSpeaker",

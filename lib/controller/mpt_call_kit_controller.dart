@@ -116,6 +116,9 @@ class MptCallKitController {
   String? _currentAudioDevice = "";
   String? get currentAudioDevice => _currentAudioDevice;
 
+  String? _currentCallState = "";
+  String? get currentCallState => _currentCallState;
+
   // Track the last sent media status
   Map<String, dynamic>? _lastSentMediaStatus;
 
@@ -136,6 +139,7 @@ class MptCallKitController {
               _onlineStatuslistener.add(data);
               break;
             case 'callState':
+              _currentCallState = data.toString();
               _callEvent.add(data.toString());
               break;
             case 'cameraState':
@@ -169,6 +173,7 @@ class MptCallKitController {
         }
 
         if (call.method == 'callState') {
+          _currentCallState = call.arguments as String;
           _callEvent.add(call.arguments as String);
         }
 

@@ -32,7 +32,7 @@ class _CallPadState extends State<CallPad> {
     'hangup',
   ];
 
-  String _callState = "";
+  String _callState = MptCallKitController().currentCallState ?? "IDLE";
 
   bool _isMuted = false;
   bool _isCameraOn = true;
@@ -72,7 +72,7 @@ class _CallPadState extends State<CallPad> {
           _callState = state;
         });
 
-        if (state == CallStateConstants.CONNECTED) {
+        if (_callState == CallStateConstants.CONNECTED) {
           MptCallKitController().subscribeToMediaStatusChannel();
         }
 
