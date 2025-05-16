@@ -603,9 +603,9 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         // sendCallStateToFlutter("IN_CONFERENCE");
 
-        Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
-        Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice", PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
-        MptCallkitPlugin.sendToFlutter("currentAudioDevice", PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
+       Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
+       Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice", PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
+       MptCallkitPlugin.sendToFlutter("currentAudioDevice", PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
     }
 
     public void showPendingCallNotification(Context context, String contenTitle, String contenText, Intent intent) {

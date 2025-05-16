@@ -71,11 +71,32 @@ class MptCallKitController {
       StreamController<String>.broadcast();
   Stream<String> get sessionId => _sessionId.stream;
 
-  /// current audio device stream
+  /* -------------------------------------------------------------------------------
+  current audio device stream
+  1. Android 
+    * If wired headset is connected, it will be the only speaker.
+    * Possible values: 
+      - "WIRED_HEADSET".
+      - "SPEAKER_PHONE".
+      - "BLUETOOTH".
+      - "EARPIECE".
+  2. iOS 
+    * If bluetooth is connected, it will be the only speaker.
+    * Possible values: 
+      - "SPEAKER_PHONE".
+      - "EARPIECE".
+    * Cannot handle if bluetooth is connected.
+  -------------------------------------------------------------------------------*/
   final StreamController<String> _currentAudioDeviceStream =
       StreamController<String>.broadcast();
   Stream<String> get currentAudioDeviceStream =>
       _currentAudioDeviceStream.stream;
+
+  /// audio devices stream, ONLY AVAILABLE ON ANDROID
+  final StreamController<List<String>> _audioDevicesAvailable =
+      StreamController<List<String>>.broadcast();
+  Stream<List<String>> get audioDevicesAvailable =>
+      _audioDevicesAvailable.stream;
 
   /// local camera state stream
   final StreamController<bool> _localCamStateController =
@@ -118,6 +139,11 @@ class MptCallKitController {
 
   String? _currentCallState = "";
   String? get currentCallState => _currentCallState;
+
+  /// current available audio devices, ONLY AVAILABLE ON ANDROID
+  List<String>? _currentAvailableAudioDevices = [];
+  List<String>? get currentAvailableAudioDevices =>
+      _currentAvailableAudioDevices;
 
   // Track the last sent media status
   Map<String, dynamic>? _lastSentMediaStatus;
@@ -162,6 +188,10 @@ class MptCallKitController {
               _currentAudioDevice = data.toString();
               _currentAudioDeviceStream.add(data.toString());
               break;
+            case 'audioDevices':
+              _currentAvailableAudioDevices = data as List<String>;
+              _audioDevicesAvailable.add(data);
+              break;
           }
         }
       });
@@ -201,6 +231,11 @@ class MptCallKitController {
         if (call.method == 'currentAudioDevice') {
           _currentAudioDevice = call.arguments as String;
           _currentAudioDeviceStream.add(call.arguments as String);
+        }
+
+        if (call.method == 'audioDevices') {
+          _currentAvailableAudioDevices = call.arguments as List<String>;
+          _audioDevicesAvailable.add(call.arguments as List<String>);
         }
 
         if (call.method == 'callKitAnswerReceived') {
@@ -1006,6 +1041,7 @@ class MptCallKitController {
     }
   }
 
+  // Only for android
   Future<void> getAudioDevices() async {
     try {
       final result = await channel.invokeMethod('getAudioDevices');

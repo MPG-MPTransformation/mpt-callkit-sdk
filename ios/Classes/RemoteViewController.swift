@@ -52,7 +52,7 @@ class RemoteViewController: UIViewController {
         ])
         
         // Đặt màu nền rõ ràng để dễ debug
-        self.view.backgroundColor = .systemRed
+        self.view.backgroundColor = .black
     }
     
     func initializeRemoteVideo() {

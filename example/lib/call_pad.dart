@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
@@ -26,9 +27,8 @@ class _CallPadState extends State<CallPad> {
     'cameraOff',
     'speakerLoud',
     'speakerEarphone',
-    // 'speakerBluetooth',
-    // 'speakerWiredHeadset',
-    // 'getAudioDevices',
+    if (Platform.isAndroid) 'speakerBluetooth',
+    if (Platform.isAndroid) 'getAudioDevices',
     'hangup',
   ];
 
@@ -417,6 +417,15 @@ class _CallPadState extends State<CallPad> {
       case 'cameraOn':
         MptCallKitController().cameraOn();
         break;
+      /* -------------------------------------------------------------------------------
+      Speaker:
+        1. Với android: 
+          - Nếu có tai nghe có dây đang được cắm thì đó là speaker duy nhất được chọn.
+          - Nếu không có tai nghe có dây đang được cắm, sẽ có 3 lựa chọn speaker: loa nhỏ, loa ngoài và bluetooth.
+        2. Với iOS:
+          - Tai nghe bluetooth đang được kết nối thì đó là speaker duy nhất được chọn (Ẩn nút chọn bluetooth).
+          - Nếu không có tai nghe bluetooth đang được kết nối, sẽ có 2 lựa chọn speaker: loa nhỏ và loa ngoài.
+      -------------------------------------------------------------------------------*/
       case 'speakerLoud': // loa ngoài
         MptCallKitController()
             .setSpeaker(state: SpeakerStatusConstants.SPEAKER_PHONE);
@@ -425,17 +434,13 @@ class _CallPadState extends State<CallPad> {
         MptCallKitController()
             .setSpeaker(state: SpeakerStatusConstants.EARPIECE);
         break;
-      // case 'speakerBluetooth': // bluetooth
-      //   MptCallKitController()
-      //       .setSpeaker(state: SpeakerStatusConstants.BLUETOOTH);
-      //   break;
-      // case 'speakerWiredHeadset': // tai nghe dây cắm
-      //   MptCallKitController()
-      //       .setSpeaker(state: SpeakerStatusConstants.WIRED_HEADSET);
-      //   break;
-      // case 'getAudioDevices':
-      //   MptCallKitController().getAudioDevices();
-      //   break;
+      case 'speakerBluetooth': // bluetooth
+        MptCallKitController()
+            .setSpeaker(state: SpeakerStatusConstants.BLUETOOTH);
+        break;
+      case 'getAudioDevices':
+        MptCallKitController().getAudioDevices();
+        break;
       case 'reject':
         MptCallKitController().rejectCall();
         break;

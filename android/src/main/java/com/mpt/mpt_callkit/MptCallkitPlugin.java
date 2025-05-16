@@ -645,7 +645,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                         return;
                 }
                 
-                // Kiểm tra xem thiết bị có sẵn không
+                // Check available audio devices
                 Set<PortSipEnumDefine.AudioDevice> availableDevices = Engine.Instance().getEngine().getAudioDevices();
                 if (availableDevices.contains(audioDevice)) {
                     CallManager.Instance().setAudioDevice(Engine.Instance().getEngine(), audioDevice);

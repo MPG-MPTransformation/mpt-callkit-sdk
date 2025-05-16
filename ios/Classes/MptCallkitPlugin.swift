@@ -1424,26 +1424,24 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            result(switchResult)
        case "setSpeaker":
            if let args = call.arguments as? [String: Any] {
-               // Check for 'state' parameter first (from Flutter)
                if let state = args["state"] as? String {
-                   let enableSpeaker = (state == "SPEAKER_PHONE")
-                   setLoudspeakerStatus(enableSpeaker)
-                   result(true)
-               }
-               // Check for 'enable' parameter as fallback (legacy)
-               else if let enable = args["enable"] as? Bool {
-                   setLoudspeakerStatus(enable)
-                   result(true)
-               }
-               else {
-                   result(FlutterError(code: "INVALID_ARGUMENTS",
-                                     message: "Missing or invalid arguments for setSpeaker",
-                                     details: nil))
+                   if state == "SPEAKER_PHONE" {
+                       setLoudspeakerStatus(true)
+                       result(true)
+                   } else if state == "EARPIECE" {
+                       setLoudspeakerStatus(false)
+                       result(true)
+                   } else {
+                       NSLog("[setSpeaker] Invalid state: %@", state)
+                       result(FlutterError(code: "INVALID_ARGUMENTS", message: "Invalid state for setSpeaker: \(state)", details: nil))
+                   }
+               } else {
+                   NSLog("[setSpeaker] Missing or invalid 'state' argument")
+                   result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing or invalid arguments for setSpeaker", details: nil))
                }
            } else {
-               result(FlutterError(code: "INVALID_ARGUMENTS",
-                                 message: "Missing or invalid arguments for setSpeaker",
-                                 details: nil))
+               NSLog("[setSpeaker] Missing arguments dictionary")
+               result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing or invalid arguments for setSpeaker", details: nil))
            }
         case "reInvite":
            if let args = call.arguments as? [String: Any],

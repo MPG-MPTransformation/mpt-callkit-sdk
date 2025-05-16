@@ -37,7 +37,7 @@ class LocalViewController: UIViewController {
         // Create the local video view
         viewLocalVideo = PortSIPVideoRenderView()
         viewLocalVideo.translatesAutoresizingMaskIntoConstraints = false
-        viewLocalVideo.backgroundColor = .darkGray
+        viewLocalVideo.backgroundColor = .black
         viewLocalVideo.contentMode = .scaleAspectFill // Sử dụng scaleAspectFill để lấp đầy view
         viewLocalVideo.clipsToBounds = true // Cắt phần thừa để không bị tràn ra ngoài
         self.view.addSubview(viewLocalVideo)
@@ -50,8 +50,8 @@ class LocalViewController: UIViewController {
             viewLocalVideo.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
         
-        // Đặt màu rõ ràng để dễ debug
-        self.view.backgroundColor = .systemBlue
+        // Set a clear background for easy debugging
+        self.view.backgroundColor = .black
     }
     
     func initializeLocalVideo() {
@@ -97,14 +97,41 @@ class LocalViewController: UIViewController {
     
     func updateVideoVisibility(isVisible: Bool) {
         print("LocalViewController - updateVideoVisibility: \(isVisible)")
-        viewLocalVideo.isHidden = !isVisible
         
-        if isVisible && isVideoInitialized {
-            // Đảm bảo video được hiển thị
-            portSIPSDK.displayLocalVideo(true, mirror: mCameraDeviceId == 1, localVideoWindow: viewLocalVideo)
-        } else if !isVisible && isVideoInitialized {
-            // Ẩn video nhưng không giải phóng
-            portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
+        // Check viewLocalVideo
+        guard let localVideo = viewLocalVideo else {
+            print("[Error] LocalViewController - updateVideoVisibility: viewLocalVideo is nil")
+            return
+        }
+        
+        // Check portSIPSDK
+        guard let sdk = portSIPSDK else {
+            print("[Error] LocalViewController - updateVideoVisibility: portSIPSDK is nil")
+            return
+        }
+            
+        // Update the visibility of the view
+        localVideo.isHidden = !isVisible
+        
+        // Only process video when it is initialized
+        guard isVideoInitialized else {
+            print("[Warning] LocalViewController - updateVideoVisibility: video is not initialized")
+            return
+        }
+        
+        // Process video display
+        if isVisible {
+            // Display video with mirror depending on the camera
+            let result = sdk.displayLocalVideo(true, 
+                                             mirror: mCameraDeviceId == 1, 
+                                             localVideoWindow: localVideo)
+            print("[Debug] LocalViewController - Display local video result: \(result)")
+        } else {
+            // Hide video but not release
+            let result = sdk.displayLocalVideo(false, 
+                                             mirror: false, 
+                                             localVideoWindow: nil)
+            print("[Debug] LocalViewController - Hide local video result: \(result)")
         }
     }
     
