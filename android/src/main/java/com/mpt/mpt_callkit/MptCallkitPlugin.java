@@ -379,21 +379,34 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     }
 
     public void requestPermissions(Activity activity, MethodChannel.Result result) {
-        if (PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity,
-                Manifest.permission.CAMERA)
-                || PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity,
-                Manifest.permission.RECORD_AUDIO)
-                || PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity,
-                Manifest.permission.BLUETOOTH_CONNECT)) {
+        // Create permission list based on Android version
+        List<String> permissions = new ArrayList<>();
+        permissions.add(Manifest.permission.CAMERA);
+        permissions.add(Manifest.permission.RECORD_AUDIO);
+        
+        // Add BLUETOOTH_CONNECT permission only on Android 12+ (API 31+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(Manifest.permission.BLUETOOTH_CONNECT);
+        }
+        
+        // Check if any permission is not granted
+        boolean needPermission = false;
+        for (String permission : permissions) {
+            if (ActivityCompat.checkSelfPermission(activity, permission) != PackageManager.PERMISSION_GRANTED) {
+                needPermission = true;
+                break;
+            }
+        }
+        
+        if (needPermission) {
             System.out.println("quanth: request permission");
             pendingResult = result;
-            ActivityCompat.requestPermissions(activity, new String[] {
-                            Manifest.permission.CAMERA,
-                            Manifest.permission.RECORD_AUDIO,
-                            Manifest.permission.BLUETOOTH_CONNECT},
+            ActivityCompat.requestPermissions(activity, 
+                    permissions.toArray(new String[0]),
                     REQ_DANGERS_PERMISSION);
             return;
         }
+        
         result.success(true);
         System.out.println("quanth: no need request permission");
     }
