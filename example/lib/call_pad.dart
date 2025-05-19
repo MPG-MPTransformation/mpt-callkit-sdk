@@ -396,8 +396,8 @@ class _CallPadState extends State<CallPad> {
       case 'hangup':
         MptCallKitController().hangup();
         MptCallKitController().leaveCallMediaRoomChannel();
-        // Close call_pad screen
-        Navigator.of(context).pop();
+        // // Close call_pad screen
+        // Navigator.of(context).pop();
         break;
       case 'hold':
         MptCallKitController().hold();
@@ -498,8 +498,8 @@ class _CallPadState extends State<CallPad> {
               // Go back to previous screen
               // Close dialog
               Navigator.of(context).pop();
-              // Close call_pad screen
-              Navigator.of(context).pop();
+              // // Close call_pad screen
+              // Navigator.of(context).pop();
             },
             style: ButtonStyle(
               foregroundColor: MaterialStateProperty.all<Color>(Colors.red),

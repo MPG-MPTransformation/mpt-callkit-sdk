@@ -1171,12 +1171,12 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
     public static void startServiceCompatibility(@NonNull Context context, @NonNull Intent intent) {
         System.out.println("quanth: startServiceCompatibility");
-        // if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        //     context.startForegroundService(intent);
-        // } else {
-        //     context.startService(intent);
-        // }
-        context.startService(intent);
+         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+             context.startForegroundService(intent);
+         } else {
+             context.startService(intent);
+         }
+//        context.startService(intent);
     }
 
     //--------------------

@@ -1035,6 +1035,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            mSoundService.stopRingBackTone()
            _callManager.endCall(sessionid: activeSessionid)
           
+          methodChannel?.invokeMethod("callState", "CLOSED")
        }
    }
   

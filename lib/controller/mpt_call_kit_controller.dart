@@ -26,6 +26,7 @@ class MptCallKitController {
   Map<String, dynamic>? _configuration;
   bool? _isOnline = false;
   bool? get isOnline => _isOnline;
+  BuildContext? context;
 
   static const MethodChannel channel = MethodChannel('mpt_callkit');
   static const eventChannel = EventChannel('native_events');
@@ -167,6 +168,9 @@ class MptCallKitController {
             case 'callState':
               _currentCallState = data.toString();
               _callEvent.add(data.toString());
+              if (context != null) {
+                _handleCallStateChanged(data.toString(), context!);
+              }
               break;
             case 'cameraState':
               _cameraState.add(data as bool);
@@ -201,10 +205,12 @@ class MptCallKitController {
           _isOnline = call.arguments as bool;
           _onlineStatuslistener.add(call.arguments as bool);
         }
-
         if (call.method == 'callState') {
           _currentCallState = call.arguments as String;
           _callEvent.add(call.arguments as String);
+          if (context != null) {
+            _handleCallStateChanged(call.arguments as String, context!);
+          }
         }
 
         if (call.method == 'cameraState') {
@@ -331,6 +337,7 @@ class MptCallKitController {
     required BuildContext context,
     Function(String?)? onError,
   }) async {
+    this.context = context;
     if (userData != null) {
       await _getCurrentUserInfo();
       await _getConfiguration();
@@ -1240,6 +1247,19 @@ class MptCallKitController {
       print('Reset all media states after leaving call channel');
     } else {
       print('Session ID is null or empty');
+    }
+  }
+
+  void _handleCallStateChanged(String state, BuildContext context) async {
+    if ((state == CallStateConstants.CLOSED ||
+            state == CallStateConstants.FAILED) &&
+        (_isOnline == true)) {
+      var offlineResult = await offline();
+      if (offlineResult) {
+        await _registerToSipServer(context: context);
+      }
+    } else {
+      print('Call state changed: $state');
     }
   }
 }

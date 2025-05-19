@@ -452,10 +452,22 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             case INCOMING:
                 Engine.Instance().getEngine().rejectCall(currentLine.sessionID, 486);
                 System.out.println("quanth: lineName= " + currentLine.lineName + ": Rejected call");
+
+                Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
+                MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
+                System.out.println("quanth: callState - " + "CLOSED");
+
                 break;
             case CONNECTED:
             case TRYING:
                 Engine.Instance().getEngine().hangUp(currentLine.sessionID);
+
+                if (Engine.Instance().getMethodChannel() != null) {
+                    Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
+                    MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
+                    System.out.println("quanth: callState - " + "CLOSED");
+                }
+
                 System.out.println("quanth: lineName= " + currentLine.lineName + ": Hang up");
                 break;
         }
