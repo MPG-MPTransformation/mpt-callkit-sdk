@@ -17,6 +17,7 @@ A new Flutter plugin project.
   s.resources    = ['Assets/**.*']
   s.dependency 'Flutter'
   s.platform         = :ios, '9.0'
+  s.static_framework = true
 
   # System frameworks - these are frameworks provided by Apple that you want to link with
   s.frameworks = ['Network', 'GLKit', 'MetalKit', 'CoreAudio', 'VideoToolbox']

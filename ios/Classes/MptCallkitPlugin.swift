@@ -59,6 +59,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    var _backtaskIdentifier: UIBackgroundTaskIdentifier = UIBackgroundTaskIdentifier.invalid
     
   var currentSessionid: String = ""
+    var xSessionId: String = ""
   
    var _enablePushNotification: Bool?
   
@@ -511,10 +512,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        if portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "Answer-Mode") == "Auto;require" {
             print("onInviteIncoming - Outgoing call API")
             answerCall()
+            self.xSessionId = portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "X-Session-Id")
             methodChannel?.invokeMethod("callType", arguments: "OUTGOING_CALL")
        }
        else{
             print("onInviteIncoming - Incoming call API")
+            self.xSessionId = ""
             methodChannel?.invokeMethod("callType", arguments: "INCOMING_CALL")
        }
        
@@ -1035,7 +1038,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            mSoundService.stopRingBackTone()
            _callManager.endCall(sessionid: activeSessionid)
           
-          methodChannel?.invokeMethod("callState", "CLOSED")
+           sendCallStateToFlutter(.CLOSED)
        }
    }
   
@@ -1617,13 +1620,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                    if result.session.videoState {
                        NSLog("⭐️ Video state is TRUE - showing video")
                        
-                       // Sử dụng phương thức mới để cập nhật visibility
-                       localViewController.updateVideoVisibility(isVisible: true)
-                       remoteViewController.updateVideoVisibility(isVisible: true)
-                       
                        // Vẫn cập nhật cho VideoViewController để tương thích ngược
                        videoViewController.viewLocalVideo?.isHidden = false
                        videoViewController.viewRemoteVideo?.isHidden = false
+                       
+                       // Sử dụng phương thức mới để cập nhật visibility
+                       localViewController.updateVideoVisibility(isVisible: true)
+                       remoteViewController.updateVideoVisibility(isVisible: true)
                        
                        // Đảm bảo video được gửi đi
                        NSLog("⭐️ Enabling send video state")
@@ -1726,10 +1729,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        }
        
        // Get the SIP message from active session
-       NSLog("SIP message X-Session-Id: \(self.currentSessionid  ?? "nil")")
+       NSLog("SIP message X-Session-Id: \(self.xSessionId)")
        
        // Compare with the provided sessionId
-       if self.currentSessionid  == sessionId {
+       if self.xSessionId  == sessionId {
            // Update video state
            sessionResult.session.videoState = true
            
@@ -1749,7 +1752,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            
            NSLog("Successfully updated call with video for session: \(sessionId)")
        } else {
-           NSLog("SessionId not match. SIP message ID: \(self.currentSessionid  ?? "nil"), Request: \(sessionId)")
+           NSLog("SessionId not match. SIP message ID: \(self.xSessionId), Request: \(sessionId)")
        }
    }
 }
