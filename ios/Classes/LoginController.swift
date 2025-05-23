@@ -104,7 +104,7 @@ class LoginViewController {
         
         portSIPSDK.setVideoBitrate(-1, bitrateKbps: 512) // video send bitrate,500kbps
         portSIPSDK.setVideoFrameRate(-1, frameRate: 20)
-        portSIPSDK.setVideoResolution(1920, height: 1080)
+        portSIPSDK.setVideoResolution(1280, height: 720)
         portSIPSDK.setAudioSamples(20, maxPtime: 60) // ptime 20
         
         // 1 - FrontCamra 0 - BackCamra

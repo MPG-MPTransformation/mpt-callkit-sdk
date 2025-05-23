@@ -600,33 +600,37 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             System.out.println("quanth: Cannot reinvite - no active session or missing SIP message");
             return false;
         }
-
+ 
         System.out.println("quanth: SIP message Session-Id: " + sessionId);
-
+ 
         // Lấy X-Session-Id từ sipMessage
         String messageSesssionId = Engine.Instance().getEngine()
                 .getSipMessageHeaderValue(currentLine.sipMessage, "X-Session-Id").toString();
+ 
+        boolean answerMode = Engine.Instance().getEngine().getSipMessageHeaderValue(currentLine.sipMessage, "Answer-Mode").toString().equals("Auto;require");
+ 
         // So sánh với sessionId được truyền vào
-        if (messageSesssionId.equals(sessionId)) {
+        if (messageSesssionId.equals(sessionId) && answerMode) {
             // Cập nhật trạng thái video của session
             currentLine.hasVideo = true;
-
+ 
             // Gửi video từ camera
             int sendVideoRes = Engine.Instance().getEngine().sendVideo(currentLine.sessionID, true);
             System.out.println("quanth: reinviteSession - sendVideo(): " + sendVideoRes);
-
+ 
             // Cập nhật cuộc gọi để thêm video stream
             int updateRes = Engine.Instance().getEngine().updateCall(currentLine.sessionID, true, true);
             System.out.println("quanth: reinviteSession - updateCall(): " + updateRes);
-
+ 
             System.out.println("quanth: Successfully updated call with video for session: " + sessionId);
             return true;
         } else {
             System.out.println(
-                    "quanth: SessionId not match. SIP message ID: " + messageSesssionId + ", Request: " + sessionId);
+                    "quanth: SessionId not match or not is Answer-Mode. SIP message ID: " + messageSesssionId + ", Request: " + sessionId + ", Answer-Mode: " + answerMode);
             return false;
         }
     }
+ 
 
     boolean switchCamera() {
         boolean value = !Engine.Instance().mUseFrontCamera;

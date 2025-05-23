@@ -591,10 +591,12 @@ class CallManager: NSObject {
 
     func holdCall(uuid: UUID, onHold: Bool) {
         guard let result = findCallByUUID(uuid: uuid) else {
+            NSLog("CallManager - holdCall - canot find session by uuid: \(uuid)")
             return
         }
         if !result.session.sessionState ||
             result.session.holdState == onHold {
+            NSLog("CallManager - holdCall - sessionState: \(result.session.sessionState), holdState: \(result.session.holdState)")
             return
         }
 

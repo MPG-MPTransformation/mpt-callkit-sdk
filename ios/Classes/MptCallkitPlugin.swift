@@ -80,6 +80,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    func findSession(sessionid: CLong) -> (Int) {
        for i in 0 ..< MAX_LINES {
            if lineSessions[i] == sessionid {
+               print("findSession, SessionId = \(sessionid)")
                return i
            }
        }
@@ -677,7 +678,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    }
   
     public func onInviteUpdated(_ sessionId: Int, audioCodecs: String!, videoCodecs: String!, screenCodecs: String!, existsAudio: Bool, existsVideo: Bool, existsScreen: Bool, sipMessage: String!) {
-       NSLog("onInviteUpdated... sessionId: \(sessionId) existsVideo: \(existsVideo)")
+        NSLog("onInviteUpdated... sessionId: \(sessionId) existsVideo: \(existsVideo) videoCodecs: \(videoCodecs ?? "")")
        guard let result = _callManager.findCallBySessionID(sessionId) else {
            return
        }
@@ -686,8 +687,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        result.session.videoState = existsVideo
        result.session.videoMuted = !existsVideo
        result.session.screenShare = existsScreen
-       // Cập nhật giao diện
-       updateVideo(sessionId: sessionId)
+//       // Cập nhật giao diện
+//       updateVideo(sessionId: sessionId)
        
        print("The call has been updated on line \(result.index)")
    }
@@ -733,7 +734,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 //       localViewController.onClearState()
 //       remoteViewController.onClearState()
     //    loginViewController.unRegister()
-       NSLog("onInviteClosed...")
       
        // Gửi trạng thái về Flutter
        sendCallStateToFlutter(.CLOSED)
@@ -1045,18 +1045,27 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    func holdCall() {
        NSLog("holdCall")
        if activeSessionid != CLong(INVALID_SESSION_ID) {
-           _callManager.holdCall(sessionid: activeSessionid, onHold: true)
+//           _callManager.holdCall(sessionid: activeSessionid, onHold: true)
+           let holdRes = portSIPSDK.hold(activeSessionid)
+           NSLog("holdCall - valid sessionId - holdCall: \(holdRes)")
+       } else {
+           NSLog("holdCall - invalid sessionId")
        }
       
        if isConference == true {
            _callManager.holdAllCall(onHold: true)
+           NSLog("holdCall - inConference - holdAllCall")
        }
    }
   
    func unholdCall() {
        NSLog("unholdCall")
        if activeSessionid != CLong(INVALID_SESSION_ID) {
-           _callManager.holdCall(sessionid: activeSessionid, onHold: false)
+//           _callManager.holdCall(sessionid: activeSessionid, onHold: false)
+          let unHoldRes = portSIPSDK.unHold(activeSessionid)
+           NSLog("unholdCall - valid sessionId - unHoldCall: \(unHoldRes)")
+       } else {
+           NSLog("unholdCall - invalid sessionId")
        }
       
        if isConference == true {
@@ -1512,6 +1521,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
              //    _ = _callManager.answerCall(sessionId: activeSessionid, isVideo: result!.session.videoState)
                 mSoundService.stopRingTone()
                 mSoundService.stopRingBackTone()
+                
                 portSIPSDK.answerCall(activeSessionid, videoCall: result!.session.videoState)
                 sendCallStateToFlutter(.ANSWERED)
                 
@@ -1522,6 +1532,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                         self?.forceShowVideo()
                     }
+                }
+                else{
+                    NSLog("⭐️ Call answered with no video - videoState is false")
                 }
                 
                 print("Call answered")
@@ -1615,10 +1628,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                // Kiểm tra nếu sessionId hợp lệ - video LUÔN LUÔN hiển thị khi có cuộc gọi video đang hoạt động
                if sessionId > 0 {
                    NSLog("⭐️ Session is valid (ID > 0)")
-                   
-                   // Luôn đặt visibility cho video khi cuộc gọi đã được trả lời
-                   if result.session.videoState {
-                       NSLog("⭐️ Video state is TRUE - showing video")
                        
                        // Vẫn cập nhật cho VideoViewController để tương thích ngược
                        videoViewController.viewLocalVideo?.isHidden = false
@@ -1638,17 +1647,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                            localViewController.initializeLocalVideo()
                        }
                        remoteViewController.onStartVideo(Int(sessionId))
-                   } else {
-                       NSLog("⭐️ Video state is FALSE - hiding video")
-                       
-                       // Sử dụng phương thức mới để cập nhật visibility
-                       localViewController.updateVideoVisibility(isVisible: false)
-                       remoteViewController.updateVideoVisibility(isVisible: false)
-                       
-                       // Vẫn cập nhật cho VideoViewController để tương thích ngược
-                       videoViewController.viewLocalVideo?.isHidden = true
-                       videoViewController.viewRemoteVideo?.isHidden = true
-                   }
                } else {
                    NSLog("⭐️ Invalid session ID (\(sessionId)) - hiding all videos")
                    // Không có cuộc gọi đang diễn ra, tắt video
