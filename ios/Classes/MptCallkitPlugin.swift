@@ -687,8 +687,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        result.session.videoState = existsVideo
        result.session.videoMuted = !existsVideo
        result.session.screenShare = existsScreen
-//       // Cập nhật giao diện
-//       updateVideo(sessionId: sessionId)
+       // Cập nhật giao diện
+       updateVideo(sessionId: sessionId)
        
        print("The call has been updated on line \(result.index)")
    }
@@ -1466,6 +1466,40 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                                  message: "Missing or invalid arguments for reInvite",
                                  details: nil))
            }
+                case "updateVideoCall":
+           if let args = call.arguments as? [String: Any],
+              let isVideo = args["isVideo"] as? Bool {
+                       // Check if we have an active session
+                if activeSessionid <= CLong(INVALID_SESSION_ID) {
+                    NSLog("Cannot reinvite - no active session")
+                    result(false)
+                }
+       
+                guard let sessionResult = _callManager.findCallBySessionID(activeSessionid) else {
+                    NSLog("Cannot find session with ID: \(activeSessionid)")
+                    return;
+                }
+ 
+                 // Update video state
+                sessionResult.session.videoState = true
+                
+                // Send video from camera
+                setCamera(useFrontCamera: mUseFrontCamera)
+                let sendVideoRes = portSIPSDK.sendVideo(sessionResult.session.sessionId, sendState: isVideo)
+                NSLog("reinviteSession - sendVideo(): \(sendVideoRes)")
+                
+                // Update call to add video stream
+                let updateRes = portSIPSDK.updateCall(sessionResult.session.sessionId, enableAudio: true, enableVideo: isVideo)
+                NSLog("reinviteSession - updateCall(): \(updateRes)")
+                // Update the video UI
+                updateVideo(sessionId: Int(sessionResult.session.sessionId))
+                
+                // Buộc hiển thị video
+                forceShowVideo()
+ 
+               result(true)
+           } else {
+               result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing or invalid arguments for updateVideoCall", details: nil))}
        default:
            result(FlutterMethodNotImplemented)
        }

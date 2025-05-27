@@ -1070,6 +1070,18 @@ class MptCallKitController {
     }
   }
 
+  Future<bool> updateVideoCall({required bool isVideo}) async {
+    try {
+      final result = await channel.invokeMethod("updateVideoCall", {
+        "isVideo": isVideo,
+      });
+      return result;
+    } on PlatformException catch (e) {
+      debugPrint("Failed in 'updateVideoCall' mothod: '${e.message}'.");
+      return false;
+    }
+  }
+
   // Subscribe to media status channel
   Future<void> subscribeToMediaStatusChannel() async {
     try {

@@ -263,6 +263,19 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 boolean reinviteResult = reinviteSession(sessionId);
                 result.success(reinviteResult);
                 break;
+            case "updateVideoCall":
+                Session currentLine = CallManager.Instance().getCurrentSession();
+                Boolean isVideo = call.argument("isVideo");
+                // Gửi video từ camera
+                int sendVideoResult = Engine.Instance().getEngine().sendVideo(currentLine.sessionID, isVideo);
+                System.out.println("quanth: reinviteSession - sendVideo(): " + sendVideoResult);
+
+                // Cập nhật cuộc gọi để thêm video stream
+                int updateCallRes = Engine.Instance().getEngine().updateCall(currentLine.sessionID, true, isVideo);
+                System.out.println("quanth: reinviteSession - updateCall(): " + updateCallRes);
+
+                result.success(updateCallRes == 0);
+                break;
             default:
                 result.notImplemented();
         }
