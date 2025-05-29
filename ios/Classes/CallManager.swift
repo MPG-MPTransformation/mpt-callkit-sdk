@@ -56,13 +56,8 @@ class CallManager: NSObject {
             sessionArray.append(Session())
         }
 
-        if #available(iOS 10.0, *) {
-            _enableCallKit = true
-        } else {
-            _enableCallKit = false
-        }
-        // Force disable CallKit
-        // _enableCallKit = false
+        _enableCallKit = false
+        _portSIPSDK.enableCallKit(false)
 
         _portSIPSDK.enableCallKit(_enableCallKit)
     }
@@ -596,10 +591,12 @@ class CallManager: NSObject {
 
     func holdCall(uuid: UUID, onHold: Bool) {
         guard let result = findCallByUUID(uuid: uuid) else {
+            NSLog("CallManager - holdCall - canot find session by uuid: \(uuid)")
             return
         }
         if !result.session.sessionState ||
             result.session.holdState == onHold {
+            NSLog("CallManager - holdCall - sessionState: \(result.session.sessionState), holdState: \(result.session.holdState)")
             return
         }
 

@@ -4,7 +4,7 @@ import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
 
 class CameraView extends StatefulWidget {
-  const CameraView({super.key});
+  const CameraView({Key? key}) : super(key: key);
 
   @override
   State<CameraView> createState() => _CameraViewState();
@@ -14,7 +14,7 @@ class _CameraViewState extends State<CameraView> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback(
+    WidgetsBinding.instance?.addPostFrameCallback(
       (_) {
         MptCallKitController.channel.setMethodCallHandler(
           (call) async {

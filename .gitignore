@@ -46,6 +46,8 @@ SDK/
 /dev/integration_tests/**/xcuserdata
 /dev/integration_tests/**/Pods
 /packages/flutter/coverage/
+/example/android/app/.cxx
+/.fvm
 version
 analysis_benchmark.json
 

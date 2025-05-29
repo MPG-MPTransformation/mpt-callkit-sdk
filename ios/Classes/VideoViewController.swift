@@ -101,7 +101,7 @@ class VideoViewController: UIViewController {
             // viewRemoteVideoSmall.initVideoRender()
             updateLocalVideoPosition(UIScreen.main.bounds.size)
 
-            portSIPSDK.displayLocalVideo(true, mirror: mCameraDeviceId == 0, localVideoWindow: viewLocalVideo)
+            portSIPSDK.displayLocalVideo(true, mirror: mCameraDeviceId == 1, localVideoWindow: viewLocalVideo)
             
             let tapGesture = UITapGestureRecognizer(target: self, action: #selector(onSwichShareScreenClick(action:)))
             // viewRemoteVideoSmall.addGestureRecognizer(tapGesture)
@@ -431,10 +431,13 @@ class VideoViewController: UIViewController {
     }
     
     @objc func onSwitchSpeakerClick(_ sender: AnyObject) {
-        let sessionId = MptCallkitPlugin.shared.activeSessionid
-        if (sessionId == nil) {
+        let plugin = MptCallkitPlugin.shared
+        let sessionId = plugin.activeSessionid
+        
+        if sessionId == nil || sessionId == 0 {
             return
         }
+        
         if muteMic {
             muteMic = false
             portSIPSDK.muteSession(sessionId!, muteIncomingAudio: false, muteOutgoingAudio: true, muteIncomingVideo: false, muteOutgoingVideo: false)
@@ -455,7 +458,8 @@ class VideoViewController: UIViewController {
         alert.addAction(cancelAction)
         
         // Add a custom action
-        let customAction = UIAlertAction(title: "OK", style: .destructive) { action in
+        let customAction = UIAlertAction(title: "OK", style: .destructive) { [weak self] action in
+            guard let self = self else { return }
             self.onClearState()
             MptCallkitPlugin.shared.hungUpCall()
             MptCallkitPlugin.shared.loginViewController.unRegister()
@@ -469,11 +473,15 @@ class VideoViewController: UIViewController {
         if mCameraDeviceId == 0 {
             if portSIPSDK.setVideoDeviceId(1) == 0 {
                 mCameraDeviceId = 1
+                // Khi chuyển sang camera trước, bật mirror
+                portSIPSDK.displayLocalVideo(true, mirror: true, localVideoWindow: viewLocalVideo)
                 swapButton.setImage(UIImage(systemName: "camera.rotate.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
             }
         } else {
             if portSIPSDK.setVideoDeviceId(0) == 0 {
                 mCameraDeviceId = 0
+                // Khi chuyển sang camera sau, tắt mirror
+                portSIPSDK.displayLocalVideo(true, mirror: false, localVideoWindow: viewLocalVideo)
                 swapButton.setImage(UIImage(systemName: "camera.rotate", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
             }
         }
@@ -499,10 +507,12 @@ class VideoViewController: UIViewController {
     }
     
     @objc func onMuteClick(_ sender: AnyObject) {
-        let sessionId = MptCallkitPlugin.shared.activeSessionid
-        if (sessionId == nil) {
+        let plugin = MptCallkitPlugin.shared
+        let sessionId = plugin.activeSessionid
+        if sessionId == nil || sessionId == 0 {
             return
         }
+        
         if speakState == 0 {
             speakState = 1
             portSIPSDK.setLoudspeakerStatus(false)
@@ -659,7 +669,7 @@ class VideoViewController: UIViewController {
     }
     
     func initializeVideoViews() {
-        // Remove previous views if they exist (in case cleanup wasn’t complete)
+        // Remove previous views if they exist (in case cleanup wasn't complete)
         viewRemoteVideo?.removeFromSuperview()
         // viewRemoteVideoSmall?.removeFromSuperview()
         
@@ -685,41 +695,40 @@ class VideoViewController: UIViewController {
     
     func onClearState() {
         DispatchQueue.main.async {
-            self.stopCallTimer() // Stop the timer
+            self.stopCallTimer()
+            
+            // Cleanup audio
             self.speakState = 0
             self.portSIPSDK.setLoudspeakerStatus(true)
-            self.muteButton.setImage(UIImage(systemName: "speaker.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
-            self.muteMic = true
             self.muteState = true
-            self.portSIPSDK.muteSession(self.sessionId, muteIncomingAudio: false, muteOutgoingAudio: false, muteIncomingVideo: false, muteOutgoingVideo: false)
-            self.buttonSpeaker.setImage(UIImage(systemName: "mic.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+            self.muteMic = true
             
-            self.viewLocalVideo?.releaseVideoRender()
-            self.viewLocalVideo?.removeFromSuperview()
-            self.viewLocalVideo?.isHidden = true
-            
-            let appDelegate = MptCallkitPlugin.shared
-            let isVideoCall = appDelegate.isVideoCall
-            if isVideoCall {
-                self.portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
-                self.viewLocalVideo.releaseVideoRender()
+            // Cleanup video resources
+            // if let appDelegate = MptCallkitPlugin.shared,
+            //    appDelegate.isVideoCall {
+            let plugin = MptCallkitPlugin.shared
+            if plugin.isVideoCall{
+                self.portSIPSDK.displayLocalVideo(false, mirror: true, localVideoWindow: nil)
+                self.viewLocalVideo?.releaseVideoRender()
+                
                 if self.isStartVideo {
                     self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: nil)
                     self.portSIPSDK.setRemoteScreenWindow(self.sessionId, remoteScreenWindow: nil)
                     
-                    self.viewRemoteVideo.releaseVideoRender()
-                    // viewRemoteVideoSmall.releaseVideoRender()
-                    
-                    self.viewRemoteVideo.removeFromSuperview()
-                    // viewRemoteVideoSmall.removeFromSuperview()
+                    self.viewRemoteVideo?.releaseVideoRender()
+                    self.viewRemoteVideo?.removeFromSuperview()
                 }
-                self.portSIPSDK.sendVideo(self.sessionId, sendState: false)
                 
-                self.isStartVideo = false
-                self.sessionId = 0
+                self.portSIPSDK.sendVideo(self.sessionId, sendState: false)
             }
+            
+            // Reset session
+            self.isStartVideo = false
+            self.sessionId = 0
+            
+//            // Force unregister SIP
+//            MptCallkitPlugin.shared.loginViewController.offLine()
         }
-        self.dismiss(animated: true, completion: nil)
     }
     
     func startCallTimer() {

@@ -18,6 +18,8 @@ public class Session
 	public boolean bMuteAudioOutGoing = false;
 	public boolean bMuteVideo = false;
 
+	public String sipMessage;
+
 	public boolean IsIdle()
 	{
 		return state == CALL_STATE_FLAG.FAILED || state == CALL_STATE_FLAG.CLOSED;
@@ -49,6 +51,10 @@ public class Session
 		CONNECTED,
 		FAILED,
 		CLOSED,
+	}
+
+	public void setSipMessage(String message) {
+		this.sipMessage = message;
 	}
 }
 

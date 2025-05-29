@@ -2,9 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:mpt_callkit/models/extension_model.dart';
 import 'package:http/http.dart' as http;
+import 'package:mpt_callkit/models/extension_model.dart';
 import 'package:mpt_callkit/models/release_extension_model.dart';
+
 import 'mpt_callkit_platform_interface.dart';
 
 /// An implementation of [MptCallkitPlatform] that uses method channels.
@@ -15,7 +16,8 @@ class MethodChannelMptCallkit extends MptCallkitPlatform {
 
   @override
   Future<String?> getPlatformVersion() async {
-    final version = await methodChannel.invokeMethod<String>('getPlatformVersion');
+    final version =
+        await methodChannel.invokeMethod<String>('getPlatformVersion');
     return version;
   }
 
@@ -26,19 +28,21 @@ class MethodChannelMptCallkit extends MptCallkitPlatform {
   /// 3. domain -> String : sip domain required
   /// 4. port -> int : not required default port is 5060 (UDP)
   /// 5. protocol -> String : default is UDP but also TCP and TLS are supported
+  @override
   Future<Map<String, dynamic>> initSipConnection({
     required String apiKey,
     String? baseUrl,
     required String userPhoneNumber,
   }) async {
-    initSdk(apiKey: apiKey, userPhoneNumber: userPhoneNumber, baseUrl: baseUrl);
+    initSdk(
+      apiKey: apiKey,
+      userPhoneNumber: userPhoneNumber,
+      baseUrl: baseUrl,
+    );
     final extension = await getExtension();
-    if(extension == null) {
+    if (extension == null) {
       methodChannel.invokeMethod('registrationStateStream', false);
-      return {
-        'status': 'fail',
-        'message': 'Không thể lấy được extension'
-      };
+      return {'status': 'fail', 'message': 'Không thể lấy được extension'};
     }
 
     final response = await methodChannel.invokeMethod(
@@ -51,10 +55,9 @@ class MethodChannelMptCallkit extends MptCallkitPlatform {
         'port': extension.port,
       },
     );
-    Map<String, dynamic> castedData = Map<String, dynamic>.from(response as Map);
-    return {
-      'status': 'success'
-    };
+    Map<String, dynamic> castedData =
+        Map<String, dynamic>.from(response as Map);
+    return {'status': 'success'};
   }
 
   @override
@@ -63,8 +66,8 @@ class MethodChannelMptCallkit extends MptCallkitPlatform {
     required void Function() onFailure,
   }) {
     methodChannel.setMethodCallHandler((call) async {
-      if(call.method == 'registrationStateStream'){
-        if(call.arguments == true){
+      if (call.method == 'registrationStateStream') {
+        if (call.arguments == true) {
           onSuccess.call();
         } else {
           onFailure.call();
@@ -74,9 +77,9 @@ class MethodChannelMptCallkit extends MptCallkitPlatform {
   }
 
   @override
-  Future<bool> unregisterConnection() async{
+  Future<bool> unregisterConnection() async {
     final extension = await releaseExtension();
-    if(extension == false) {
+    if (extension == false) {
       return false;
     }
     methodChannel.invokeMethod('unregisterConnection');
@@ -84,23 +87,75 @@ class MethodChannelMptCallkit extends MptCallkitPlatform {
   }
 
   @override
-  bool call(String phone){
-    methodChannel.invokeMethod('call',
+  bool call(String phone, bool isVideoCall) {
+    methodChannel.invokeMethod(
+      'call',
       <String, dynamic>{
         'phoneNumber': phone,
-      },);
+        'isVideoCall': isVideoCall,
+      },
+    );
     return true;
   }
 
   @override
-  void hangup(){
+  void hangup() {
     methodChannel.invokeMethod('hangup');
   }
 
   @override
-  void startActivity(){
+  void startActivity() {
     methodChannel.invokeMethod('startActivity');
   }
+
+  @override
+  void hold() {
+    methodChannel.invokeMethod('hold');
+  }
+
+  @override
+  void unhold() {
+    methodChannel.invokeMethod('unhold');
+  }
+
+  @override
+  void mute() {
+    methodChannel.invokeMethod('mute');
+  }
+
+  @override
+  void unmute() {
+    methodChannel.invokeMethod('unmute');
+  }
+
+  @override
+  void cameraOn() {
+    methodChannel.invokeMethod('cameraOn');
+  }
+
+  @override
+  void cameraOff() {
+    methodChannel.invokeMethod('cameraOff');
+  }
+
+  @override
+  void transfer() {}
+
+  @override
+  void answer() {
+    methodChannel.invokeMethod('answer');
+  }
+
+  @override
+  void reject() {
+    methodChannel.invokeMethod('reject');
+  }
+
+  @override
+  void getOutboundCallNumbers() {}
+
+  @override
+  void getAgentStatus() {}
 
   ////////////////////////////////////////////////////////////////////
   String apiKey = '';
@@ -126,15 +181,15 @@ class MethodChannelMptCallkit extends MptCallkitPlatform {
 
       final response = await http
           .post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
-        },
-        body: json.encode({
-          "phone_number": userPhoneNumber,
-        }),
-      )
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $apiKey',
+            },
+            body: json.encode({
+              "phone_number": userPhoneNumber,
+            }),
+          )
           .timeout(const Duration(seconds: 10));
 
       final data = json.decode(response.body);

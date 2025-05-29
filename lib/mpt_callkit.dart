@@ -22,12 +22,12 @@ class MptCallkit {
         .registrationStateStream(onSuccess: onSuccess, onFailure: onFailure);
   }
 
-  Future<bool> unregisterConnection() async{
+  Future<bool> unregisterConnection() async {
     return await MptCallkitPlatform.instance.unregisterConnection();
   }
 
-  bool call(String phone) {
-    return MptCallkitPlatform.instance.call(phone);
+  bool call(String phone, bool isVideoCall) {
+    return MptCallkitPlatform.instance.call(phone, isVideoCall);
   }
 
   void hangup() {

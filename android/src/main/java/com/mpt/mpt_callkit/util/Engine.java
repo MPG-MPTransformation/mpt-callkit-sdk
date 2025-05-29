@@ -12,7 +12,7 @@ public class Engine {
     private PortSipSdk mEngine;
     public boolean mConference = false;
     private static Object locker = new Object();
-    public boolean mUseFrontCamera = false;
+    public boolean mUseFrontCamera = true;
     private PortMessageReceiver receiver;
     private MethodChannel channel;
 
@@ -108,5 +108,13 @@ public class Engine {
 
     public PortSipSdk getEngine() {
         return mEngine;
+    }
+
+    public String getHeaderValueFromCurrentSession(String headerName) {
+        Session currentSession = CallManager.Instance().getCurrentSession();
+        if (currentSession != null && currentSession.sipMessage != null) {
+            return getEngine().getSipMessageHeaderValue(currentSession.sipMessage, headerName);
+        }
+        return "";
     }
 }

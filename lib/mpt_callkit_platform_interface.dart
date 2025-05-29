@@ -36,7 +36,7 @@ abstract class MptCallkitPlatform extends PlatformInterface {
     // SipProtocol sipProtocol = SipProtocol.UDP,
 
     /// default protocol is UDP
-  }){
+  }) {
     throw UnimplementedError('initSipConnection() has not been implemented.');
   }
 
@@ -44,22 +44,87 @@ abstract class MptCallkitPlatform extends PlatformInterface {
     required void Function() onSuccess,
     required void Function() onFailure,
   }) {
-    throw UnimplementedError('registrationStateStream() has not been implemented.');
+    throw UnimplementedError(
+        'registrationStateStream() has not been implemented.');
   }
 
-  Future<bool> unregisterConnection(){
-    throw UnimplementedError('unregisterConnection() has not been implemented.');
+  Future<bool> unregisterConnection() {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
   }
 
-  bool call(String phone){
-    throw UnimplementedError('unregisterConnection() has not been implemented.');
+  bool call(String phone, bool isVideoCall) {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
   }
 
-  void hangup(){
-    throw UnimplementedError('unregisterConnection() has not been implemented.');
+  void hangup() {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
   }
 
-  void startActivity(){
-    throw UnimplementedError('unregisterConnection() has not been implemented.');
+  void startActivity() {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
+  }
+
+  void hold() {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
+  }
+
+  void unhold() {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
+  }
+
+  void mute() {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
+  }
+
+  void unmute() {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
+  }
+
+  void cameraOn() {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
+  }
+
+  void cameraOff() {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
+  }
+
+  void transfer() {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
+  }
+
+  void answer() {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
+  }
+
+  void reject() {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
+  }
+
+  void getOutboundCallNumbers() {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
+  }
+
+  void getAgentStatus() {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
+  }
+
+  void changeAgentStatus() {
+    throw UnimplementedError(
+        'unregisterConnection() has not been implemented.');
   }
 }
