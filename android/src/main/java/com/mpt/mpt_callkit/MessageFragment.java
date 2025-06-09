@@ -194,6 +194,7 @@ public class MessageFragment extends BaseFragment implements View.OnClickListene
         super.onHiddenChanged(hidden);
         if (!hidden) {
             activity.receiver.broadcastReceiver = this;
+            System.out.println("quanth: broadcastReceiver - MessageFragment - set: " + activity.receiver.broadcastReceiver.toString());
             updateLV();
         }
     }

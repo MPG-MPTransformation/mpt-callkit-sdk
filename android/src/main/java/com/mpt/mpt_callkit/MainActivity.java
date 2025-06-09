@@ -17,13 +17,28 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 
+import android.graphics.Color;
+
 import android.os.PowerManager;
 import android.widget.RadioGroup;
 import android.widget.Toast;
 
+import android.app.PictureInPictureParams;
+import android.content.res.Configuration;
+import android.util.Rational;
+import android.app.RemoteAction;
+import android.app.PendingIntent;
+import android.graphics.drawable.Icon;
+import java.util.ArrayList;
+
 import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
 import com.mpt.mpt_callkit.PortSipService;
 
+import com.mpt.mpt_callkit.util.CallManager;
+import com.mpt.mpt_callkit.util.Engine;
+import com.mpt.mpt_callkit.util.Ring;
+import com.mpt.mpt_callkit.util.Session;
+import com.portsip.PortSipSdk;
 
 public class MainActivity extends Activity {
 
@@ -31,11 +46,20 @@ public class MainActivity extends Activity {
     public static MainActivity activity;
     private final int REQ_DANGERS_PERMISSION = 2;
 
+    private boolean isInPictureInPictureMode = false;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         activity = this;
-        receiver = new PortMessageReceiver();
+
+        // Use Engine's receiver instead of creating a new one to ensure consistency
+        receiver = Engine.Instance().getReceiver();
+        if (receiver == null) {
+            receiver = new PortMessageReceiver();
+            Engine.Instance().setReceiver(receiver);
+        }
+
         setContentView(R.layout.main);
 
         IntentFilter filter = new IntentFilter();
@@ -44,44 +68,77 @@ public class MainActivity extends Activity {
         filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
         filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
         filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
-        System.out.println("quanth: MainActivity - Registering broadcast receiver");
+        System.out.println("quanth: MainActivity - Registering broadcast receiver (using Engine's receiver)");
 
-        if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.TIRAMISU) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
             System.out.println("quanth: MainActivity - Registered receiver with RECEIVER_NOT_EXPORTED flag");
-        } else{
+        } else {
             registerReceiver(receiver, filter);
             System.out.println("quanth: MainActivity - Registered receiver without flag");
         }
 
+        // Add a MainActivity-specific listener for handling broadcasts
+        // This will be automatically deduplicated by the new addListener logic
+        // Use persistent listener to ensure it's never garbage collected
+        receiver.addPersistentListener(new PortMessageReceiver.BroadcastListener() {
+            @Override
+            public void onBroadcastReceiver(Intent intent) {
+                System.out.println("quanth: MainActivity - Persistent backup listener handling broadcast");
+                if (intent != null) {
+                    String action = intent.getAction();
+                    System.out.println("quanth: MainActivity - Handling action: " + action);
+
+                    // Handle specific actions that MainActivity should respond to
+                    if (PortSipService.CALL_CHANGE_ACTION.equals(action)) {
+                        // MainActivity can handle call state changes for global app behavior
+                        System.out.println("quanth: MainActivity - Handling call state change");
+                    }
+                }
+            }
+        }, "MainActivityBackup");
+        System.out.println("quanth: MainActivity - Added MainActivity persistent backup listener, listeners info: "
+                + receiver.getListenersInfo());
+
         Fragment fragment = getFragmentManager().findFragmentById(R.id.video_fragment);
 
         FragmentTransaction fTransaction = getFragmentManager().beginTransaction();
-        if(fragment!=null){
-            fTransaction.show( fragment).commit();
+        if (fragment != null) {
+            fTransaction.show(fragment).commit();
         }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        requestPermissions (this);
+        requestPermissions(this);
     }
 
     @Override
     protected void onDestroy() {
-        if(receiver != null) {
-            unregisterReceiver(receiver);
-            receiver = null;
+        System.out.println("quanth: MainActivity - onDestroy, current listeners: "
+                + (receiver != null ? receiver.getListenersCount() : 0));
+
+        if (receiver != null) {
+            try {
+                unregisterReceiver(receiver);
+                System.out.println("quanth: MainActivity - Unregistered receiver");
+            } catch (IllegalArgumentException e) {
+                System.out.println("quanth: MainActivity - Receiver was not registered: " + e.getMessage());
+            }
+            // Don't set receiver to null since it's shared with Engine
         }
+
         super.onDestroy();
+        System.out.println("quanth: MainActivity - onDestroy completed");
     }
 
-    //if you want app always keep run in background ,you need call this function to request ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS permission.
-    public void startPowerSavePermissions(Activity activityContext){
+    // if you want app always keep run in background ,you need call this function to
+    // request ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS permission.
+    public void startPowerSavePermissions(Activity activityContext) {
         String packageName = activityContext.getPackageName();
         PowerManager pm = (PowerManager) activityContext.getSystemService(Context.POWER_SERVICE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&!pm.isIgnoringBatteryOptimizations(packageName)){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !pm.isIgnoringBatteryOptimizations(packageName)) {
 
             Intent intent = new Intent();
             intent.setAction(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
@@ -93,15 +150,16 @@ public class MainActivity extends Activity {
 
     @Override
     public void onRequestPermissionsResult(int requestCode,
-                                           String permissions[], int[] grantResults) {
+            String permissions[], int[] grantResults) {
         switch (requestCode) {
             case REQ_DANGERS_PERMISSION:
-                int i=0;
-                for(int result:grantResults) {
+                int i = 0;
+                for (int result : grantResults) {
                     if (result != PackageManager.PERMISSION_GRANTED) {
-                        Toast.makeText(this, "you must grant the permission "+permissions[i], Toast.LENGTH_SHORT).show();
-						i++;
-                        stopService(new Intent(this,PortSipService.class));
+                        Toast.makeText(this, "you must grant the permission " + permissions[i], Toast.LENGTH_SHORT)
+                                .show();
+                        i++;
+                        stopService(new Intent(this, PortSipService.class));
                         System.exit(0);
                     }
                 }
@@ -124,30 +182,129 @@ public class MainActivity extends Activity {
         if (isAllowBack()) {
             super.onBackPressed();
         } else {
-            // do something;
+            enterPictureInPictureMode();
         }
     }
 
+    @Override
+    public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+        this.isInPictureInPictureMode = isInPictureInPictureMode;
+        Session currentLine = CallManager.Instance().getCurrentSession();
+
+        VideoFragment videoFragment = (VideoFragment) getFragmentManager().findFragmentById(R.id.video_fragment);
+        if (videoFragment != null) {
+            videoFragment.onPipModeChanged(isInPictureInPictureMode);
+
+            // Handle when user exits PIP mode (closes PIP)
+            if (!isInPictureInPictureMode) {
+                handlePipModeExit();
+                videoFragment.updateCameraView(currentLine.bMuteVideo);
+                videoFragment.updateMicView(currentLine.bMuteAudioOutGoing);
+            }
+        }
+    }
+
+    // Handle when user exits PIP mode
+    private void handlePipModeExit() {
+        // VideoFragment videoFragment = (VideoFragment)
+        // getFragmentManager().findFragmentById(R.id.video_fragment);
+        // PortSipSdk portSipLib = Engine.Instance().getEngine();
+        // Session currentLine = CallManager.Instance().getCurrentSession();
+
+        // if (videoFragment != null && videoFragment.hasActiveCall()) {
+        // hangup();
+        // /// ve man hinh chinh
+        // if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        // activity.finishAndRemoveTask();
+        // }
+        // Toast.makeText(this, "Cuộc gọi đã kết thúc", Toast.LENGTH_SHORT).show();
+        // }
+    }
+
+    public void enterPictureInPictureMode() {
+        enterPictureInPictureMode(9, 16); // Default portrait mode
+    }
+
+    // Overloaded method to customize aspect ratio
+    public void enterPictureInPictureMode(int width, int height) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Check if there's an active call before entering PIP
+            VideoFragment videoFragment = (VideoFragment) getFragmentManager().findFragmentById(R.id.video_fragment);
+            if (videoFragment != null && videoFragment.hasActiveCall()) {
+                // Create PIP parameters with custom aspect ratio only
+                Rational aspectRatio = new Rational(width, height);
+
+                PictureInPictureParams params = new PictureInPictureParams.Builder()
+                        .setAspectRatio(aspectRatio)
+                        .build();
+
+                try {
+                    enterPictureInPictureMode(params);
+                } catch (IllegalStateException e) {
+                    // PIP is not supported or activity is not in valid state
+                    Toast.makeText(this, "PIP không được hỗ trợ", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(this, "Không có cuộc gọi đang diễn ra", Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Toast.makeText(this, "PIP yêu cầu Android 8.0 trở lên", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public boolean isInPipMode() {
+        return isInPictureInPictureMode;
+    }
 
     private void switchContent(@IdRes int fragmentId) {
         Fragment fragment = getFragmentManager().findFragmentById(fragmentId);
         Fragment video_fragment = getFragmentManager().findFragmentById(R.id.video_fragment);
 
         FragmentTransaction fTransaction = getFragmentManager().beginTransaction();
-        if(fragment!=null){
-            fTransaction.show( fragment).commit();
+        if (fragment != null) {
+            fTransaction.show(fragment).commit();
         }
     }
 
     public void requestPermissions(Activity activity) {
         // Check if we have write permission
-        if(	PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity, Manifest.permission.CAMERA)
-                ||PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO))
-        {
-            ActivityCompat.requestPermissions(activity,new String[]{
-                            Manifest.permission.CAMERA,Manifest.permission.RECORD_AUDIO},
+        if (PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity,
+                Manifest.permission.CAMERA)
+                || PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity,
+                        Manifest.permission.RECORD_AUDIO)) {
+            ActivityCompat.requestPermissions(activity, new String[] {
+                    Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO },
                     REQ_DANGERS_PERMISSION);
         }
     }
 
+    void hangup() {
+        Session currentLine = CallManager.Instance().getCurrentSession();
+        Ring.getInstance(activity).stop();
+        switch (currentLine.state) {
+            case INCOMING:
+                Engine.Instance().getEngine().rejectCall(currentLine.sessionID, 486);
+                System.out.println("quanth: lineName= " + currentLine.lineName + ": Rejected call");
+
+                Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
+                MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
+                System.out.println("quanth: callState - " + "CLOSED");
+
+                break;
+            case CONNECTED:
+            case TRYING:
+                Engine.Instance().getEngine().hangUp(currentLine.sessionID);
+
+                if (Engine.Instance().getMethodChannel() != null) {
+                    Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
+                    MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
+                    System.out.println("quanth: callState - " + "CLOSED");
+                }
+
+                System.out.println("quanth: lineName= " + currentLine.lineName + ": Hang up");
+                break;
+        }
+        currentLine.Reset();
+    }
 }

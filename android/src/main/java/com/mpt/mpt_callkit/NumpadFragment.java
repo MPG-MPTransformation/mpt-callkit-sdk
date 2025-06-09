@@ -109,6 +109,7 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
         if (!hidden) {
             ShowCurrentLineState();
             activity.receiver.broadcastReceiver = this;
+            System.out.println("quanth: broadcastReceiver - NumpadFragment - set: " + activity.receiver.broadcastReceiver.toString());
             audioDeviceAdapter.setSelectalbeAudioDevice(CallManager.Instance().getSelectableAudioDevice());
         }
     }

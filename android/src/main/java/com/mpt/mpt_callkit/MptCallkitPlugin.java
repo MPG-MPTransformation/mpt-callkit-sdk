@@ -36,11 +36,15 @@ import io.flutter.embedding.engine.FlutterEngine;
 import com.mpt.mpt_callkit.LocalViewFactory;
 import com.mpt.mpt_callkit.RemoteViewFactory;
 import io.flutter.plugin.common.EventChannel;
+
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Set;
+import org.json.JSONObject;
+
 public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
 
     /// The MethodChannel that will the communication between Flutter and native
@@ -70,10 +74,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         // Đăng ký LocalViewFactory
         flutterPluginBinding
                 .getPlatformViewRegistry()
-                .registerViewFactory("LocalView", new LocalViewFactory(flutterPluginBinding.getApplicationContext()));
+                .registerViewFactory("LocalView", new LocalViewFactory(context));
         flutterPluginBinding
                 .getPlatformViewRegistry()
-                .registerViewFactory("RemoteView", new RemoteViewFactory(flutterPluginBinding.getApplicationContext()));
+                .registerViewFactory("RemoteView", new RemoteViewFactory(context));
         new EventChannel(flutterPluginBinding.getBinaryMessenger(), CHANNEL)
                 .setStreamHandler(new EventChannel.StreamHandler() {
                     @Override
@@ -253,7 +257,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                             Engine.Instance().getMethodChannel().invokeMethod("registerFailure",
                                     "Request Timeout - 408 - SIP/2.0 408 Request Timeout");
                             pendingResult = null;
-                            MptCallkitPlugin.sendToFlutter("registerFailure", "Request Timeout - 408 - SIP/2.0 408 Request Timeout");
+                            MptCallkitPlugin.sendToFlutter("registerFailure",
+                                    "Request Timeout - 408 - SIP/2.0 408 Request Timeout");
                         }
                     }, 30000); // 30 seconds timeout
                 }
@@ -396,12 +401,12 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         List<String> permissions = new ArrayList<>();
         permissions.add(Manifest.permission.CAMERA);
         permissions.add(Manifest.permission.RECORD_AUDIO);
-        
+
         // Add BLUETOOTH_CONNECT permission only on Android 12+ (API 31+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             permissions.add(Manifest.permission.BLUETOOTH_CONNECT);
         }
-        
+
         // Check if any permission is not granted
         boolean needPermission = false;
         for (String permission : permissions) {
@@ -410,16 +415,16 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 break;
             }
         }
-        
+
         if (needPermission) {
             System.out.println("quanth: request permission");
             pendingResult = result;
-            ActivityCompat.requestPermissions(activity, 
+            ActivityCompat.requestPermissions(activity,
                     permissions.toArray(new String[0]),
                     REQ_DANGERS_PERMISSION);
             return;
         }
-        
+
         result.success(true);
         System.out.println("quanth: no need request permission");
     }
@@ -521,8 +526,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
-    void muteMicrophone(boolean mute) {
+    public static void muteMicrophone(boolean mute) {
         Session currentLine = CallManager.Instance().getCurrentSession();
+        PortSipSdk portSipSdk = Engine.Instance().getEngine();
+
         if (currentLine != null && currentLine.sessionID > 0) {
             currentLine.bMuteAudioOutGoing = mute;
             int result = Engine.Instance().getEngine().muteSession(
@@ -534,10 +541,21 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             System.out.println("quanth: Mute call result: " + result);
             Engine.Instance().getMethodChannel().invokeMethod("microphoneState", currentLine.bMuteAudioOutGoing);
             MptCallkitPlugin.sendToFlutter("microphoneState", currentLine.bMuteAudioOutGoing);
+
+            HashMap<String, String> msgMap = new HashMap<>();
+            msgMap.put("name", "Error");
+            msgMap.put("message", "hello");
+
+            JSONObject jsonMsg = new JSONObject(msgMap);
+            String msg = jsonMsg.toString();
+
+            long resSendMsg = portSipSdk.sendMessage(currentLine.sessionID, "text", "plain",
+                    msg.getBytes(StandardCharsets.UTF_8), msg.length());
+            System.out.println("quanth: Send message: " + resSendMsg);
         }
     }
 
-    void toggleCameraOn(boolean enable) {
+    public static void toggleCameraOn(boolean enable) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (currentLine != null && currentLine.sessionID > 0) {
             currentLine.bMuteVideo = !enable;
@@ -613,37 +631,38 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             System.out.println("quanth: Cannot reinvite - no active session or missing SIP message");
             return false;
         }
- 
+
         System.out.println("quanth: SIP message Session-Id: " + sessionId);
- 
+
         // Lấy X-Session-Id từ sipMessage
         String messageSesssionId = Engine.Instance().getEngine()
                 .getSipMessageHeaderValue(currentLine.sipMessage, "X-Session-Id").toString();
- 
-        boolean answerMode = Engine.Instance().getEngine().getSipMessageHeaderValue(currentLine.sipMessage, "Answer-Mode").toString().equals("Auto;require");
- 
+
+        boolean answerMode = Engine.Instance().getEngine()
+                .getSipMessageHeaderValue(currentLine.sipMessage, "Answer-Mode").toString().equals("Auto;require");
+
         // So sánh với sessionId được truyền vào
         if (messageSesssionId.equals(sessionId) && answerMode) {
             // Cập nhật trạng thái video của session
             currentLine.hasVideo = true;
- 
+
             // Gửi video từ camera
             int sendVideoRes = Engine.Instance().getEngine().sendVideo(currentLine.sessionID, true);
             System.out.println("quanth: reinviteSession - sendVideo(): " + sendVideoRes);
- 
+
             // Cập nhật cuộc gọi để thêm video stream
             int updateRes = Engine.Instance().getEngine().updateCall(currentLine.sessionID, true, true);
             System.out.println("quanth: reinviteSession - updateCall(): " + updateRes);
- 
+
             System.out.println("quanth: Successfully updated call with video for session: " + sessionId);
             return true;
         } else {
             System.out.println(
-                    "quanth: SessionId not match or not is Answer-Mode. SIP message ID: " + messageSesssionId + ", Request: " + sessionId + ", Answer-Mode: " + answerMode);
+                    "quanth: SessionId not match or not is Answer-Mode. SIP message ID: " + messageSesssionId
+                            + ", Request: " + sessionId + ", Answer-Mode: " + answerMode);
             return false;
         }
     }
- 
 
     boolean switchCamera() {
         boolean value = !Engine.Instance().mUseFrontCamera;
@@ -662,7 +681,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             portSipLib.setVideoDeviceId(1);
         }
     }
-    
+
     void setSpeaker(String state) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (currentLine != null && currentLine.sessionID > 0) {
@@ -686,7 +705,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                         System.out.println("quanth: Invalid speaker state: " + state);
                         return;
                 }
-                
+
                 // Check available audio devices
                 Set<PortSipEnumDefine.AudioDevice> availableDevices = Engine.Instance().getEngine().getAudioDevices();
                 if (availableDevices.contains(audioDevice)) {
@@ -696,7 +715,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     MptCallkitPlugin.sendToFlutter("currentAudioDevice", state);
                     System.out.println("quanth: Audio device set to " + state);
                 } else {
-                    System.out.println("quanth: Audio device " + state + " is not available. Available devices: " + availableDevices);
+                    System.out.println("quanth: Audio device " + state + " is not available. Available devices: "
+                            + availableDevices);
                 }
             } catch (Exception e) {
                 System.out.println("quanth: Error setting audio device: " + e.getMessage());
@@ -717,7 +737,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         System.out.println("quanth: audio devices available: " + deviceNames);
         Engine.Instance().getMethodChannel().invokeMethod("audioDevices", deviceNames);
         MptCallkitPlugin.sendToFlutter("audioDevices", deviceNames);
-        
+
         // Gửi thông báo về thiết bị âm thanh hiện tại
         PortSipEnumDefine.AudioDevice currentDevice = CallManager.Instance().getCurrentAudioDevice();
         if (currentDevice != null) {

@@ -86,6 +86,7 @@ public class LoginFragment extends BaseFragment implements AdapterView.OnItemSel
         setOnlineStatus(null);
 
         activity.receiver.broadcastReceiver = this;
+        System.out.println("quanth: broadcastReceiver - login_fragment - set: " + activity.receiver.broadcastReceiver.toString());
         view.findViewById(R.id.btonline).setOnClickListener(this);
         view.findViewById(R.id.btoffline).setOnClickListener(this);
 
@@ -97,6 +98,7 @@ public class LoginFragment extends BaseFragment implements AdapterView.OnItemSel
         super.onHiddenChanged(hidden);
         if (!hidden) {
             activity.receiver.broadcastReceiver = this;
+            System.out.println("quanth: broadcastReceiver - login_fragment - onHiddenChanged - set: " + activity.receiver.broadcastReceiver.toString());
             setOnlineStatus(null);
         }
     }
@@ -105,6 +107,7 @@ public class LoginFragment extends BaseFragment implements AdapterView.OnItemSel
     public void onDestroyView() {
         super.onDestroyView();
         activity.receiver.broadcastReceiver = null;
+        System.out.println("quanth: broadcastReceiver - login_fragment - set null");
     }
 
 

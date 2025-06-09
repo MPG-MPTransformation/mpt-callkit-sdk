@@ -67,6 +67,7 @@ public class RemoteView implements PlatformView {
             // Giải phóng receiver nếu cần
             if (receiver != null && receiver.broadcastReceiver != null) {
                 receiver.broadcastReceiver = null;
+                System.out.println("quanth: broadcastReceiver - remote_view - set null");
             }
         } catch (Exception e) {
             System.out.println("Error disposing RemoteView: " + e.getMessage());
@@ -75,12 +76,16 @@ public class RemoteView implements PlatformView {
 
     private void setupReceiver() {
         // Thêm xử lý sự kiện broadcast
-        receiver.broadcastReceiver = new PortMessageReceiver.BroadcastListener() {
-            @Override
-            public void onBroadcastReceiver(Intent intent) {
-                handleBroadcastReceiver(intent);
-            }
-        };
+        if (receiver != null) {
+            receiver.broadcastReceiver = new PortMessageReceiver.BroadcastListener() {
+                @Override
+                public void onBroadcastReceiver(Intent intent) {
+                    handleBroadcastReceiver(intent);
+                }
+            };
+            System.out.println("quanth: broadcastReceiver - remote_view - set: " + receiver.broadcastReceiver.toString());
+        }
+        System.out.println("quanth: broadcastReceiver - remote_view - set null ");
     }
 
     private void handleBroadcastReceiver(Intent intent) {
@@ -137,12 +142,14 @@ public class RemoteView implements PlatformView {
             System.out.println("quanth: application.mConference = false");
             if (cur != null && !cur.IsIdle() && cur.sessionID != -1) {
                 if (cur.hasVideo) {
+                    System.out.println("quanth: application.mConference = false - cur.hasVideo = true");
                     if (remoteRenderVideoView != null) {
                         remoteRenderVideoView.setVisibility(View.VISIBLE);
                     }
                     callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderVideoView);
                     portSipLib.sendVideo(cur.sessionID, true);
                 } else {
+                    System.out.println("quanth: application.mConference = false - cur.hasVideo = false");
                     if (remoteRenderVideoView != null) {
                         remoteRenderVideoView.setVisibility(View.VISIBLE);
                     }

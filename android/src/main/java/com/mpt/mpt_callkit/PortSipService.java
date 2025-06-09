@@ -39,6 +39,7 @@ import com.mpt.mpt_callkit.util.Engine;
 import com.mpt.mpt_callkit.util.Ring;
 import com.mpt.mpt_callkit.IncomingActivity;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -89,6 +90,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     private String pushToken;
     private String appId;
     protected PowerManager.WakeLock mCpuLock;
+    MainActivity mainActivity;
 
     private String getResourceFromContext(Context context, String resName) {
         final int stringRes = context.getResources().getIdentifier(resName, "string", context.getPackageName());
@@ -486,9 +488,10 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     @Override
     public void onRegisterSuccess(String statusText, int statusCode, String sipMessage) {
         System.out.println("quanth: onRegisterSuccess");
+        CallManager.Instance().online = true;
+        CallManager.Instance().isRegistered = true;
         Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", CallManager.Instance().online);
         MptCallkitPlugin.sendToFlutter("onlineStatus", CallManager.Instance().online);
-        CallManager.Instance().isRegistered = true;
         Intent broadIntent = new Intent(REGISTER_CHANGE_ACTION);
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);
         // sendPortSipMessage("onRegisterSuccess", broadIntent);
@@ -503,6 +506,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
         Intent broadIntent = new Intent(REGISTER_CHANGE_ACTION);
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);
         // sendPortSipMessage("onRegisterFailure" + statusCode, broadIntent);
+        CallManager.Instance().online = false;
         CallManager.Instance().isRegistered = false;
         CallManager.Instance().resetAll();
 
@@ -615,10 +619,19 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         // sendCallStateToFlutter("IN_CONFERENCE");
 
-        Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
-        Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice",
-                PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
-        MptCallkitPlugin.sendToFlutter("currentAudioDevice", PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
+        Set<PortSipEnumDefine.AudioDevice> availableDevices = Engine.Instance().getEngine().getAudioDevices();
+        System.out.println("quanth: onInviteIncoming - allDevices: " + availableDevices.toString());
+        if (availableDevices.contains(PortSipEnumDefine.AudioDevice.BLUETOOTH)){
+            Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.BLUETOOTH);
+            Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice",
+                    PortSipEnumDefine.AudioDevice.BLUETOOTH.toString());
+            MptCallkitPlugin.sendToFlutter("currentAudioDevice", PortSipEnumDefine.AudioDevice.BLUETOOTH.toString());
+        } else{
+            Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
+            Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice",
+                    PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
+            MptCallkitPlugin.sendToFlutter("currentAudioDevice", PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
+        }
     }
 
     public void showPendingCallNotification(Context context, String contenTitle, String contenText, Intent intent) {
@@ -668,6 +681,23 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     @Override
     public void onInviteTrying(long l) {
         sendCallStateToFlutter("TRYING");
+    }
+
+    @Override
+    public void onRecvMessage(long sessionId,
+            String mimeType,
+            String subMimeType,
+            byte[] messageData,
+            int messageDataLength) {
+        System.out.println("quanth: onRecvMessage");
+
+        String str = new String(messageData, StandardCharsets.UTF_8);
+        System.out.println("quanth: onRecvMessage - "
+                + "sessionId: " + sessionId
+                + ", mimeType: " + mimeType
+                + ", subMimeType: " + subMimeType
+                + ", messageData: " + str
+                + ", messageDataLength: " + messageDataLength);
     }
 
     @Override
@@ -768,7 +798,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         if (session != null) {
 
-            if (session.hasVideo && !existsVideo && videoCodecs.isEmpty()){
+            if (session.hasVideo && !existsVideo && videoCodecs.isEmpty()) {
                 // Gửi video từ camera
                 int sendVideoRes = Engine.Instance().getEngine().sendVideo(session.sessionID, true);
                 System.out.println("quanth: onInviteUpdated - re-sendVideo(): " + sendVideoRes);
@@ -1038,11 +1068,6 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         Intent broadIntent = new Intent(PRESENCE_CHANGE_ACTION);
         sendPortSipMessage("OnPresenceRecvSubscribe", broadIntent);
-    }
-
-    @Override
-    public void onRecvMessage(long l, String s, String s1, byte[] bytes, int i) {
-
     }
 
     @Override

@@ -14,6 +14,7 @@ import com.mpt.mpt_callkit.util.Engine;
 import com.mpt.mpt_callkit.util.Session;
 import com.portsip.PortSIPVideoRenderer;
 import com.portsip.PortSipSdk;
+
 public class LocalView implements PlatformView {
     private final FrameLayout containerView;
     private PortSIPVideoRenderer localRenderVideoView;
@@ -25,12 +26,11 @@ public class LocalView implements PlatformView {
         receiver = Engine.Instance().getReceiver();
 
         containerView = (FrameLayout) LayoutInflater.from(context).inflate(R.layout.local_layout, null);
-        
+
         containerView.setLayoutParams(new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT, 
-            FrameLayout.LayoutParams.MATCH_PARENT
-        ));
-        
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+
         localRenderVideoView = containerView.findViewById(R.id.local_video_view);
 
         portSipLib.displayLocalVideo(true, Engine.Instance().mUseFrontCamera, localRenderVideoView);
@@ -58,10 +58,11 @@ public class LocalView implements PlatformView {
                 localRenderVideoView.release();
                 localRenderVideoView = null;
             }
-            
+
             // Giải phóng receiver nếu cần
             if (receiver != null && receiver.broadcastReceiver != null) {
                 receiver.broadcastReceiver = null;
+                System.out.println("quanth: broadcastReceiver - remote_view - set null");
             }
         } catch (Exception e) {
             System.out.println("Error disposing LocalView: " + e.getMessage());
@@ -116,7 +117,11 @@ public class LocalView implements PlatformView {
                     handleBroadcastReceiver(intent);
                 }
             };
+
+            System.out.println("quanth: broadcastReceiver - remote_view - set: " + receiver.broadcastReceiver.toString());
         }
+
+        System.out.println("quanth: broadcastReceiver - remote_view - set null ");
     }
 
     private void handleBroadcastReceiver(Intent intent) {

@@ -16,7 +16,6 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-
 import com.mpt.mpt_callkit.util.Engine;
 import com.portsip.PortSipErrorcode;
 import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
@@ -44,27 +43,39 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
 
         setContentView(R.layout.incomingview);
         final Window win = getWindow();
-        win.addFlags( WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+        win.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
                 | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
                 | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
                 | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
 
         tvTips = findViewById(R.id.sessiontips);
         btnVideo = findViewById(R.id.answer_video);
-        receiver = new PortMessageReceiver();
+
+        // Use Engine's shared receiver instead of creating a new one
+        receiver = Engine.Instance().getReceiver();
+        if (receiver == null) {
+            receiver = new PortMessageReceiver();
+            Engine.Instance().setReceiver(receiver);
+        }
+
         IntentFilter filter = new IntentFilter();
         filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
         filter.addAction(PortSipService.CALL_CHANGE_ACTION);
         filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
-        System.out.println("quanth: IncomingActivity - Registering broadcast receiver");
-        if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.TIRAMISU) {
+        System.out.println("quanth: IncomingActivity - Registering broadcast receiver (using Engine's receiver)");
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
             System.out.println("quanth: IncomingActivity - Registered with RECEIVER_NOT_EXPORTED flag");
-        }else{
+        } else {
             registerReceiver(receiver, filter);
             System.out.println("quanth: IncomingActivity - Registered without flag");
         }
-        receiver.broadcastReceiver = this;
+
+        // Set as primary receiver and add as backup
+        receiver.setPrimaryReceiver(this);
+        System.out.println("quanth: broadcastReceiver - IncomingActivity - set as primary: " + this.toString());
+
         Intent intent = getIntent();
 
         findViewById(R.id.hangup_call).setOnClickListener(this);
@@ -74,7 +85,8 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
         sessionId = intent.getLongExtra(EXTRA_CALL_SEESIONID, PortSipErrorcode.INVALID_SESSION_ID);
         System.out.println("quanth: IncomingActivity - Received sessionId: " + sessionId);
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
-        if(sessionId == PortSipErrorcode.INVALID_SESSION_ID || session == null || session.state != Session.CALL_STATE_FLAG.INCOMING){
+        if (sessionId == PortSipErrorcode.INVALID_SESSION_ID || session == null
+                || session.state != Session.CALL_STATE_FLAG.INCOMING) {
             System.out.println("quanth: IncomingActivity - Invalid session, finishing activity");
             this.finish();
             return;
@@ -91,10 +103,10 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
 
         long sessionid = intent.getLongExtra("incomingSession", PortSipErrorcode.INVALID_SESSION_ID);
         Session session = CallManager.Instance().findSessionBySessionID(sessionid);
-        if(sessionId!= PortSipErrorcode.INVALID_SESSION_ID&&session !=null){
+        if (sessionId != PortSipErrorcode.INVALID_SESSION_ID && session != null) {
             sessionId = sessionid;
             setVideoAnswerVisibility(session);
-            tvTips.setText(session.lineName+"   "+session.remote );
+            tvTips.setText(session.lineName + "   " + session.remote);
         }
     }
 
@@ -112,7 +124,23 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        unregisterReceiver(receiver);
+
+        // Remove this activity as listener and clear primary if it's this activity
+        if (receiver != null) {
+            receiver.removeListener(this);
+            if (receiver.broadcastReceiver == this) {
+                receiver.broadcastReceiver = null;
+            }
+            System.out.println("quanth: IncomingActivity - Removed as listener on destroy");
+
+            try {
+                unregisterReceiver(receiver);
+                System.out.println("quanth: IncomingActivity - Unregistered receiver");
+            } catch (IllegalArgumentException e) {
+                System.out.println("quanth: IncomingActivity - Receiver was not registered: " + e.getMessage());
+            }
+        }
+
         startActivity(new Intent(this, MainActivity.class));
     }
 
@@ -121,19 +149,17 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
         System.out.println("quanth: IncomingActivity - onBroadcastReceiver received intent");
         String action = intent.getAction();
         System.out.println("quanth: IncomingActivity - Action: " + action);
-        
-        if (PortSipService.CALL_CHANGE_ACTION.equals(action))
-        {
+
+        if (PortSipService.CALL_CHANGE_ACTION.equals(action)) {
             long sessionId = intent.getLongExtra(EXTRA_CALL_SEESIONID, Session.INVALID_SESSION_ID);
             String status = intent.getStringExtra(PortSipService.EXTRA_CALL_DESCRIPTION);
-            System.out.println("quanth: IncomingActivity - CALL_CHANGE_ACTION - sessionId: " + sessionId + ", status: " + status);
-            
+            System.out.println(
+                    "quanth: IncomingActivity - CALL_CHANGE_ACTION - sessionId: " + sessionId + ", status: " + status);
+
             Session session = CallManager.Instance().findSessionBySessionID(sessionId);
-            if (session != null)
-            {
+            if (session != null) {
                 System.out.println("quanth: IncomingActivity - Session state: " + session.state);
-                switch (session.state)
-                {
+                switch (session.state) {
                     case INCOMING:
                         System.out.println("quanth: IncomingActivity - Call state: INCOMING");
                         break;
@@ -147,13 +173,14 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
                     case CLOSED:
                         System.out.println("quanth: IncomingActivity - Call state: CLOSED");
                         Session anOthersession = CallManager.Instance().findIncomingCall();
-                        if(anOthersession==null) {
+                        if (anOthersession == null) {
                             System.out.println("quanth: IncomingActivity - No other incoming call, finishing");
                             this.finish();
-                        }else{
-                            System.out.println("quanth: IncomingActivity - Found another incoming call: " + anOthersession.sessionID);
+                        } else {
+                            System.out.println("quanth: IncomingActivity - Found another incoming call: "
+                                    + anOthersession.sessionID);
                             setVideoAnswerVisibility(anOthersession);
-                            tvTips.setText(anOthersession.lineName+"   "+anOthersession.remote );
+                            tvTips.setText(anOthersession.lineName + "   " + anOthersession.remote);
                             sessionId = anOthersession.sessionID;
                         }
                         break;
@@ -167,49 +194,50 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
 
     @Override
     public void onClick(View view) {
-        if(Engine.Instance().getEngine() !=null){
-            ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).cancel(PortSipService.PENDINGCALL_NOTIFICATION);
+        if (Engine.Instance().getEngine() != null) {
+            ((NotificationManager) getSystemService(NOTIFICATION_SERVICE))
+                    .cancel(PortSipService.PENDINGCALL_NOTIFICATION);
             Session currentLine = CallManager.Instance().findSessionBySessionID(sessionId);
-            if(view.getId() == R.id.answer_audio || view.getId() == R.id.answer_video){
+            if (view.getId() == R.id.answer_audio || view.getId() == R.id.answer_video) {
                 if (currentLine.state != Session.CALL_STATE_FLAG.INCOMING) {
-                    Toast.makeText(this,currentLine.lineName + "No incoming call on current line",Toast.LENGTH_SHORT);
+                    Toast.makeText(this, currentLine.lineName + "No incoming call on current line", Toast.LENGTH_SHORT);
                     return;
                 }
                 Ring.getInstance(this).stopRingTone();
                 currentLine.state = Session.CALL_STATE_FLAG.CONNECTED;
                 int ret = Engine.Instance().getEngine().answerCall(sessionId, true);
                 if (ret != 0) {
-                    Toast.makeText(this, "answerCall Failed! ret=" + ret,Toast.LENGTH_SHORT);
+                    Toast.makeText(this, "answerCall Failed! ret=" + ret, Toast.LENGTH_SHORT);
                 }
                 Engine.Instance().getEngine().joinToConference(currentLine.sessionID);
-            } else if(view.getId() == R.id.hangup_call) {
+            } else if (view.getId() == R.id.hangup_call) {
                 Ring.getInstance(this).stop();
                 if (currentLine.state == Session.CALL_STATE_FLAG.INCOMING) {
                     Engine.Instance().getEngine().rejectCall(currentLine.sessionID, 486);
                     currentLine.Reset();
-                    Toast.makeText(this,currentLine.lineName + ": Rejected call",Toast.LENGTH_SHORT);
+                    Toast.makeText(this, currentLine.lineName + ": Rejected call", Toast.LENGTH_SHORT);
                 }
             }
         }
 
         Session anOthersession = CallManager.Instance().findIncomingCall();
-        if(anOthersession==null) {
+        if (anOthersession == null) {
             this.finish();
-        }else{
+        } else {
             sessionId = anOthersession.sessionID;
             setVideoAnswerVisibility(anOthersession);
         }
 
     }
-	
-	private void setVideoAnswerVisibility(Session session){
-		if(session == null)
-			return;
-		if(session.hasVideo){
+
+    private void setVideoAnswerVisibility(Session session) {
+        if (session == null)
+            return;
+        if (session.hasVideo) {
             btnVideo.setVisibility(View.VISIBLE);
-        }else{
+        } else {
             btnVideo.setVisibility(View.GONE);
         }
-	}
-	
+    }
+
 }

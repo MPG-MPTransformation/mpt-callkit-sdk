@@ -10,7 +10,6 @@ import 'package:mpt_callkit/models/release_extension_model.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
 import 'package:mpt_callkit/mpt_callkit_auth_method.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
-import 'package:mpt_callkit/views/camera_view.dart';
 
 import 'mpt_call_kit_controller_repo.dart';
 
@@ -511,10 +510,8 @@ class MptCallKitController {
   Future<void> makeCallByGuest({
     required BuildContext context,
     required String userPhoneNumber,
-    required String destinationPhoneNumber,
-    bool isShowNativeView = true,
+    required String destination,
     bool isVideoCall = false,
-    ExtensionData? userExtensionData,
     Function(String?)? onError,
   }) async {
     try {
@@ -524,72 +521,11 @@ class MptCallKitController {
         return;
       }
 
-      if (isShowNativeView) {
-        if (Platform.isAndroid) {
-          channel.invokeListMethod("startActivity");
-        } else {
-          Navigator.push(context,
-              MaterialPageRoute(builder: (context) => const CameraView()));
-        }
-      }
-      extension = userExtensionData?.username ?? '';
-      final result =
-          userExtensionData ?? await getExtension(phoneNumber: userPhoneNumber);
-      if (result != null) {
-        if (Platform.isAndroid) {
-          channel.setMethodCallHandler((call) async {
-            /// lắng nghe kết quả register
-            if (call.method == 'registrationStateStream') {
-              // connect socket by guest
-              await connectSocketByGuest(
-                apiKey: apiKey,
-                baseUrl: baseUrl,
-                appId: "88888888",
-                userName: "guest",
-                phoneNumber: userPhoneNumber,
-              );
+      extension = '';
+      final result = await getExtension(phoneNumber: userPhoneNumber);
 
-              /// nếu thành công thì call luôn
-              if (call.arguments == true) {
-                // make call by guest
-                final bool callResult = await channel.invokeMethod(
-                  'call',
-                  <String, dynamic>{
-                    'phoneNumber': destinationPhoneNumber,
-                    'isVideoCall': isVideoCall
-                  },
-                );
-                if (!callResult) {
-                  onError?.call('Tổng đài bận, liên hệ hỗ trợ');
-                  print('quanth: call has failed');
-                  await offline();
-                  if (isShowNativeView) {
-                    {
-                      if (Platform.isIOS) {
-                        Navigator.pop(context);
-                      } else {
-                        await channel.invokeMethod("finishActivity");
-                      }
-                    }
-                  }
-                }
-              } else {
-                print('quanth: registration has failed');
-                if (Platform.isIOS) {
-                  Navigator.pop(context);
-                } else {
-                  await channel.invokeMethod("finishActivity");
-                }
-              }
-            } else if (call.method == 'releaseExtension') {
-              print('quanth: releaseExtension has started');
-              await releaseExtension();
-              print('quanth: releaseExtension has done');
-              disposeSocket();
-            }
-          });
-        }
-        await online(
+      if (result != null) {
+        online(
           username: result.username ?? "",
           displayName: userPhoneNumber,
           authName: '',
@@ -603,23 +539,47 @@ class MptCallKitController {
           appId: appId,
           pushToken: pushToken,
         );
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (context) => const CameraView(),
-        //   ),
-        // );
+
+        if (Platform.isAndroid) {
+          eventChannel.receiveBroadcastStream().listen((event) async {
+            print("event: $event");
+            if (event is Map) {
+              // Handle map events with message and data
+              final String message = event['message'];
+              final dynamic data = event['data'];
+
+              switch (message) {
+                case "registrationStateStream":
+                  //connect socket by guest
+
+                  //make call by guest
+                  if (data == true) {
+                    await MptCallKitControllerRepo().makeCallByGuest(
+                      phoneNumber: userPhoneNumber,
+                      extension: result.username ?? "",
+                      destination: destination,
+                      authToken: apiKey,
+                      extraInfo: "",
+                      onError: onError,
+                    );
+                    showAndroidCallKit();
+                  } else {
+                    print('quanth: registration has failed');
+                  }
+                  break;
+                case "releaseExtension":
+                  print('quanth: releaseExtension has started');
+                  await releaseExtension();
+                  print('quanth: releaseExtension has done');
+                  // disposeSocket();
+                  break;
+              }
+            }
+          });
+        }
       } else {
         onError?.call('Tổng đài bận, liên hệ hỗ trợ');
-        if (isShowNativeView) {
-          {
-            if (Platform.isIOS) {
-              Navigator.pop(context);
-            } else {
-              await channel.invokeMethod("finishActivity");
-            }
-          }
-        }
+        print("Tổng đài bận, liên hệ hỗ trợ");
       }
     } on Exception catch (e) {
       onError?.call(e.toString());
@@ -631,6 +591,7 @@ class MptCallKitController {
   Future<ExtensionData?> getExtension(
       {int retryTime = 0, required String phoneNumber}) async {
     try {
+      print("getExtension");
       int retryCount = retryTime;
       final url = Uri.parse("$baseUrl/integration/extension/request");
 
@@ -657,14 +618,14 @@ class MptCallKitController {
         extension = result.data?.username ?? '';
         return result.data;
       } else {
-        return null;
-        // if (retryCount > 2) {
-        //   throw Exception(message);
-        // }
-        // retryCount += 1;
-        // final releaseResult = await releaseExtension();
-        // if (!releaseResult) return null;
-        // return await getExtension(retryTime: retryCount);
+        if (retryCount > 2) {
+          throw Exception(message);
+        }
+        retryCount += 1;
+        final releaseResult = await releaseExtension();
+        if (!releaseResult) return null;
+        return await getExtension(
+            retryTime: retryCount, phoneNumber: phoneNumber);
       }
     } on Exception catch (e) {
       debugPrint("Error in getExtension: $e");
@@ -808,11 +769,11 @@ class MptCallKitController {
       }
     } on PlatformException catch (e) {
       debugPrint("Login failed: ${e.message}");
-      if (Platform.isIOS) {
-        Navigator.pop(context);
-      } else {
-        await channel.invokeMethod("finishActivity");
-      }
+      // if (Platform.isIOS) {
+      //   Navigator.pop(context);
+      // } else {
+      //   await channel.invokeMethod("finishActivity");
+      // }
       return false;
     }
   }
@@ -1262,16 +1223,9 @@ class MptCallKitController {
     }
   }
 
-  void _handleCallStateChanged(String state, BuildContext context) async {
-    if ((state == CallStateConstants.CLOSED ||
-            state == CallStateConstants.FAILED) &&
-        (_isOnline == true)) {
-      var offlineResult = await offline();
-      if (offlineResult) {
-        await _registerToSipServer(context: context);
-      }
-    } else {
-      print('Call state changed: $state');
-    }
+  void _handleCallStateChanged(String state, BuildContext context) async {}
+
+  Future<void> showAndroidCallKit() async {
+    await channel.invokeListMethod("startActivity");
   }
 }

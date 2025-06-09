@@ -5,6 +5,7 @@ import com.portsip.PortSipSdk;
 import com.portsip.PortSipEnumDefine;
 import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
 import io.flutter.plugin.common.MethodChannel;
+import android.content.Intent;
 
 public class Engine {
 
@@ -26,6 +27,45 @@ public class Engine {
 
     public void setReceiver(PortMessageReceiver obj) {
         receiver = obj;
+
+        // Add a default fallback listener as PERSISTENT to ensure it's never garbage
+        // collected
+        if (receiver != null) {
+            receiver.addPersistentListener(new PortMessageReceiver.BroadcastListener() {
+                @Override
+                public void onBroadcastReceiver(Intent intent) {
+                    System.out.println("quanth: Engine - Persistent fallback listener handling broadcast");
+                    if (intent != null) {
+                        String action = intent.getAction();
+                        System.out.println("quanth: Engine - Fallback handling action: " + action);
+
+                        // Basic handling for critical actions
+                        if ("PortSip.AndroidSample.Test.CallStatusChagnge".equals(action)) {
+                            System.out.println("quanth: Engine - Fallback handling call status change");
+                        } else if ("PortSip.AndroidSample.Test.RegisterStatusChagnge".equals(action)) {
+                            System.out.println("quanth: Engine - Fallback handling register status change");
+                        }
+                    }
+                }
+            }, "EngineFallback");
+            System.out.println("quanth: Engine - Added persistent fallback listener to receiver, listeners info: "
+                    + receiver.getListenersInfo());
+        }
+    }
+
+    /**
+     * Clean up stale listeners (call this periodically or when memory pressure is
+     * detected)
+     */
+    public void cleanupReceiver() {
+        if (receiver != null) {
+            int oldCount = receiver.getListenersCount();
+            // The getListenersCount() method already triggers cleanup
+            int newCount = receiver.getListenersCount();
+            if (oldCount != newCount) {
+                System.out.println("quanth: Engine - Cleaned up receiver, listeners: " + oldCount + " -> " + newCount);
+            }
+        }
     }
 
     public PortMessageReceiver getReceiver() {

@@ -7,6 +7,7 @@ class MptCallKitControllerRepo {
   final _changeStatusApi = "/acd-asm-chat/agent-status/change";
   final _channelCall = "CALL";
   final _makeCallOutboundAPI = "/chat-acd/conversation/start-outbound";
+  final _makeCallByGuestAPI = "/integration/make-call";
 
   // Change agent status
   Future<bool> changeAgentStatus({
@@ -43,23 +44,26 @@ class MptCallKitControllerRepo {
         if (responseData != null &&
             responseData["status"] == true &&
             responseData["success"] == true) {
-          print("Change agent status success: $responseData");
+          print(
+              "MptCallKitControllerRepo - changeAgentStatus - Change agent status success: $responseData");
           return true;
         } else {
-          print("Change agent status failed: $responseData");
+          print(
+              "MptCallKitControllerRepo - changeAgentStatus - Change agent status failed: $responseData");
           onError
               ?.call(responseData["message"] ?? "Change agent status failed");
           return false;
         }
       } else {
         print(
-            'Failed to change agent status. Status code: ${response.statusCode}');
+            'MptCallKitControllerRepo - changeAgentStatus - Failed to change agent status. Status code: ${response.statusCode}');
         onError?.call(
-            'Failed to change agent status. Status code: ${response.statusCode}');
+            'MptCallKitControllerRepo - changeAgentStatus - Failed to change agent status. Status code: ${response.statusCode}');
         return false;
       }
     } catch (e) {
-      print("Error in change agent status: $e");
+      print(
+          "MptCallKitControllerRepo - changeAgentStatus - Error in change agent status: $e");
       onError?.call("Change agent status with error: $e");
       return false;
     }
@@ -93,7 +97,8 @@ class MptCallKitControllerRepo {
         "extraInfo": extraInfo,
       };
 
-      print("Call outbound body: ${jsonEncode(body)}");
+      print(
+          "MptCallKitControllerRepo - makeCallInternal - Call outbound body: ${jsonEncode(body)}");
 
       final response = await http.post(
         Uri.parse(
@@ -104,10 +109,12 @@ class MptCallKitControllerRepo {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
-        print('Make call outbound Response data: $responseData');
+        print(
+            'MptCallKitControllerRepo - makeCallInternal - Make call outbound Response data: $responseData');
         if (responseData != null) {
           if (responseData["success"]) {
-            print("Call outbound success!");
+            print(
+                "MptCallKitControllerRepo - makeCallInternal - Call outbound success!");
             return true;
           }
           onError?.call("Call outbound failed: ${responseData["message"]}");
@@ -120,7 +127,8 @@ class MptCallKitControllerRepo {
           "Call outbound failed with status code: ${response.statusCode}");
       return false;
     } catch (e) {
-      print("Error in logout: $e");
+      print(
+          "MptCallKitControllerRepo - makeCallInternal - Error in logout: $e");
       onError?.call("Logout failed with error: $e");
       return false;
     }
@@ -153,7 +161,8 @@ class MptCallKitControllerRepo {
         "extraInfo": extraInfo,
       };
 
-      print("Call outbound body: ${jsonEncode(body)}");
+      print(
+          "MptCallKitControllerRepo - makeCall - Call outbound body: ${jsonEncode(body)}");
 
       final response = await http.post(
         Uri.parse(
@@ -167,7 +176,8 @@ class MptCallKitControllerRepo {
         print('Make call outbound Response data: $responseData');
         if (responseData != null) {
           if (responseData["success"]) {
-            print("Call outbound success!");
+            print(
+                "MptCallKitControllerRepo - makeCall - Call outbound success!");
             return true;
           }
           onError?.call("Call outbound failed: ${responseData["message"]}");
@@ -180,8 +190,57 @@ class MptCallKitControllerRepo {
           "Call outbound failed with status code: ${response.statusCode}");
       return false;
     } catch (e) {
-      print("Error in logout: $e");
+      print("MptCallKitControllerRepo - makeCall - Error in logout: $e");
       onError?.call("Logout failed with error: $e");
+      return false;
+    }
+  }
+
+  Future<bool> makeCallByGuest({
+    required String phoneNumber,
+    required String extension,
+    required String destination,
+    required String extraInfo,
+    String? baseUrl,
+    required String authToken,
+    Function(String?)? onError,
+  }) async {
+    try {
+      final headers = {
+        'Authorization': "Bearer $authToken",
+        'Content-Type': 'application/json',
+      };
+
+      final body = {
+        "phoneNumber": phoneNumber,
+        "extension": extension,
+        "destination": destination,
+        "extraInfo": extraInfo
+      };
+
+      print(
+          "MptCallKitControllerRepo - makeCallByGuest - makeCallByGuest body: ${jsonEncode(body)}");
+
+      final response = await http.post(
+        Uri.parse(
+            "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$_makeCallByGuestAPI"),
+        headers: headers,
+        body: convert.jsonEncode(body),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        print(
+            'MptCallKitControllerRepo - makeCallByGuest - makeCallByGuest Response data: $responseData');
+        return true;
+      }
+      onError?.call(
+          "Make call by guest failed with status code: ${response.statusCode}");
+      return false;
+    } catch (e) {
+      print(
+          "MptCallKitControllerRepo - makeCallByGuest - Error in makeCallByGuest: $e");
+      onError?.call("Make call by guest failed with error: $e");
       return false;
     }
   }
