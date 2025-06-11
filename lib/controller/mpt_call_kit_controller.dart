@@ -26,6 +26,7 @@ class MptCallKitController {
   bool? _isOnline = false;
   bool? get isOnline => _isOnline;
   BuildContext? context;
+  bool isMakeCallByGuest = false;
 
   static const MethodChannel channel = MethodChannel('mpt_callkit');
   static const eventChannel = EventChannel('native_events');
@@ -148,61 +149,23 @@ class MptCallKitController {
   // Track the last sent media status
   Map<String, dynamic>? _lastSentMediaStatus;
 
+  // Add StreamSubscription to manage the event channel subscription
+  StreamSubscription<dynamic>? _eventChannelSubscription;
+
+  // Add Completer for guest registration
+  Completer<bool>? _guestRegistrationCompleter;
+
   ///
 
   MptCallKitController._internal() {
     if (Platform.isAndroid) {
-      eventChannel.receiveBroadcastStream().listen((event) {
-        print('🔥 Received event from native: $event');
-        if (event is Map) {
-          // Handle map events with message and data
-          final String message = event['message'];
-          final dynamic data = event['data'];
-
-          switch (message) {
-            case 'onlineStatus':
-              _isOnline = data as bool;
-              _onlineStatuslistener.add(data);
-              break;
-            case 'callState':
-              _currentCallState = data.toString();
-              _callEvent.add(data.toString());
-              if (context != null) {
-                _handleCallStateChanged(data.toString(), context!);
-              }
-              break;
-            case 'cameraState':
-              _cameraState.add(data as bool);
-              break;
-            case 'microphoneState':
-              _microState.add(data as bool);
-              break;
-            case 'holdCallState':
-              _holdCallState.add(data as bool);
-              break;
-            case 'callType':
-              _callType.add(data.toString());
-              break;
-            case 'curr_sessionId':
-              _sessionId.add(data as String);
-              _currentSessionId = data;
-              break;
-            case 'currentAudioDevice':
-              _currentAudioDevice = data.toString();
-              _currentAudioDeviceStream.add(data.toString());
-              break;
-            case 'audioDevices':
-              _currentAvailableAudioDevices = data as List<String>;
-              _audioDevicesAvailable.add(data);
-              break;
-          }
-        }
-      });
+      _setupEventChannelListener();
     } else {
       channel.setMethodCallHandler((call) async {
         if (call.method == 'onlineStatus') {
           _isOnline = call.arguments as bool;
           _onlineStatuslistener.add(call.arguments as bool);
+          print("onlineStatus: ${call.arguments}");
         }
         if (call.method == 'callState') {
           _currentCallState = call.arguments as String;
@@ -366,14 +329,14 @@ class MptCallKitController {
       if (extensionData != null) {
         // Register to SIP server
         await MptCallKitController().online(
-          username: extensionData!.username!,
-          displayName: extensionData!.username!, // ??
+          username: extensionData?.username ?? "",
+          displayName: extensionData?.username ?? "", // ??
           srtpType: 0,
-          authName: extensionData!.username!, // ??
-          password: extensionData!.password!,
-          userDomain: extensionData!.domain!,
-          sipServer: extensionData!.sipServer!,
-          sipServerPort: extensionData!.port ?? 5060,
+          authName: extensionData?.username ?? "", // ??
+          password: extensionData?.password ?? "",
+          userDomain: extensionData?.domain ?? "",
+          sipServer: extensionData?.sipServer ?? "",
+          sipServerPort: extensionData?.port ?? 5060,
           transportType: 0,
           pushToken: pushToken,
           appId: appId,
@@ -529,53 +492,47 @@ class MptCallKitController {
           username: result.username ?? "",
           displayName: userPhoneNumber,
           authName: '',
-          password: result.password!,
-          userDomain: result.domain!,
-          sipServer: result.sipServer!,
+          password: result.password ?? "",
+          userDomain: result.domain ?? "",
+          sipServer: result.sipServer ?? "",
           sipServerPort: result.port ?? 5060,
           transportType: 0,
           srtpType: 0,
           context: context,
           appId: appId,
           pushToken: pushToken,
+          isMakeCallByGuest: true,
         );
 
+        // Wait for SIP registration to complete
         if (Platform.isAndroid) {
-          eventChannel.receiveBroadcastStream().listen((event) async {
-            print("event: $event");
-            if (event is Map) {
-              // Handle map events with message and data
-              final String message = event['message'];
-              final dynamic data = event['data'];
+          _guestRegistrationCompleter = Completer<bool>();
 
-              switch (message) {
-                case "registrationStateStream":
-                  //connect socket by guest
+          try {
+            // Wait for registration result with timeout
+            final registrationResult = await _guestRegistrationCompleter!.future
+                .timeout(const Duration(seconds: 30));
 
-                  //make call by guest
-                  if (data == true) {
-                    await MptCallKitControllerRepo().makeCallByGuest(
-                      phoneNumber: userPhoneNumber,
-                      extension: result.username ?? "",
-                      destination: destination,
-                      authToken: apiKey,
-                      extraInfo: "",
-                      onError: onError,
-                    );
-                    showAndroidCallKit();
-                  } else {
-                    print('quanth: registration has failed');
-                  }
-                  break;
-                case "releaseExtension":
-                  print('quanth: releaseExtension has started');
-                  await releaseExtension();
-                  print('quanth: releaseExtension has done');
-                  // disposeSocket();
-                  break;
-              }
+            if (registrationResult) {
+              await MptCallKitControllerRepo().makeCallByGuest(
+                phoneNumber: userPhoneNumber,
+                extension: result.username ?? "",
+                destination: destination,
+                authToken: apiKey,
+                extraInfo: "",
+                onError: onError,
+              );
+              // showAndroidCallKit();
+            } else {
+              print('SIP Registration has failed');
+              onError?.call('SIP Registration failed');
             }
-          });
+          } catch (e) {
+            print('Registration timeout or error: $e');
+            onError?.call('Registration timeout');
+          } finally {
+            _guestRegistrationCompleter = null;
+          }
         }
       } else {
         onError?.call('Tổng đài bận, liên hệ hỗ trợ');
@@ -737,7 +694,11 @@ class MptCallKitController {
     required BuildContext context,
     String? pushToken,
     String? appId,
+    bool? isMakeCallByGuest = false,
   }) async {
+    this.isMakeCallByGuest = isMakeCallByGuest ?? false;
+    print("isMakeCallByGuest: $isMakeCallByGuest");
+
     try {
       final hasPermission = await requestPermission(context);
       if (!hasPermission) {
@@ -1223,9 +1184,131 @@ class MptCallKitController {
     }
   }
 
-  void _handleCallStateChanged(String state, BuildContext context) async {}
+  void _handleCallStateChanged(String state, BuildContext context) async {
+    if (state == CallStateConstants.INCOMING) {
+      if (Platform.isAndroid) {
+        showAndroidCallKit();
+      } else {
+        //show ios callkit
+      }
+    }
+  }
 
   Future<void> showAndroidCallKit() async {
     await channel.invokeListMethod("startActivity");
+  }
+
+  // Centralized event channel listener setup
+  void _setupEventChannelListener() {
+    // Cancel existing subscription if any
+    _eventChannelSubscription?.cancel();
+
+    _eventChannelSubscription =
+        eventChannel.receiveBroadcastStream().listen((event) async {
+      print('🔥 Received event from native: $event');
+      if (event is Map) {
+        // Handle map events with message and data
+        final String message = event['message'];
+        final dynamic data = event['data'];
+
+        switch (message) {
+          case 'onlineStatus':
+            _isOnline = data as bool;
+            _onlineStatuslistener.add(data);
+            break;
+          case 'callState':
+            _currentCallState = data.toString();
+            _callEvent.add(data.toString());
+            if (context != null) {
+              _handleCallStateChanged(data.toString(), context!);
+            }
+
+            // Handle guest call specific logic
+            if (isMakeCallByGuest) {
+              if (data == CallStateConstants.FAILED) {
+                print("makeCallByGuest() - Call failed!");
+                offline();
+              }
+
+              if (data == CallStateConstants.CLOSED) {
+                print("makeCallByGuest() - Call ended!");
+                offline();
+              }
+            }
+            break;
+          case 'cameraState':
+            _cameraState.add(data as bool);
+            break;
+          case 'microphoneState':
+            _microState.add(data as bool);
+            break;
+          case 'holdCallState':
+            _holdCallState.add(data as bool);
+            break;
+          case 'callType':
+            _callType.add(data.toString());
+            break;
+          case 'curr_sessionId':
+            _sessionId.add(data as String);
+            _currentSessionId = data;
+            break;
+          case 'currentAudioDevice':
+            _currentAudioDevice = data.toString();
+            _currentAudioDeviceStream.add(data.toString());
+            break;
+          case 'audioDevices':
+            _currentAvailableAudioDevices = data as List<String>;
+            _audioDevicesAvailable.add(data);
+            break;
+          case "registrationStateStream":
+            // Handle guest call registration
+            if (isMakeCallByGuest) {
+              _handleGuestRegistrationState(data);
+            }
+            break;
+          case "releaseExtension":
+            if (isMakeCallByGuest) {
+              print('Release extension has started');
+              await releaseExtension();
+              print('Release extension has done');
+            }
+            break;
+        }
+      }
+    });
+  }
+
+  // Handle guest registration state
+  void _handleGuestRegistrationState(dynamic data) async {
+    if (data == true) {
+      print('SIP Registration successful for guest');
+      _guestRegistrationCompleter?.complete(true);
+    } else {
+      print('SIP Registration has failed');
+      _guestRegistrationCompleter?.complete(false);
+    }
+  }
+
+  // Dispose method to clean up resources
+  void dispose() {
+    _eventChannelSubscription?.cancel();
+    _guestRegistrationCompleter?.complete(false);
+    _guestRegistrationCompleter = null;
+
+    // Close all stream controllers
+    _onlineStatuslistener.close();
+    _callEvent.close();
+    _appEvent.close();
+    _cameraState.close();
+    _microState.close();
+    _holdCallState.close();
+    _callType.close();
+    _sessionId.close();
+    _currentAudioDeviceStream.close();
+    _audioDevicesAvailable.close();
+    _localCamStateController.close();
+    _localMicStateController.close();
+    _remoteCamStateController.close();
+    _remoteMicStateController.close();
   }
 }
