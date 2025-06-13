@@ -45,6 +45,7 @@ public class MainActivity extends Activity {
     public PortMessageReceiver receiver = null;
     public static MainActivity activity;
     private final int REQ_DANGERS_PERMISSION = 2;
+    private boolean isReceiverRegistered = false;
 
     private boolean isInPictureInPictureMode = false;
 
@@ -62,20 +63,31 @@ public class MainActivity extends Activity {
 
         setContentView(R.layout.main);
 
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
-        filter.addAction(PortSipService.CALL_CHANGE_ACTION);
-        filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
-        filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
-        filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
-        System.out.println("quanth: MainActivity - Registering broadcast receiver (using Engine's receiver)");
+        // Only register if not already registered to prevent multiple registrations
+        if (!isReceiverRegistered && receiver != null) {
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
+            filter.addAction(PortSipService.CALL_CHANGE_ACTION);
+            filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
+            filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
+            filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
+            System.out.println("quanth: MainActivity - Registering broadcast receiver (using Engine's receiver)");
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
-            System.out.println("quanth: MainActivity - Registered receiver with RECEIVER_NOT_EXPORTED flag");
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
+                    System.out.println("quanth: MainActivity - Registered receiver with RECEIVER_NOT_EXPORTED flag");
+                } else {
+                    registerReceiver(receiver, filter);
+                    System.out.println("quanth: MainActivity - Registered receiver without flag");
+                }
+                isReceiverRegistered = true;
+            } catch (Exception e) {
+                System.out.println("quanth: MainActivity - Error registering receiver: " + e.getMessage());
+                isReceiverRegistered = false;
+            }
         } else {
-            registerReceiver(receiver, filter);
-            System.out.println("quanth: MainActivity - Registered receiver without flag");
+            System.out.println("quanth: MainActivity - Receiver already registered or is null");
         }
 
         // Add a MainActivity-specific listener for handling broadcasts
@@ -112,6 +124,31 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         requestPermissions(this);
+
+        // Ensure receiver is still registered
+        if (receiver != null && !isReceiverRegistered) {
+            System.out.println("quanth: MainActivity - Receiver lost in onResume, attempting to re-register");
+            // Re-register if needed
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
+            filter.addAction(PortSipService.CALL_CHANGE_ACTION);
+            filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
+            filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
+            filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
+
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
+                } else {
+                    registerReceiver(receiver, filter);
+                }
+                isReceiverRegistered = true;
+                System.out.println("quanth: MainActivity - Re-registered receiver in onResume");
+            } catch (Exception e) {
+                System.out
+                        .println("quanth: MainActivity - Error re-registering receiver in onResume: " + e.getMessage());
+            }
+        }
     }
 
     @Override
@@ -119,14 +156,28 @@ public class MainActivity extends Activity {
         System.out.println("quanth: MainActivity - onDestroy, current listeners: "
                 + (receiver != null ? receiver.getListenersCount() : 0));
 
-        if (receiver != null) {
+        if (receiver != null && isReceiverRegistered) {
             try {
                 unregisterReceiver(receiver);
-                System.out.println("quanth: MainActivity - Unregistered receiver");
+                isReceiverRegistered = false;
+                System.out.println("quanth: MainActivity - Unregistered receiver successfully");
             } catch (IllegalArgumentException e) {
                 System.out.println("quanth: MainActivity - Receiver was not registered: " + e.getMessage());
+                isReceiverRegistered = false;
+            } catch (Exception e) {
+                System.out.println("quanth: MainActivity - Error unregistering receiver: " + e.getMessage());
+                isReceiverRegistered = false;
             }
-            // Don't set receiver to null since it's shared with Engine
+
+            // Remove MainActivity-specific listener to prevent memory leaks
+            if (receiver != null) {
+                receiver.removePersistentListenerByTag("MainActivityBackup");
+                System.out.println("quanth: MainActivity - Removed persistent listener");
+            }
+        } else if (receiver == null) {
+            System.out.println("quanth: MainActivity - Receiver is null, nothing to unregister");
+        } else {
+            System.out.println("quanth: MainActivity - Receiver was not registered by this activity");
         }
 
         super.onDestroy();
@@ -184,6 +235,12 @@ public class MainActivity extends Activity {
         } else {
             enterPictureInPictureMode();
         }
+    }
+
+    @Override
+    protected void onUserLeaveHint() {
+        enterPictureInPictureMode();
+        super.onUserLeaveHint();
     }
 
     @Override
@@ -277,34 +334,5 @@ public class MainActivity extends Activity {
                     Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO },
                     REQ_DANGERS_PERMISSION);
         }
-    }
-
-    void hangup() {
-        Session currentLine = CallManager.Instance().getCurrentSession();
-        Ring.getInstance(activity).stop();
-        switch (currentLine.state) {
-            case INCOMING:
-                Engine.Instance().getEngine().rejectCall(currentLine.sessionID, 486);
-                System.out.println("quanth: lineName= " + currentLine.lineName + ": Rejected call");
-
-                Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
-                MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
-                System.out.println("quanth: callState - " + "CLOSED");
-
-                break;
-            case CONNECTED:
-            case TRYING:
-                Engine.Instance().getEngine().hangUp(currentLine.sessionID);
-
-                if (Engine.Instance().getMethodChannel() != null) {
-                    Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
-                    MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
-                    System.out.println("quanth: callState - " + "CLOSED");
-                }
-
-                System.out.println("quanth: lineName= " + currentLine.lineName + ": Hang up");
-                break;
-        }
-        currentLine.Reset();
     }
 }

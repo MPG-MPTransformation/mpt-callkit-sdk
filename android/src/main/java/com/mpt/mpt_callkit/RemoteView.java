@@ -84,8 +84,9 @@ public class RemoteView implements PlatformView {
                 }
             };
             System.out.println("quanth: broadcastReceiver - remote_view - set: " + receiver.broadcastReceiver.toString());
+        } else {
+            System.out.println("quanth: broadcastReceiver - remote_view - set null ");
         }
-        System.out.println("quanth: broadcastReceiver - remote_view - set null ");
     }
 
     private void handleBroadcastReceiver(Intent intent) {
@@ -119,7 +120,7 @@ public class RemoteView implements PlatformView {
                         case FAILED:
                             // Tắt cuộc gọi nếu người dùng cúp máy không nghe
                             if (currentLine != null && currentLine.sessionID > 0) {
-                                portSipLib.hangUp(currentLine.sessionID);
+                                MptCallkitPlugin.hangup();
                                 currentLine.Reset();
                             }
                             break;

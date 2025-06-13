@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
+import 'package:mpt_callkit/views/local_view.dart';
+import 'package:mpt_callkit/views/remote_view.dart';
 
 class CallPad extends StatefulWidget {
   const CallPad({Key? key}) : super(key: key);
@@ -17,7 +19,7 @@ class _CallPadState extends State<CallPad> {
   final List<String> _functionNames = [
     "answer",
     "reject",
-    'showCallKit',
+    if (Platform.isAndroid) 'showAndroidCallKit',
     'hold',
     'unhold',
     'mute',
@@ -347,20 +349,28 @@ class _CallPadState extends State<CallPad> {
                     );
                   },
                 ),
-                // const SizedBox(height: 16),
-                // const Text("Camera"),
-                // const SizedBox(
-                //   height: 300,
-                //   width: 300,
-                //   child: LocalView(),
-                // ),
-                // const SizedBox(height: 16),
-                // const Text("Video"),
-                // const SizedBox(
-                //   height: 300,
-                //   width: 300,
-                //   child: RemoteView(),
-                // ),
+                (Platform.isIOS)
+                    ? Column(
+                        children: const [
+                          SizedBox(height: 16),
+                          Text("Camera"),
+                          SizedBox(
+                            height: 300,
+                            width: 300,
+                            child: LocalView(),
+                          ),
+                          SizedBox(height: 16),
+                          Text("Video"),
+                          SizedBox(
+                            height: 300,
+                            width: 300,
+                            child: RemoteView(),
+                          ),
+                        ],
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                      )
+                    : const SizedBox.shrink(),
               ],
             ),
           ),
@@ -399,7 +409,7 @@ class _CallPadState extends State<CallPad> {
         // // Close call_pad screen
         // Navigator.of(context).pop();
         break;
-      case 'showCallKit':
+      case 'showAndroidCallKit':
         MptCallKitController().showAndroidCallKit();
         break;
       case 'hold':
@@ -483,38 +493,38 @@ class _CallPadState extends State<CallPad> {
   }
 
   void _showEndCallConfirmDialog() {
-    // showDialog(
-    //   context: context,
-    //   builder: (context) => AlertDialog(
-    //     title: const Text('Alert'),
-    //     content: const Text('Do you want to end the call and go back?'),
-    //     actions: [
-    //       TextButton(
-    //         onPressed: () {
-    //           // Close dialog
-    //           Navigator.of(context).pop();
-    //         },
-    //         child: const Text('Cancel'),
-    //       ),
-    //       TextButton(
-    //         onPressed: () {
-    //           // End call
-    //           MptCallKitController().hangup();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Alert'),
+        content: const Text('Do you want to end the call and go back?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              // Close dialog
+              Navigator.of(context).pop();
+            },
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              // End call
+              MptCallKitController().hangup();
 
-    //           // Go back to previous screen
-    //           // Close dialog
-    //           Navigator.of(context).pop();
-    //           // // Close call_pad screen
-    //           // Navigator.of(context).pop();
-    //         },
-    //         style: ButtonStyle(
-    //           foregroundColor: MaterialStateProperty.all<Color>(Colors.red),
-    //         ),
-    //         child: const Text('End call'),
-    //       ),
-    //     ],
-    //   ),
-    // );
+              // Go back to previous screen
+              // Close dialog
+              Navigator.of(context).pop();
+              // // Close call_pad screen
+              // Navigator.of(context).pop();
+            },
+            style: ButtonStyle(
+              foregroundColor: MaterialStateProperty.all<Color>(Colors.red),
+            ),
+            child: const Text('End call'),
+          ),
+        ],
+      ),
+    );
 
     Navigator.of(context).pop();
   }

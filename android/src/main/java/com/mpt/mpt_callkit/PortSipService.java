@@ -621,16 +621,17 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
         Set<PortSipEnumDefine.AudioDevice> availableDevices = Engine.Instance().getEngine().getAudioDevices();
         System.out.println("quanth: onInviteIncoming - allDevices: " + availableDevices.toString());
-        if (availableDevices.contains(PortSipEnumDefine.AudioDevice.BLUETOOTH)){
+        if (availableDevices.contains(PortSipEnumDefine.AudioDevice.BLUETOOTH)) {
             Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.BLUETOOTH);
             Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice",
                     PortSipEnumDefine.AudioDevice.BLUETOOTH.toString());
             MptCallkitPlugin.sendToFlutter("currentAudioDevice", PortSipEnumDefine.AudioDevice.BLUETOOTH.toString());
-        } else{
+        } else {
             Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
             Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice",
                     PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
-            MptCallkitPlugin.sendToFlutter("currentAudioDevice", PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
+            MptCallkitPlugin.sendToFlutter("currentAudioDevice",
+                    PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
         }
     }
 
@@ -952,7 +953,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
 
             sendPortSipMessage(description, broadIntent);
             // Close the call after succeeded transfer the call
-            Engine.Instance().getEngine().hangUp(sessionId);
+            MptCallkitPlugin.hangup();
         }
     }
 
@@ -1147,9 +1148,19 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     }
 
     @Override
-    public void onVideoRawCallback(long l, int i, int i1, int i2, byte[] bytes, int i3) {
-
-    }
+    public void onVideoRawCallback(long sessionId,
+            int enum_direction,
+            int width,
+            int height,
+            byte[] data,
+            int dataLength) {
+        System.out.println("quanth: onVideoRawCallback - " +
+                "sessionId: " + sessionId +
+                "enum_direction: " + enum_direction +
+                "width: " + width +
+                "height: " + height +
+                "dataLength: " + dataLength);
+    };
 
     @Override
     public void onNetworkChange(int netMobile) {

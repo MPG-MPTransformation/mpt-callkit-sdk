@@ -83,7 +83,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                     Toast.makeText(activity, "Người dùng không nghe máy",
                             Toast.LENGTH_LONG).show();
                     /// tắt cuộc gọi nếu người dùng cúp máy không nghe
-                    portSipLib.hangUp(currentLine.sessionID);
+                    MptCallkitPlugin.hangup();
                     currentLine.Reset();
                     // /// logout
                     // Intent logoutIntent = new Intent(getActivity(), PortSipService.class);
@@ -286,7 +286,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                 countDownTimer.cancel();
                 countDownTimer = null;
             }
-            activity.hangup();
+            MptCallkitPlugin.hangup();
             /// ve man hinh chinh
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 activity.finishAndRemoveTask();
@@ -317,7 +317,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                     public void onClick(DialogInterface dialog, int id) {
                         activity.setAllowBack(true);
                         /// Tat cuoc goi
-                        portSipLib.hangUp(currentLine.sessionID);
+                        MptCallkitPlugin.hangup();
                         currentLine.Reset();
                         /// logout
                         Intent offLineIntent = new Intent(getActivity(), PortSipService.class);
@@ -450,7 +450,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                         // offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
                         // PortSipService.startServiceCompatibility(getActivity(), offLineIntent);
 
-                        activity.hangup();
+                        MptCallkitPlugin.hangup();
                         /// ve man hinh chinh
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                             activity.finishAndRemoveTask();
@@ -488,7 +488,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                         // Intent logoutIntent = new Intent(getActivity(), PortSipService.class);
                         // logoutIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
                         // PortSipService.startServiceCompatibility(getActivity(), logoutIntent);
-                        activity.hangup();
+                        MptCallkitPlugin.hangup();
                         /// ve man hinh chinh
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                             activity.finishAndRemoveTask();

@@ -845,6 +845,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
       
        // Transfer has success, hangup call.
        portSIPSDK.hangUp(sessionId)
+        // Gửi trạng thái về Flutter
+       sendCallStateToFlutter(.CLOSED)
    }
   
    public func onACTVTransferFailure(_ sessionId: Int, reason: String!, code: Int32) {

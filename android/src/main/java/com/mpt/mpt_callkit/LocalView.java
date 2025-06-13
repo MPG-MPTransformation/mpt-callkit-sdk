@@ -62,7 +62,7 @@ public class LocalView implements PlatformView {
             // Giải phóng receiver nếu cần
             if (receiver != null && receiver.broadcastReceiver != null) {
                 receiver.broadcastReceiver = null;
-                System.out.println("quanth: broadcastReceiver - remote_view - set null");
+                System.out.println("quanth: broadcastReceiver - local_view - set null");
             }
         } catch (Exception e) {
             System.out.println("Error disposing LocalView: " + e.getMessage());
@@ -118,10 +118,11 @@ public class LocalView implements PlatformView {
                 }
             };
 
-            System.out.println("quanth: broadcastReceiver - remote_view - set: " + receiver.broadcastReceiver.toString());
+            System.out
+                    .println("quanth: broadcastReceiver - local_view - set: " + receiver.broadcastReceiver.toString());
+        } else {
+            System.out.println("quanth: broadcastReceiver - local_view - set null ");
         }
-
-        System.out.println("quanth: broadcastReceiver - remote_view - set null ");
     }
 
     private void handleBroadcastReceiver(Intent intent) {
@@ -142,7 +143,7 @@ public class LocalView implements PlatformView {
                         break;
                     case FAILED:
                         // Tắt cuộc gọi nếu người dùng cúp máy không nghe
-                        portSipLib.hangUp(currentLine.sessionID);
+                        MptCallkitPlugin.hangup();
                         currentLine.Reset();
                         break;
                 }

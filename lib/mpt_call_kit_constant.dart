@@ -84,3 +84,8 @@ class SpeakerStatusConstants {
   static const String BLUETOOTH = "BLUETOOTH";
   static const String WIRED_HEADSET = "WIRED_HEADSET";
 }
+
+class AgentStateConstants {
+  static const String IDLE = "IDLE";
+  static const String TALKING = "TALKING";
+}

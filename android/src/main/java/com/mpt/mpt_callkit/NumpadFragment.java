@@ -374,12 +374,19 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
                 case INCOMING:
                     portSipSdk.rejectCall(currentLine.sessionID, 486);
                     showTips(currentLine.lineName + ": Rejected call");
+
+                    Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
+                    MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
+                    System.out.println("quanth: callState - " + "CLOSED");
                     break;
                 case CONNECTED:
                 case TRYING:
                     portSipSdk.hangUp(currentLine.sessionID);
-
                     showTips(currentLine.lineName + ": Hang up");
+
+                    Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
+                    MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
+                    System.out.println("quanth: callState - " + "CLOSED");
                     break;
             }
             currentLine.Reset();

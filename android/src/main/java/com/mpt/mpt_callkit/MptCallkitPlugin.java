@@ -463,9 +463,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         return true;
     }
 
-    void hangup() {
+    static void hangup() {
         Session currentLine = CallManager.Instance().getCurrentSession();
-        Ring.getInstance(activity).stop();
+        Ring.getInstance(MainActivity.activity).stop();
         switch (currentLine.state) {
             case INCOMING:
                 Engine.Instance().getEngine().rejectCall(currentLine.sessionID, 486);

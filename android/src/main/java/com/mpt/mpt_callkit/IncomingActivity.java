@@ -32,6 +32,7 @@ import static com.mpt.mpt_callkit.PortSipService.EXTRA_CALL_SEESIONID;
 public class IncomingActivity extends Activity implements PortMessageReceiver.BroadcastListener, View.OnClickListener {
 
     public PortMessageReceiver receiver = null;
+    private boolean isReceiverRegistered = false; // Add flag to track receiver registration
     TextView tvTips;
     Button btnVideo;
     long sessionId;
@@ -58,18 +59,29 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
             Engine.Instance().setReceiver(receiver);
         }
 
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
-        filter.addAction(PortSipService.CALL_CHANGE_ACTION);
-        filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
-        System.out.println("quanth: IncomingActivity - Registering broadcast receiver (using Engine's receiver)");
+        // Only register if not already registered to prevent multiple registrations
+        if (!isReceiverRegistered && receiver != null) {
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
+            filter.addAction(PortSipService.CALL_CHANGE_ACTION);
+            filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
+            System.out.println("quanth: IncomingActivity - Registering broadcast receiver (using Engine's receiver)");
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
-            System.out.println("quanth: IncomingActivity - Registered with RECEIVER_NOT_EXPORTED flag");
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
+                    System.out.println("quanth: IncomingActivity - Registered with RECEIVER_NOT_EXPORTED flag");
+                } else {
+                    registerReceiver(receiver, filter);
+                    System.out.println("quanth: IncomingActivity - Registered without flag");
+                }
+                isReceiverRegistered = true;
+            } catch (Exception e) {
+                System.out.println("quanth: IncomingActivity - Error registering receiver: " + e.getMessage());
+                isReceiverRegistered = false;
+            }
         } else {
-            registerReceiver(receiver, filter);
-            System.out.println("quanth: IncomingActivity - Registered without flag");
+            System.out.println("quanth: IncomingActivity - Receiver already registered or is null");
         }
 
         // Set as primary receiver and add as backup
@@ -113,6 +125,29 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
     @Override
     protected void onResume() {
         super.onResume();
+
+        // Ensure receiver is still registered
+        if (receiver != null && !isReceiverRegistered) {
+            System.out.println("quanth: IncomingActivity - Receiver lost in onResume, attempting to re-register");
+            // Re-register if needed
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
+            filter.addAction(PortSipService.CALL_CHANGE_ACTION);
+            filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
+
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
+                } else {
+                    registerReceiver(receiver, filter);
+                }
+                isReceiverRegistered = true;
+                System.out.println("quanth: IncomingActivity - Re-registered receiver in onResume");
+            } catch (Exception e) {
+                System.out.println(
+                        "quanth: IncomingActivity - Error re-registering receiver in onResume: " + e.getMessage());
+            }
+        }
     }
 
     @Override
@@ -133,12 +168,24 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
             }
             System.out.println("quanth: IncomingActivity - Removed as listener on destroy");
 
-            try {
-                unregisterReceiver(receiver);
-                System.out.println("quanth: IncomingActivity - Unregistered receiver");
-            } catch (IllegalArgumentException e) {
-                System.out.println("quanth: IncomingActivity - Receiver was not registered: " + e.getMessage());
+            // Only unregister if this activity registered the receiver
+            if (isReceiverRegistered) {
+                try {
+                    unregisterReceiver(receiver);
+                    isReceiverRegistered = false;
+                    System.out.println("quanth: IncomingActivity - Unregistered receiver successfully");
+                } catch (IllegalArgumentException e) {
+                    System.out.println("quanth: IncomingActivity - Receiver was not registered: " + e.getMessage());
+                    isReceiverRegistered = false;
+                } catch (Exception e) {
+                    System.out.println("quanth: IncomingActivity - Error unregistering receiver: " + e.getMessage());
+                    isReceiverRegistered = false;
+                }
+            } else {
+                System.out.println("quanth: IncomingActivity - Receiver was not registered by this activity");
             }
+        } else {
+            System.out.println("quanth: IncomingActivity - Receiver is null, nothing to unregister");
         }
 
         startActivity(new Intent(this, MainActivity.class));

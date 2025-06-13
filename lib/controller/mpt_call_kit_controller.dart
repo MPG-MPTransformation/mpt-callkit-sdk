@@ -1185,7 +1185,36 @@ class MptCallKitController {
   }
 
   void _handleCallStateChanged(String state, BuildContext context) async {
-    if (state == CallStateConstants.INCOMING) {
+    if ((_currentSessionId!.isNotEmpty || _currentSessionId != null) &&
+        MptSocketSocketServer.instance.checkConnection()) {
+      if (state == CallStateConstants.CLOSED) {
+        MptSocketSocketServer.instance.sendAgentState(
+          _currentSessionId!,
+          AgentStateConstants.IDLE,
+        );
+      }
+
+      if (state == CallStateConstants.ANSWERED) {
+        MptSocketSocketServer.instance.sendAgentState(
+          _currentSessionId!,
+          AgentStateConstants.TALKING,
+        );
+      }
+    } else {
+      print(
+          "Cannot send agent state: sessionId is null or empty or Socket server is not connected");
+    }
+
+    if (state == CallStateConstants.CLOSED) {
+      MptSocketSocketServer.instance.sendAgentState(
+        _currentSessionId!,
+        AgentStateConstants.IDLE,
+      );
+    } else {
+      print("Cannot send agent state: sessionId is null or empty");
+    }
+
+    if (state == CallStateConstants.CONNECTED) {
       if (Platform.isAndroid) {
         showAndroidCallKit();
       } else {
