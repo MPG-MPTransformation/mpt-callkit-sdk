@@ -167,7 +167,12 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             llWaitingView.setVisibility(View.GONE);
         }
 
-        updateCameraView(currentLine.bMuteVideo);
+        if (currentLine.hasVideo) {
+            updateCameraView(currentLine.bMuteVideo);
+        } else {
+            imgVideo.setImageResource(R.drawable.switch_video_call);
+        }
+
         updateMicView(currentLine.bMuteAudioOutGoing);
 
         // Initialize audio device based on available devices
@@ -249,14 +254,15 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         PortSipSdk portSipLib = Engine.Instance().getEngine();
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (v.getId() == R.id.ibcamera) {
+            System.out.println("quanth: cameraState: " + Engine.Instance().mUseFrontCamera);
             if (Engine.Instance().mUseFrontCamera) {
-                imgSwitchCamera.setImageResource(R.drawable.flip_camera);
-            } else {
                 imgSwitchCamera.setImageResource(R.drawable.flip_camera_behind);
+            } else {
+                imgSwitchCamera.setImageResource(R.drawable.flip_camera);
             }
-            boolean value = !Engine.Instance().mUseFrontCamera;
-            SetCamera(portSipLib, value);
-            Engine.Instance().mUseFrontCamera = value;
+            Engine.Instance().mUseFrontCamera = !Engine.Instance().mUseFrontCamera;
+            setCamera(portSipLib, Engine.Instance().mUseFrontCamera);
+            System.out.println("quanth: cameraState: " + Engine.Instance().mUseFrontCamera);
         } else if (v.getId() == R.id.share_video_view) {
             shareInSmall = !shareInSmall;
             updateVideo(portSipLib);
@@ -296,6 +302,15 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             CallManager.Instance().setAudioDevice(portSipLib, nextDevice);
             updateMuteIcon(nextDevice);
         } else if (v.getId() == R.id.ibvideo) {
+            if (!currentLine.hasVideo) {
+                // Gửi video từ camera
+                int sendVideoRes = Engine.Instance().getEngine().sendVideo(currentLine.sessionID, true);
+                System.out.println("quanth: sendVideo: " + sendVideoRes);
+
+                // Cập nhật cuộc gọi để thêm video stream
+                int updateRes = Engine.Instance().getEngine().updateCall(currentLine.sessionID, true, true);
+                System.out.println("quanth: updateCall(): " + updateRes);
+            }
             MptCallkitPlugin.toggleCameraOn(currentLine.bMuteVideo);
             updateCameraView(currentLine.bMuteVideo);
         } else if (v.getId() == R.id.ibback) {
@@ -342,13 +357,11 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         return builder.create();
     }
 
-    private void SetCamera(PortSipSdk portSipLib, boolean userFront) {
-        System.out.println("quanth: video SetCamera");
-        if (userFront) {
-            portSipLib.setVideoDeviceId(0);
-        } else {
-            portSipLib.setVideoDeviceId(1);
-        }
+    private void setCamera(PortSipSdk portSipLib, boolean userFront) {
+        System.out.println("quanth: video SetCamera - userFront: " + userFront);
+        int deviceId = userFront ? 1 : 0;
+        portSipLib.setVideoDeviceId(deviceId);
+        portSipLib.displayLocalVideo(true, userFront, localRenderScreen);
     }
 
     private void stopVideo(PortSipSdk portSipLib) {
@@ -399,7 +412,9 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                         callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderScreen);
                     }
                     imgVideo.setImageResource(R.drawable.camera_on);
-                    portSipLib.displayLocalVideo(true, true, localRenderScreen); // display Local video
+                    portSipLib.displayLocalVideo(true, Engine.Instance().mUseFrontCamera, localRenderScreen); // display
+                                                                                                              // Local
+                                                                                                              // video
                     portSipLib.sendVideo(cur.sessionID, true);
                 } else {
                     isVideoOn = false;

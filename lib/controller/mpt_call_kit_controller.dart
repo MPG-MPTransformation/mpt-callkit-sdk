@@ -170,9 +170,7 @@ class MptCallKitController {
         if (call.method == 'callState') {
           _currentCallState = call.arguments as String;
           _callEvent.add(call.arguments as String);
-          if (context != null) {
-            _handleCallStateChanged(call.arguments as String, context!);
-          }
+          _handleCallStateChanged(call.arguments as String);
         }
 
         if (call.method == 'cameraState') {
@@ -478,11 +476,11 @@ class MptCallKitController {
     Function(String?)? onError,
   }) async {
     try {
-      final hasPermission = await requestPermission(context);
-      if (!hasPermission) {
-        onError?.call('Permission denied');
-        return;
-      }
+      // final hasPermission = await requestPermission(context);
+      // if (!hasPermission) {
+      //   onError?.call('Permission denied');
+      //   return;
+      // }
 
       extension = '';
       final result = await getExtension(phoneNumber: userPhoneNumber);
@@ -1184,7 +1182,8 @@ class MptCallKitController {
     }
   }
 
-  void _handleCallStateChanged(String state, BuildContext context) async {
+  void _handleCallStateChanged(String state) async {
+    print("handleCallStateChanged: $state");
     if ((_currentSessionId!.isNotEmpty || _currentSessionId != null) &&
         MptSocketSocketServer.instance.checkConnection()) {
       if (state == CallStateConstants.CLOSED) {
@@ -1205,17 +1204,18 @@ class MptCallKitController {
           "Cannot send agent state: sessionId is null or empty or Socket server is not connected");
     }
 
-    if (state == CallStateConstants.CLOSED) {
-      MptSocketSocketServer.instance.sendAgentState(
-        _currentSessionId!,
-        AgentStateConstants.IDLE,
-      );
-    } else {
-      print("Cannot send agent state: sessionId is null or empty");
-    }
+    // if (state == CallStateConstants.CLOSED) {
+    //   MptSocketSocketServer.instance.sendAgentState(
+    //     _currentSessionId!,
+    //     AgentStateConstants.IDLE,
+    //   );
+    // } else {
+    //   print("Cannot send agent state: sessionId is null or empty");
+    // }
 
     if (state == CallStateConstants.CONNECTED) {
       if (Platform.isAndroid) {
+        print("showAndroidCallKit");
         showAndroidCallKit();
       } else {
         //show ios callkit
@@ -1224,7 +1224,7 @@ class MptCallKitController {
   }
 
   Future<void> showAndroidCallKit() async {
-    await channel.invokeListMethod("startActivity");
+    await channel.invokeMethod("startActivity");
   }
 
   // Centralized event channel listener setup
@@ -1248,9 +1248,7 @@ class MptCallKitController {
           case 'callState':
             _currentCallState = data.toString();
             _callEvent.add(data.toString());
-            if (context != null) {
-              _handleCallStateChanged(data.toString(), context!);
-            }
+            _handleCallStateChanged(data.toString());
 
             // Handle guest call specific logic
             if (isMakeCallByGuest) {

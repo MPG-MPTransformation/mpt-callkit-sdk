@@ -24,6 +24,7 @@ class _CallPadState extends State<CallPad> {
     'unhold',
     'mute',
     'unmute',
+    'switchCamera',
     'cameraOn',
     'cameraOff',
     'speakerLoud',
@@ -423,6 +424,9 @@ class _CallPadState extends State<CallPad> {
         break;
       case 'unmute':
         MptCallKitController().unmute();
+        break;
+      case 'switchCamera':
+        MptCallKitController().switchCamera();
         break;
       case 'cameraOff':
         MptCallKitController().cameraOff();

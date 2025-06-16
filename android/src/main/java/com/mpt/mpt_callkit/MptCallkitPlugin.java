@@ -666,7 +666,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     boolean switchCamera() {
         boolean value = !Engine.Instance().mUseFrontCamera;
-        SetCamera(Engine.Instance().getEngine(), value);
+        setCamera(Engine.Instance().getEngine(), value);
         Engine.Instance().mUseFrontCamera = value;
 
         // Log để debug
@@ -674,12 +674,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         return value;
     }
 
-    private void SetCamera(PortSipSdk portSipLib, boolean userFront) {
-        if (userFront) {
-            portSipLib.setVideoDeviceId(0);
-        } else {
-            portSipLib.setVideoDeviceId(1);
-        }
+    private void setCamera(PortSipSdk portSipLib, boolean userFront) {
+        int deviceId = userFront ? 1 : 0;
+        portSipLib.setVideoDeviceId(deviceId);
     }
 
     void setSpeaker(String state) {
