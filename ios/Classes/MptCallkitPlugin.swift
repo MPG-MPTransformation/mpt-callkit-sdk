@@ -678,10 +678,20 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    }
   
     public func onInviteUpdated(_ sessionId: Int, audioCodecs: String!, videoCodecs: String!, screenCodecs: String!, existsAudio: Bool, existsVideo: Bool, existsScreen: Bool, sipMessage: String!) {
-        NSLog("onInviteUpdated... sessionId: \(sessionId) existsVideo: \(existsVideo) videoCodecs: \(videoCodecs ?? "")")
        guard let result = _callManager.findCallBySessionID(sessionId) else {
+           print("onInviteUpdated... not found sessionId: \(sessionId)")
            return
        }
+        
+        NSLog("onInviteUpdated... sessionId: \(sessionId) session_videoState: \(result.session.videoState) existsVideo: \(existsVideo) videoCodecs: \(videoCodecs ?? "")")
+        
+        if (result.session.videoState && !existsVideo && videoCodecs.isEmpty){
+            let sendVideoRes = portSIPSDK.sendVideo(result.session.sessionId, sendState: true)
+            print("onInviteUpdate... re-sendVideo: \(sendVideoRes)")
+            
+            let updateRes = portSIPSDK.updateCall(result.session.sessionId, enableAudio: true, enableVideo: true)
+            print("onInviteUpdate... re-updateCall: \(updateRes)")
+        }
        
        // Cập nhật trạng thái video
        result.session.videoState = existsVideo
@@ -700,6 +710,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        }
 
        print("The call is connected on line \(findSession(sessionid: sessionId))")
+       mUseFrontCamera = true
        
        // Buộc hiển thị video nếu cuộc gọi là video call
        if result.session.videoState {
@@ -1629,16 +1640,16 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        mUseFrontCamera = value
        
        // Log để debug
-       print("quanth: Camera switched to \(value ? "front" : "back")")
+       print("SDK-iOS: Camera switched to \(value ? "front" : "back")")
        return value
    }
 
    public func setCamera(useFrontCamera: Bool) {
        if useFrontCamera {
-           print("quanth: Setting front camera (ID 1)")
+           print("SDK-iOS: Setting front camera (ID 1)")
            portSIPSDK.setVideoDeviceId(1)
        } else {
-           print("quanth: Setting back camera (ID 0)")
+           print("SDK-iOS: Setting back camera (ID 0)")
            portSIPSDK.setVideoDeviceId(0)
        }
    }

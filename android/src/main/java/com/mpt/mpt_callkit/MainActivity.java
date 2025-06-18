@@ -71,23 +71,25 @@ public class MainActivity extends Activity {
             filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
             filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
             filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
-            System.out.println("quanth: MainActivity - Registering broadcast receiver (using Engine's receiver)");
+            System.out.println("SDK-Android: MainActivity - Registering broadcast receiver (using Engine's receiver)");
 
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
-                    System.out.println("quanth: MainActivity - Registered receiver with RECEIVER_NOT_EXPORTED flag");
+                    System.out
+                            .println(
+                                    "SDK-Android: MainActivity - Registered receiver with RECEIVER_NOT_EXPORTED flag");
                 } else {
                     registerReceiver(receiver, filter);
-                    System.out.println("quanth: MainActivity - Registered receiver without flag");
+                    System.out.println("SDK-Android: MainActivity - Registered receiver without flag");
                 }
                 isReceiverRegistered = true;
             } catch (Exception e) {
-                System.out.println("quanth: MainActivity - Error registering receiver: " + e.getMessage());
+                System.out.println("SDK-Android: MainActivity - Error registering receiver: " + e.getMessage());
                 isReceiverRegistered = false;
             }
         } else {
-            System.out.println("quanth: MainActivity - Receiver already registered or is null");
+            System.out.println("SDK-Android: MainActivity - Receiver already registered or is null");
         }
 
         // Add a MainActivity-specific listener for handling broadcasts
@@ -96,21 +98,22 @@ public class MainActivity extends Activity {
         receiver.addPersistentListener(new PortMessageReceiver.BroadcastListener() {
             @Override
             public void onBroadcastReceiver(Intent intent) {
-                System.out.println("quanth: MainActivity - Persistent backup listener handling broadcast");
+                System.out.println("SDK-Android: MainActivity - Persistent backup listener handling broadcast");
                 if (intent != null) {
                     String action = intent.getAction();
-                    System.out.println("quanth: MainActivity - Handling action: " + action);
+                    System.out.println("SDK-Android: MainActivity - Handling action: " + action);
 
                     // Handle specific actions that MainActivity should respond to
                     if (PortSipService.CALL_CHANGE_ACTION.equals(action)) {
                         // MainActivity can handle call state changes for global app behavior
-                        System.out.println("quanth: MainActivity - Handling call state change");
+                        System.out.println("SDK-Android: MainActivity - Handling call state change");
                     }
                 }
             }
         }, "MainActivityBackup");
-        System.out.println("quanth: MainActivity - Added MainActivity persistent backup listener, listeners info: "
-                + receiver.getListenersInfo());
+        System.out
+                .println("SDK-Android: MainActivity - Added MainActivity persistent backup listener, listeners info: "
+                        + receiver.getListenersInfo());
 
         Fragment fragment = getFragmentManager().findFragmentById(R.id.video_fragment);
 
@@ -127,7 +130,7 @@ public class MainActivity extends Activity {
 
         // Ensure receiver is still registered
         if (receiver != null && !isReceiverRegistered) {
-            System.out.println("quanth: MainActivity - Receiver lost in onResume, attempting to re-register");
+            System.out.println("SDK-Android: MainActivity - Receiver lost in onResume, attempting to re-register");
             // Re-register if needed
             IntentFilter filter = new IntentFilter();
             filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
@@ -143,45 +146,46 @@ public class MainActivity extends Activity {
                     registerReceiver(receiver, filter);
                 }
                 isReceiverRegistered = true;
-                System.out.println("quanth: MainActivity - Re-registered receiver in onResume");
+                System.out.println("SDK-Android: MainActivity - Re-registered receiver in onResume");
             } catch (Exception e) {
                 System.out
-                        .println("quanth: MainActivity - Error re-registering receiver in onResume: " + e.getMessage());
+                        .println("SDK-Android: MainActivity - Error re-registering receiver in onResume: "
+                                + e.getMessage());
             }
         }
     }
 
     @Override
     protected void onDestroy() {
-        System.out.println("quanth: MainActivity - onDestroy, current listeners: "
+        System.out.println("SDK-Android: MainActivity - onDestroy, current listeners: "
                 + (receiver != null ? receiver.getListenersCount() : 0));
 
         if (receiver != null && isReceiverRegistered) {
             try {
                 unregisterReceiver(receiver);
                 isReceiverRegistered = false;
-                System.out.println("quanth: MainActivity - Unregistered receiver successfully");
+                System.out.println("SDK-Android: MainActivity - Unregistered receiver successfully");
             } catch (IllegalArgumentException e) {
-                System.out.println("quanth: MainActivity - Receiver was not registered: " + e.getMessage());
+                System.out.println("SDK-Android: MainActivity - Receiver was not registered: " + e.getMessage());
                 isReceiverRegistered = false;
             } catch (Exception e) {
-                System.out.println("quanth: MainActivity - Error unregistering receiver: " + e.getMessage());
+                System.out.println("SDK-Android: MainActivity - Error unregistering receiver: " + e.getMessage());
                 isReceiverRegistered = false;
             }
 
             // Remove MainActivity-specific listener to prevent memory leaks
             if (receiver != null) {
                 receiver.removePersistentListenerByTag("MainActivityBackup");
-                System.out.println("quanth: MainActivity - Removed persistent listener");
+                System.out.println("SDK-Android: MainActivity - Removed persistent listener");
             }
         } else if (receiver == null) {
-            System.out.println("quanth: MainActivity - Receiver is null, nothing to unregister");
+            System.out.println("SDK-Android: MainActivity - Receiver is null, nothing to unregister");
         } else {
-            System.out.println("quanth: MainActivity - Receiver was not registered by this activity");
+            System.out.println("SDK-Android: MainActivity - Receiver was not registered by this activity");
         }
 
         super.onDestroy();
-        System.out.println("quanth: MainActivity - onDestroy completed");
+        System.out.println("SDK-Android: MainActivity - onDestroy completed");
     }
 
     // if you want app always keep run in background ,you need call this function to

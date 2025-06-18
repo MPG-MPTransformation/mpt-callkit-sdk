@@ -17,6 +17,7 @@ class LocalViewController: UIViewController {
         super.viewWillAppear(animated)
         print("LocalViewController - viewWillAppear")
         if !isVideoInitialized {
+            mCameraDeviceId = 1
             initializeLocalVideo()
         }
     }

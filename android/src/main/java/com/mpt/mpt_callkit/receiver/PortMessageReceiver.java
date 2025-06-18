@@ -63,33 +63,36 @@ public class PortMessageReceiver extends BroadcastReceiver {
         if (broadcastReceiver != null) {
             String primaryName = getListenerName(broadcastReceiver, "Primary");
             System.out
-                    .println("quanth: PortMessageReceiver onReceive - using primary broadcastReceiver: " + primaryName);
+                    .println("SDK-Android: PortMessageReceiver onReceive - using primary broadcastReceiver: "
+                            + primaryName);
             try {
                 broadcastReceiver.onBroadcastReceiver(intent);
                 handled = true;
             } catch (Exception e) {
-                System.out.println("quanth: PortMessageReceiver onReceive - primary listener error: " + e.getMessage());
+                System.out.println(
+                        "SDK-Android: PortMessageReceiver onReceive - primary listener error: " + e.getMessage());
             }
         }
 
         // If primary receiver is null or failed, try persistent listeners first
         if (!handled && !persistentListeners.isEmpty()) {
-            System.out.println("quanth: PortMessageReceiver onReceive - using persistent listeners ("
+            System.out.println("SDK-Android: PortMessageReceiver onReceive - using persistent listeners ("
                     + persistentListeners.size() + " available)");
             for (TaggedListener taggedListener : persistentListeners) {
                 if (taggedListener.listener != null) {
                     try {
                         System.out.println(
-                                "quanth: PortMessageReceiver onReceive - trying persistent listener: "
+                                "SDK-Android: PortMessageReceiver onReceive - trying persistent listener: "
                                         + taggedListener.getName());
                         taggedListener.listener.onBroadcastReceiver(intent);
                         handled = true;
                         System.out.println(
-                                "quanth: PortMessageReceiver onReceive - persistent listener handled successfully");
+                                "SDK-Android: PortMessageReceiver onReceive - persistent listener handled successfully");
                         break;
                     } catch (Exception e) {
                         System.out.println(
-                                "quanth: PortMessageReceiver onReceive - persistent listener error: " + e.getMessage());
+                                "SDK-Android: PortMessageReceiver onReceive - persistent listener error: "
+                                        + e.getMessage());
                     }
                 }
             }
@@ -97,7 +100,7 @@ public class PortMessageReceiver extends BroadcastReceiver {
 
         // If still not handled, try temporary listeners
         if (!handled && !temporaryListeners.isEmpty()) {
-            System.out.println("quanth: PortMessageReceiver onReceive - using temporary listeners ("
+            System.out.println("SDK-Android: PortMessageReceiver onReceive - using temporary listeners ("
                     + temporaryListeners.size() + " available)");
             Iterator<WeakReference<BroadcastListener>> iterator = temporaryListeners.iterator();
             while (iterator.hasNext()) {
@@ -108,15 +111,17 @@ public class PortMessageReceiver extends BroadcastReceiver {
                     try {
                         String listenerName = getListenerName(listener, "Temporary");
                         System.out.println(
-                                "quanth: PortMessageReceiver onReceive - trying temporary listener: " + listenerName);
+                                "SDK-Android: PortMessageReceiver onReceive - trying temporary listener: "
+                                        + listenerName);
                         listener.onBroadcastReceiver(intent);
                         handled = true;
                         System.out.println(
-                                "quanth: PortMessageReceiver onReceive - temporary listener handled successfully");
+                                "SDK-Android: PortMessageReceiver onReceive - temporary listener handled successfully");
                         break;
                     } catch (Exception e) {
                         System.out.println(
-                                "quanth: PortMessageReceiver onReceive - temporary listener error: " + e.getMessage());
+                                "SDK-Android: PortMessageReceiver onReceive - temporary listener error: "
+                                        + e.getMessage());
                         // Remove invalid listener
                         iterator.remove();
                     }
@@ -128,14 +133,15 @@ public class PortMessageReceiver extends BroadcastReceiver {
         }
 
         if (!handled) {
-            System.out.println("quanth: PortMessageReceiver onReceive broadcastReceiver is null - no active listeners");
+            System.out.println(
+                    "SDK-Android: PortMessageReceiver onReceive broadcastReceiver is null - no active listeners");
             String primaryName = getListenerName(broadcastReceiver, "Primary");
-            System.out.println("quanth: PortMessageReceiver - Primary receiver: " + primaryName);
-            System.out.println("quanth: PortMessageReceiver - Persistent listeners: " + persistentListeners.size()
+            System.out.println("SDK-Android: PortMessageReceiver - Primary receiver: " + primaryName);
+            System.out.println("SDK-Android: PortMessageReceiver - Persistent listeners: " + persistentListeners.size()
                     + ", Temporary listeners: " + temporaryListeners.size());
             // Log the intent for debugging
             if (intent != null) {
-                System.out.println("quanth: PortMessageReceiver - unhandled intent action: " + intent.getAction());
+                System.out.println("SDK-Android: PortMessageReceiver - unhandled intent action: " + intent.getAction());
             }
         }
     }
@@ -159,14 +165,14 @@ public class PortMessageReceiver extends BroadcastReceiver {
 
         // Check if listener with the same tag already exists
         if (hasPersistentListenerWithTag(listenerTag)) {
-            System.out.println("quanth: PortMessageReceiver - persistent listener with tag '" + listenerTag
+            System.out.println("SDK-Android: PortMessageReceiver - persistent listener with tag '" + listenerTag
                     + "' already exists, skipping");
             return;
         }
 
         TaggedListener taggedListener = new TaggedListener(listener, listenerTag);
         persistentListeners.add(taggedListener);
-        System.out.println("quanth: PortMessageReceiver - added persistent listener: " + taggedListener.getName()
+        System.out.println("SDK-Android: PortMessageReceiver - added persistent listener: " + taggedListener.getName()
                 + ", total persistent: " + persistentListeners.size());
     }
 
@@ -191,13 +197,13 @@ public class PortMessageReceiver extends BroadcastReceiver {
             TaggedListener taggedListener = iterator.next();
             if (taggedListener.tag.equals(tag)) {
                 iterator.remove();
-                System.out.println("quanth: PortMessageReceiver - removed persistent listener by tag: " + tag
+                System.out.println("SDK-Android: PortMessageReceiver - removed persistent listener by tag: " + tag
                         + ", remaining: " + persistentListeners.size());
                 return;
             }
         }
         System.out.println(
-                "quanth: PortMessageReceiver - persistent listener with tag '" + tag + "' not found for removal");
+                "SDK-Android: PortMessageReceiver - persistent listener with tag '" + tag + "' not found for removal");
     }
 
     /**
@@ -219,13 +225,13 @@ public class PortMessageReceiver extends BroadcastReceiver {
         if (containsTemporaryListener(listener)) {
             String listenerName = getListenerName(listener, tag);
             System.out.println(
-                    "quanth: PortMessageReceiver - temporary listener already exists, skipping: " + listenerName);
+                    "SDK-Android: PortMessageReceiver - temporary listener already exists, skipping: " + listenerName);
             return;
         }
 
         temporaryListeners.add(new WeakReference<>(listener));
         String listenerName = getListenerName(listener, tag);
-        System.out.println("quanth: PortMessageReceiver - added temporary listener: " + listenerName
+        System.out.println("SDK-Android: PortMessageReceiver - added temporary listener: " + listenerName
                 + ", total temporary: " + temporaryListeners.size());
     }
 
@@ -253,7 +259,7 @@ public class PortMessageReceiver extends BroadcastReceiver {
             TaggedListener taggedListener = persistentIterator.next();
             if (taggedListener.listener == listener) {
                 persistentIterator.remove();
-                System.out.println("quanth: PortMessageReceiver - removed persistent listener: " + listenerName
+                System.out.println("SDK-Android: PortMessageReceiver - removed persistent listener: " + listenerName
                         + ", remaining persistent: " + persistentListeners.size());
                 removed = true;
                 break;
@@ -269,7 +275,7 @@ public class PortMessageReceiver extends BroadcastReceiver {
             if (existingListener == null || existingListener == listener) {
                 iterator.remove();
                 if (existingListener == listener) {
-                    System.out.println("quanth: PortMessageReceiver - removed temporary listener: " + listenerName
+                    System.out.println("SDK-Android: PortMessageReceiver - removed temporary listener: " + listenerName
                             + ", remaining temporary: " + temporaryListeners.size());
                     removed = true;
                 }
@@ -277,7 +283,7 @@ public class PortMessageReceiver extends BroadcastReceiver {
         }
 
         if (!removed) {
-            System.out.println("quanth: PortMessageReceiver - listener not found for removal: " + listenerName);
+            System.out.println("SDK-Android: PortMessageReceiver - listener not found for removal: " + listenerName);
         }
     }
 
@@ -292,7 +298,7 @@ public class PortMessageReceiver extends BroadcastReceiver {
 
         this.broadcastReceiver = listener;
         String listenerName = getListenerName(listener, "Primary");
-        System.out.println("quanth: PortMessageReceiver - set primary receiver: " + listenerName);
+        System.out.println("SDK-Android: PortMessageReceiver - set primary receiver: " + listenerName);
     }
 
     /**
@@ -327,7 +333,7 @@ public class PortMessageReceiver extends BroadcastReceiver {
         }
 
         if (removedCount > 0) {
-            System.out.println("quanth: PortMessageReceiver - cleaned up " + removedCount
+            System.out.println("SDK-Android: PortMessageReceiver - cleaned up " + removedCount
                     + " stale temporary references, remaining: " + temporaryListeners.size());
         }
     }
@@ -358,7 +364,7 @@ public class PortMessageReceiver extends BroadcastReceiver {
         persistentListeners.clear();
         temporaryListeners.clear();
 
-        System.out.println("quanth: PortMessageReceiver - cleared " + persistentCount + " persistent and "
+        System.out.println("SDK-Android: PortMessageReceiver - cleared " + persistentCount + " persistent and "
                 + temporaryCount + " temporary listeners");
     }
 

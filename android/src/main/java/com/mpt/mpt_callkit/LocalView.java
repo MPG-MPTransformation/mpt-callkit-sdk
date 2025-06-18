@@ -62,7 +62,7 @@ public class LocalView implements PlatformView {
             // Giải phóng receiver nếu cần
             if (receiver != null && receiver.broadcastReceiver != null) {
                 receiver.broadcastReceiver = null;
-                System.out.println("quanth: broadcastReceiver - local_view - set null");
+                System.out.println("SDK-Android: broadcastReceiver - local_view - set null");
             }
         } catch (Exception e) {
             System.out.println("Error disposing LocalView: " + e.getMessage());
@@ -74,15 +74,15 @@ public class LocalView implements PlatformView {
         Session cur = CallManager.Instance().getCurrentSession();
 
         if (Engine.Instance().mConference) {
-            System.out.println("quanth: application.mConference = true && setConferenceVideoWindow");
+            System.out.println("SDK-Android: application.mConference = true && setConferenceVideoWindow");
         } else {
-            System.out.println("quanth: application.mConference = false");
+            System.out.println("SDK-Android: application.mConference = false");
 
             if (cur != null && !cur.IsIdle() && cur.sessionID != -1) {
                 // Kiểm tra xem video có bị mute không
                 if (cur.bMuteVideo) {
                     // Nếu video bị mute, ẩn local view
-                    System.out.println("quanth: Video is muted, hiding local view");
+                    System.out.println("SDK-Android: Video is muted, hiding local view");
                     if (localRenderVideoView != null) {
                         localRenderVideoView.setVisibility(View.GONE);
                     }
@@ -90,7 +90,7 @@ public class LocalView implements PlatformView {
                     portSipLib.displayLocalVideo(false, Engine.Instance().mUseFrontCamera, null);
                 } else {
                     // Nếu video không bị mute, hiển thị local view
-                    System.out.println("quanth: Video is not muted, showing local view");
+                    System.out.println("SDK-Android: Video is not muted, showing local view");
                     if (localRenderVideoView != null) {
                         localRenderVideoView.setVisibility(View.VISIBLE);
                     }
@@ -99,7 +99,7 @@ public class LocalView implements PlatformView {
                 }
             } else {
                 // Không có cuộc gọi đang diễn ra, tắt video
-                System.out.println("quanth: No active call, hide local view");
+                System.out.println("SDK-Android: No active call, hide local view");
                 if (localRenderVideoView != null) {
                     localRenderVideoView.setVisibility(View.GONE);
                 }
@@ -118,10 +118,10 @@ public class LocalView implements PlatformView {
                 }
             };
 
-            System.out
-                    .println("quanth: broadcastReceiver - local_view - set: " + receiver.broadcastReceiver.toString());
+            System.out.println("SDK-Android: broadcastReceiver - local_view - set: "
+                    + receiver.broadcastReceiver.toString());
         } else {
-            System.out.println("quanth: broadcastReceiver - local_view - set null ");
+            System.out.println("SDK-Android: broadcastReceiver - local_view - set null ");
         }
     }
 

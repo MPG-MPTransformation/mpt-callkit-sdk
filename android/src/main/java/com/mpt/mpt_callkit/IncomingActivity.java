@@ -40,7 +40,7 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        System.out.println("quanth: IncomingActivity - onCreate");
+        System.out.println("SDK-Android: IncomingActivity - onCreate");
 
         setContentView(R.layout.incomingview);
         final Window win = getWindow();
@@ -65,28 +65,29 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
             filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
             filter.addAction(PortSipService.CALL_CHANGE_ACTION);
             filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
-            System.out.println("quanth: IncomingActivity - Registering broadcast receiver (using Engine's receiver)");
+            System.out.println(
+                    "SDK-Android: IncomingActivity - Registering broadcast receiver (using Engine's receiver)");
 
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
-                    System.out.println("quanth: IncomingActivity - Registered with RECEIVER_NOT_EXPORTED flag");
+                    System.out.println("SDK-Android: IncomingActivity - Registered with RECEIVER_NOT_EXPORTED flag");
                 } else {
                     registerReceiver(receiver, filter);
-                    System.out.println("quanth: IncomingActivity - Registered without flag");
+                    System.out.println("SDK-Android: IncomingActivity - Registered without flag");
                 }
                 isReceiverRegistered = true;
             } catch (Exception e) {
-                System.out.println("quanth: IncomingActivity - Error registering receiver: " + e.getMessage());
+                System.out.println("SDK-Android: IncomingActivity - Error registering receiver: " + e.getMessage());
                 isReceiverRegistered = false;
             }
         } else {
-            System.out.println("quanth: IncomingActivity - Receiver already registered or is null");
+            System.out.println("SDK-Android: IncomingActivity - Receiver already registered or is null");
         }
 
         // Set as primary receiver and add as backup
         receiver.setPrimaryReceiver(this);
-        System.out.println("quanth: broadcastReceiver - IncomingActivity - set as primary: " + this.toString());
+        System.out.println("SDK-Android: broadcastReceiver - IncomingActivity - set as primary: " + this.toString());
 
         Intent intent = getIntent();
 
@@ -95,16 +96,16 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
         btnVideo.setOnClickListener(this);
 
         sessionId = intent.getLongExtra(EXTRA_CALL_SEESIONID, PortSipErrorcode.INVALID_SESSION_ID);
-        System.out.println("quanth: IncomingActivity - Received sessionId: " + sessionId);
+        System.out.println("SDK-Android: IncomingActivity - Received sessionId: " + sessionId);
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
         if (sessionId == PortSipErrorcode.INVALID_SESSION_ID || session == null
                 || session.state != Session.CALL_STATE_FLAG.INCOMING) {
-            System.out.println("quanth: IncomingActivity - Invalid session, finishing activity");
+            System.out.println("SDK-Android: IncomingActivity - Invalid session, finishing activity");
             this.finish();
             return;
         }
 
-        System.out.println("quanth: IncomingActivity - Setting up for call from: " + session.remote);
+        System.out.println("SDK-Android: IncomingActivity - Setting up for call from: " + session.remote);
         tvTips.setText(session.lineName + "   " + session.remote);
         setVideoAnswerVisibility(session);
     }
@@ -128,7 +129,7 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
 
         // Ensure receiver is still registered
         if (receiver != null && !isReceiverRegistered) {
-            System.out.println("quanth: IncomingActivity - Receiver lost in onResume, attempting to re-register");
+            System.out.println("SDK-Android: IncomingActivity - Receiver lost in onResume, attempting to re-register");
             // Re-register if needed
             IntentFilter filter = new IntentFilter();
             filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
@@ -142,10 +143,11 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
                     registerReceiver(receiver, filter);
                 }
                 isReceiverRegistered = true;
-                System.out.println("quanth: IncomingActivity - Re-registered receiver in onResume");
+                System.out.println("SDK-Android: IncomingActivity - Re-registered receiver in onResume");
             } catch (Exception e) {
                 System.out.println(
-                        "quanth: IncomingActivity - Error re-registering receiver in onResume: " + e.getMessage());
+                        "SDK-Android: IncomingActivity - Error re-registering receiver in onResume: "
+                                + e.getMessage());
             }
         }
     }
@@ -166,26 +168,28 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
             if (receiver.broadcastReceiver == this) {
                 receiver.broadcastReceiver = null;
             }
-            System.out.println("quanth: IncomingActivity - Removed as listener on destroy");
+            System.out.println("SDK-Android: IncomingActivity - Removed as listener on destroy");
 
             // Only unregister if this activity registered the receiver
             if (isReceiverRegistered) {
                 try {
                     unregisterReceiver(receiver);
                     isReceiverRegistered = false;
-                    System.out.println("quanth: IncomingActivity - Unregistered receiver successfully");
+                    System.out.println("SDK-Android: IncomingActivity - Unregistered receiver successfully");
                 } catch (IllegalArgumentException e) {
-                    System.out.println("quanth: IncomingActivity - Receiver was not registered: " + e.getMessage());
+                    System.out
+                            .println("SDK-Android: IncomingActivity - Receiver was not registered: " + e.getMessage());
                     isReceiverRegistered = false;
                 } catch (Exception e) {
-                    System.out.println("quanth: IncomingActivity - Error unregistering receiver: " + e.getMessage());
+                    System.out.println(
+                            "SDK-Android: IncomingActivity - Error unregistering receiver: " + e.getMessage());
                     isReceiverRegistered = false;
                 }
             } else {
-                System.out.println("quanth: IncomingActivity - Receiver was not registered by this activity");
+                System.out.println("SDK-Android: IncomingActivity - Receiver was not registered by this activity");
             }
         } else {
-            System.out.println("quanth: IncomingActivity - Receiver is null, nothing to unregister");
+            System.out.println("SDK-Android: IncomingActivity - Receiver is null, nothing to unregister");
         }
 
         startActivity(new Intent(this, MainActivity.class));
@@ -193,38 +197,39 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
 
     @Override
     public void onBroadcastReceiver(Intent intent) {
-        System.out.println("quanth: IncomingActivity - onBroadcastReceiver received intent");
+        System.out.println("SDK-Android: IncomingActivity - onBroadcastReceiver received intent");
         String action = intent.getAction();
-        System.out.println("quanth: IncomingActivity - Action: " + action);
+        System.out.println("SDK-Android: IncomingActivity - Action: " + action);
 
         if (PortSipService.CALL_CHANGE_ACTION.equals(action)) {
             long sessionId = intent.getLongExtra(EXTRA_CALL_SEESIONID, Session.INVALID_SESSION_ID);
             String status = intent.getStringExtra(PortSipService.EXTRA_CALL_DESCRIPTION);
             System.out.println(
-                    "quanth: IncomingActivity - CALL_CHANGE_ACTION - sessionId: " + sessionId + ", status: " + status);
+                    "SDK-Android: IncomingActivity - CALL_CHANGE_ACTION - sessionId: " + sessionId + ", status: "
+                            + status);
 
             Session session = CallManager.Instance().findSessionBySessionID(sessionId);
             if (session != null) {
-                System.out.println("quanth: IncomingActivity - Session state: " + session.state);
+                System.out.println("SDK-Android: IncomingActivity - Session state: " + session.state);
                 switch (session.state) {
                     case INCOMING:
-                        System.out.println("quanth: IncomingActivity - Call state: INCOMING");
+                        System.out.println("SDK-Android: IncomingActivity - Call state: INCOMING");
                         break;
                     case TRYING:
-                        System.out.println("quanth: IncomingActivity - Call state: TRYING");
+                        System.out.println("SDK-Android: IncomingActivity - Call state: TRYING");
                         break;
                     case CONNECTED:
-                        System.out.println("quanth: IncomingActivity - Call state: CONNECTED");
+                        System.out.println("SDK-Android: IncomingActivity - Call state: CONNECTED");
                     case FAILED:
-                        System.out.println("quanth: IncomingActivity - Call state: FAILED");
+                        System.out.println("SDK-Android: IncomingActivity - Call state: FAILED");
                     case CLOSED:
-                        System.out.println("quanth: IncomingActivity - Call state: CLOSED");
+                        System.out.println("SDK-Android: IncomingActivity - Call state: CLOSED");
                         Session anOthersession = CallManager.Instance().findIncomingCall();
                         if (anOthersession == null) {
-                            System.out.println("quanth: IncomingActivity - No other incoming call, finishing");
+                            System.out.println("SDK-Android: IncomingActivity - No other incoming call, finishing");
                             this.finish();
                         } else {
-                            System.out.println("quanth: IncomingActivity - Found another incoming call: "
+                            System.out.println("SDK-Android: IncomingActivity - Found another incoming call: "
                                     + anOthersession.sessionID);
                             setVideoAnswerVisibility(anOthersession);
                             tvTips.setText(anOthersession.lineName + "   " + anOthersession.remote);
@@ -234,7 +239,7 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
 
                 }
             } else {
-                System.out.println("quanth: IncomingActivity - Session is null for sessionId: " + sessionId);
+                System.out.println("SDK-Android: IncomingActivity - Session is null for sessionId: " + sessionId);
             }
         }
     }

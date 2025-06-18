@@ -34,21 +34,21 @@ public class Engine {
             receiver.addPersistentListener(new PortMessageReceiver.BroadcastListener() {
                 @Override
                 public void onBroadcastReceiver(Intent intent) {
-                    System.out.println("quanth: Engine - Persistent fallback listener handling broadcast");
+                    System.out.println("SDK-Android: Engine - Persistent fallback listener handling broadcast");
                     if (intent != null) {
                         String action = intent.getAction();
-                        System.out.println("quanth: Engine - Fallback handling action: " + action);
+                        System.out.println("SDK-Android: Engine - Fallback handling action: " + action);
 
                         // Basic handling for critical actions
                         if ("PortSip.AndroidSample.Test.CallStatusChagnge".equals(action)) {
-                            System.out.println("quanth: Engine - Fallback handling call status change");
+                            System.out.println("SDK-Android: Engine - Fallback handling call status change");
                         } else if ("PortSip.AndroidSample.Test.RegisterStatusChagnge".equals(action)) {
-                            System.out.println("quanth: Engine - Fallback handling register status change");
+                            System.out.println("SDK-Android: Engine - Fallback handling register status change");
                         }
                     }
                 }
             }, "EngineFallback");
-            System.out.println("quanth: Engine - Added persistent fallback listener to receiver, listeners info: "
+            System.out.println("SDK-Android: Engine - Added persistent fallback listener to receiver, listeners info: "
                     + receiver.getListenersInfo());
         }
     }
@@ -63,7 +63,8 @@ public class Engine {
             // The getListenersCount() method already triggers cleanup
             int newCount = receiver.getListenersCount();
             if (oldCount != newCount) {
-                System.out.println("quanth: Engine - Cleaned up receiver, listeners: " + oldCount + " -> " + newCount);
+                System.out.println(
+                        "SDK-Android: Engine - Cleaned up receiver, listeners: " + oldCount + " -> " + newCount);
             }
         }
     }

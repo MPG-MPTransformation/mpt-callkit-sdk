@@ -75,7 +75,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         countDownTimer = new CountDownTimer(30000, 1000) {
 
             public void onTick(long millisUntilFinished) {
-                System.out.println("quanth: seconds remaining: " + millisUntilFinished / 1000);
+                System.out.println("SDK-Android: seconds remaining: " + millisUntilFinished / 1000);
             }
 
             public void onFinish() {
@@ -103,20 +103,20 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, Bundle savedInstanceState) {
-        System.out.println("quanth: video onCreateView");
+        System.out.println("SDK-Android: video onCreateView");
         super.onCreateView(inflater, container, savedInstanceState);
         activity = (MainActivity) getActivity();
 
         // Use the new setPrimaryReceiver method for better management
         Engine.Instance().getReceiver().setPrimaryReceiver(this);
-        System.out.println("quanth: broadcastReceiver - VideoFragment onCreateView - set: " + this.toString());
+        System.out.println("SDK-Android: broadcastReceiver - VideoFragment onCreateView - set: " + this.toString());
 
         return inflater.inflate(R.layout.video, container, false);
     }
 
     @Override
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
-        System.out.println("quanth: video onViewCreated");
+        System.out.println("SDK-Android: video onViewCreated");
         super.onViewCreated(view, savedInstanceState);
         imgSwitchCamera = (ImageButton) view.findViewById(R.id.ibcamera);
         imgScaleType = (ImageButton) view.findViewById(R.id.ibscale);
@@ -158,7 +158,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         remoteRenderScreen.setScalingType(scalingType);
         PortSipSdk portSipLib = Engine.Instance().getEngine();
         Session currentLine = CallManager.Instance().getCurrentSession();
-        System.out.println("quanth: video updateVideo onViewCreated");
+        System.out.println("SDK-Android: video updateVideo onViewCreated");
         updateVideo(portSipLib);
         startTimer(portSipLib, currentLine);
 
@@ -181,7 +181,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
 
     @Override
     public void onDestroyView() {
-        System.out.println("quanth: video onDestroyView");
+        System.out.println("SDK-Android: video onDestroyView");
         super.onDestroyView();
 
         // Remove this fragment as a listener when being destroyed
@@ -190,7 +190,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         if (Engine.Instance().getReceiver().broadcastReceiver == this) {
             Engine.Instance().getReceiver().broadcastReceiver = null;
         }
-        System.out.println("quanth: broadcastReceiver - VideoFragment onDestroyView - removed listener");
+        System.out.println("SDK-Android: broadcastReceiver - VideoFragment onDestroyView - removed listener");
 
         PortSipSdk portSipLib = Engine.Instance().getEngine();
         if (localRenderScreen != null) {
@@ -219,7 +219,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
 
     @Override
     public void onHiddenChanged(boolean hidden) {
-        System.out.println("quanth: video onHiddenChanged");
+        System.out.println("SDK-Android: video onHiddenChanged");
         super.onHiddenChanged(hidden);
 
         if (hidden) {
@@ -231,9 +231,9 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             if (Engine.Instance().getReceiver().broadcastReceiver == this) {
                 Engine.Instance().getReceiver().broadcastReceiver = null;
             }
-            System.out.println("quanth: broadcastReceiver - VideoFragment hidden - removed from primary");
+            System.out.println("SDK-Android: broadcastReceiver - VideoFragment hidden - removed from primary");
         } else {
-            System.out.println("quanth: video updateVideo onHiddenChanged");
+            System.out.println("SDK-Android: video updateVideo onHiddenChanged");
             updateVideo(Engine.Instance().getEngine());
 
             // Set as primary receiver when shown
@@ -244,17 +244,18 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             initializeAudioDevice();
 
             System.out.println(
-                    "quanth: broadcastReceiver - VideoFragment onHiddenChanged - set as primary: " + this.toString());
+                    "SDK-Android: broadcastReceiver - VideoFragment onHiddenChanged - set as primary: "
+                            + this.toString());
         }
     }
 
     @Override
     public void onClick(View v) {
-        System.out.println("quanth: video onClick");
+        System.out.println("SDK-Android: video onClick");
         PortSipSdk portSipLib = Engine.Instance().getEngine();
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (v.getId() == R.id.ibcamera) {
-            System.out.println("quanth: cameraState: " + Engine.Instance().mUseFrontCamera);
+            System.out.println("SDK-Android: cameraState: " + Engine.Instance().mUseFrontCamera);
             if (Engine.Instance().mUseFrontCamera) {
                 imgSwitchCamera.setImageResource(R.drawable.flip_camera_behind);
             } else {
@@ -262,7 +263,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             }
             Engine.Instance().mUseFrontCamera = !Engine.Instance().mUseFrontCamera;
             setCamera(portSipLib, Engine.Instance().mUseFrontCamera);
-            System.out.println("quanth: cameraState: " + Engine.Instance().mUseFrontCamera);
+            System.out.println("SDK-Android: cameraState: " + Engine.Instance().mUseFrontCamera);
         } else if (v.getId() == R.id.share_video_view) {
             shareInSmall = !shareInSmall;
             updateVideo(portSipLib);
@@ -305,11 +306,11 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             if (!currentLine.hasVideo) {
                 // Gửi video từ camera
                 int sendVideoRes = Engine.Instance().getEngine().sendVideo(currentLine.sessionID, true);
-                System.out.println("quanth: sendVideo: " + sendVideoRes);
+                System.out.println("SDK-Android: sendVideo: " + sendVideoRes);
 
                 // Cập nhật cuộc gọi để thêm video stream
                 int updateRes = Engine.Instance().getEngine().updateCall(currentLine.sessionID, true, true);
-                System.out.println("quanth: updateCall(): " + updateRes);
+                System.out.println("SDK-Android: updateCall(): " + updateRes);
             }
             MptCallkitPlugin.toggleCameraOn(currentLine.bMuteVideo);
             updateCameraView(currentLine.bMuteVideo);
@@ -358,14 +359,14 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
     }
 
     private void setCamera(PortSipSdk portSipLib, boolean userFront) {
-        System.out.println("quanth: video SetCamera - userFront: " + userFront);
+        System.out.println("SDK-Android: video SetCamera - userFront: " + userFront);
         int deviceId = userFront ? 1 : 0;
         portSipLib.setVideoDeviceId(deviceId);
         portSipLib.displayLocalVideo(true, userFront, localRenderScreen);
     }
 
     private void stopVideo(PortSipSdk portSipLib) {
-        System.out.println("quanth: video stopVideo");
+        System.out.println("SDK-Android: video stopVideo");
         Session cur = CallManager.Instance().getCurrentSession();
         if (portSipLib != null) {
             portSipLib.displayLocalVideo(false, false, null);
@@ -378,10 +379,10 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         CallManager callManager = CallManager.Instance();
         Session cur = CallManager.Instance().getCurrentSession();
         if (Engine.Instance().mConference) {
-            System.out.println("quanth: application.mConference = true && setConferenceVideoWindow");
+            System.out.println("SDK-Android: application.mConference = true && setConferenceVideoWindow");
             callManager.setConferenceVideoWindow(portSipLib, remoteRenderScreen);
         } else {
-            System.out.println("quanth: application.mConference = false");
+            System.out.println("SDK-Android: application.mConference = false");
             if (cur != null && !cur.IsIdle()
                     && cur.sessionID != PortSipErrorcode.INVALID_SESSION_ID) {
                 imgSwitchCamera.setVisibility(View.VISIBLE);
@@ -445,7 +446,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
 
     @Override
     public void onBroadcastReceiver(Intent intent) {
-        System.out.println("quanth: video onBroadcastReceiver activated");
+        System.out.println("SDK-Android: video onBroadcastReceiver activated");
         PortSipSdk portSipLib = Engine.Instance().getEngine();
         Session currentLine = CallManager.Instance().getCurrentSession();
         String action = intent == null ? "" : intent.getAction();
@@ -456,7 +457,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             if (session != null) {
                 switch (session.state) {
                     case CLOSED:
-                        System.out.println("quanth: video onBroadcastReceiver CLOSED");
+                        System.out.println("SDK-Android: video onBroadcastReceiver CLOSED");
                         // /// Tat cuoc goi
                         // portSipLib.hangUp(currentLine.sessionID);
                         // currentLine.Reset();
@@ -474,7 +475,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                     case INCOMING:
                         break;
                     case TRYING:
-                        System.out.println("quanth: video updateVideo TRYING");
+                        System.out.println("SDK-Android: video updateVideo TRYING");
                         updateVideo(Engine.Instance().getEngine());
                         break;
                     case CONNECTED:
@@ -491,11 +492,11 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                         } else {
                             llLocalView.setVisibility(View.GONE);
                         }
-                        System.out.println("quanth: video updateVideo CONNECTED");
+                        System.out.println("SDK-Android: video updateVideo CONNECTED");
                         updateVideo(Engine.Instance().getEngine());
                         break;
                     case FAILED:
-                        System.out.println("quanth: video updateVideo FAILED");
+                        System.out.println("SDK-Android: video updateVideo FAILED");
                         // /// tắt cuộc gọi nếu người dùng cúp máy không nghe
                         // portSipLib.hangUp(currentLine.sessionID);
                         // currentLine.Reset();
@@ -512,7 +513,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                 }
             }
         } else if (PortSipService.REGISTER_CHANGE_ACTION.equals(action)) {
-            System.out.println("quanth: REGISTER_CHANGE_ACTION - login");
+            System.out.println("SDK-Android: REGISTER_CHANGE_ACTION - login");
         }
     }
 
@@ -607,12 +608,12 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             // If bluetooth is available, set it as default
             CallManager.Instance().setAudioDevice(portSipLib, PortSipEnumDefine.AudioDevice.BLUETOOTH);
             updateMuteIcon(PortSipEnumDefine.AudioDevice.BLUETOOTH);
-            System.out.println("quanth: VideoFragment - Initialized with BLUETOOTH audio device");
+            System.out.println("SDK-Android: VideoFragment - Initialized with BLUETOOTH audio device");
         } else {
             // If no bluetooth, set earpiece as default
             CallManager.Instance().setAudioDevice(portSipLib, PortSipEnumDefine.AudioDevice.EARPIECE);
             updateMuteIcon(PortSipEnumDefine.AudioDevice.EARPIECE);
-            System.out.println("quanth: VideoFragment - Initialized with EARPIECE audio device");
+            System.out.println("SDK-Android: VideoFragment - Initialized with EARPIECE audio device");
         }
     }
 
@@ -670,7 +671,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                 imgMute.setImageResource(R.drawable.volume_on); // Default icon
                 break;
         }
-        System.out.println("quanth: VideoFragment - Updated mute icon for audio device: " + audioDevice);
+        System.out.println("SDK-Android: VideoFragment - Updated mute icon for audio device: " + audioDevice);
     }
 
 }
