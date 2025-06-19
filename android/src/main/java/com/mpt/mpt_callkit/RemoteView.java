@@ -19,8 +19,7 @@ public class RemoteView implements PlatformView {
     private final FrameLayout containerView;
     private PortSIPVideoRenderer remoteRenderVideoView;
     private PortMessageReceiver receiver;
-    CallManager callManager = CallManager.Instance();
-    ;
+    CallManager callManager = CallManager.Instance();;
 
     public RemoteView(Context context, int viewId) {
 
@@ -32,8 +31,7 @@ public class RemoteView implements PlatformView {
 
         containerView.setLayoutParams(new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-        ));
+                FrameLayout.LayoutParams.MATCH_PARENT));
 
         remoteRenderVideoView = containerView.findViewById(R.id.remote_video_view);
 
@@ -57,16 +55,17 @@ public class RemoteView implements PlatformView {
             if (Engine.Instance() != null && Engine.Instance().getEngine() != null) {
                 CallManager.Instance().setRemoteVideoWindow(Engine.Instance().getEngine(), -1, null);
             }
-            
+
             // Giải phóng renderer
             if (remoteRenderVideoView != null) {
                 remoteRenderVideoView.release();
                 remoteRenderVideoView = null;
             }
-            
+
             // Giải phóng receiver nếu cần
             if (receiver != null && receiver.broadcastReceiver != null) {
                 receiver.broadcastReceiver = null;
+                System.out.println("SDK-Android: broadcastReceiver - remote_view - set null");
             }
         } catch (Exception e) {
             System.out.println("Error disposing RemoteView: " + e.getMessage());
@@ -75,24 +74,33 @@ public class RemoteView implements PlatformView {
 
     private void setupReceiver() {
         // Thêm xử lý sự kiện broadcast
-        receiver.broadcastReceiver = new PortMessageReceiver.BroadcastListener() {
-            @Override
-            public void onBroadcastReceiver(Intent intent) {
-                handleBroadcastReceiver(intent);
-            }
-        };
+        if (receiver != null) {
+            receiver.broadcastReceiver = new PortMessageReceiver.BroadcastListener() {
+                @Override
+                public void onBroadcastReceiver(Intent intent) {
+                    handleBroadcastReceiver(intent);
+                }
+            };
+            System.out.println(
+                    "SDK-Android: broadcastReceiver - remote_view - set: " + receiver.broadcastReceiver.toString());
+        } else {
+            System.out.println("SDK-Android: broadcastReceiver - remote_view - set null ");
+        }
     }
 
     private void handleBroadcastReceiver(Intent intent) {
         try {
-            if (intent == null) return;
-            
+            if (intent == null)
+                return;
+
             PortSipSdk portSipLib = Engine.Instance().getEngine();
-            if (portSipLib == null) return;
-            
+            if (portSipLib == null)
+                return;
+
             Session currentLine = CallManager.Instance().getCurrentSession();
             String action = intent.getAction();
-            if (action == null) return;
+            if (action == null)
+                return;
 
             if (PortSipService.CALL_CHANGE_ACTION.equals(action)) {
                 long sessionId = intent.getLongExtra(PortSipService.EXTRA_CALL_SEESIONID, Session.INVALID_SESSION_ID);
@@ -114,7 +122,7 @@ public class RemoteView implements PlatformView {
                         case FAILED:
                             // Tắt cuộc gọi nếu người dùng cúp máy không nghe
                             if (currentLine != null && currentLine.sessionID > 0) {
-                                portSipLib.hangUp(currentLine.sessionID);
+                                MptCallkitPlugin.hangup();
                                 currentLine.Reset();
                             }
                             break;
@@ -131,18 +139,20 @@ public class RemoteView implements PlatformView {
         Session cur = CallManager.Instance().getCurrentSession();
 
         if (Engine.Instance().mConference) {
-            System.out.println("quanth: application.mConference = true && setConferenceVideoWindow");
+            System.out.println("SDK-Android: application.mConference = true && setConferenceVideoWindow");
             callManager.setConferenceVideoWindow(portSipLib, remoteRenderVideoView);
         } else {
-            System.out.println("quanth: application.mConference = false");
+            System.out.println("SDK-Android: application.mConference = false");
             if (cur != null && !cur.IsIdle() && cur.sessionID != -1) {
                 if (cur.hasVideo) {
+                    System.out.println("SDK-Android: application.mConference = false - cur.hasVideo = true");
                     if (remoteRenderVideoView != null) {
                         remoteRenderVideoView.setVisibility(View.VISIBLE);
                     }
                     callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderVideoView);
                     portSipLib.sendVideo(cur.sessionID, true);
                 } else {
+                    System.out.println("SDK-Android: application.mConference = false - cur.hasVideo = false");
                     if (remoteRenderVideoView != null) {
                         remoteRenderVideoView.setVisibility(View.VISIBLE);
                     }

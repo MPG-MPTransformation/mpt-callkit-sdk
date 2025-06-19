@@ -197,16 +197,9 @@ class MptCallkitAuthMethod {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Debug: Print raw response body
-        print("Raw response body: ${response.body}");
-        print("Response headers: ${response.headers}");
-
         final responseData = convert.jsonDecode(response.body);
         if (responseData != null) {
           if (responseData["success"]) {
-            // Debug: Print encrypted result before decryption
-            print("Encrypted result: ${responseData["result"]}");
-
             var result =
                 convert.jsonDecode(decryptText(responseData["result"]));
             print("CurrentUserInfo: $result");
@@ -247,15 +240,8 @@ class MptCallkitAuthMethod {
       final response = await http.get(Uri.parse(url), headers: headers);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Debug: Print raw response body
-        print("Raw getConfiguration response: ${response.body}");
-        print("Response headers: ${response.headers}");
-
         final responseData = convert.jsonDecode(response.body);
         if (responseData["success"]) {
-          // Debug: Print encrypted result before decryption
-          print("Encrypted configuration result: ${responseData["result"]}");
-
           var result = convert.jsonDecode(decryptText(responseData["result"]));
           print("GetAll: ${result.isNotEmpty}");
           return result;

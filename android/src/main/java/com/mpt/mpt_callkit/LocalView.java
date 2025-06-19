@@ -14,6 +14,7 @@ import com.mpt.mpt_callkit.util.Engine;
 import com.mpt.mpt_callkit.util.Session;
 import com.portsip.PortSIPVideoRenderer;
 import com.portsip.PortSipSdk;
+
 public class LocalView implements PlatformView {
     private final FrameLayout containerView;
     private PortSIPVideoRenderer localRenderVideoView;
@@ -25,12 +26,11 @@ public class LocalView implements PlatformView {
         receiver = Engine.Instance().getReceiver();
 
         containerView = (FrameLayout) LayoutInflater.from(context).inflate(R.layout.local_layout, null);
-        
+
         containerView.setLayoutParams(new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT, 
-            FrameLayout.LayoutParams.MATCH_PARENT
-        ));
-        
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+
         localRenderVideoView = containerView.findViewById(R.id.local_video_view);
 
         portSipLib.displayLocalVideo(true, Engine.Instance().mUseFrontCamera, localRenderVideoView);
@@ -58,10 +58,11 @@ public class LocalView implements PlatformView {
                 localRenderVideoView.release();
                 localRenderVideoView = null;
             }
-            
+
             // Giải phóng receiver nếu cần
             if (receiver != null && receiver.broadcastReceiver != null) {
                 receiver.broadcastReceiver = null;
+                System.out.println("SDK-Android: broadcastReceiver - local_view - set null");
             }
         } catch (Exception e) {
             System.out.println("Error disposing LocalView: " + e.getMessage());
@@ -73,15 +74,15 @@ public class LocalView implements PlatformView {
         Session cur = CallManager.Instance().getCurrentSession();
 
         if (Engine.Instance().mConference) {
-            System.out.println("quanth: application.mConference = true && setConferenceVideoWindow");
+            System.out.println("SDK-Android: application.mConference = true && setConferenceVideoWindow");
         } else {
-            System.out.println("quanth: application.mConference = false");
+            System.out.println("SDK-Android: application.mConference = false");
 
             if (cur != null && !cur.IsIdle() && cur.sessionID != -1) {
                 // Kiểm tra xem video có bị mute không
                 if (cur.bMuteVideo) {
                     // Nếu video bị mute, ẩn local view
-                    System.out.println("quanth: Video is muted, hiding local view");
+                    System.out.println("SDK-Android: Video is muted, hiding local view");
                     if (localRenderVideoView != null) {
                         localRenderVideoView.setVisibility(View.GONE);
                     }
@@ -89,7 +90,7 @@ public class LocalView implements PlatformView {
                     portSipLib.displayLocalVideo(false, Engine.Instance().mUseFrontCamera, null);
                 } else {
                     // Nếu video không bị mute, hiển thị local view
-                    System.out.println("quanth: Video is not muted, showing local view");
+                    System.out.println("SDK-Android: Video is not muted, showing local view");
                     if (localRenderVideoView != null) {
                         localRenderVideoView.setVisibility(View.VISIBLE);
                     }
@@ -98,7 +99,7 @@ public class LocalView implements PlatformView {
                 }
             } else {
                 // Không có cuộc gọi đang diễn ra, tắt video
-                System.out.println("quanth: No active call, hide local view");
+                System.out.println("SDK-Android: No active call, hide local view");
                 if (localRenderVideoView != null) {
                     localRenderVideoView.setVisibility(View.GONE);
                 }
@@ -116,6 +117,11 @@ public class LocalView implements PlatformView {
                     handleBroadcastReceiver(intent);
                 }
             };
+
+            System.out.println("SDK-Android: broadcastReceiver - local_view - set: "
+                    + receiver.broadcastReceiver.toString());
+        } else {
+            System.out.println("SDK-Android: broadcastReceiver - local_view - set null ");
         }
     }
 
@@ -137,7 +143,7 @@ public class LocalView implements PlatformView {
                         break;
                     case FAILED:
                         // Tắt cuộc gọi nếu người dùng cúp máy không nghe
-                        portSipLib.hangUp(currentLine.sessionID);
+                        MptCallkitPlugin.hangup();
                         currentLine.Reset();
                         break;
                 }

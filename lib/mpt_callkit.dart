@@ -1,3 +1,5 @@
+import 'package:mpt_callkit/mpt_callkit_auth_method.dart';
+
 import 'mpt_callkit_platform_interface.dart';
 
 class MptCallkit {

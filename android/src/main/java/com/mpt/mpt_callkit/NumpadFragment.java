@@ -36,18 +36,18 @@ import android.view.ViewGroup;
 import androidx.core.app.ActivityCompat;
 
 public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSelectedListener, View.OnClickListener,
-        CompoundButton.OnCheckedChangeListener ,PortMessageReceiver.BroadcastListener{
+        CompoundButton.OnCheckedChangeListener, PortMessageReceiver.BroadcastListener {
     private EditText etSipNum;
     private TextView tvTips;
     private Spinner spLine;
     CheckBox cbSendVideo, cbRecvVideo, cbConference, cbSendSdp;
     MainActivity activity;
-        AudioDeviceAdapter audioDeviceAdapter;
+    AudioDeviceAdapter audioDeviceAdapter;
 
-        final PortSipEnumDefine.AudioDevice[] audioDevices = new PortSipEnumDefine.AudioDevice[]{PortSipEnumDefine.AudioDevice.EARPIECE
-                , PortSipEnumDefine.AudioDevice.SPEAKER_PHONE
-                , PortSipEnumDefine.AudioDevice.BLUETOOTH,
-                PortSipEnumDefine.AudioDevice.WIRED_HEADSET};
+    final PortSipEnumDefine.AudioDevice[] audioDevices = new PortSipEnumDefine.AudioDevice[] {
+            PortSipEnumDefine.AudioDevice.EARPIECE, PortSipEnumDefine.AudioDevice.SPEAKER_PHONE,
+            PortSipEnumDefine.AudioDevice.BLUETOOTH,
+            PortSipEnumDefine.AudioDevice.WIRED_HEADSET };
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -59,19 +59,19 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        etSipNum =  view.findViewById(R.id.etsipaddress);
-        cbSendSdp =  view.findViewById(R.id.sendSdp);
-        cbConference =  view.findViewById(R.id.conference);
-        cbSendVideo =  view.findViewById(R.id.sendVideo);
-        cbRecvVideo =  view.findViewById(R.id.acceptVideo);
+        etSipNum = view.findViewById(R.id.etsipaddress);
+        cbSendSdp = view.findViewById(R.id.sendSdp);
+        cbConference = view.findViewById(R.id.conference);
+        cbSendVideo = view.findViewById(R.id.sendVideo);
+        cbRecvVideo = view.findViewById(R.id.acceptVideo);
 
-        spLine =  view.findViewById(R.id.sp_lines);
+        spLine = view.findViewById(R.id.sp_lines);
 
-        TableLayout dtmfPad =  view.findViewById(R.id.dtmf_pad);
-        TableLayout functionPad =  view.findViewById(R.id.function_pad);
+        TableLayout dtmfPad = view.findViewById(R.id.dtmf_pad);
+        TableLayout functionPad = view.findViewById(R.id.function_pad);
 
-
-        ArrayAdapter spinnerAdapter = ArrayAdapter.createFromResource(getActivity(), R.array.lines, android.R.layout.simple_list_item_1);
+        ArrayAdapter spinnerAdapter = ArrayAdapter.createFromResource(getActivity(), R.array.lines,
+                android.R.layout.simple_list_item_1);
         spLine.setAdapter(spinnerAdapter);
         spLine.setSelection(CallManager.Instance().CurrentLine);
         spLine.setOnItemSelectedListener(this);
@@ -92,15 +92,15 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
     public void onBroadcastReceiver(Intent intent) {
         String action = intent == null ? "" : intent.getAction();
         if (PortSipService.CALL_CHANGE_ACTION.equals(action)) {
-            	long sessionId = intent.getLongExtra(PortSipService.EXTRA_CALL_SEESIONID, Session.INVALID_SESSION_ID);
-            	String status = intent.getStringExtra(PortSipService.EXTRA_CALL_DESCRIPTION);
-            	showTips(status);
-            }else if(PortSipService.ACTION_SIP_AUDIODEVICE.equals(action)){
-                PortSipEnumDefine.AudioDevice device = CallManager.Instance().getCurrentAudioDevice();
-                audioDeviceAdapter.setSelectalbeAudioDevice(CallManager.Instance().getSelectableAudioDevice());
-                audioDeviceAdapter.notifyDataSetChanged();
-                ((Button)getView().findViewById(R.id.audio_device)).setText(device.toString());
-            }
+            long sessionId = intent.getLongExtra(PortSipService.EXTRA_CALL_SEESIONID, Session.INVALID_SESSION_ID);
+            String status = intent.getStringExtra(PortSipService.EXTRA_CALL_DESCRIPTION);
+            showTips(status);
+        } else if (PortSipService.ACTION_SIP_AUDIODEVICE.equals(action)) {
+            PortSipEnumDefine.AudioDevice device = CallManager.Instance().getCurrentAudioDevice();
+            audioDeviceAdapter.setSelectalbeAudioDevice(CallManager.Instance().getSelectableAudioDevice());
+            audioDeviceAdapter.notifyDataSetChanged();
+            ((Button) getView().findViewById(R.id.audio_device)).setText(device.toString());
+        }
     }
 
     @Override
@@ -109,6 +109,8 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
         if (!hidden) {
             ShowCurrentLineState();
             activity.receiver.broadcastReceiver = this;
+            System.out.println("SDK-Android: broadcastReceiver - NumpadFragment - set: "
+                    + activity.receiver.broadcastReceiver.toString());
             audioDeviceAdapter.setSelectalbeAudioDevice(CallManager.Instance().getSelectableAudioDevice());
         }
     }
@@ -165,7 +167,6 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
             dtmfView.setVisibility(View.INVISIBLE);
         }
     }
-
 
     AlertDialog TransferDLG;
     AlertDialog AttendTransferDLG;
@@ -230,7 +231,7 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
             showTips("current line must be connected ");
             return;
         }
-        EditText transferTo =  TransferDLG.findViewById(R.id.ettransferto);
+        EditText transferTo = TransferDLG.findViewById(R.id.ettransferto);
         String referTo = transferTo.getText().toString();
         if (TextUtils.isEmpty(referTo)) {
             showTips("The transfer number is empty");
@@ -252,8 +253,8 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
             showTips("current line must be connected ");
             return;
         }
-        EditText transferTo =  AttendTransferDLG.findViewById(R.id.ettransferto);
-        EditText transferLine =  AttendTransferDLG.findViewById(R.id.ettransferline);
+        EditText transferTo = AttendTransferDLG.findViewById(R.id.ettransferto);
+        EditText transferLine = AttendTransferDLG.findViewById(R.id.ettransferline);
         String referTo = transferTo.getText().toString();
         if (TextUtils.isEmpty(referTo)) {
             showTips("The transfer number is empty");
@@ -262,7 +263,6 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
         String lineString = transferLine.getText().toString();
 
         int line = Integer.parseInt(lineString);
-
 
         if (line < 0 || line >= CallManager.MAX_LINES) {
             showTips("The replace line out of range");
@@ -296,7 +296,7 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
             return;
         PortSipSdk portSipSdk = Engine.Instance().getEngine();
         Session currentLine = CallManager.Instance().getCurrentSession();
-        if(view.getId() == R.id.zero ||
+        if (view.getId() == R.id.zero ||
                 view.getId() == R.id.one ||
                 view.getId() == R.id.two ||
                 view.getId() == R.id.three ||
@@ -307,8 +307,7 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
                 view.getId() == R.id.eight ||
                 view.getId() == R.id.nine ||
                 view.getId() == R.id.star ||
-                view.getId() == R.id.sharp
-        ) {
+                view.getId() == R.id.sharp) {
             String numberString = ((Button) view).getText().toString();
 
             char number = numberString.charAt(0);
@@ -328,14 +327,14 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
                 portSipSdk.sendDtmf(currentLine.sessionID, PortSipEnumDefine.ENUM_DTMF_MOTHOD_RFC2833, sum,
                         160, true);
             }
-        } else if(view.getId() == R.id.delete) {
+        } else if (view.getId() == R.id.delete) {
             int cursorpos = etSipNum.getSelectionStart();
             if (cursorpos - 1 >= 0) {
                 etSipNum.getText().delete(cursorpos - 1, cursorpos);
             }
-        } else if(view.getId() == R.id.pad) {
+        } else if (view.getId() == R.id.pad) {
             SwitchPanel();
-        } else if(view.getId() == R.id.dial) {
+        } else if (view.getId() == R.id.dial) {
             String callTo = etSipNum.getText().toString();
             if (callTo.length() <= 0) {
                 showTips("The phone number is empty.");
@@ -358,7 +357,7 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
                 showTips("Call failure");
                 return;
             }
-            //default send video
+            // default send video
             portSipSdk.sendVideo(sessionId, true);
 
             currentLine.remote = callTo;
@@ -367,38 +366,45 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
             currentLine.state = Session.CALL_STATE_FLAG.TRYING;
             currentLine.hasVideo = cbSendVideo.isChecked();
             showTips(currentLine.lineName + ": Calling...");
-        } else if(view.getId() == R.id.hangup) {
+        } else if (view.getId() == R.id.hangup) {
             Ring.getInstance(getActivity()).stop();
             switch (currentLine.state) {
                 case INCOMING:
                     portSipSdk.rejectCall(currentLine.sessionID, 486);
                     showTips(currentLine.lineName + ": Rejected call");
+
+                    Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
+                    MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
+                    System.out.println("SDK-Android: callState - " + "CLOSED");
                     break;
                 case CONNECTED:
                 case TRYING:
                     portSipSdk.hangUp(currentLine.sessionID);
-
                     showTips(currentLine.lineName + ": Hang up");
+
+                    Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
+                    MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
+                    System.out.println("SDK-Android: callState - " + "CLOSED");
                     break;
             }
             currentLine.Reset();
-        } else if(view.getId() == R.id.answer) {
+        } else if (view.getId() == R.id.answer) {
             if (currentLine.state != Session.CALL_STATE_FLAG.INCOMING) {
                 showTips("No incoming call on current line, please switch a line.");
                 return;
             }
 
             currentLine.state = Session.CALL_STATE_FLAG.CONNECTED;
-            Ring.getInstance(getActivity()).stopRingTone();//stop ring
-            int ret = portSipSdk.answerCall(currentLine.sessionID, cbRecvVideo.isChecked());//answer call
+            Ring.getInstance(getActivity()).stopRingTone();// stop ring
+            int ret = portSipSdk.answerCall(currentLine.sessionID, cbRecvVideo.isChecked());// answer call
             if (ret != 0) {
                 showTips("answerCall Failed! ret=" + ret);
                 return;
             }
-            if(Engine.Instance().mConference){
+            if (Engine.Instance().mConference) {
                 portSipSdk.joinToConference(currentLine.sessionID);
             }
-        } else if(view.getId() == R.id.reject) {
+        } else if (view.getId() == R.id.reject) {
             if (currentLine.state == Session.CALL_STATE_FLAG.INCOMING) {
                 portSipSdk.rejectCall(currentLine.sessionID, 486);
                 currentLine.Reset();
@@ -406,7 +412,7 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
                 showTips(currentLine.lineName + ": Rejected call");
                 return;
             }
-        } else if(view.getId() == R.id.hold) {
+        } else if (view.getId() == R.id.hold) {
             if (!(currentLine.state == Session.CALL_STATE_FLAG.CONNECTED) || currentLine.bHold) {
                 return;
             }
@@ -417,7 +423,7 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
                 return;
             }
             currentLine.bHold = true;
-        } else if(view.getId() == R.id.hold) {
+        } else if (view.getId() == R.id.hold) {
             if (!(currentLine.state == Session.CALL_STATE_FLAG.CONNECTED) || !currentLine.bHold) {
                 return;
             }
@@ -431,19 +437,19 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
 
             currentLine.bHold = false;
             showTips(currentLine.lineName + ": Un-Hold");
-        } else if(view.getId() == R.id.attenttransfer) {
+        } else if (view.getId() == R.id.attenttransfer) {
             if (!(currentLine.state == Session.CALL_STATE_FLAG.CONNECTED)) {
                 showTips("Need to make the call established first");
                 return;
             }
             showAttendTransferDialog();
-        } else if(view.getId() == R.id.transfer) {
+        } else if (view.getId() == R.id.transfer) {
             if (!(currentLine.state == Session.CALL_STATE_FLAG.CONNECTED)) {
                 showTips("Need to make the call established first");
                 return;
             }
             showTransferDialog();
-        } else if(view.getId() == R.id.mute) {
+        } else if (view.getId() == R.id.mute) {
             if (currentLine.bMute) {
                 portSipSdk.muteSession(currentLine.sessionID, false,
                         false, false, false);
@@ -455,11 +461,14 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
                 currentLine.bMute = true;
                 ((Button) view).setText("UnMute");
             }
-        } else if(view.getId() == R.id.audio_device) {
-            if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.S
-                    && ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_CONNECT)!= PackageManager.PERMISSION_GRANTED){
-                Toast.makeText(getContext(),"BLUETOOTH_CONNECT permission is required for BLUETOOTH Device",Toast.LENGTH_SHORT).show();
-                ActivityCompat.requestPermissions(getActivity(),new String[]{Manifest.permission.BLUETOOTH_CONNECT},100);
+        } else if (view.getId() == R.id.audio_device) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                    && ActivityCompat.checkSelfPermission(getContext(),
+                            Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(getContext(), "BLUETOOTH_CONNECT permission is required for BLUETOOTH Device",
+                        Toast.LENGTH_SHORT).show();
+                ActivityCompat.requestPermissions(getActivity(), new String[] { Manifest.permission.BLUETOOTH_CONNECT },
+                        100);
             }
 
             AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
@@ -469,7 +478,7 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
             builder.setAdapter(audioDeviceAdapter, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    CallManager.Instance().setAudioDevice(portSipSdk,audioDevices[which]);
+                    CallManager.Instance().setAudioDevice(portSipSdk, audioDevices[which]);
                 }
             }).create().show();
         }
@@ -481,7 +490,6 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
             ShowCurrentLineState();
             return;
         }
-
 
         if (cbConference.isChecked()) {
             CallManager.Instance().CurrentLine = position;
@@ -516,14 +524,14 @@ public class NumpadFragment extends BaseFragment implements AdapterView.OnItemSe
 
     @Override
     public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-        if (compoundButton.getId() == R.id.conference){
-            if(Engine.Instance().mConference == b)
+        if (compoundButton.getId() == R.id.conference) {
+            if (Engine.Instance().mConference == b)
                 return;
             Engine.Instance().mConference = b;
-            if(b){
-                Engine.Instance().getEngine().createVideoConference(null,320,240,0);
+            if (b) {
+                Engine.Instance().getEngine().createVideoConference(null, 320, 240, 0);
                 CallManager.Instance().addActiveSessionToConfrence(Engine.Instance().getEngine());
-            }else {
+            } else {
                 Engine.Instance().getEngine().destroyConference();
             }
         }

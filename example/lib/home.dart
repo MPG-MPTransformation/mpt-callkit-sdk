@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:example/call_pad.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,7 +10,7 @@ import 'components/callkit_constants.dart';
 import 'login_result.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -102,6 +103,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         onPressed: () {
+          Navigator.push(context, MaterialPageRoute(builder: (context) {
+            return const CallPad(
+              isGuest: true,
+            );
+          }));
           MptCallKitController().initSdk(
             apiKey: _apiKey,
             baseUrl: _baseUrl,
@@ -111,8 +117,9 @@ class _HomeScreenState extends State<HomeScreen> {
           MptCallKitController().makeCallByGuest(
               context: context,
               userPhoneNumber: _phoneController.text,
-              destinationPhoneNumber: _callTo.text,
+              destination: _callTo.text,
               isVideoCall: true,
+              extraInfo: "",
               onError: (errorMessage) {
                 if (errorMessage == null) return;
                 var snackBar = SnackBar(

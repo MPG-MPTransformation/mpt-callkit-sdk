@@ -22,7 +22,8 @@ import android.widget.Toast;
 
 import java.util.List;
 
-public class MessageFragment extends BaseFragment implements View.OnClickListener ,PortMessageReceiver.BroadcastListener{
+public class MessageFragment extends BaseFragment
+        implements View.OnClickListener, PortMessageReceiver.BroadcastListener {
     EditText etContact, etStatus, etToNumber, etMessage;
     ListView lvContacts;
 
@@ -48,7 +49,7 @@ public class MessageFragment extends BaseFragment implements View.OnClickListene
 
         mAdapter = new ContactAdapter(getActivity(), ContactManager.Instance().getContacts());
 
-        lvContacts.setAdapter( mAdapter);
+        lvContacts.setAdapter(mAdapter);
 
         etStatus = (EditText) view.findViewById(R.id.etstatus);
         etMessage = (EditText) view.findViewById(R.id.etmessage);
@@ -89,7 +90,7 @@ public class MessageFragment extends BaseFragment implements View.OnClickListene
             return;
         Contact contact = getSelectContact();
         if (contact != null) {
-            sdk.presenceSubscribe(contact.sipAddr, "hello");//subscribe remote
+            sdk.presenceSubscribe(contact.sipAddr, "hello");// subscribe remote
             contact.subScribeRemote = true;
         }
         updateLV();
@@ -110,7 +111,7 @@ public class MessageFragment extends BaseFragment implements View.OnClickListene
 
         String content = etStatus.getText().toString();
         if (TextUtils.isEmpty(content)) {
-            //showTips("please input status description string");
+            // showTips("please input status description string");
             return;
         }
         List<Contact> contacts = ContactManager.Instance().getContacts();
@@ -118,7 +119,7 @@ public class MessageFragment extends BaseFragment implements View.OnClickListene
             long subscribeId = contact.subId;
 
             String statusText = etStatus.getText().toString();
-            if (contact.state == Contact.SUBSCRIBE_STATE_FLAG.ACCEPTED)//向已经接受的订阅，发布自己的出席状态
+            if (contact.state == Contact.SUBSCRIBE_STATE_FLAG.ACCEPTED)// 向已经接受的订阅，发布自己的出席状态
             {
                 sdk.setPresenceStatus(subscribeId, statusText);
             }
@@ -131,13 +132,13 @@ public class MessageFragment extends BaseFragment implements View.OnClickListene
             return;
         Contact contact = getSelectContact();
         if (contact != null && contact.state == Contact.SUBSCRIBE_STATE_FLAG.UNSETTLLED) {
-            sdk.presenceAcceptSubscribe(contact.subId);//accept
+            sdk.presenceAcceptSubscribe(contact.subId);// accept
             contact.state = Contact.SUBSCRIBE_STATE_FLAG.ACCEPTED;
             String status = etStatus.getText().toString();
             if (!TextUtils.isEmpty(status)) {
                 status = "hello";
             }
-            sdk.setPresenceStatus(contact.subId, status);//set my status
+            sdk.setPresenceStatus(contact.subId, status);// set my status
 
         }
 
@@ -150,7 +151,7 @@ public class MessageFragment extends BaseFragment implements View.OnClickListene
         Contact contact = getSelectContact();
         if (contact != null && contact.state == Contact.SUBSCRIBE_STATE_FLAG.UNSETTLLED) {
 
-            sdk.presenceRejectSubscribe(contact.subId);//reject
+            sdk.presenceRejectSubscribe(contact.subId);// reject
             contact.state = Contact.SUBSCRIBE_STATE_FLAG.REJECTED;// reject subscribe
             contact.subId = 0;
 
@@ -194,6 +195,8 @@ public class MessageFragment extends BaseFragment implements View.OnClickListene
         super.onHiddenChanged(hidden);
         if (!hidden) {
             activity.receiver.broadcastReceiver = this;
+            System.out.println("SDK-Android: broadcastReceiver - MessageFragment - set: "
+                    + activity.receiver.broadcastReceiver.toString());
             updateLV();
         }
     }
@@ -208,7 +211,7 @@ public class MessageFragment extends BaseFragment implements View.OnClickListene
     private Contact getSelectContact() {
         List<Contact> contacts = ContactManager.Instance().getContacts();
         int checkedItemPosition = lvContacts.getCheckedItemPosition();
-        if (ListView.INVALID_POSITION != checkedItemPosition && contacts.size()> checkedItemPosition) {
+        if (ListView.INVALID_POSITION != checkedItemPosition && contacts.size() > checkedItemPosition) {
             return contacts.get(checkedItemPosition);
         }
         return null;
@@ -219,19 +222,19 @@ public class MessageFragment extends BaseFragment implements View.OnClickListene
         if (Engine.Instance().getEngine() == null) {
             return;
         }
-        if(view.getId() == R.id.btsendmsg){
+        if (view.getId() == R.id.btsendmsg) {
             btnSend_Click(Engine.Instance().getEngine());
-        } else if(view.getId() == R.id.btsendstatus){
+        } else if (view.getId() == R.id.btsendstatus) {
             btnSetStatus_Click(Engine.Instance().getEngine());
-        } else if(view.getId() == R.id.btaddcontact){
+        } else if (view.getId() == R.id.btaddcontact) {
             btnAddContact_Click(Engine.Instance().getEngine());
-        } else if(view.getId() == R.id.btclear){
+        } else if (view.getId() == R.id.btclear) {
             btnClearContact_Click();
-        } else if(view.getId() == R.id.btsubscribe){
+        } else if (view.getId() == R.id.btsubscribe) {
             btnSubscribeContact_Click(Engine.Instance().getEngine());
-        } else if(view.getId() == R.id.btaccept){
+        } else if (view.getId() == R.id.btaccept) {
             btnAcceptSubscribe_Click(Engine.Instance().getEngine());
-        } else if(view.getId() == R.id.btrefuse){
+        } else if (view.getId() == R.id.btrefuse) {
             btnRefuseSubscribe_Click(Engine.Instance().getEngine());
         }
     }

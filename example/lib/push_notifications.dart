@@ -13,7 +13,7 @@ void notificationTapBackground(NotificationResponse notificationResponse) {
 class PushNotifications {
   static final _firebaseMessaging = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin
-  _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+      _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   static bool _isLocalNotificationInitialized = false;
 
   // request notification permission
@@ -58,10 +58,10 @@ class PushNotifications {
 
       final InitializationSettings initializationSettings =
           InitializationSettings(
-            android: initializationSettingsAndroid,
-            iOS: initializationSettingsDarwin,
-            linux: initializationSettingsLinux,
-          );
+        android: initializationSettingsAndroid,
+        iOS: initializationSettingsDarwin,
+        linux: initializationSettingsLinux,
+      );
 
       // Đăng ký callback cho foreground và background notification tap
       await _flutterLocalNotificationsPlugin.initialize(
@@ -84,8 +84,7 @@ class PushNotifications {
       if (!kIsWeb && !Platform.isIOS && !Platform.isMacOS) {
         await _flutterLocalNotificationsPlugin
             .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin
-            >()
+                AndroidFlutterLocalNotificationsPlugin>()
             ?.createNotificationChannel(channel);
         print("Android notification channel created successfully");
       }
@@ -112,20 +111,19 @@ class PushNotifications {
       }
 
       // Use a unique identifier for each notification
-      final int notificationId = DateTime.now().millisecondsSinceEpoch
-          .remainder(100000);
+      final int notificationId =
+          DateTime.now().millisecondsSinceEpoch.remainder(100000);
 
       const AndroidNotificationDetails androidNotificationDetails =
           AndroidNotificationDetails(
-            'high_importance_channel',
-            'High Importance Notifications',
-            channelDescription:
-                'This channel is used for important notifications',
-            importance: Importance.high,
-            priority: Priority.high,
-            showWhen: true,
-            icon: '@drawable/ic_notification',
-          );
+        'high_importance_channel',
+        'High Importance Notifications',
+        channelDescription: 'This channel is used for important notifications',
+        importance: Importance.high,
+        priority: Priority.high,
+        showWhen: true,
+        icon: '@drawable/ic_notification',
+      );
 
       const NotificationDetails notificationDetails = NotificationDetails(
         android: androidNotificationDetails,

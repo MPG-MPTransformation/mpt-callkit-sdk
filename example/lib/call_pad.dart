@@ -9,7 +9,8 @@ import 'package:mpt_callkit/views/local_view.dart';
 import 'package:mpt_callkit/views/remote_view.dart';
 
 class CallPad extends StatefulWidget {
-  const CallPad({Key? key}) : super(key: key);
+  final bool? isGuest;
+  const CallPad({super.key, this.isGuest = false});
 
   @override
   State<CallPad> createState() => _CallPadState();
@@ -19,16 +20,19 @@ class _CallPadState extends State<CallPad> {
   final List<String> _functionNames = [
     "answer",
     "reject",
+    if (Platform.isAndroid) 'showAndroidCallKit',
     'hold',
     'unhold',
     'mute',
     'unmute',
+    'switchCamera',
     'cameraOn',
     'cameraOff',
     'speakerLoud',
     'speakerEarphone',
     if (Platform.isAndroid) 'speakerBluetooth',
     if (Platform.isAndroid) 'getAudioDevices',
+    'updateVideoCall',
     'hangup',
   ];
 
@@ -73,14 +77,18 @@ class _CallPadState extends State<CallPad> {
         });
 
         if (_callState == CallStateConstants.CONNECTED) {
-          MptCallKitController().subscribeToMediaStatusChannel();
+          if (widget.isGuest == false) {
+            MptCallKitController().subscribeToMediaStatusChannel();
+          }
         }
 
         // show dialog when call ended
         if (state == CallStateConstants.CLOSED ||
             state == CallStateConstants.FAILED) {
           Future.delayed(const Duration(milliseconds: 500), () {
-            MptCallKitController().leaveCallMediaRoomChannel();
+            if (widget.isGuest == false) {
+              MptCallKitController().leaveCallMediaRoomChannel();
+            }
 
             if (mounted) {
               _showCallEndedDialog(state);
@@ -347,20 +355,28 @@ class _CallPadState extends State<CallPad> {
                     );
                   },
                 ),
-                const SizedBox(height: 16),
-                const Text("Camera"),
-                const SizedBox(
-                  height: 300,
-                  width: 300,
-                  child: LocalView(),
-                ),
-                const SizedBox(height: 16),
-                const Text("Video"),
-                const SizedBox(
-                  height: 300,
-                  width: 300,
-                  child: RemoteView(),
-                ),
+                (Platform.isIOS)
+                    ? const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SizedBox(height: 16),
+                          Text("Camera"),
+                          SizedBox(
+                            height: 300,
+                            width: 300,
+                            child: LocalView(),
+                          ),
+                          SizedBox(height: 16),
+                          Text("Video"),
+                          SizedBox(
+                            height: 300,
+                            width: 300,
+                            child: RemoteView(),
+                          ),
+                        ],
+                      )
+                    : const SizedBox.shrink(),
               ],
             ),
           ),
@@ -395,9 +411,12 @@ class _CallPadState extends State<CallPad> {
         break;
       case 'hangup':
         MptCallKitController().hangup();
-        MptCallKitController().leaveCallMediaRoomChannel();
-        // // Close call_pad screen
-        // Navigator.of(context).pop();
+        if (widget.isGuest == false) {
+          MptCallKitController().leaveCallMediaRoomChannel();
+        }
+        break;
+      case 'showAndroidCallKit':
+        MptCallKitController().showAndroidCallKit();
         break;
       case 'hold':
         MptCallKitController().hold();
@@ -410,6 +429,9 @@ class _CallPadState extends State<CallPad> {
         break;
       case 'unmute':
         MptCallKitController().unmute();
+        break;
+      case 'switchCamera':
+        MptCallKitController().switchCamera();
         break;
       case 'cameraOff':
         MptCallKitController().cameraOff();
@@ -443,6 +465,9 @@ class _CallPadState extends State<CallPad> {
         break;
       case 'reject':
         MptCallKitController().rejectCall();
+        break;
+      case 'updateVideoCall':
+        MptCallKitController().updateVideoCall(isVideo: true);
         break;
       default:
         print('Function $functionName not implemented');
@@ -502,12 +527,14 @@ class _CallPadState extends State<CallPad> {
               // Navigator.of(context).pop();
             },
             style: ButtonStyle(
-              foregroundColor: MaterialStateProperty.all<Color>(Colors.red),
+              foregroundColor: WidgetStateProperty.all<Color>(Colors.red),
             ),
             child: const Text('End call'),
           ),
         ],
       ),
     );
+
+    Navigator.of(context).pop();
   }
 }

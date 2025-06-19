@@ -400,6 +400,25 @@ class MptSocketSocketServer {
     });
   }
 
+  void sendAgentState(String sessionId, String state) {
+    if (socket == null || !socket!.connected) {
+      print(
+          "Socket server - sendAgentState - Cannot send message: socket is null or not connected");
+      return;
+    }
+
+    try {
+      socket!.emitWithAck("agent_state", {
+        "sessionId": sessionId,
+        "state": state,
+      }, ack: (data) {
+        print("Socket server - sendAgentState - Sent agent state: $data");
+      });
+    } catch (e) {
+      print("Socket server - sendAgentState - Error sending agent state: $e");
+    }
+  }
+
   void _listenEventChannels() {
     // Remove existing listeners first
     socket!.off("agent_status_chat");

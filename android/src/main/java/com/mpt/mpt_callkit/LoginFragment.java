@@ -27,7 +27,8 @@ import com.portsip.PortSipSdk;
 
 import static com.mpt.mpt_callkit.PortSipService.EXTRA_REGISTER_STATE;
 
-public class LoginFragment extends BaseFragment implements AdapterView.OnItemSelectedListener, View.OnClickListener, PortMessageReceiver.BroadcastListener {
+public class LoginFragment extends BaseFragment
+        implements AdapterView.OnItemSelectedListener, View.OnClickListener, PortMessageReceiver.BroadcastListener {
     MainActivity activity;
     private EditText etUsername = null;
     private EditText etPassword = null;
@@ -47,7 +48,8 @@ public class LoginFragment extends BaseFragment implements AdapterView.OnItemSel
 
     @Nullable
     @Override
-    public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container,
+            @Nullable Bundle savedInstanceState) {
         activity = (MainActivity) getActivity();
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
         View view = inflater.inflate(R.layout.login, container, false);
@@ -78,14 +80,17 @@ public class LoginFragment extends BaseFragment implements AdapterView.OnItemSel
         spSRTP.setOnItemSelectedListener(this);
         spTransport.setOnItemSelectedListener(this);
 
-        spTransport.setAdapter(ArrayAdapter.createFromResource(getActivity(), R.array.transports, android.R.layout.simple_list_item_1));
-        spSRTP.setAdapter(ArrayAdapter.createFromResource(getActivity(), R.array.srtp, android.R.layout.simple_list_item_1));
-
+        spTransport.setAdapter(ArrayAdapter.createFromResource(getActivity(), R.array.transports,
+                android.R.layout.simple_list_item_1));
+        spSRTP.setAdapter(
+                ArrayAdapter.createFromResource(getActivity(), R.array.srtp, android.R.layout.simple_list_item_1));
 
         LoadUserInfo();
         setOnlineStatus(null);
 
         activity.receiver.broadcastReceiver = this;
+        System.out.println("SDK-Android: broadcastReceiver - login_fragment - set: "
+                + activity.receiver.broadcastReceiver.toString());
         view.findViewById(R.id.btonline).setOnClickListener(this);
         view.findViewById(R.id.btoffline).setOnClickListener(this);
 
@@ -97,6 +102,8 @@ public class LoginFragment extends BaseFragment implements AdapterView.OnItemSel
         super.onHiddenChanged(hidden);
         if (!hidden) {
             activity.receiver.broadcastReceiver = this;
+            System.out.println("SDK-Android: broadcastReceiver - login_fragment - onHiddenChanged - set: "
+                    + activity.receiver.broadcastReceiver.toString());
             setOnlineStatus(null);
         }
     }
@@ -105,8 +112,8 @@ public class LoginFragment extends BaseFragment implements AdapterView.OnItemSel
     public void onDestroyView() {
         super.onDestroyView();
         activity.receiver.broadcastReceiver = null;
+        System.out.println("SDK-Android: broadcastReceiver - login_fragment - set null");
     }
-
 
     private void LoadUserInfo() {
 
@@ -141,21 +148,21 @@ public class LoginFragment extends BaseFragment implements AdapterView.OnItemSel
         editor.commit();
     }
 
-
     public void onBroadcastReceiver(Intent intent) {
         String action = intent == null ? "" : intent.getAction();
         if (PortSipService.REGISTER_CHANGE_ACTION.equals(action)) {
-            System.out.println("quanth: REGISTER_CHANGE_ACTION - login");
+            System.out.println("SDK-Android: REGISTER_CHANGE_ACTION - login");
             String tips = intent.getStringExtra(EXTRA_REGISTER_STATE);
             setOnlineStatus(tips);
-//            makeCall();
+            // makeCall();
         } else if (PortSipService.CALL_CHANGE_ACTION.equals(action)) {
-            //long sessionId = intent.GetLongExtra(PortSipService.EXTRA_CALL_SEESIONID, Session.INVALID_SESSION_ID);
-            //callStatusChanged(sessionId);
+            // long sessionId = intent.GetLongExtra(PortSipService.EXTRA_CALL_SEESIONID,
+            // Session.INVALID_SESSION_ID);
+            // callStatusChanged(sessionId);
         }
     }
 
-    public void makeCall(){
+    public void makeCall() {
         PortSipSdk portSipSdk = Engine.Instance().getEngine();
         Session currentLine = CallManager.Instance().getCurrentSession();
         String callTo = "200010";
@@ -176,7 +183,7 @@ public class LoginFragment extends BaseFragment implements AdapterView.OnItemSel
             Toast.makeText(getActivity(), "Call failure", Toast.LENGTH_SHORT).show();
             return;
         }
-        //default send video
+        // default send video
         portSipSdk.sendVideo(sessionId, true);
 
         currentLine.remote = callTo;
@@ -220,20 +227,19 @@ public class LoginFragment extends BaseFragment implements AdapterView.OnItemSel
         if (adapterView == null)
             return;
         SharedPreferences.Editor editor = sharedPreferences.edit();
-        if(adapterView.getId() == R.id.spSRTP){
+        if (adapterView.getId() == R.id.spSRTP) {
             editor.putInt(PortSipService.SRTP, position).commit();
-        } else if(adapterView.getId() == R.id.spTransport) {
+        } else if (adapterView.getId() == R.id.spTransport) {
             editor.putInt(PortSipService.TRANS, position).commit();
         }
     }
-
 
     @Override
     public void onNothingSelected(AdapterView<?> adapterView) {
 
     }
 
-    public void register(){
+    public void register() {
         if (CallManager.Instance().online) {
             Toast.makeText(getActivity(), "Please OffLine First", Toast.LENGTH_SHORT).show();
         } else {

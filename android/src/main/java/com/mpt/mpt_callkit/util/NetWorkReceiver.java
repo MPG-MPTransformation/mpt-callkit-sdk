@@ -11,30 +11,30 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-public class NetWorkReceiver extends BroadcastReceiver{
-        private static NetWorkListener mListener;
+public class NetWorkReceiver extends BroadcastReceiver {
+    private static NetWorkListener mListener;
 
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            try {
-                if (intent.getAction().equals(ConnectivityManager.CONNECTIVITY_ACTION) && null != context) {
-                    int netWorkState = getNetWorkState(context);
-                    // 当网络发生变化，判断当前网络状态，并通过NetEvent回调当前网络状态
-                    if (mListener != null) {
-                        mListener.onNetworkChange(netWorkState);
-                    }
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        try {
+            if (intent.getAction().equals(ConnectivityManager.CONNECTIVITY_ACTION) && null != context) {
+                int netWorkState = getNetWorkState(context);
+                // 当网络发生变化，判断当前网络状态，并通过NetEvent回调当前网络状态
+                if (mListener != null) {
+                    mListener.onNetworkChange(netWorkState);
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+    }
 
-        // 自定义接口
-        public interface NetWorkListener {
-            public void onNetworkChange(int netMobile);
-        }
+    // 自定义接口
+    public interface NetWorkListener {
+        public void onNetworkChange(int netMobile);
+    }
 
-        private int getNetWorkState(@NonNull Context context) {
+    private int getNetWorkState(@NonNull Context context) {
         // 得到连接管理器对象
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.LOLLIPOP) {
 
@@ -44,7 +44,7 @@ public class NetWorkReceiver extends BroadcastReceiver{
             NetworkInfo activeNetworkInfo = connectivityManager
                     .getActiveNetworkInfo();
             if (activeNetworkInfo != null && activeNetworkInfo.isConnected()) {
-                System.out.println("quanth: getNetWorkState - " + activeNetworkInfo.getType());
+                System.out.println("SDK-Android: getNetWorkState - " + activeNetworkInfo.getType());
                 if (activeNetworkInfo.getType() == (ConnectivityManager.TYPE_WIFI)) {
                     return ConnectivityManager.TYPE_WIFI;
                 } else {
@@ -54,14 +54,14 @@ public class NetWorkReceiver extends BroadcastReceiver{
                 return -1;
             }
 
-        }else{
+        } else {
             ConnectivityManager connMgr = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
 
-            //获取所有网络连接的信息
+            // 获取所有网络连接的信息
             Network[] networks = connMgr.getAllNetworks();
-            //通过循环将网络信息逐个取出来
-            for (int i=0; i < networks.length; i++) {
-                //获取ConnectivityManager对象对应的NetworkInfo对象
+            // 通过循环将网络信息逐个取出来
+            for (int i = 0; i < networks.length; i++) {
+                // 获取ConnectivityManager对象对应的NetworkInfo对象
                 NetworkInfo networkInfo = connMgr.getNetworkInfo(networks[i]);
                 if (networkInfo.isConnected()) {
                     if (networkInfo.getType() == ConnectivityManager.TYPE_MOBILE) {

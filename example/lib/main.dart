@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:example/push_notifications.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
