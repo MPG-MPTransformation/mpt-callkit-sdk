@@ -124,6 +124,22 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        System.out.println("SDK-Android: MainActivity - onStart, isInPip: " + isInPictureInPictureMode);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        System.out.println("SDK-Android: MainActivity - onStop, isInPip: " + isInPictureInPictureMode);
+        // Don't kill the app if we're going into PIP mode
+        if (!isInPictureInPictureMode) {
+            System.out.println("SDK-Android: MainActivity - onStop without PIP mode");
+        }
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         requestPermissions(this);
@@ -237,13 +253,23 @@ public class MainActivity extends Activity {
         if (isAllowBack()) {
             super.onBackPressed();
         } else {
-            enterPictureInPictureMode();
+            // Only enter PIP if there's an active call
+            VideoFragment videoFragment = (VideoFragment) getFragmentManager().findFragmentById(R.id.video_fragment);
+            if (videoFragment != null && videoFragment.hasActiveCall()) {
+                enterPictureInPictureMode();
+            } else {
+                super.onBackPressed();
+            }
         }
     }
 
     @Override
     protected void onUserLeaveHint() {
-        enterPictureInPictureMode();
+        // Only enter PIP if there's an active call
+        VideoFragment videoFragment = (VideoFragment) getFragmentManager().findFragmentById(R.id.video_fragment);
+        if (videoFragment != null && videoFragment.hasActiveCall()) {
+            enterPictureInPictureMode();
+        }
         super.onUserLeaveHint();
     }
 
@@ -251,7 +277,8 @@ public class MainActivity extends Activity {
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
         this.isInPictureInPictureMode = isInPictureInPictureMode;
-        Session currentLine = CallManager.Instance().getCurrentSession();
+
+        System.out.println("SDK-Android: MainActivity - PIP mode changed: " + isInPictureInPictureMode);
 
         VideoFragment videoFragment = (VideoFragment) getFragmentManager().findFragmentById(R.id.video_fragment);
         if (videoFragment != null) {
@@ -259,10 +286,23 @@ public class MainActivity extends Activity {
 
             // Handle when user exits PIP mode (closes PIP)
             if (!isInPictureInPictureMode) {
+                System.out.println("SDK-Android: MainActivity - Exiting PIP mode");
                 handlePipModeExit();
-                videoFragment.updateCameraView(currentLine.bMuteVideo);
-                videoFragment.updateMicView(currentLine.bMuteAudioOutGoing);
+                Session currentLine = CallManager.Instance().getCurrentSession();
+                if (currentLine != null) {
+                    videoFragment.updateCameraView(currentLine.bMuteVideo);
+                    videoFragment.updateMicView(currentLine.bMuteAudioOutGoing);
+                }
+            } else {
+                System.out.println("SDK-Android: MainActivity - Entering PIP mode");
             }
+        }
+    }
+
+    public void onHangUpCall(){
+        VideoFragment videoFragment = (VideoFragment) getFragmentManager().findFragmentById(R.id.video_fragment);
+        if (videoFragment != null) {
+            videoFragment.onHangUpCall();
         }
     }
 
@@ -284,7 +324,21 @@ public class MainActivity extends Activity {
     }
 
     public void enterPictureInPictureMode() {
+        // Ensure service is running before entering PIP
+        ensureServiceRunning();
         enterPictureInPictureMode(9, 16); // Default portrait mode
+    }
+
+    private void ensureServiceRunning() {
+        try {
+            // Start service to ensure it's running when entering PIP mode
+            Intent serviceIntent = new Intent(this, PortSipService.class);
+            serviceIntent.setAction(PortSipService.ACTION_KEEP_ALIVE);
+            PortSipService.startServiceCompatibility(this, serviceIntent);
+            System.out.println("SDK-Android: MainActivity - Ensured service is running for PIP mode");
+        } catch (Exception e) {
+            System.out.println("SDK-Android: MainActivity - Error ensuring service: " + e.getMessage());
+        }
     }
 
     // Overloaded method to customize aspect ratio

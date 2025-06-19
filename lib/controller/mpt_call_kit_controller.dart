@@ -171,6 +171,21 @@ class MptCallKitController {
           _currentCallState = call.arguments as String;
           _callEvent.add(call.arguments as String);
           _handleCallStateChanged(call.arguments as String);
+
+          // Handle guest call specific logic
+          if (isMakeCallByGuest) {
+            if (call.arguments == CallStateConstants.FAILED) {
+              print("makeCallByGuest() - Call failed!");
+              offline();
+              releaseExtension();
+            }
+
+            if (call.arguments == CallStateConstants.CLOSED) {
+              print("makeCallByGuest() - Call ended!");
+              offline();
+              releaseExtension();
+            }
+          }
         }
 
         if (call.method == 'cameraState') {
@@ -472,18 +487,18 @@ class MptCallKitController {
     required BuildContext context,
     required String userPhoneNumber,
     required String destination,
+    required String extraInfo,
     bool isVideoCall = false,
     Function(String?)? onError,
   }) async {
     try {
-      // final hasPermission = await requestPermission(context);
-      // if (!hasPermission) {
-      //   onError?.call('Permission denied');
-      //   return;
-      // }
-
       extension = '';
       final result = await getExtension(phoneNumber: userPhoneNumber);
+
+      var extraInfoResult = {
+        "type": isVideoCall == true ? CallType.VIDEO : CallType.VOICE,
+        "extraInfo": extraInfo,
+      };
 
       if (result != null) {
         online(
@@ -517,7 +532,7 @@ class MptCallKitController {
                 extension: result.username ?? "",
                 destination: destination,
                 authToken: apiKey,
-                extraInfo: "",
+                extraInfo: jsonEncode(extraInfoResult),
                 onError: onError,
               );
               // showAndroidCallKit();
@@ -533,8 +548,8 @@ class MptCallKitController {
           }
         }
       } else {
-        onError?.call('Tổng đài bận, liên hệ hỗ trợ');
-        print("Tổng đài bận, liên hệ hỗ trợ");
+        onError?.call('Cannot get extension data');
+        print("Cannot get extension data");
       }
     } on Exception catch (e) {
       onError?.call(e.toString());
@@ -607,8 +622,10 @@ class MptCallKitController {
       final result = ReleaseExtensionModel.fromJson(data);
       extension = '';
       if (result.success ?? false) {
+        print("Release extension has done");
         return true;
       } else {
+        print("Release extension has failed: ${result.message}");
         throw Exception(result.message ?? '');
       }
     } on Exception catch (e) {
@@ -1255,11 +1272,13 @@ class MptCallKitController {
               if (data == CallStateConstants.FAILED) {
                 print("makeCallByGuest() - Call failed!");
                 offline();
+                releaseExtension();
               }
 
               if (data == CallStateConstants.CLOSED) {
                 print("makeCallByGuest() - Call ended!");
                 offline();
+                releaseExtension();
               }
             }
             break;
@@ -1293,13 +1312,13 @@ class MptCallKitController {
               _handleGuestRegistrationState(data);
             }
             break;
-          case "releaseExtension":
-            if (isMakeCallByGuest) {
-              print('Release extension has started');
-              await releaseExtension();
-              print('Release extension has done');
-            }
-            break;
+          // case "releaseExtension":
+          //   if (isMakeCallByGuest) {
+          //     print('Release extension has started');
+          //     await releaseExtension();
+          //     print('Release extension has done');
+          //   }
+          //   break;
         }
       }
     });

@@ -68,6 +68,7 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     public static final String ACTION_SIP_REGIEST = "PortSip.AndroidSample.Test.REGIEST";
     public static final String ACTION_SIP_UNREGIEST = "PortSip.AndroidSample.Test.UNREGIEST";
     public static final String ACTION_STOP = "PortSip.AndroidSample.Test.STOP";
+    public static final String ACTION_KEEP_ALIVE = "PortSip.AndroidSample.Test.KEEP_ALIVE";
     public static final String EXTRA_CALL_DESCRIPTION = "Description";
     public static final String ACTION_SIP_AUDIODEVICE = "PortSip.AndroidSample.Test.AudioDeviceUpdate";
     public static final String EXTRA_CALL_SEESIONID = "SessionID";
@@ -277,6 +278,15 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                 System.out.println("SDK-Android: service unregisterToServer done");
             } else if (ACTION_STOP.equals(intent.getAction())) {
                 return START_NOT_STICKY;
+            } else if (ACTION_KEEP_ALIVE.equals(intent.getAction())) {
+                System.out.println("SDK-Android: service received KEEP_ALIVE action for PIP mode");
+                // Ensure service stays alive for PIP mode
+                if (!CallManager.Instance().online) {
+                    initialSDK();
+                }
+                showServiceNotifiCation();
+                keepCpuRun(true);
+                return START_STICKY;
             }
         }
         return result;

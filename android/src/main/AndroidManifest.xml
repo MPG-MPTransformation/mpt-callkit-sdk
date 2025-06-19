@@ -74,7 +74,10 @@
                 android:windowSoftInputMode="stateHidden"
                 android:exported="true"
                 android:supportsPictureInPicture="true"
-                android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|uiMode|screenLayout|smallestScreenSize"
+                android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|uiMode|screenLayout|smallestScreenSize|density|keyboard|keyboardHidden|navigation"
+                android:resizeableActivity="true"
+                android:taskAffinity=""
+                android:excludeFromRecents="false"
                 >
         </activity>
         <activity

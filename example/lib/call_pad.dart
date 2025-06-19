@@ -9,7 +9,8 @@ import 'package:mpt_callkit/views/local_view.dart';
 import 'package:mpt_callkit/views/remote_view.dart';
 
 class CallPad extends StatefulWidget {
-  const CallPad({Key? key}) : super(key: key);
+  final bool? isGuest;
+  const CallPad({Key? key, this.isGuest = false}) : super(key: key);
 
   @override
   State<CallPad> createState() => _CallPadState();
@@ -76,14 +77,18 @@ class _CallPadState extends State<CallPad> {
         });
 
         if (_callState == CallStateConstants.CONNECTED) {
-          MptCallKitController().subscribeToMediaStatusChannel();
+          if (widget.isGuest == true) {
+            MptCallKitController().subscribeToMediaStatusChannel();
+          }
         }
 
         // show dialog when call ended
         if (state == CallStateConstants.CLOSED ||
             state == CallStateConstants.FAILED) {
           Future.delayed(const Duration(milliseconds: 500), () {
-            MptCallKitController().leaveCallMediaRoomChannel();
+            if (widget.isGuest == true) {
+              MptCallKitController().leaveCallMediaRoomChannel();
+            }
 
             if (mounted) {
               _showCallEndedDialog(state);
@@ -406,9 +411,9 @@ class _CallPadState extends State<CallPad> {
         break;
       case 'hangup':
         MptCallKitController().hangup();
-        MptCallKitController().leaveCallMediaRoomChannel();
-        // // Close call_pad screen
-        // Navigator.of(context).pop();
+        if (widget.isGuest == true) {
+          MptCallKitController().leaveCallMediaRoomChannel();
+        }
         break;
       case 'showAndroidCallKit':
         MptCallKitController().showAndroidCallKit();

@@ -55,13 +55,16 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
     private ImageButton imgHangOut = null;
     private ImageButton imgMute = null;
     private ImageButton imgVideo = null;
+    private ImageButton imgClose = null;
     private ImageButton imgBack = null;
     private LinearLayout llWaitingView = null;
+    private LinearLayout llEndedView = null;
     private LinearLayout llLocalView = null;
     private boolean shareInSmall = true;
     private boolean isMicOn = true;
     private boolean isVolumeOn = true;
     private boolean isVideoOn = true;
+    private boolean isInPIPMode = false;
     AudioDeviceAdapter audioDeviceAdapter;
     final PortSipEnumDefine.AudioDevice[] audioDevices = new PortSipEnumDefine.AudioDevice[] {
             PortSipEnumDefine.AudioDevice.EARPIECE,
@@ -125,10 +128,10 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         imgMute = (ImageButton) view.findViewById(R.id.mute);
         imgVideo = (ImageButton) view.findViewById(R.id.ibvideo);
         imgBack = (ImageButton) view.findViewById(R.id.ibback);
+        imgClose = (ImageButton) view.findViewById(R.id.ibclose);
         llWaitingView = (LinearLayout) view.findViewById(R.id.llWaitingView);
+        llEndedView = (LinearLayout) view.findViewById(R.id.llEndedView);
         llLocalView = (LinearLayout) view.findViewById(R.id.llLocalView);
-
-        // llWaitingView.setVisibility(View.GONE);
 
         imgScaleType.setOnClickListener(this);
         imgSwitchCamera.setOnClickListener(this);
@@ -137,6 +140,11 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         imgMute.setOnClickListener(this);
         imgVideo.setOnClickListener(this);
         imgBack.setOnClickListener(this);
+        imgClose.setOnClickListener(this);
+
+        // llWaitingView.setVisibility(View.GONE);
+        llEndedView.setVisibility(View.GONE);
+        imgClose.setVisibility(View.GONE);
 
         // imgSwitchCamera.setVisibility(View.GONE);
         // imgMicOn.setVisibility(View.GONE);
@@ -182,39 +190,53 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
     @Override
     public void onDestroyView() {
         System.out.println("SDK-Android: video onDestroyView");
-        super.onDestroyView();
 
-        // Remove this fragment as a listener when being destroyed
-        Engine.Instance().getReceiver().removeListener(this);
-        // Clear primary receiver if it's this fragment
-        if (Engine.Instance().getReceiver().broadcastReceiver == this) {
-            Engine.Instance().getReceiver().broadcastReceiver = null;
-        }
-        System.out.println("SDK-Android: broadcastReceiver - VideoFragment onDestroyView - removed listener");
-
-        PortSipSdk portSipLib = Engine.Instance().getEngine();
-        if (localRenderScreen != null) {
-            if (portSipLib != null) {
-                portSipLib.displayLocalVideo(false, false, null);
-            }
-            localRenderScreen.release();
-        }
-
-        CallManager.Instance().setRemoteVideoWindow(Engine.Instance().getEngine(), -1, null);// set
-        if (remoteRenderScreen != null) {
-            remoteRenderScreen.release();
-        }
-
-        CallManager.Instance().setShareVideoWindow(Engine.Instance().getEngine(), -1, null);// set
-        if (remoteRenderSmallScreen != null) {
-            remoteRenderSmallScreen.release();
-        }
-
-        // Cancel timer with null check
+        // Cancel timer first to prevent any callbacks
         if (countDownTimer != null) {
             countDownTimer.cancel();
             countDownTimer = null;
         }
+
+        // Remove this fragment as a listener when being destroyed
+        if (Engine.Instance().getReceiver() != null) {
+            Engine.Instance().getReceiver().removeListener(this);
+            // Clear primary receiver if it's this fragment
+            if (Engine.Instance().getReceiver().broadcastReceiver == this) {
+                Engine.Instance().getReceiver().broadcastReceiver = null;
+            }
+        }
+        System.out.println("SDK-Android: broadcastReceiver - VideoFragment onDestroyView - removed listener");
+
+        // Clean up video renderers safely
+        PortSipSdk portSipLib = Engine.Instance().getEngine();
+        try {
+            if (localRenderScreen != null) {
+                if (portSipLib != null) {
+                    portSipLib.displayLocalVideo(false, false, null);
+                }
+                localRenderScreen.release();
+                localRenderScreen = null;
+            }
+
+            if (portSipLib != null) {
+                CallManager.Instance().setRemoteVideoWindow(portSipLib, -1, null);
+                CallManager.Instance().setShareVideoWindow(portSipLib, -1, null);
+            }
+
+            if (remoteRenderScreen != null) {
+                remoteRenderScreen.release();
+                remoteRenderScreen = null;
+            }
+
+            if (remoteRenderSmallScreen != null) {
+                remoteRenderSmallScreen.release();
+                remoteRenderSmallScreen = null;
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: VideoFragment - Error during cleanup: " + e.getMessage());
+        }
+
+        super.onDestroyView();
     }
 
     @Override
@@ -295,13 +317,22 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
             }
             MptCallkitPlugin.hangup();
             /// ve man hinh chinh
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                activity.finishAndRemoveTask();
-            }
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+//                activity.finishAndRemoveTask();
+//            }
+            hideBtnWhenCallEnded();
         } else if (v.getId() == R.id.mute) {
             PortSipEnumDefine.AudioDevice nextDevice = getNextAudioDevice();
             CallManager.Instance().setAudioDevice(portSipLib, nextDevice);
             updateMuteIcon(nextDevice);
+        } else if (v.getId() == R.id.ibclose) {
+            /// ve man hinh chinh
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                activity.finishAndRemoveTask();
+                System.out.println("SDK-Android: video closed!");
+            } else {
+                System.out.println("SDK-Android: video close failed!");
+            }
         } else if (v.getId() == R.id.ibvideo) {
             if (!currentLine.hasVideo) {
                 // Gửi video từ camera
@@ -458,19 +489,9 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                 switch (session.state) {
                     case CLOSED:
                         System.out.println("SDK-Android: video onBroadcastReceiver CLOSED");
-                        // /// Tat cuoc goi
-                        // portSipLib.hangUp(currentLine.sessionID);
-                        // currentLine.Reset();
-                        // /// logout
-                        // Intent offLineIntent = new Intent(getActivity(), PortSipService.class);
-                        // offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
-                        // PortSipService.startServiceCompatibility(getActivity(), offLineIntent);
-
                         MptCallkitPlugin.hangup();
-                        /// ve man hinh chinh
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                            activity.finishAndRemoveTask();
-                        }
+                        escPIPMode();
+                        hideBtnWhenCallEnded();
                         break;
                     case INCOMING:
                         break;
@@ -497,24 +518,44 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
                         break;
                     case FAILED:
                         System.out.println("SDK-Android: video updateVideo FAILED");
-                        // /// tắt cuộc gọi nếu người dùng cúp máy không nghe
-                        // portSipLib.hangUp(currentLine.sessionID);
-                        // currentLine.Reset();
-                        // /// logout
-                        // Intent logoutIntent = new Intent(getActivity(), PortSipService.class);
-                        // logoutIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
-                        // PortSipService.startServiceCompatibility(getActivity(), logoutIntent);
                         MptCallkitPlugin.hangup();
-                        /// ve man hinh chinh
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                            activity.finishAndRemoveTask();
-                        }
+                        escPIPMode();
+                        hideBtnWhenCallEnded();
                         break;
                 }
             }
         } else if (PortSipService.REGISTER_CHANGE_ACTION.equals(action)) {
             System.out.println("SDK-Android: REGISTER_CHANGE_ACTION - login");
         }
+    }
+
+    private void hideBtnWhenCallEnded() {
+        imgSwitchCamera.setVisibility(View.GONE);
+        imgScaleType.setVisibility(View.GONE);
+        imgMicOn.setVisibility(View.GONE);
+        imgHangOut.setVisibility(View.GONE);
+        imgMute.setVisibility(View.GONE);
+        imgVideo.setVisibility(View.GONE);
+        imgBack.setVisibility(View.GONE);
+        localRenderScreen.setVisibility(View.GONE);
+        remoteRenderScreen.setVisibility(View.GONE);
+        remoteRenderSmallScreen.setVisibility(View.GONE);
+
+        llEndedView.setVisibility(View.VISIBLE);
+        imgClose.setVisibility(View.VISIBLE);
+    }
+
+    private void escPIPMode(){
+        if (isInPIPMode && activity != null){
+            Intent activityIntent = new Intent(activity, MainActivity.class);
+            activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity.startActivity(activityIntent);
+        }
+    }
+
+    public void onHangUpCall(){
+        escPIPMode();
+        hideBtnWhenCallEnded();
     }
 
     // Add method to check if there's an active call
@@ -526,13 +567,19 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
 
     // Add method to handle PIP mode changes
     public void onPipModeChanged(boolean isInPictureInPictureMode) {
+        System.out.println("SDK-Android: VideoFragment - PIP mode changed: " + isInPictureInPictureMode);
+
         if (isInPictureInPictureMode) {
             // Hide UI controls when entering PIP mode
             hideControlsForPip();
-            // Show instruction toast
-            Toast.makeText(activity, "Nhấn giữ video để thoát cuộc gọi", Toast.LENGTH_LONG).show();
+            isInPIPMode = true;
+            // Show instruction toast only if activity is not null
+            if (activity != null && !activity.isFinishing()) {
+                Toast.makeText(activity, "Entering PIP mode", Toast.LENGTH_LONG).show();
+            }
         } else {
             // Show UI controls when exiting PIP mode
+            isInPIPMode = false;
             showControlsFromPip();
         }
     }
