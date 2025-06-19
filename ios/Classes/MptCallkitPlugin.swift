@@ -1523,7 +1523,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        NSLog("Status: \(String(describing: statusText)), Message: \(String(describing: sipMessage))")
        sipRegistered = true
        methodChannel?.invokeMethod("onlineStatus", arguments: true)
-       methodChannel?.invokeMethod("onRegisterSuccess", arguments: true)
+       methodChannel?.invokeMethod("registrationStateStream", arguments: true)
        NSLog("onRegisterSuccess")
    }
   

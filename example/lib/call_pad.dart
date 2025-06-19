@@ -77,7 +77,7 @@ class _CallPadState extends State<CallPad> {
         });
 
         if (_callState == CallStateConstants.CONNECTED) {
-          if (widget.isGuest == true) {
+          if (widget.isGuest == false) {
             MptCallKitController().subscribeToMediaStatusChannel();
           }
         }
@@ -86,7 +86,7 @@ class _CallPadState extends State<CallPad> {
         if (state == CallStateConstants.CLOSED ||
             state == CallStateConstants.FAILED) {
           Future.delayed(const Duration(milliseconds: 500), () {
-            if (widget.isGuest == true) {
+            if (widget.isGuest == false) {
               MptCallKitController().leaveCallMediaRoomChannel();
             }
 
@@ -356,8 +356,8 @@ class _CallPadState extends State<CallPad> {
                   },
                 ),
                 (Platform.isIOS)
-                    ? Column(
-                        children: const [
+                    ? const Column(
+                        children: [
                           SizedBox(height: 16),
                           Text("Camera"),
                           SizedBox(
@@ -411,7 +411,7 @@ class _CallPadState extends State<CallPad> {
         break;
       case 'hangup':
         MptCallKitController().hangup();
-        if (widget.isGuest == true) {
+        if (widget.isGuest == false) {
           MptCallKitController().leaveCallMediaRoomChannel();
         }
         break;
@@ -527,7 +527,7 @@ class _CallPadState extends State<CallPad> {
               // Navigator.of(context).pop();
             },
             style: ButtonStyle(
-              foregroundColor: MaterialStateProperty.all<Color>(Colors.red),
+              foregroundColor: WidgetStateProperty.all<Color>(Colors.red),
             ),
             child: const Text('End call'),
           ),

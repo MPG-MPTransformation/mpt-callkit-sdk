@@ -219,6 +219,12 @@ class MptCallKitController {
           _audioDevicesAvailable.add(call.arguments as List<String>);
         }
 
+        if (call.method == "registrationStateStream") {
+          if (isMakeCallByGuest) {
+            _handleGuestRegistrationState(call.arguments);
+          }
+        }
+
         if (call.method == 'callKitAnswerReceived') {
           print(
               'Received callKitAnswerReceived event from native: ${call.arguments}');
@@ -518,34 +524,32 @@ class MptCallKitController {
         );
 
         // Wait for SIP registration to complete
-        if (Platform.isAndroid) {
-          _guestRegistrationCompleter = Completer<bool>();
+        _guestRegistrationCompleter = Completer<bool>();
 
-          try {
-            // Wait for registration result with timeout
-            final registrationResult = await _guestRegistrationCompleter!.future
-                .timeout(const Duration(seconds: 30));
+        try {
+          // Wait for registration result with timeout
+          final registrationResult = await _guestRegistrationCompleter!.future
+              .timeout(const Duration(seconds: 30));
 
-            if (registrationResult) {
-              await MptCallKitControllerRepo().makeCallByGuest(
-                phoneNumber: userPhoneNumber,
-                extension: result.username ?? "",
-                destination: destination,
-                authToken: apiKey,
-                extraInfo: jsonEncode(extraInfoResult),
-                onError: onError,
-              );
-              // showAndroidCallKit();
-            } else {
-              print('SIP Registration has failed');
-              onError?.call('SIP Registration failed');
-            }
-          } catch (e) {
-            print('Registration timeout or error: $e');
-            onError?.call('Registration timeout');
-          } finally {
-            _guestRegistrationCompleter = null;
+          if (registrationResult) {
+            await MptCallKitControllerRepo().makeCallByGuest(
+              phoneNumber: userPhoneNumber,
+              extension: result.username ?? "",
+              destination: destination,
+              authToken: apiKey,
+              extraInfo: jsonEncode(extraInfoResult),
+              onError: onError,
+            );
+            // showAndroidCallKit();
+          } else {
+            print('SIP Registration has failed');
+            onError?.call('SIP Registration failed');
           }
+        } catch (e) {
+          print('Registration timeout or error: $e');
+          onError?.call('Registration timeout');
+        } finally {
+          _guestRegistrationCompleter = null;
         }
       } else {
         onError?.call('Cannot get extension data');
