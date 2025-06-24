@@ -1245,8 +1245,8 @@ class MptCallKitController {
   }
 
   Future<void> showAndroidCallKit() async {
-    print("showAndroidCallKit");
-    await channel.invokeMethod("startActivity");
+    // print("showAndroidCallKit");
+    // await channel.invokeMethod("startActivity");
   }
 
   // Centralized event channel listener setup

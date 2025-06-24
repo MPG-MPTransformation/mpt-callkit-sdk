@@ -355,28 +355,27 @@ class _CallPadState extends State<CallPad> {
                     );
                   },
                 ),
-                (Platform.isIOS)
-                    ? const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          SizedBox(height: 16),
-                          Text("Camera"),
-                          SizedBox(
-                            height: 300,
-                            width: 300,
-                            child: LocalView(),
-                          ),
-                          SizedBox(height: 16),
-                          Text("Video"),
-                          SizedBox(
-                            height: 300,
-                            width: 300,
-                            child: RemoteView(),
-                          ),
-                        ],
-                      )
-                    : const SizedBox.shrink(),
+                const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(height: 16),
+                    Text("Camera"),
+                    SizedBox(
+                      height: 300,
+                      width: 300,
+                      child: LocalView(),
+                    ),
+                    SizedBox(height: 16),
+                    Text("Video"),
+                    SizedBox(
+                      height: 300,
+                      width: 300,
+                      child: RemoteView(),
+                    ),
+                  ],
+                )
+                // : const SizedBox.shrink(),
               ],
             ),
           ),

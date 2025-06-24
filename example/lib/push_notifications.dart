@@ -48,7 +48,7 @@ class PushNotifications {
 
       // initialise the plugin. app_icon needs to be a added as a drawable resource to the Android head project
       const AndroidInitializationSettings initializationSettingsAndroid =
-          AndroidInitializationSettings('@drawable/ic_notification');
+          AndroidInitializationSettings('@drawable/icon');
 
       final DarwinInitializationSettings initializationSettingsDarwin =
           DarwinInitializationSettings();
@@ -122,7 +122,7 @@ class PushNotifications {
         importance: Importance.high,
         priority: Priority.high,
         showWhen: true,
-        icon: '@drawable/ic_notification',
+        icon: '@drawable/icon',
       );
 
       const NotificationDetails notificationDetails = NotificationDetails(
