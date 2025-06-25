@@ -535,20 +535,17 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             boolean existsVideo,
             String sipMessage) {
 
-        System.out.println("SDK-Android: onInviteIncoming - existsVideo: " + existsVideo);
-        System.out.println("SDK-Android: onInviteIncoming - videoCodecNames: " + videoCodecNames);
-        System.out.println("SDK-Android: onInviteIncoming - Debug info:");
-        System.out.println("SDK-Android: caller = " + caller);
-        System.out.println("SDK-Android: callee = " + callee);
-        System.out.println("SDK-Android: sessionId = " + sessionId);
-        System.out.println("SDK-Android: existsVideo = " + existsVideo);
-        System.out.println("SDK-Android: sipMessage = " + sipMessage);
-        // System.out.println("SDK-Android: answer-mode = " +
-        // Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage,
-        // "Answer-Mode").toString());
-        // System.out.println("SDK-Android: answer-mode = " +
-        // Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage,
-        // "X-Session-Id").toString());
+        System.out.println("SDK-Android: onInviteIncoming " +
+                "- \n sessionId: " + sessionId
+                + ",\n callerDisplayName: " + callerDisplayName
+                + ",\n caller: " + caller
+                + ",\n calleeDisplayName: " + calleeDisplayName
+                + ",\n callee: " + callee
+                + ",\n audioCodecNames: " + audioCodecNames
+                + ",\n videoCodecNames: " + videoCodecNames
+                + ",\n existsAudio: " + existsAudio
+                + ",\n existsVideo: " + existsVideo
+                + ",\n sipMessage: " + sipMessage);
 
         if (CallManager.Instance().findIncomingCall() != null) {
             Engine.Instance().getEngine().rejectCall(sessionId, 486); // busy

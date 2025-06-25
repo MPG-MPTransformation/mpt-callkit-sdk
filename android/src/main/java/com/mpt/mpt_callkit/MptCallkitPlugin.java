@@ -69,7 +69,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         Engine.Instance().getMethodChannel().setMethodCallHandler(this);
         context = flutterPluginBinding.getApplicationContext();
         Engine.Instance().setEngine(new PortSipSdk(context));
-        Engine.Instance().setReceiver(new PortMessageReceiver());
+        // Only create receiver if it doesn't exist
+        if (Engine.Instance().getReceiver() == null) {
+            Engine.Instance().setReceiver(new PortMessageReceiver());
+        }
 
         // Đăng ký LocalViewFactory
         flutterPluginBinding
@@ -77,7 +80,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 .registerViewFactory("LocalView", new LocalViewFactory(context));
         flutterPluginBinding
                 .getPlatformViewRegistry()
-                .registerViewFactory("RemoteView", new RemoteViewFactory(context));
+                .registerViewFactory("RemoteView", new RemoteViewFactory());
         new EventChannel(flutterPluginBinding.getBinaryMessenger(), CHANNEL)
                 .setStreamHandler(new EventChannel.StreamHandler() {
                     @Override
@@ -136,6 +139,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 break;
             case "openAppSetting":
                 openAppSetting();
+                break;
+            case "ensureViewListenersRegistered":
+                ensureViewListenersRegistered();
+                result.success(true);
                 break;
             case "appKilled":
                 stopIntent = new Intent(activity, PortSipService.class);
@@ -283,6 +290,31 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 break;
             default:
                 result.notImplemented();
+        }
+    }
+
+    /**
+     * Ensure LocalView and RemoteView listeners are registered
+     * Call this when app returns from background, especially after FCM processing
+     */
+    private void ensureViewListenersRegistered() {
+        System.out.println("SDK-Android: ensureViewListenersRegistered - Checking and re-registering view listeners");
+
+        if (Engine.Instance().getReceiver() == null) {
+            System.out.println("SDK-Android: ensureViewListenersRegistered - Receiver is null, creating new one");
+            Engine.Instance().setReceiver(new PortMessageReceiver());
+        }
+
+        // We don't have direct access to View instances here, but we can ensure the
+        // receiver is ready
+        // The actual re-registration will happen in View constructors or when they
+        // detect missing listeners
+        PortMessageReceiver receiver = Engine.Instance().getReceiver();
+        if (receiver != null) {
+            System.out.println("SDK-Android: ensureViewListenersRegistered - Current listeners count: "
+                    + receiver.getListenersCount());
+            System.out.println(
+                    "SDK-Android: ensureViewListenersRegistered - Listeners info: " + receiver.getListenersInfo());
         }
     }
 

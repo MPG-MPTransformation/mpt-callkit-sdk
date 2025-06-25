@@ -558,7 +558,7 @@ class MptCallKitController {
     } on Exception catch (e) {
       onError?.call(e.toString());
       debugPrint("Failed to call: '${e.toString()}'.");
-      if (Platform.isIOS) Navigator.pop(context);
+      // if (Platform.isIOS) Navigator.pop(context);
     }
   }
 
@@ -1361,5 +1361,18 @@ class MptCallKitController {
     _localMicStateController.close();
     _remoteCamStateController.close();
     _remoteMicStateController.close();
+  }
+
+  /// Ensure LocalView and RemoteView listeners are registered
+  /// Call this when app returns from background, especially after FCM processing
+  static Future<void> ensureViewListenersRegistered() async {
+    try {
+      if (Platform.isAndroid) {
+        await channel.invokeMethod('ensureViewListenersRegistered');
+        print('Ensured view listeners are registered');
+      }
+    } catch (e) {
+      print('Error ensuring view listeners registered: $e');
+    }
   }
 }
