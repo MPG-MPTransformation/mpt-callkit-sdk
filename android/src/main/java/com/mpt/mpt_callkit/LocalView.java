@@ -19,11 +19,19 @@ public class LocalView implements PlatformView {
     private final FrameLayout containerView;
     private PortSIPVideoRenderer localRenderVideoView;
     private PortMessageReceiver receiver;
+    private PortMessageReceiver.BroadcastListener localViewListener;
 
     public LocalView(Context context, int viewId) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         PortSipSdk portSipLib = Engine.Instance().getEngine();
         receiver = Engine.Instance().getReceiver();
+
+        // If receiver is null, create a new one (FCM might have reset it)
+        if (receiver == null) {
+            System.out.println("SDK-Android: LocalView - Receiver is null, creating new one");
+            receiver = new PortMessageReceiver();
+            Engine.Instance().setReceiver(receiver);
+        }
 
         containerView = (FrameLayout) LayoutInflater.from(context).inflate(R.layout.local_layout, null);
 
@@ -60,9 +68,9 @@ public class LocalView implements PlatformView {
             }
 
             // Giải phóng receiver nếu cần
-            if (receiver != null && receiver.broadcastReceiver != null) {
-                receiver.broadcastReceiver = null;
-                System.out.println("SDK-Android: broadcastReceiver - local_view - set null");
+            if (receiver != null) {
+                receiver.removePersistentListenerByTag("LocalView");
+                System.out.println("SDK-Android: broadcastReceiver - local_view - removed persistent listener");
             }
         } catch (Exception e) {
             System.out.println("Error disposing LocalView: " + e.getMessage());
@@ -111,17 +119,32 @@ public class LocalView implements PlatformView {
     private void setupReceiver() {
         // Thêm xử lý sự kiện broadcast
         if (receiver != null) {
-            receiver.broadcastReceiver = new PortMessageReceiver.BroadcastListener() {
+            localViewListener = new PortMessageReceiver.BroadcastListener() {
                 @Override
                 public void onBroadcastReceiver(Intent intent) {
                     handleBroadcastReceiver(intent);
                 }
             };
 
-            System.out.println("SDK-Android: broadcastReceiver - local_view - set: "
-                    + receiver.broadcastReceiver.toString());
+            // Sử dụng persistent listener thay vì gán trực tiếp
+            receiver.addPersistentListener(localViewListener, "LocalView");
+            System.out.println("SDK-Android: broadcastReceiver - local_view - added persistent listener");
         } else {
-            System.out.println("SDK-Android: broadcastReceiver - local_view - set null ");
+            System.out.println("SDK-Android: broadcastReceiver - local_view - receiver is null");
+        }
+    }
+
+    /**
+     * Re-register listener if receiver was reset (e.g., after FCM background
+     * processing)
+     */
+    public void ensureListenerRegistered() {
+        if (receiver != null && localViewListener != null) {
+            // Check if our listener is still registered
+            if (receiver.getListenersCount() == 0) {
+                System.out.println("SDK-Android: LocalView - Receiver appears to be reset, re-registering listener");
+                receiver.addPersistentListener(localViewListener, "LocalView");
+            }
         }
     }
 

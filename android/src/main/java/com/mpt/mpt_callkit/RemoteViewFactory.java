@@ -6,14 +6,14 @@ import io.flutter.plugin.platform.PlatformView;
 import io.flutter.plugin.platform.PlatformViewFactory;
 
 public class RemoteViewFactory extends PlatformViewFactory {
-    private final Context context;
+    // private final Context context;
 
-    public RemoteViewFactory(Context context) {
+    public RemoteViewFactory() {
         super(StandardMessageCodec.INSTANCE);
-        if (context == null) {
-            throw new IllegalArgumentException("Context cannot be null");
-        }
-        this.context = context;
+        // if (context == null) {
+        // throw new IllegalArgumentException("Context cannot be null");
+        // }
+        // this.context = context;
     }
 
     @Override
@@ -21,6 +21,6 @@ public class RemoteViewFactory extends PlatformViewFactory {
         if (context == null) {
             throw new IllegalArgumentException("Context cannot be null");
         }
-        return new RemoteView(this.context, viewId);
+        return new RemoteView(context, viewId);
     }
 }

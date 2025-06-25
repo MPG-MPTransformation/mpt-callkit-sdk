@@ -1245,7 +1245,8 @@ class MptCallKitController {
   }
 
   Future<void> showAndroidCallKit() async {
-    await channel.invokeMethod("startActivity");
+    // print("showAndroidCallKit");
+    // await channel.invokeMethod("startActivity");
   }
 
   // Centralized event channel listener setup
@@ -1360,5 +1361,18 @@ class MptCallKitController {
     _localMicStateController.close();
     _remoteCamStateController.close();
     _remoteMicStateController.close();
+  }
+
+  /// Ensure LocalView and RemoteView listeners are registered
+  /// Call this when app returns from background, especially after FCM processing
+  static Future<void> ensureViewListenersRegistered() async {
+    try {
+      if (Platform.isAndroid) {
+        await channel.invokeMethod('ensureViewListenersRegistered');
+        print('Ensured view listeners are registered');
+      }
+    } catch (e) {
+      print('Error ensuring view listeners registered: $e');
+    }
   }
 }

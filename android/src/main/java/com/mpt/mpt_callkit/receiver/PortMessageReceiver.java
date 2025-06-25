@@ -78,6 +78,13 @@ public class PortMessageReceiver extends BroadcastReceiver {
         if (!handled && !persistentListeners.isEmpty()) {
             System.out.println("SDK-Android: PortMessageReceiver onReceive - using persistent listeners ("
                     + persistentListeners.size() + " available)");
+            // Debug: log all persistent listeners
+            for (int i = 0; i < persistentListeners.size(); i++) {
+                TaggedListener tl = persistentListeners.get(i);
+                System.out.println("SDK-Android: PortMessageReceiver - Persistent listener [" + i + "]: " +
+                        (tl != null ? tl.getName() : "null"));
+            }
+            boolean anyHandled = false;
             for (TaggedListener taggedListener : persistentListeners) {
                 if (taggedListener.listener != null) {
                     try {
@@ -85,10 +92,10 @@ public class PortMessageReceiver extends BroadcastReceiver {
                                 "SDK-Android: PortMessageReceiver onReceive - trying persistent listener: "
                                         + taggedListener.getName());
                         taggedListener.listener.onBroadcastReceiver(intent);
-                        handled = true;
+                        anyHandled = true;
                         System.out.println(
                                 "SDK-Android: PortMessageReceiver onReceive - persistent listener handled successfully");
-                        break;
+                        // Don't break - continue to call all persistent listeners
                     } catch (Exception e) {
                         System.out.println(
                                 "SDK-Android: PortMessageReceiver onReceive - persistent listener error: "
@@ -96,12 +103,14 @@ public class PortMessageReceiver extends BroadcastReceiver {
                     }
                 }
             }
+            handled = anyHandled;
         }
 
         // If still not handled, try temporary listeners
         if (!handled && !temporaryListeners.isEmpty()) {
             System.out.println("SDK-Android: PortMessageReceiver onReceive - using temporary listeners ("
                     + temporaryListeners.size() + " available)");
+            boolean anyTempHandled = false;
             Iterator<WeakReference<BroadcastListener>> iterator = temporaryListeners.iterator();
             while (iterator.hasNext()) {
                 WeakReference<BroadcastListener> weakRef = iterator.next();
@@ -114,10 +123,10 @@ public class PortMessageReceiver extends BroadcastReceiver {
                                 "SDK-Android: PortMessageReceiver onReceive - trying temporary listener: "
                                         + listenerName);
                         listener.onBroadcastReceiver(intent);
-                        handled = true;
+                        anyTempHandled = true;
                         System.out.println(
                                 "SDK-Android: PortMessageReceiver onReceive - temporary listener handled successfully");
-                        break;
+                        // Don't break - continue to call all temporary listeners
                     } catch (Exception e) {
                         System.out.println(
                                 "SDK-Android: PortMessageReceiver onReceive - temporary listener error: "
@@ -130,6 +139,7 @@ public class PortMessageReceiver extends BroadcastReceiver {
                     iterator.remove();
                 }
             }
+            handled = anyTempHandled;
         }
 
         if (!handled) {

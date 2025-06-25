@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.FrameLayout;
+import androidx.annotation.NonNull;
 
 import io.flutter.plugin.platform.PlatformView;
 
@@ -19,13 +20,22 @@ public class RemoteView implements PlatformView {
     private final FrameLayout containerView;
     private PortSIPVideoRenderer remoteRenderVideoView;
     private PortMessageReceiver receiver;
-    CallManager callManager = CallManager.Instance();;
+    CallManager callManager = CallManager.Instance();
+    private PortMessageReceiver.BroadcastListener remoteViewListener;
 
-    public RemoteView(Context context, int viewId) {
+    public RemoteView(@NonNull Context context, int viewId) {
 
         PortSipSdk portSipLib = Engine.Instance().getEngine();
         Session cur = callManager.getCurrentSession();
         receiver = Engine.Instance().getReceiver();
+
+        // If receiver is null, create a new one (FCM might have reset it)
+        if (receiver == null) {
+            System.out.println("SDK-Android: RemoteView - Receiver is null, creating new one");
+            receiver = new PortMessageReceiver();
+            Engine.Instance().setReceiver(receiver);
+        }
+
         // Inflate layout từ XML
         containerView = (FrameLayout) LayoutInflater.from(context).inflate(R.layout.remote_layout, null);
 
@@ -63,9 +73,9 @@ public class RemoteView implements PlatformView {
             }
 
             // Giải phóng receiver nếu cần
-            if (receiver != null && receiver.broadcastReceiver != null) {
-                receiver.broadcastReceiver = null;
-                System.out.println("SDK-Android: broadcastReceiver - remote_view - set null");
+            if (receiver != null) {
+                receiver.removePersistentListenerByTag("RemoteView");
+                System.out.println("SDK-Android: broadcastReceiver - remote_view - removed persistent listener");
             }
         } catch (Exception e) {
             System.out.println("Error disposing RemoteView: " + e.getMessage());
@@ -75,32 +85,56 @@ public class RemoteView implements PlatformView {
     private void setupReceiver() {
         // Thêm xử lý sự kiện broadcast
         if (receiver != null) {
-            receiver.broadcastReceiver = new PortMessageReceiver.BroadcastListener() {
+            remoteViewListener = new PortMessageReceiver.BroadcastListener() {
                 @Override
                 public void onBroadcastReceiver(Intent intent) {
+                    System.out.println("SDK-Android: broadcastReceiver - onBroadcastReceiver - " + intent.toString());
                     handleBroadcastReceiver(intent);
                 }
             };
-            System.out.println(
-                    "SDK-Android: broadcastReceiver - remote_view - set: " + receiver.broadcastReceiver.toString());
+
+            // Sử dụng persistent listener thay vì gán trực tiếp
+            receiver.addPersistentListener(remoteViewListener, "RemoteView");
+            System.out.println("SDK-Android: broadcastReceiver - remote_view - added persistent listener");
         } else {
-            System.out.println("SDK-Android: broadcastReceiver - remote_view - set null ");
+            System.out.println("SDK-Android: broadcastReceiver - remote_view - receiver is null");
+        }
+    }
+
+    /**
+     * Re-register listener if receiver was reset (e.g., after FCM background
+     * processing)
+     */
+    public void ensureListenerRegistered() {
+        if (receiver != null && remoteViewListener != null) {
+            // Check if our listener is still registered
+            if (receiver.getListenersCount() == 0) {
+                System.out.println("SDK-Android: RemoteView - Receiver appears to be reset, re-registering listener");
+                receiver.addPersistentListener(remoteViewListener, "RemoteView");
+            }
         }
     }
 
     private void handleBroadcastReceiver(Intent intent) {
+        System.out.println("SDK-Android: handleBroadcastReceiver");
         try {
-            if (intent == null)
+            if (intent == null) {
+                System.out.println("SDK-Android: handleBroadcastReceiver - intent null");
                 return;
+            }
 
             PortSipSdk portSipLib = Engine.Instance().getEngine();
-            if (portSipLib == null)
+            if (portSipLib == null) {
+                System.out.println("SDK-Android: handleBroadcastReceiver - portSipLib null");
                 return;
+            }
 
             Session currentLine = CallManager.Instance().getCurrentSession();
             String action = intent.getAction();
-            if (action == null)
+            if (action == null) {
+                System.out.println("SDK-Android: handleBroadcastReceiver - action null");
                 return;
+            }
 
             if (PortSipService.CALL_CHANGE_ACTION.equals(action)) {
                 long sessionId = intent.getLongExtra(PortSipService.EXTRA_CALL_SEESIONID, Session.INVALID_SESSION_ID);
@@ -108,6 +142,7 @@ public class RemoteView implements PlatformView {
                 Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 
                 if (session != null) {
+                    System.out.println("SDK-Android: handleBroadcastReceiver - state " + session.state);
                     switch (session.state) {
                         case INCOMING:
                             // Xử lý cuộc gọi đến nếu cần
@@ -127,7 +162,11 @@ public class RemoteView implements PlatformView {
                             }
                             break;
                     }
+                } else {
+                    System.out.println("SDK-Android: handleBroadcastReceiver - session null");
                 }
+            } else {
+                System.out.println("SDK-Android: handleBroadcastReceiver - action not match");
             }
         } catch (Exception e) {
             System.out.println("Error in handleBroadcastReceiver: " + e.getMessage());
