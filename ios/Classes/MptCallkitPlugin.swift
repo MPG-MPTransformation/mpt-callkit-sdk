@@ -58,8 +58,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    var _APNsPushToken: NSString!
    var _backtaskIdentifier: UIBackgroundTaskIdentifier = UIBackgroundTaskIdentifier.invalid
     
-  var currentSessionid: String = ""
+    var currentSessionid: String = ""
     var xSessionId: String = ""
+    var xSessionIdRecv: String = ""
   
    var _enablePushNotification: Bool?
   
@@ -512,9 +513,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        // Auto answer call
        if portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "Answer-Mode") == "Auto;require" {
             print("onInviteIncoming - Outgoing call API")
-            answerCall()
             self.xSessionId = portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "X-Session-Id")
             methodChannel?.invokeMethod("callType", arguments: "OUTGOING_CALL")
+            answerCall()
        }
        else{
             print("onInviteIncoming - Incoming call API")
@@ -1472,15 +1473,16 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         case "reInvite":
            if let args = call.arguments as? [String: Any],
               let sessionId = args["sessionId"] as? String {
-               reInvite(sessionId)
+//               reInvite(sessionId)
+               xSessionIdRecv = sessionId
                result(true)
            } else {
                result(FlutterError(code: "INVALID_ARGUMENTS",
                                  message: "Missing or invalid arguments for reInvite",
                                  details: nil))
            }
-                case "updateVideoCall":
-           if let args = call.arguments as? [String: Any],
+        case "updateVideoCall":
+            if let args = call.arguments as? [String: Any],
               let isVideo = args["isVideo"] as? Bool {
                        // Check if we have an active session
                 if activeSessionid <= CLong(INVALID_SESSION_ID) {
@@ -1511,8 +1513,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 forceShowVideo()
  
                result(true)
-           } else {
-               result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing or invalid arguments for updateVideoCall", details: nil))}
+            } else {
+               result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing or invalid arguments for updateVideoCall", details: nil))
+            }
        default:
            result(FlutterMethodNotImplemented)
        }
@@ -1569,8 +1572,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 mSoundService.stopRingTone()
                 mSoundService.stopRingBackTone()
                 
-                portSIPSDK.answerCall(activeSessionid, videoCall: result!.session.videoState)
-                sendCallStateToFlutter(.ANSWERED)
+                let answerRes = portSIPSDK.answerCall(activeSessionid, videoCall: result!.session.videoState)
+                if (answerRes == 0) {
+                    sendCallStateToFlutter(.ANSWERED)
+                    reInvite(xSessionIdRecv)
+                } else {
+                    NSLog( "Answer call failed with error code: \(String(describing: answerRes))")
+                }
                 
                 // Đảm bảo video được hiển thị nếu là cuộc gọi video
                 if result!.session.videoState {

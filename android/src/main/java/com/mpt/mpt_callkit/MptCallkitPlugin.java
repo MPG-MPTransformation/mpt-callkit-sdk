@@ -61,6 +61,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private MethodChannel.Result pendingResult;
     private static final String CHANNEL = "native_events";
     private static EventChannel.EventSink eventSink;
+    private static String xSessionId;
 
     @Override
     public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
@@ -271,9 +272,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 }
                 break;
             case "reInvite":
-                String sessionId = call.argument("sessionId");
-                boolean reinviteResult = reinviteSession(sessionId);
-                result.success(reinviteResult);
+                xSessionId = call.argument("sessionId");
+//                boolean reinviteResult = reinviteSession(sessionId);
+//                result.success(reinviteResult);
                 break;
             case "updateVideoCall":
                 Session currentLine = CallManager.Instance().getCurrentSession();
@@ -610,7 +611,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
-    void answerCall() {
+    public static boolean answerCall() {
         Session currentLine = CallManager.Instance().getCurrentSession();
         System.out.println("SDK-Android: Answer call currentLine: " + currentLine);
         System.out.println("SDK-Android: Answer call sessionID: " + currentLine.sessionID);
@@ -627,9 +628,15 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 }
                 currentLine.state = Session.CALL_STATE_FLAG.CONNECTED;
                 Engine.Instance().getEngine().joinToConference(currentLine.sessionID);
+
+                //re-invite to update video call
+                reinviteSession(xSessionId);
             } else {
                 System.out.println("SDK-Android: Answer call failed with error code: " + result);
             }
+            return result == 0;
+        } else{
+            return false;
         }
     }
 
@@ -662,7 +669,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         return true;
     }
 
-    boolean reinviteSession(String sessionId) {
+    public static boolean reinviteSession(String sessionId) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         System.out.println("SDK-Android: reInvite currentLine: " + currentLine);
         System.out.println("SDK-Android: reInvite sessionID: " + currentLine.sessionID);
@@ -672,7 +679,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             return false;
         }
 
-        System.out.println("SDK-Android: SIP message Session-Id: " + sessionId);
+        System.out.println("SDK-Android: SIP message X-Session-Id: " + sessionId);
 
         // Lấy X-Session-Id từ sipMessage
         String messageSesssionId = Engine.Instance().getEngine()
@@ -682,7 +689,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 .getSipMessageHeaderValue(currentLine.sipMessage, "Answer-Mode").toString().equals("Auto;require");
 
         // So sánh với sessionId được truyền vào
-        if (messageSesssionId.equals(sessionId) && answerMode) {
+        if (messageSesssionId.equals(sessionId) && !currentLine.hasVideo) {
             // Cập nhật trạng thái video của session
             currentLine.hasVideo = true;
 

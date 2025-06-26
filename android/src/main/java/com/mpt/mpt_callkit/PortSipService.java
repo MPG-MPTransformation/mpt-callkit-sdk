@@ -601,10 +601,10 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             Ring.getInstance(this).stopRingTone();
             // Ring.getInstance(this).startRingBackTone();
             // Answer với video status hiện tại (có thể là false)
-            int result = Engine.Instance().getEngine().answerCall(sessionId, existsVideo);
+            boolean result = MptCallkitPlugin.answerCall();
             System.out.println("SDK-Android: onInviteIncoming - On auto answer call");
             sendCallTypeToFlutter("OUTGOING_CALL");
-            if (result == 0) {
+            if (result) {
                 sendCallStateToFlutter("ANSWERED");
             } else {
                 System.out.println("SDK-Android: auto answer call failed with code: " + result);
