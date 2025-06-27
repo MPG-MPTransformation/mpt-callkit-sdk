@@ -37,6 +37,7 @@ import com.mpt.mpt_callkit.util.ContactManager;
 import com.mpt.mpt_callkit.util.Contact;
 import com.mpt.mpt_callkit.util.Engine;
 import com.mpt.mpt_callkit.util.Ring;
+import com.mpt.mpt_callkit.util.ResourceMonitor;
 import com.mpt.mpt_callkit.IncomingActivity;
 
 import java.nio.charset.StandardCharsets;
@@ -49,10 +50,12 @@ import java.util.UUID;
 
 import com.mpt.mpt_callkit.MainActivity;
 
-public class PortSipService extends Service implements OnPortSIPEvent, NetWorkReceiver.NetWorkListener {
+public class PortSipService extends Service
+        implements OnPortSIPEvent, NetWorkReceiver.NetWorkListener, ResourceMonitor.ResourceCleanupListener {
 
     private NetWorkReceiver mNetWorkReceiver;
     private NotificationManager mNotificationManager;
+    private ResourceMonitor resourceMonitor;
     private String channelID = "PortSipService";
     private String callChannelID = "Call Channel";
     private static final int SERVICE_NOTIFICATION = 31414;
@@ -218,7 +221,11 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             mNotificationManager.createNotificationChannel(channel);
             mNotificationManager.createNotificationChannel(callChannel);
         }
-        // showServiceNotifiCation();
+
+        // Initialize resource monitor
+        resourceMonitor = ResourceMonitor.getInstance(this);
+        resourceMonitor.addListener(this);
+        resourceMonitor.startMonitoring();
 
         registerReceiver();
     }
@@ -227,18 +234,91 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     public void onDestroy() {
         super.onDestroy();
         System.out.println("SDK-Android: onDestroy called!");
-        Engine.Instance().getEngine().destroyConference();
-        unregisterReceiver();
-        if (mCpuLock != null) {
-            mCpuLock.release();
+
+        try {
+            // Cleanup all active sessions first
+            CallManager.Instance().resetAll();
+
+            // Stop all ongoing calls
+            PortSipSdk engine = Engine.Instance().getEngine();
+            if (engine != null) {
+                engine.destroyConference();
+
+                // Hang up all active sessions before cleanup
+                for (int i = 0; i < CallManager.MAX_LINES; i++) {
+                    Session session = CallManager.Instance().findSessionByIndex(i);
+                    if (session != null && session.sessionID != Session.INVALID_SESSION_ID) {
+                        engine.hangUp(session.sessionID);
+                    }
+                }
+
+                // Cleanup engine resources
+                engine.unRegisterServer(100);
+                engine.removeUser();
+                engine.unInitialize();
+            }
+
+            unregisterReceiver();
+
+            // Stop resource monitoring
+            if (resourceMonitor != null) {
+                resourceMonitor.stopMonitoring();
+                resourceMonitor.removeListener(this);
+            }
+
+            if (mCpuLock != null) {
+                mCpuLock.release();
+                mCpuLock = null;
+            }
+
+            if (mNotificationManager != null) {
+                mNotificationManager.cancelAll();
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    mNotificationManager.deleteNotificationChannel(channelID);
+                    mNotificationManager.deleteNotificationChannel(callChannelID);
+                }
+                mNotificationManager = null;
+            }
+
+            // Reset state
+            CallManager.Instance().online = false;
+            CallManager.Instance().isRegistered = false;
+
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error during PortSipService cleanup: " + e.getMessage());
         }
-        mNotificationManager.cancelAll();
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            mNotificationManager.deleteNotificationChannel(channelID);
-            mNotificationManager.deleteNotificationChannel(callChannelID);
+    }
+
+    @Override
+    public void onResourceCleanupNeeded(int currentFDCount, String reason) {
+        System.out
+                .println("SDK-Android: Resource cleanup needed - FD count: " + currentFDCount + ", reason: " + reason);
+
+        try {
+            // Force garbage collection first
+            if (resourceMonitor != null) {
+                resourceMonitor.forceGarbageCollection();
+            }
+
+            // If critical, perform emergency cleanup
+            if ("CRITICAL_FD_COUNT".equals(reason)) {
+                System.out.println("SDK-Android: Performing emergency cleanup due to critical FD count");
+
+                // Close idle sessions
+                PortSipSdk engine = Engine.Instance().getEngine();
+                if (engine != null) {
+                    for (int i = 0; i < CallManager.MAX_LINES; i++) {
+                        Session session = CallManager.Instance().findSessionByIndex(i);
+                        if (session != null && session.IsIdle() && session.sessionID != Session.INVALID_SESSION_ID) {
+                            session.cleanupResources(engine);
+                            session.Reset();
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error during resource cleanup: " + e.getMessage());
         }
-        mNotificationManager = null;
-        Engine.Instance().getEngine().removeUser();
     }
 
     @Override
@@ -377,13 +457,34 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     public void unregisterToServer() {
         System.out.println("SDK-Android: unregisterToServer");
         if (CallManager.Instance().online) {
-            Engine.Instance().getEngine().unRegisterServer(100);
-            Engine.Instance().getEngine().removeUser();
-            Engine.Instance().getEngine().unInitialize();
-            CallManager.Instance().online = false;
-            Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", CallManager.Instance().online);
-            MptCallkitPlugin.sendToFlutter("onlineStatus", CallManager.Instance().online);
-            CallManager.Instance().isRegistered = false;
+            try {
+                PortSipSdk engine = Engine.Instance().getEngine();
+                if (engine != null) {
+                    // Hang up all active calls first
+                    CallManager.Instance().hangupAllCalls(engine);
+
+                    // Wait a bit for hangup to complete
+                    Thread.sleep(500);
+
+                    // Then cleanup
+                    engine.destroyConference();
+                    engine.unRegisterServer(100);
+                    engine.removeUser();
+                    engine.unInitialize();
+                }
+
+                CallManager.Instance().resetAll();
+                CallManager.Instance().online = false;
+                CallManager.Instance().isRegistered = false;
+
+                if (Engine.Instance().getMethodChannel() != null) {
+                    Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", false);
+                }
+                MptCallkitPlugin.sendToFlutter("onlineStatus", false);
+
+            } catch (Exception e) {
+                System.out.println("SDK-Android: Error during unregisterToServer: " + e.getMessage());
+            }
         }
     }
 
@@ -428,22 +529,29 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     private int initialSDK() {
         Engine.Instance().getEngine().setOnPortSIPEvent(this);
         CallManager.Instance().online = true;
-        // Engine.Instance().getMethodChannel().invokeMethod("onlineStatus",
-        // CallManager.Instance().online);
+
         String dataPath = getExternalFilesDir(null).getAbsolutePath();
         String certRoot = dataPath + "/certs";
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         Random rm = new Random();
         int localPort = 5060 + rm.nextInt(60000);
         int transType = preferences.getInt(TRANS, 0);
+
+        // Reduce max lines to minimize resource usage
+        int maxLines = 4; // Reduced from default 8
+
         int result = Engine.Instance().getEngine().initialize(getTransType(transType), "0.0.0.0", localPort,
-                PortSipEnumDefine.ENUM_LOG_LEVEL_DEBUG, dataPath,
-                8, "PortSIP SDK for Android", 0, 0, certRoot, "", false, null);
+                PortSipEnumDefine.ENUM_LOG_LEVEL_ERROR, dataPath, // Changed to ERROR level to reduce logging overhead
+                maxLines, "PortSIP SDK for Android", 0, 0, certRoot, "", false, null);
 
         if (result != PortSipErrorcode.ECoreErrorNone) {
             showTipMessage("initialize failure ErrorCode = " + result);
             CallManager.Instance().resetAll();
         } else {
+            // Set conservative resource limits
+            Engine.Instance().getEngine().setVideoResolution(640, 480); // Lower resolution to save resources
+            Engine.Instance().getEngine().setVideoBitrate(-1, 256); // Lower bitrate
+            Engine.Instance().getEngine().setVideoFrameRate(-1, 15); // Lower frame rate
 
             result = Engine.Instance().getEngine().setLicenseKey("LicenseKey");
             if (result == PortSipErrorcode.ECoreWrongLicenseKey) {
@@ -455,7 +563,6 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                 showTipMessage("This Is Trial Version");
                 Engine.Instance().getEngine().setInstanceId(getInstanceID());
             }
-
         }
         return result;
     }
@@ -535,17 +642,17 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
             boolean existsVideo,
             String sipMessage) {
 
-        System.out.println("SDK-Android: onInviteIncoming " +
-                "- \n sessionId: " + sessionId
-                + ",\n callerDisplayName: " + callerDisplayName
-                + ",\n caller: " + caller
-                + ",\n calleeDisplayName: " + calleeDisplayName
-                + ",\n callee: " + callee
-                + ",\n audioCodecNames: " + audioCodecNames
-                + ",\n videoCodecNames: " + videoCodecNames
-                + ",\n existsAudio: " + existsAudio
-                + ",\n existsVideo: " + existsVideo
-                + ",\n sipMessage: " + sipMessage);
+        System.out.println("SDK-Android: onInviteIncoming - "
+                + "sessionId: " + sessionId
+                + ", callerDisplayName: " + callerDisplayName
+                + ", caller: " + caller
+                + ", calleeDisplayName: " + calleeDisplayName
+                + ", callee: " + callee
+                + ", audioCodecNames: " + audioCodecNames
+                + ", videoCodecNames: " + videoCodecNames
+                + ", existsAudio: " + existsAudio
+                + ", existsVideo: " + existsVideo
+                + ", sipMessage: " + sipMessage);
 
         if (CallManager.Instance().findIncomingCall() != null) {
             Engine.Instance().getEngine().rejectCall(sessionId, 486); // busy
@@ -708,6 +815,8 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
                 + ", subMimeType: " + subMimeType
                 + ", messageData: " + str
                 + ", messageDataLength: " + messageDataLength);
+
+        MptCallkitPlugin.sendToFlutter("recvCallMessage", str);
     }
 
     @Override
@@ -796,14 +905,15 @@ public class PortSipService extends Service implements OnPortSIPEvent, NetWorkRe
     @Override
     public void onInviteUpdated(long sessionId, String audioCodecs, String videoCodecs, String screenCodecs,
             boolean existsAudio, boolean existsVideo, boolean existsScreen, String sipMessage) {
-        System.out.println("SDK-Android: onInviteUpdated with videoCodecs: " + videoCodecs);
-        System.out.println(
-                "SDK-Android: onInviteUpdated - existsVideo before: "
-                        + (CallManager.Instance().getCurrentSession() != null
-                                ? CallManager.Instance().getCurrentSession().hasVideo
-                                : "null"));
-        System.out.println("SDK-Android: onInviteUpdated - existsVideo from event: " + existsVideo);
-        System.out.println("SDK-Android: onInviteUpdated - Sip Message: " + sipMessage);
+        System.out.println("SDK-Android: onInviteUpdated - "
+                + "sessionId: " + sessionId
+                + ", audioCodecs: " + audioCodecs
+                + ", videoCodecs: " + videoCodecs
+                + ", screenCodecs: " + screenCodecs
+                + ", existsAudio: " + existsAudio
+                + ", existsVideo: " + existsVideo
+                + ", existsScreen: " + existsScreen
+                + ", sipMessage: " + sipMessage);
 
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 

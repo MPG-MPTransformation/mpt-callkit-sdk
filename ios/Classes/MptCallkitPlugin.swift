@@ -61,6 +61,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     var currentSessionid: String = ""
     var xSessionId: String = ""
     var xSessionIdRecv: String = ""
+    var currentUsername: String = "" // Lưu username hiện tại
   
    var _enablePushNotification: Bool?
   
@@ -933,10 +934,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            return
        }
       
-      
        if mimeType == "text", subMimeType == "plain" {
-           let recvMessage = String(cString: messageData)
-                   } else if mimeType == "application", subMimeType == "vnd.3gpp.sms" {
+           let recvMessage = String(data: Data(bytes: messageData, count: Int(messageDataLength)), encoding: .utf8) ?? ""
+           NSLog("onRecvMessage... Received message: \(recvMessage)")
+       } else if mimeType == "application", subMimeType == "vnd.3gpp.sms" {
            // The messageData is binary data
        } else if mimeType == "application", subMimeType == "vnd.3gpp2.sms" {
            // The messageData is binary data
@@ -951,7 +952,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        NSLog("onRecvOutOfDialogMessage...")
       
        if mimeType == "text", subMimeType == "plain" {
-           let strMessageData = String(cString: messageData)
+           let strMessageData = String(data: Data(bytes: messageData, count: Int(messageDataLength)), encoding: .utf8) ?? ""
            NSLog("Received out of dialog message: \(strMessageData)")
        } else if mimeType == "application", subMimeType == "vnd.3gpp.sms" {
            // The messageData is binary data
@@ -1103,6 +1104,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        NSLog("muteMicrophone")
        if activeSessionid != CLong(INVALID_SESSION_ID) {
            portSIPSDK.muteSession(activeSessionid, muteIncomingAudio: false, muteOutgoingAudio: mute, muteIncomingVideo: false, muteOutgoingVideo: false)
+           
+                       // Gửi tin nhắn với format mới
+            let sessionInfo = getCurrentSessionInfo()
+            sendCustomMessage(callSessionId: sessionInfo.0, userExtension: sessionInfo.1, type: "update_media_state", payloadKey: "microphone", payloadValue: !mute) // !mute vì microphone state là ngược lại với mute state
        }
        sendMicrophoneStateToFlutter(mute)
    }
@@ -1354,6 +1359,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
               let sipServer = args["sipServer"] as? String,
               let sipServerPort = args["sipServerPort"] as? Int32 {
               
+               // Lưu username hiện tại
+               currentUsername = username
+               
                // Register to SIP server
                loginViewController.onLine(
                    username: username,
@@ -1473,7 +1481,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         case "reInvite":
            if let args = call.arguments as? [String: Any],
               let sessionId = args["sessionId"] as? String {
-//               reInvite(sessionId)
+               reInvite(sessionId)
                xSessionIdRecv = sessionId
                result(true)
            } else {
@@ -1556,7 +1564,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                    print("Camera turned off")
                }
 
-
+                               // Gửi tin nhắn với format mới
+                let sessionInfo = getCurrentSessionInfo()
+                sendCustomMessage(callSessionId: sessionInfo.0, userExtension: sessionInfo.1, type: "update_media_state", payloadKey: "camera", payloadValue: enable)
+               
                sendCameraStateToFlutter(enable)
            }
        }
@@ -1574,6 +1585,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 
                 let answerRes = portSIPSDK.answerCall(activeSessionid, videoCall: result!.session.videoState)
                 if (answerRes == 0) {
+                                         // Gửi tin nhắn với format mới khi answer call
+                     let sessionInfo = getCurrentSessionInfo()
+                     sendCustomMessage(callSessionId: sessionInfo.0, userExtension: sessionInfo.1, type: "call_state", payloadKey: "answered", payloadValue: true)
+                    
                     sendCallStateToFlutter(.ANSWERED)
                     reInvite(xSessionIdRecv)
                 } else {
@@ -1752,10 +1767,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            let result = _callManager.findCallBySessionID(activeSessionid)
            if result != nil {
                result!.session.videoMuted = !enable
-               portSIPSDK.muteSession(activeSessionid, 
-                                      muteIncomingAudio: false, 
-                                      muteOutgoingAudio: false, 
-                                      muteIncomingVideo: false, 
+               portSIPSDK.muteSession(activeSessionid,
+                                      muteIncomingAudio: false,
+                                      muteOutgoingAudio: false,
+                                      muteIncomingVideo: false,
                                       muteOutgoingVideo: !enable)
                
                // Gửi thông báo cho LocalView và RemoteView
@@ -1808,4 +1823,54 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            NSLog("SessionId not match. SIP message ID: \(self.xSessionId), Request: \(sessionId)")
        }
    }
+   
+   // MARK: - Custom Message Methods
+   
+    /**
+     * Gửi tin nhắn với format JSON mới
+     */
+    func sendCustomMessage(callSessionId: String, userExtension: String, type: String, payloadKey: String, payloadValue: Any) {
+        if activeSessionid != CLong(INVALID_SESSION_ID) {
+            do {
+                // Tạo payload object
+                let payload: [String: Any] = [payloadKey: payloadValue]
+                
+                // Tạo message object
+                let message: [String: Any] = [
+                    "sessionId": callSessionId,
+                    "extension": userExtension,
+                    "type": type,
+                    "payload": payload
+                ]
+                
+                let jsonData = try JSONSerialization.data(withJSONObject: message, options: [])
+                let jsonString = String(data: jsonData, encoding: .utf8) ?? ""
+                
+                NSLog("SDK-iOS: Sending custom message: \(jsonString)")
+                
+                let messageData = jsonString.data(using: .utf8)!
+                let resSendMsg = portSIPSDK.sendMessage(activeSessionid,
+                                                      mimeType: "text",
+                                                      subMimeType: "plain",
+                                                      message: messageData,
+                                                      messageLength: Int32(messageData.count))
+                NSLog("SDK-iOS: Send custom message result: \(resSendMsg)")
+            } catch {
+                NSLog("SDK-iOS: Error creating custom message: \(error.localizedDescription)")
+            }
+        }
+    }
+   
+       /**
+     * Helper method để lấy session ID và extension hiện tại
+     */
+    private func getCurrentSessionInfo() -> (String, String) {
+        let sessionId = !currentSessionid.isEmpty ? currentSessionid : "empty_X_Session_Id"
+        let userExtension = !currentUsername.isEmpty ? currentUsername : "unknown"
+        return (sessionId, userExtension)
+    }
+
+    
 }
+
+

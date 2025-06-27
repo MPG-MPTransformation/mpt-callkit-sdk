@@ -119,6 +119,12 @@ class MptCallKitController {
       StreamController<bool>.broadcast();
   Stream<bool> get remoteMicStateStream => _remoteMicStateController.stream;
 
+  /// remote party answer stream
+  /// when remote party answer the call, this stream will be triggered
+  final StreamController<bool> _remotePartyAnswerStream =
+      StreamController<bool>.broadcast();
+  Stream<bool> get remotePartyAnswerStream => _remotePartyAnswerStream.stream;
+
   String? _currentSessionId = "";
   String? get currentSessionId => _currentSessionId;
 
@@ -140,6 +146,9 @@ class MptCallKitController {
 
   String? _currentCallState = "";
   String? get currentCallState => _currentCallState;
+
+  final bool _remotePartyAnswer = false;
+  bool? get remotePartyAnswer => _remotePartyAnswer;
 
   /// current available audio devices, ONLY AVAILABLE ON ANDROID
   List<String>? _currentAvailableAudioDevices = [];
@@ -228,6 +237,11 @@ class MptCallKitController {
         if (call.method == 'callKitAnswerReceived') {
           print(
               'Received callKitAnswerReceived event from native: ${call.arguments}');
+        }
+
+        if (call.method == 'recvCallMessage') {
+          print('Received call message from native: ${call.arguments}');
+          handleMediaStatusMessage(call.arguments);
         }
       });
     }
@@ -1205,6 +1219,13 @@ class MptCallKitController {
 
   void _handleCallStateChanged(String state) async {
     print("handleCallStateChanged: $state");
+
+    // Reset remote states when call ends
+    if (state == CallStateConstants.CLOSED ||
+        state == CallStateConstants.FAILED) {
+      _resetRemoteStates();
+    }
+
     if ((_currentSessionId!.isNotEmpty || _currentSessionId != null) &&
         MptSocketSocketServer.instance.checkConnection()) {
       if (state == CallStateConstants.CLOSED) {
@@ -1244,6 +1265,21 @@ class MptCallKitController {
     }
   }
 
+  /// Reset remote states when call ends
+  void _resetRemoteStates() {
+    print('Resetting remote states after call ended');
+
+    // Reset remote camera and microphone states to default (true)
+    _remoteCamState = true;
+    _remoteMicState = true;
+
+    // Broadcast the reset states to streams
+    _remoteCamStateController.add(true);
+    _remoteMicStateController.add(true);
+
+    print('Remote states reset: camera=true, microphone=true');
+  }
+
   Future<void> showAndroidCallKit() async {
     // print("showAndroidCallKit");
     // await channel.invokeMethod("startActivity");
@@ -1256,7 +1292,7 @@ class MptCallKitController {
 
     _eventChannelSubscription =
         eventChannel.receiveBroadcastStream().listen((event) async {
-      print('🔥 Received event from native: $event');
+      print('Received event from native 1212: $event');
       if (event is Map) {
         // Handle map events with message and data
         final String message = event['message'];
@@ -1317,6 +1353,10 @@ class MptCallKitController {
               _handleGuestRegistrationState(data);
             }
             break;
+          case 'recvCallMessage':
+            print('Received call message from native: $data');
+            handleRecvCallMessage(data);
+            break;
           // case "releaseExtension":
           //   if (isMakeCallByGuest) {
           //     print('Release extension has started');
@@ -1374,5 +1414,129 @@ class MptCallKitController {
     } catch (e) {
       print('Error ensuring view listeners registered: $e');
     }
+  }
+
+  void handleRecvCallMessage(dynamic data) {
+    try {
+      // Parse JSON data
+      if (data is! String) {
+        print('Invalid data type for recvCallMessage: ${data.runtimeType}');
+        return;
+      }
+
+      final Map<String, dynamic> message = jsonDecode(data);
+      print('Parsed message: $message');
+
+      // Extract message components
+      final String? receivedSessionId = message['sessionId'];
+      final String? extension = message['extension'];
+      final String? type = message['type'];
+      final Map<String, dynamic>? payload = message['payload'];
+
+      // Validate required fields
+      if (receivedSessionId == null ||
+          extension == null ||
+          type == null ||
+          payload == null) {
+        print('Invalid message format: missing required fields');
+        return;
+      }
+
+      // Check if received sessionId matches current sessionId
+      if (_currentSessionId == null || _currentSessionId!.isEmpty) {
+        print('Current session ID is null or empty, ignoring message');
+        return;
+      }
+
+      if (receivedSessionId != _currentSessionId) {
+        print(
+            'Session ID mismatch: received=$receivedSessionId, current=$_currentSessionId');
+        return;
+      }
+
+      // // Check if extension is different from current user extension
+      // if (this.extension.isEmpty) {
+      //   print('Current extension is empty, ignoring message');
+      //   return;
+      // }
+
+      // if (extension == this.extension ||
+      //     extension == currentUserInfo!["user"]["extension"]) {
+      //   print(
+      //       'Extension matches current user ($extension), ignoring message from self');
+      //   return;
+      // }
+
+      print(
+          'Processing message for session: $receivedSessionId, type: $type, from extension: $extension');
+
+      // Handle different message types
+      switch (type) {
+        case 'update_media_state':
+          _handleUpdateMediaState(payload);
+          break;
+
+        case 'call_state':
+          _handleCallStateUpdate(payload);
+          break;
+
+        default:
+          print('Unknown message type: $type');
+          break;
+      }
+    } catch (e) {
+      print('Error parsing recvCallMessage: $e');
+      print('Raw data: $data');
+    }
+  }
+
+  /// Handle media state updates (camera, microphone)
+  void _handleUpdateMediaState(Map<String, dynamic> payload) {
+    print('Handling media state update: $payload');
+
+    payload.forEach((key, value) {
+      switch (key) {
+        case 'microphone':
+          final bool micState = value as bool;
+          print('Remote microphone state: $micState');
+          _remoteMicState = micState;
+          _remoteMicStateController.add(micState);
+          break;
+
+        case 'camera':
+          final bool camState = value as bool;
+          print('Remote camera state: $camState');
+          _remoteCamState = camState;
+          _remoteCamStateController.add(camState);
+          break;
+
+        default:
+          print('Unknown media state key: $key');
+          break;
+      }
+    });
+  }
+
+  /// Handle call state updates
+  void _handleCallStateUpdate(Map<String, dynamic> payload) {
+    print('Handling call state update: $payload');
+
+    payload.forEach((key, value) {
+      switch (key) {
+        case 'answered':
+          final bool isAnswered = value as bool;
+          print('Call answered state: $isAnswered');
+          if (isAnswered) {
+            // Handle call answered logic
+            print('Remote party answered the call');
+            _remotePartyAnswerStream.add(true);
+          }
+          break;
+
+        default:
+          print('Unknown call state key: $key');
+          break;
+      }
+    });
   }
 }
