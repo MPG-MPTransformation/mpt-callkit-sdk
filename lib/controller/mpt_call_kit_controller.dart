@@ -1276,6 +1276,7 @@ class MptCallKitController {
     // Broadcast the reset states to streams
     _remoteCamStateController.add(true);
     _remoteMicStateController.add(true);
+    _remotePartyAnswerStream.add(false);
 
     print('Remote states reset: camera=true, microphone=true');
   }

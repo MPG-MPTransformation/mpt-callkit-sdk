@@ -482,7 +482,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    public func onInviteIncoming(_ sessionId: Int, callerDisplayName: String!, caller: String!, calleeDisplayName: String!, callee: String!, audioCodecs: String!, videoCodecs: String!, existsAudio: Bool, existsVideo: Bool, sipMessage: String!) {
        NSLog("onInviteIncoming...")
        self.activeSessionid = sessionId
-//       portSIPSDK.answerCall(sessionId, videoCall: true)
        let num = _callManager.getConnectCallNum()
        let index = findIdleLine()
        if num >= MAX_LINES || index < 0 {
@@ -516,7 +515,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             print("onInviteIncoming - Outgoing call API")
             self.xSessionId = portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "X-Session-Id")
             methodChannel?.invokeMethod("callType", arguments: "OUTGOING_CALL")
-            answerCall()
+            answerCall(isAutoAnswer: true)
        }
        else{
             print("onInviteIncoming - Incoming call API")
@@ -1426,7 +1425,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            toggleCamera(false)
            result(true)
        case "answer":
-           answerCall()
+           answerCall(isAutoAnswer: false)
            result(true)
        case "reject":
            if activeSessionid != CLong(INVALID_SESSION_ID) {
@@ -1574,20 +1573,21 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    }
   
    // Thêm phương thức để trả lời cuộc gọi
-   func answerCall() {
+   func answerCall(isAutoAnswer: Bool) {
        NSLog("answerCall")
         if activeSessionid != CLong(INVALID_SESSION_ID) {
             let result = _callManager.findCallBySessionID(activeSessionid)
             if result != nil {
-             //    _ = _callManager.answerCall(sessionId: activeSessionid, isVideo: result!.session.videoState)
                 mSoundService.stopRingTone()
                 mSoundService.stopRingBackTone()
                 
                 let answerRes = portSIPSDK.answerCall(activeSessionid, videoCall: result!.session.videoState)
                 if (answerRes == 0) {
-                                         // Gửi tin nhắn với format mới khi answer call
-                     let sessionInfo = getCurrentSessionInfo()
-                     sendCustomMessage(callSessionId: sessionInfo.0, userExtension: sessionInfo.1, type: "call_state", payloadKey: "answered", payloadValue: true)
+                    //Notice to remote
+                    if !isAutoAnswer {
+                        let sessionInfo = getCurrentSessionInfo()
+                        sendCustomMessage(callSessionId: sessionInfo.0, userExtension: sessionInfo.1, type: "call_state", payloadKey: "answered", payloadValue: true)
+                    }
                     
                     sendCallStateToFlutter(.ANSWERED)
                     reInvite(xSessionIdRecv)
@@ -1648,7 +1648,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    func sendCameraStateToFlutter(_ isOn: Bool) {
        methodChannel?.invokeMethod("cameraState", arguments: isOn)
    }
-
 
    // Gửi trạng thái microphone
    func sendMicrophoneStateToFlutter(_ isOn: Bool) {

@@ -708,13 +708,13 @@ public class PortSipService extends Service
             Ring.getInstance(this).stopRingTone();
             // Ring.getInstance(this).startRingBackTone();
             // Answer với video status hiện tại (có thể là false)
-            boolean result = MptCallkitPlugin.answerCall();
+            boolean result = MptCallkitPlugin.answerCall(true);
             System.out.println("SDK-Android: onInviteIncoming - On auto answer call");
             sendCallTypeToFlutter("OUTGOING_CALL");
             if (result) {
                 sendCallStateToFlutter("ANSWERED");
             } else {
-                System.out.println("SDK-Android: auto answer call failed with code: " + result);
+                System.out.println("SDK-Android: auto answer call failed with code: " + false);
             }
         } else {
             System.out.println("SDK-Android: onInviteIncoming - On not auto answer call");

@@ -179,7 +179,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 toggleCameraOn(false);
                 break;
             case "answer":
-                answerCall();
+                answerCall(false);
                 break;
             case "switchCamera":
                 boolean switchResult = switchCamera();
@@ -634,12 +634,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
             // Gửi tin nhắn với format mới
             String[] sessionInfo = getCurrentSessionInfo();
-            sendCustomMessage(sessionInfo[0], sessionInfo[1], "update_media_state", "microphone", !mute); // !mute vì
-                                                                                                          // microphone
-                                                                                                          // state là
-                                                                                                          // ngược lại
-                                                                                                          // với mute
-                                                                                                          // state
+            sendCustomMessage(sessionInfo[0], sessionInfo[1], "update_media_state", "microphone", !mute); // !mute vì microphone state là ngược lại với mute state
         }
     }
 
@@ -662,7 +657,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
-    public static boolean answerCall() {
+    public static boolean answerCall(boolean isAutoAnswer) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         System.out.println("SDK-Android: Answer call currentLine: " + currentLine);
         System.out.println("SDK-Android: Answer call sessionID: " + currentLine.sessionID);
@@ -680,9 +675,11 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 currentLine.state = Session.CALL_STATE_FLAG.CONNECTED;
                 Engine.Instance().getEngine().joinToConference(currentLine.sessionID);
 
-                // Gửi tin nhắn với format mới khi answer call
-                String[] sessionInfo = getCurrentSessionInfo();
-                sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "answered", true);
+                if (!isAutoAnswer){
+                        //Notice to remote
+                        String[] sessionInfo = getCurrentSessionInfo();
+                        sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "answered", true);
+                }
 
                 // re-invite to update video call
                 reinviteSession(xSessionId);
