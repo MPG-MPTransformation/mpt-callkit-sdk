@@ -936,10 +936,19 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        if mimeType == "text", subMimeType == "plain" {
            let recvMessage = String(data: Data(bytes: messageData, count: Int(messageDataLength)), encoding: .utf8) ?? ""
            NSLog("onRecvMessage... Received message: \(recvMessage)")
+           
+           // Gửi tin nhắn về Flutter
+           methodChannel?.invokeMethod("recvCallMessage", arguments: recvMessage)
        } else if mimeType == "application", subMimeType == "vnd.3gpp.sms" {
            // The messageData is binary data
+           let recvMessage = String(data: Data(bytes: messageData, count: Int(messageDataLength)), encoding: .utf8) ?? ""
+           NSLog("onRecvMessage... Received 3GPP SMS: \(recvMessage)")
+           methodChannel?.invokeMethod("recvCallMessage", arguments: recvMessage)
        } else if mimeType == "application", subMimeType == "vnd.3gpp2.sms" {
            // The messageData is binary data
+           let recvMessage = String(data: Data(bytes: messageData, count: Int(messageDataLength)), encoding: .utf8) ?? ""
+           NSLog("onRecvMessage... Received 3GPP2 SMS: \(recvMessage)")
+           methodChannel?.invokeMethod("recvCallMessage", arguments: recvMessage)
        }
    }
   
