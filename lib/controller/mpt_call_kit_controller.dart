@@ -121,9 +121,9 @@ class MptCallKitController {
 
   /// remote party answer stream
   /// when remote party answer the call, this stream will be triggered
-  final StreamController<bool> _remotePartyAnswerStream =
+  final StreamController<bool> _calleeAnsweredStream =
       StreamController<bool>.broadcast();
-  Stream<bool> get remotePartyAnswerStream => _remotePartyAnswerStream.stream;
+  Stream<bool> get calleeAnsweredStream => _calleeAnsweredStream.stream;
 
   String? _currentSessionId = "";
   String? get currentSessionId => _currentSessionId;
@@ -147,8 +147,8 @@ class MptCallKitController {
   String? _currentCallState = "";
   String? get currentCallState => _currentCallState;
 
-  final bool _remotePartyAnswer = false;
-  bool? get remotePartyAnswer => _remotePartyAnswer;
+  final bool _calleeAnswered = false;
+  bool? get calleeAnswered => _calleeAnswered;
 
   /// current available audio devices, ONLY AVAILABLE ON ANDROID
   List<String>? _currentAvailableAudioDevices = [];
@@ -1276,7 +1276,7 @@ class MptCallKitController {
     // Broadcast the reset states to streams
     _remoteCamStateController.add(true);
     _remoteMicStateController.add(true);
-    _remotePartyAnswerStream.add(false);
+    _calleeAnsweredStream.add(false);
 
     print('Remote states reset: camera=true, microphone=true');
   }
@@ -1530,7 +1530,7 @@ class MptCallKitController {
           if (isAnswered) {
             // Handle call answered logic
             print('Remote party answered the call');
-            _remotePartyAnswerStream.add(true);
+            _calleeAnsweredStream.add(true);
           }
           break;
 

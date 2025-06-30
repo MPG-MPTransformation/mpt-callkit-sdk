@@ -347,6 +347,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
         filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
         filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
+        filter.addAction("CAMERA_SWITCH_ACTION");
         System.out.println("SDK-Android: Registering broadcast receiver for call actions");
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -634,7 +635,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
             // Gửi tin nhắn với format mới
             String[] sessionInfo = getCurrentSessionInfo();
-            sendCustomMessage(sessionInfo[0], sessionInfo[1], "update_media_state", "microphone", !mute); // !mute vì microphone state là ngược lại với mute state
+            sendCustomMessage(sessionInfo[0], sessionInfo[1], "update_media_state", "microphone", !mute);
         }
     }
 
@@ -675,10 +676,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 currentLine.state = Session.CALL_STATE_FLAG.CONNECTED;
                 Engine.Instance().getEngine().joinToConference(currentLine.sessionID);
 
-                if (!isAutoAnswer){
-                        //Notice to remote
-                        String[] sessionInfo = getCurrentSessionInfo();
-                        sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "answered", true);
+                if (!isAutoAnswer) {
+                    // Notice to remote
+                    String[] sessionInfo = getCurrentSessionInfo();
+                    sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "answered", true);
                 }
 
                 // re-invite to update video call
@@ -768,8 +769,17 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         setCamera(Engine.Instance().getEngine(), value);
         Engine.Instance().mUseFrontCamera = value;
 
+        // Gửi broadcast để thông báo LocalView cập nhật mirror
+        // Camera trước: mirror = true, Camera sau: mirror = false
+        if (context != null) {
+            Intent updateMirrorIntent = new Intent("CAMERA_SWITCH_ACTION");
+            updateMirrorIntent.putExtra("useFrontCamera", value);
+            context.sendBroadcast(updateMirrorIntent);
+            System.out.println("SDK-Android: Sent broadcast to update camera mirror: " + value);
+        }
+
         // Log để debug
-        System.out.println("SDK-Android: Camera switched to " + (value ? "front" : "back"));
+        System.out.println("SDK-Android: Camera switched to " + (value ? "front" : "back") + " with mirror: " + value);
         return value;
     }
 

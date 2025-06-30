@@ -48,7 +48,7 @@ class _CallPadState extends State<CallPad> {
   bool _localMicState = true;
   bool _remoteCamState = true;
   bool _remoteMicState = true;
-  bool _remotePartyAnswer = false;
+  bool _calleeAnswered = false;
 
   String _currentAudioDevice = MptCallKitController().currentAudioDevice ?? "";
 
@@ -59,7 +59,7 @@ class _CallPadState extends State<CallPad> {
   StreamSubscription<bool>? _holdCallStateSubscription;
   StreamSubscription<String>?
       _currentAudioDeviceSubscription; // Thêm subscription cho currentAudioDeviceStream
-  StreamSubscription<bool>? _remotePartyAnswerSubscription;
+  StreamSubscription<bool>? _calleeAnswerSubscription;
 
   // New subscriptions for media states
   StreamSubscription<bool>? _localCamStateSubscription;
@@ -195,11 +195,11 @@ class _CallPadState extends State<CallPad> {
       }
     });
 
-    _remotePartyAnswerSubscription =
-        MptCallKitController().remotePartyAnswerStream.listen((isAnswered) {
+    _calleeAnswerSubscription =
+        MptCallKitController().calleeAnsweredStream.listen((isAnswered) {
       if (mounted) {
         setState(() {
-          _remotePartyAnswer = isAnswered;
+          _calleeAnswered = isAnswered;
         });
       }
     });
@@ -218,7 +218,7 @@ class _CallPadState extends State<CallPad> {
     _remoteMicStateSubscription?.cancel();
     _currentAudioDeviceSubscription
         ?.cancel(); // Hủy subscription khi widget bị dispose
-    _remotePartyAnswerSubscription?.cancel();
+    _calleeAnswerSubscription?.cancel();
 
     super.dispose();
   }
@@ -330,7 +330,7 @@ class _CallPadState extends State<CallPad> {
                         ),
                       ),
                       Text(
-                        'Remote Party Answered: ${_remotePartyAnswer ? "TRUE" : "FALSE"}',
+                        'Callee Answered: ${_calleeAnswered ? "TRUE" : "FALSE"}',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
