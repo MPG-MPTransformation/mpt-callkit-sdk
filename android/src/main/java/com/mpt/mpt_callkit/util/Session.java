@@ -1,7 +1,8 @@
 package com.mpt.mpt_callkit.util;
 
-public class Session
-{
+import com.portsip.PortSipSdk;
+
+public class Session {
 	public static int INVALID_SESSION_ID = -1;
 	public long sessionID;
 	public String remote;
@@ -20,12 +21,11 @@ public class Session
 
 	public String sipMessage;
 
-	public boolean IsIdle()
-	{
+	public boolean IsIdle() {
 		return state == CALL_STATE_FLAG.FAILED || state == CALL_STATE_FLAG.CLOSED;
 	}
-	public Session()
-	{
+
+	public Session() {
 		remote = null;
 		displayName = null;
 		hasVideo = false;
@@ -33,8 +33,7 @@ public class Session
 		state = CALL_STATE_FLAG.CLOSED;
 	}
 
-	public void Reset()
-	{
+	public void Reset() {
 		remote = null;
 		displayName = null;
 		hasVideo = false;
@@ -42,12 +41,34 @@ public class Session
 		sessionID = INVALID_SESSION_ID;
 		state = CALL_STATE_FLAG.CLOSED;
 		bEarlyMedia = false;
+		bHold = false;
+		bMute = false;
+		bMuteAudioInComing = false;
+		bMuteAudioOutGoing = false;
+		bMuteVideo = false;
+		sipMessage = null;
 	}
 
-	public enum CALL_STATE_FLAG
-	{
+	public void cleanupResources(PortSipSdk engine) {
+		if (engine != null && sessionID != INVALID_SESSION_ID) {
+			try {
+				// Cleanup video windows
+				engine.setRemoteVideoWindow(sessionID, null);
+				engine.setRemoteScreenWindow(sessionID, null);
+
+				// Stop video if active
+				if (hasVideo || bMuteVideo) {
+					engine.sendVideo(sessionID, false);
+				}
+			} catch (Exception e) {
+				System.out.println("SDK-Android: Error cleaning up session resources: " + e.getMessage());
+			}
+		}
+	}
+
+	public enum CALL_STATE_FLAG {
 		INCOMING,
-		TRYING ,
+		TRYING,
 		CONNECTED,
 		FAILED,
 		CLOSED,
@@ -57,5 +78,3 @@ public class Session
 		this.sipMessage = message;
 	}
 }
-
-

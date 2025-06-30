@@ -48,6 +48,7 @@ class _CallPadState extends State<CallPad> {
   bool _localMicState = true;
   bool _remoteCamState = true;
   bool _remoteMicState = true;
+  bool _calleeAnswered = false;
 
   String _currentAudioDevice = MptCallKitController().currentAudioDevice ?? "";
 
@@ -58,6 +59,7 @@ class _CallPadState extends State<CallPad> {
   StreamSubscription<bool>? _holdCallStateSubscription;
   StreamSubscription<String>?
       _currentAudioDeviceSubscription; // Thêm subscription cho currentAudioDeviceStream
+  StreamSubscription<bool>? _calleeAnswerSubscription;
 
   // New subscriptions for media states
   StreamSubscription<bool>? _localCamStateSubscription;
@@ -192,6 +194,15 @@ class _CallPadState extends State<CallPad> {
         });
       }
     });
+
+    _calleeAnswerSubscription =
+        MptCallKitController().calleeAnsweredStream.listen((isAnswered) {
+      if (mounted) {
+        setState(() {
+          _calleeAnswered = isAnswered;
+        });
+      }
+    });
   }
 
   @override
@@ -207,6 +218,7 @@ class _CallPadState extends State<CallPad> {
     _remoteMicStateSubscription?.cancel();
     _currentAudioDeviceSubscription
         ?.cancel(); // Hủy subscription khi widget bị dispose
+    _calleeAnswerSubscription?.cancel();
 
     super.dispose();
   }
@@ -317,6 +329,13 @@ class _CallPadState extends State<CallPad> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      Text(
+                        'Callee Answered: ${_calleeAnswered ? "TRUE" : "FALSE"}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -355,28 +374,27 @@ class _CallPadState extends State<CallPad> {
                     );
                   },
                 ),
-                (Platform.isIOS)
-                    ? const Column(
-                        children: [
-                          SizedBox(height: 16),
-                          Text("Camera"),
-                          SizedBox(
-                            height: 300,
-                            width: 300,
-                            child: LocalView(),
-                          ),
-                          SizedBox(height: 16),
-                          Text("Video"),
-                          SizedBox(
-                            height: 300,
-                            width: 300,
-                            child: RemoteView(),
-                          ),
-                        ],
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                      )
-                    : const SizedBox.shrink(),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: const [
+                    SizedBox(height: 16),
+                    Text("Camera"),
+                    SizedBox(
+                      height: 300,
+                      width: 300,
+                      child: LocalView(),
+                    ),
+                    SizedBox(height: 16),
+                    Text("Video"),
+                    SizedBox(
+                      height: 300,
+                      width: 300,
+                      child: RemoteView(),
+                    ),
+                  ],
+                )
+                // : const SizedBox.shrink(),
               ],
             ),
           ),
@@ -527,7 +545,7 @@ class _CallPadState extends State<CallPad> {
               // Navigator.of(context).pop();
             },
             style: ButtonStyle(
-              foregroundColor: WidgetStateProperty.all<Color>(Colors.red),
+              foregroundColor: MaterialStateProperty.all<Color>(Colors.red),
             ),
             child: const Text('End call'),
           ),

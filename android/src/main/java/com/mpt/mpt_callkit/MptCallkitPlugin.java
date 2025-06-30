@@ -62,6 +62,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private static final String CHANNEL = "native_events";
     private static EventChannel.EventSink eventSink;
     private static String xSessionId;
+    private static String currentUsername; // Lưu username hiện tại
 
     @Override
     public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
@@ -178,7 +179,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 toggleCameraOn(false);
                 break;
             case "answer":
-                answerCall();
+                answerCall(false);
                 break;
             case "switchCamera":
                 boolean switchResult = switchCamera();
@@ -238,6 +239,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 String sipServerPort = call.argument("sipServerPort") + "";
                 String appId = call.argument("appId");
                 String pushToken = call.argument("pushToken");
+
+                // Lưu username hiện tại
+                currentUsername = username;
+
                 if (CallManager.Instance().online) {
                     System.out.println("SDK-Android: Already online");
                     Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", CallManager.Instance().online);
@@ -273,8 +278,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 break;
             case "reInvite":
                 xSessionId = call.argument("sessionId");
-//                boolean reinviteResult = reinviteSession(sessionId);
-//                result.success(reinviteResult);
+                boolean reinviteResult = reinviteSession(xSessionId);
+                result.success(reinviteResult);
                 break;
             case "updateVideoCall":
                 Session currentLine = CallManager.Instance().getCurrentSession();
@@ -342,6 +347,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
         filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
         filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
+        filter.addAction("CAMERA_SWITCH_ACTION");
         System.out.println("SDK-Android: Registering broadcast receiver for call actions");
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -404,27 +410,55 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     private void unregisterSipAndCleanup() {
         if (CallManager.Instance().online) {
-            // Unregister SIP
-            Engine.Instance().getEngine().unRegisterServer(100);
-            Engine.Instance().getEngine().removeUser();
-            Engine.Instance().getEngine().unInitialize();
+            try {
+                PortSipSdk engine = Engine.Instance().getEngine();
+                if (engine != null) {
+                    // Hang up all active calls first
+                    CallManager.Instance().hangupAllCalls(engine);
 
-            // Reset các trạng thái
-            CallManager.Instance().online = false;
-            CallManager.Instance().isRegistered = false;
+                    // Wait a bit for cleanup
+                    Thread.sleep(300);
 
-            // Dọn dẹp resources
-            if (activity != null && Engine.Instance().getReceiver() != null) {
-                try {
-                    activity.unregisterReceiver(Engine.Instance().getReceiver());
-                } catch (Exception e) {
-                    System.out.println("SDK-Android: Error unregistering receiver: " + e.getMessage());
+                    // Destroy conference and cleanup video resources
+                    engine.destroyConference();
+                    engine.displayLocalVideo(false, false, null);
+
+                    // Cleanup all sessions
+                    for (int i = 0; i < CallManager.MAX_LINES; i++) {
+                        Session session = CallManager.Instance().findSessionByIndex(i);
+                        if (session != null && session.sessionID != Session.INVALID_SESSION_ID) {
+                            engine.setRemoteVideoWindow(session.sessionID, null);
+                            engine.setRemoteScreenWindow(session.sessionID, null);
+                        }
+                    }
+
+                    // Unregister and cleanup
+                    engine.unRegisterServer(100);
+                    engine.removeUser();
+                    engine.unInitialize();
                 }
-            }
 
-            // Stop service nếu đang chạy
-            if (context != null) {
-                context.stopService(new Intent(context, PortSipService.class));
+                // Reset các trạng thái
+                CallManager.Instance().resetAll();
+                CallManager.Instance().online = false;
+                CallManager.Instance().isRegistered = false;
+
+                // Dọn dẹp resources
+                if (activity != null && Engine.Instance().getReceiver() != null) {
+                    try {
+                        activity.unregisterReceiver(Engine.Instance().getReceiver());
+                    } catch (Exception e) {
+                        System.out.println("SDK-Android: Error unregistering receiver: " + e.getMessage());
+                    }
+                }
+
+                // Stop service nếu đang chạy
+                if (context != null) {
+                    context.stopService(new Intent(context, PortSipService.class));
+                }
+
+            } catch (Exception e) {
+                System.out.println("SDK-Android: Error during unregisterSipAndCleanup: " + e.getMessage());
             }
         }
     }
@@ -499,38 +533,55 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     static void hangup() {
         Session currentLine = CallManager.Instance().getCurrentSession();
         Ring.getInstance(MainActivity.activity).stop();
-        switch (currentLine.state) {
-            case INCOMING:
-                Engine.Instance().getEngine().rejectCall(currentLine.sessionID, 486);
-                System.out.println("SDK-Android: lineName= " + currentLine.lineName + ": Rejected call");
 
-                if (MainActivity.activity != null) {
-                    MainActivity.activity.onHangUpCall();
+        try {
+            PortSipSdk engine = Engine.Instance().getEngine();
+            if (engine != null && currentLine != null) {
+                // Cleanup video resources for this session
+                if (currentLine.sessionID != Session.INVALID_SESSION_ID) {
+                    engine.setRemoteVideoWindow(currentLine.sessionID, null);
+                    engine.setRemoteScreenWindow(currentLine.sessionID, null);
                 }
 
-                Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
-                MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
-                System.out.println("SDK-Android: callState - " + "CLOSED");
+                switch (currentLine.state) {
+                    case INCOMING:
+                        engine.rejectCall(currentLine.sessionID, 486);
+                        System.out.println("SDK-Android: lineName= " + currentLine.lineName + ": Rejected call");
 
-                break;
-            case CONNECTED:
-            case TRYING:
-                Engine.Instance().getEngine().hangUp(currentLine.sessionID);
+                        if (MainActivity.activity != null) {
+                            MainActivity.activity.onHangUpCall();
+                        }
 
-                if (Engine.Instance().getMethodChannel() != null) {
-                    if (MainActivity.activity != null) {
-                        MainActivity.activity.onHangUpCall();
-                    }
+                        Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
+                        MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
+                        System.out.println("SDK-Android: callState - " + "CLOSED");
 
-                    Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
-                    MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
-                    System.out.println("SDK-Android: callState - " + "CLOSED");
+                        break;
+                    case CONNECTED:
+                    case TRYING:
+                        engine.hangUp(currentLine.sessionID);
+
+                        if (Engine.Instance().getMethodChannel() != null) {
+                            if (MainActivity.activity != null) {
+                                MainActivity.activity.onHangUpCall();
+                            }
+
+                            Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
+                            MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
+                            System.out.println("SDK-Android: callState - " + "CLOSED");
+                        }
+
+                        System.out.println("SDK-Android: lineName= " + currentLine.lineName + ": Hang up");
+                        break;
                 }
-
-                System.out.println("SDK-Android: lineName= " + currentLine.lineName + ": Hang up");
-                break;
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error during hangup: " + e.getMessage());
+        } finally {
+            if (currentLine != null) {
+                currentLine.Reset();
+            }
         }
-        currentLine.Reset();
     }
 
     void holdCall() {
@@ -569,7 +620,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     public static void muteMicrophone(boolean mute) {
         Session currentLine = CallManager.Instance().getCurrentSession();
-        PortSipSdk portSipSdk = Engine.Instance().getEngine();
 
         if (currentLine != null && currentLine.sessionID > 0) {
             currentLine.bMuteAudioOutGoing = mute;
@@ -583,16 +633,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             Engine.Instance().getMethodChannel().invokeMethod("microphoneState", currentLine.bMuteAudioOutGoing);
             MptCallkitPlugin.sendToFlutter("microphoneState", currentLine.bMuteAudioOutGoing);
 
-            HashMap<String, String> msgMap = new HashMap<>();
-            msgMap.put("name", "Error");
-            msgMap.put("message", "hello");
-
-            JSONObject jsonMsg = new JSONObject(msgMap);
-            String msg = jsonMsg.toString();
-
-            long resSendMsg = portSipSdk.sendMessage(currentLine.sessionID, "text", "plain",
-                    msg.getBytes(StandardCharsets.UTF_8), msg.length());
-            System.out.println("SDK-Android: Send message: " + resSendMsg);
+            // Gửi tin nhắn với format mới
+            String[] sessionInfo = getCurrentSessionInfo();
+            sendCustomMessage(sessionInfo[0], sessionInfo[1], "update_media_state", "microphone", !mute);
         }
     }
 
@@ -608,10 +651,14 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     currentLine.bMuteVideo);
             Engine.Instance().getMethodChannel().invokeMethod("cameraState", enable);
             MptCallkitPlugin.sendToFlutter("cameraState", enable);
+
+            // Gửi tin nhắn với format mới
+            String[] sessionInfo = getCurrentSessionInfo();
+            sendCustomMessage(sessionInfo[0], sessionInfo[1], "update_media_state", "camera", enable);
         }
     }
 
-    public static boolean answerCall() {
+    public static boolean answerCall(boolean isAutoAnswer) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         System.out.println("SDK-Android: Answer call currentLine: " + currentLine);
         System.out.println("SDK-Android: Answer call sessionID: " + currentLine.sessionID);
@@ -629,13 +676,19 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 currentLine.state = Session.CALL_STATE_FLAG.CONNECTED;
                 Engine.Instance().getEngine().joinToConference(currentLine.sessionID);
 
-                //re-invite to update video call
+                if (!isAutoAnswer) {
+                    // Notice to remote
+                    String[] sessionInfo = getCurrentSessionInfo();
+                    sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "answered", true);
+                }
+
+                // re-invite to update video call
                 reinviteSession(xSessionId);
             } else {
                 System.out.println("SDK-Android: Answer call failed with error code: " + result);
             }
             return result == 0;
-        } else{
+        } else {
             return false;
         }
     }
@@ -705,8 +758,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             return true;
         } else {
             System.out.println(
-                    "SDK-Android: SessionId not match or not is Answer-Mode. SIP message ID: " + messageSesssionId
-                            + ", Request: " + sessionId + ", Answer-Mode: " + answerMode);
+                    "SDK-Android: SessionId not match or already is video-call. SIP message ID: " + messageSesssionId
+                            + ", Request: " + sessionId + ", has video before: " + currentLine.hasVideo);
             return false;
         }
     }
@@ -716,8 +769,17 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         setCamera(Engine.Instance().getEngine(), value);
         Engine.Instance().mUseFrontCamera = value;
 
+        // Gửi broadcast để thông báo LocalView cập nhật mirror
+        // Camera trước: mirror = true, Camera sau: mirror = false
+        if (context != null) {
+            Intent updateMirrorIntent = new Intent("CAMERA_SWITCH_ACTION");
+            updateMirrorIntent.putExtra("useFrontCamera", value);
+            context.sendBroadcast(updateMirrorIntent);
+            System.out.println("SDK-Android: Sent broadcast to update camera mirror: " + value);
+        }
+
         // Log để debug
-        System.out.println("SDK-Android: Camera switched to " + (value ? "front" : "back"));
+        System.out.println("SDK-Android: Camera switched to " + (value ? "front" : "back") + " with mirror: " + value);
         return value;
     }
 
@@ -789,5 +851,60 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice", currentDeviceName);
             MptCallkitPlugin.sendToFlutter("currentAudioDevice", currentDeviceName);
         }
+    }
+
+    /**
+     * Gửi tin nhắn với format JSON mới
+     * 
+     * @param xSessionId   ID của session
+     * @param extension    Extension number
+     * @param type         Loại message (update_media_state, etc.)
+     * @param payloadKey   Key của payload
+     * @param payloadValue Value của payload
+     */
+    public static void sendCustomMessage(String xSessionId, String extension, String type, String payloadKey,
+            Object payloadValue) {
+        Session currentLine = CallManager.Instance().getCurrentSession();
+        PortSipSdk portSipSdk = Engine.Instance().getEngine();
+
+        if (currentLine != null && currentLine.sessionID > 0) {
+            try {
+                // Tạo payload object
+                JSONObject payload = new JSONObject();
+                payload.put(payloadKey, payloadValue);
+
+                // Tạo message object
+                JSONObject message = new JSONObject();
+                message.put("sessionId", xSessionId);
+                message.put("extension", extension);
+                message.put("type", type);
+                message.put("payload", payload);
+
+                String msg = message.toString();
+                System.out.println("SDK-Android: Sending custom message: " + msg);
+
+                long resSendMsg = portSipSdk.sendMessage(currentLine.sessionID, "text", "plain",
+                        msg.getBytes(StandardCharsets.UTF_8), msg.length());
+                System.out.println("SDK-Android: Send custom message result: " + resSendMsg);
+            } catch (Exception e) {
+                System.out.println("SDK-Android: Error creating custom message: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * Helper method để lấy session ID và extension hiện tại
+     */
+    private static String[] getCurrentSessionInfo() {
+        Session currentLine = CallManager.Instance().getCurrentSession();
+        String sessionId = Engine.Instance().getEngine()
+                .getSipMessageHeaderValue(currentLine.sipMessage, "X-Session-Id")
+                .toString() != null
+                        ? Engine.Instance().getEngine()
+                                .getSipMessageHeaderValue(currentLine.sipMessage, "X-Session-Id").toString()
+                        : "empty_X_Session_Id";
+        String extension = currentUsername != null ? currentUsername : "unknown";
+        return new String[] { sessionId, extension };
     }
 }

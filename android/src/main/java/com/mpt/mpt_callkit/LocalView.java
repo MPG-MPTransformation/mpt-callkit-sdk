@@ -53,12 +53,20 @@ public class LocalView implements PlatformView {
         return containerView;
     }
 
+    public void setCameraMirror() {
+        PortSipSdk portSipLib = Engine.Instance().getEngine();
+        if (portSipLib != null) {
+            portSipLib.displayLocalVideo(true, Engine.Instance().mUseFrontCamera, localRenderVideoView);
+        }
+    }
+
     @Override
     public void dispose() {
         try {
             // Giải phóng tài nguyên video
             PortSipSdk portSipLib = Engine.Instance().getEngine();
             if (portSipLib != null) {
+                Engine.Instance().mUseFrontCamera = true;
                 portSipLib.displayLocalVideo(false, Engine.Instance().mUseFrontCamera, null);
             }
 
@@ -174,6 +182,12 @@ public class LocalView implements PlatformView {
         } else if (action != null && action.equals("VIDEO_MUTE_STATE_CHANGED")) {
             // Thêm phần xử lý khi trạng thái mute video thay đổi
             updateVideo(Engine.Instance().getEngine());
+        } else if (action != null && action.equals("CAMERA_SWITCH_ACTION")) {
+            // Xử lý khi camera được switch
+            boolean useFrontCamera = intent.getBooleanExtra("useFrontCamera", true);
+            System.out.println(
+                    "SDK-Android: LocalView received camera switch broadcast - useFrontCamera: " + useFrontCamera);
+            setCameraMirror();
         }
     }
 }
