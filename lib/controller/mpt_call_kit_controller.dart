@@ -241,7 +241,7 @@ class MptCallKitController {
 
         if (call.method == 'recvCallMessage') {
           print('Received call message from native: ${call.arguments}');
-          handleMediaStatusMessage(call.arguments);
+          handleRecvCallMessage(call.arguments);
         }
       });
     }
