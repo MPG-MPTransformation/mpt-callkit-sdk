@@ -1,3 +1,5 @@
+// ignore_for_file: no_leading_underscores_for_local_identifiers
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -212,6 +214,11 @@ class MptSocketSocketServer {
       StreamController<bool>.broadcast();
   Stream<bool> get connectionStatusStream => _connectionStatusController.stream;
 
+  // Stream for call extra info
+  StreamController<String> _callExtraInfoController =
+      StreamController<String>.broadcast();
+  Stream<String> get callExtraInfoStream => _callExtraInfoController.stream;
+
   final participantType = "SUPERVISOR";
   final chanels = [
     ChannelConstants.FB_MESSAGE,
@@ -238,6 +245,11 @@ class MptSocketSocketServer {
     // Create new connection status controller if closed
     if (_connectionStatusController.isClosed) {
       _connectionStatusController = StreamController<bool>.broadcast();
+    }
+
+    // Create new call extra info controller if closed
+    if (_callExtraInfoController.isClosed) {
+      _callExtraInfoController = StreamController<String>.broadcast();
     }
 
     // Set parameters
@@ -436,9 +448,6 @@ class MptSocketSocketServer {
       print("Socket server - CALL_EVENT - Received message: $data");
 
       if (data is Map) {
-        if (data['state'] != MessageSocket.ANSWER_CALL) {
-          return;
-        }
         var sessionId = data['sessionId'];
         print("Socket server - CALL_EVENT - Received sessionId - $sessionId");
 
@@ -449,6 +458,7 @@ class MptSocketSocketServer {
               final extraInfoStr = data['extraInfo'] as String;
               if (extraInfoStr.isNotEmpty) {
                 extraInfo = jsonDecode(extraInfoStr);
+                print("Socket server - CALL_EVENT - extraInfo: $extraInfo");
               } else {
                 print(
                     "Socket server - CALL_EVENT - extraInfo is an empty string");
@@ -466,7 +476,8 @@ class MptSocketSocketServer {
           if (extraInfo.containsKey('type')) {
             var callType = extraInfo['type'];
 
-            if (callType.toString() == CallType.VIDEO.toString()) {
+            if (callType.toString() == CallType.VIDEO.toString() &&
+                data['state'] == MessageSocket.ANSWER_CALL) {
               // Handle video call
               try {
                 await MptCallKitController.channel.invokeMethod('reInvite', {
@@ -483,7 +494,25 @@ class MptSocketSocketServer {
               print("Socket server - CALL_EVENT - Call type has no video");
             }
           } else {
-            print("Socket server - CALL_EVENT - ExtraInfo has no type");
+            print(
+                "Socket server - CALL_EVENT - ExtraInfo has no type - state: ${data['state']}");
+          }
+
+          if (extraInfo.containsKey('extraInfo')) {
+            var callExtraInfo = extraInfo['extraInfo'];
+            if (data['sessionId'] == MptCallKitController().currentSessionId) {
+              print(
+                  "Socket server - CALL_EVENT - saved extraInfo: $callExtraInfo");
+
+              // Emit callExtraInfo to stream
+              if (!_callExtraInfoController.isClosed &&
+                  callExtraInfo is String) {
+                _callExtraInfoController.add(callExtraInfo);
+              }
+            } else {
+              print(
+                  "Socket server - CALL_EVENT - saved extraInfo incorect sessionId: ${data['sessionId']} != ${MptCallKitController().currentSessionId}");
+            }
           }
         } else {
           print("Socket server - CALL_EVENT - Data has no extraInfo");
@@ -627,6 +656,11 @@ class MptSocketSocketServer {
       if (!_connectionStatusController.isClosed) {
         _connectionStatusController.close();
       }
+
+      // Close call extra info controller
+      if (!_callExtraInfoController.isClosed) {
+        _callExtraInfoController.close();
+      }
     } catch (e) {
       print("Error disposing MptSocketSocketServer instance: $e");
     }
@@ -665,6 +699,9 @@ class MptSocketSocketServer {
 
   /// Static getter for agent status stream
   static Stream<String> get agentStatusEvent => instance.statusStream;
+
+  /// Static getter for call extra info stream
+  static Stream<String> get callExtraInfoEvent => instance.callExtraInfoStream;
 
   /// Disconnect
   static Future<void> disconnect() async {
@@ -738,8 +775,6 @@ class MptSocketSocketServer {
       print("Socket server - AGENT_LEAVE_ROOMS - Agent leave room: $data");
     });
   }
-
-  /// Static getter for current session ID
 
   /// Static method to set session ID
 

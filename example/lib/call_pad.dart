@@ -52,8 +52,11 @@ class _CallPadState extends State<CallPad> {
 
   String _currentAudioDevice = MptCallKitController().currentAudioDevice ?? "";
 
+  String _callExtraInfo = "";
+
   StreamSubscription<String>? _callStateSubscription;
   StreamSubscription<String>? _agentStatusSubscription;
+  StreamSubscription<String>? _callExtraInfoSubscription;
   StreamSubscription<bool>? _microphoneStateSubscription;
   StreamSubscription<bool>? _cameraStateSubscription;
   StreamSubscription<bool>? _holdCallStateSubscription;
@@ -138,6 +141,17 @@ class _CallPadState extends State<CallPad> {
       }
     });
 
+    // call extra info listener
+    _callExtraInfoSubscription =
+        MptSocketSocketServer.callExtraInfoEvent.listen((callExtraInfo) {
+      if (mounted) {
+        setState(() {
+          _callExtraInfo = callExtraInfo;
+        });
+        print("Call Extra Info received: $callExtraInfo");
+      }
+    });
+
     // hold call state listener
     _holdCallStateSubscription =
         MptCallKitController().holdCallState.listen((isOnHold) {
@@ -211,6 +225,7 @@ class _CallPadState extends State<CallPad> {
     _microphoneStateSubscription?.cancel();
     _cameraStateSubscription?.cancel();
     _agentStatusSubscription?.cancel();
+    _callExtraInfoSubscription?.cancel();
     _holdCallStateSubscription?.cancel();
     _localCamStateSubscription?.cancel();
     _localMicStateSubscription?.cancel();
@@ -286,6 +301,13 @@ class _CallPadState extends State<CallPad> {
                 ),
                 Text(
                   'Current Audio Device: $_currentAudioDevice',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Call Extra Info: ${_callExtraInfo.isEmpty ? "None" : _callExtraInfo}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
