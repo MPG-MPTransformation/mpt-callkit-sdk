@@ -20,16 +20,14 @@ class _LoginState extends State<Login> {
   final String _baseUrl = CallkitConstants.BASE_URL;
   final String _apiKey = CallkitConstants.API_KEY;
   final tenantId = CallkitConstants.TENANT_ID;
-  Map<String, dynamic>? userData;
+  String? accessTokenResponse;
 
-  static const String _usernameKey = 'saved_username';
-  static const String _passwordKey = 'saved_password';
+  static const String _accessTokenKey = 'saved_access_token';
 
-  Future<void> _saveCredentials(String username, String password) async {
+  Future<void> _saveCredentials(String accessToken) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_usernameKey, username);
-    await prefs.setString(_passwordKey, password);
-    print('Saved credentials: $username, $password');
+    await prefs.setString(_accessTokenKey, accessToken);
+    print('Saved credentials access token: $accessToken');
   }
 
   @override
@@ -44,6 +42,10 @@ class _LoginState extends State<Login> {
           password: password,
           tenantId: tenantId,
           baseUrl: _baseUrl,
+          accessTokenResponse: (accessToken) {
+            accessTokenResponse = accessToken;
+            print("Response data: $accessTokenResponse");
+          },
           onError: (error) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(error ?? 'Login failed')),
@@ -51,9 +53,9 @@ class _LoginState extends State<Login> {
           },
         );
 
-        if (result) {
+        if (result && accessTokenResponse != null) {
           // Lưu thông tin đăng nhập khi đăng nhập thành công
-          await _saveCredentials(username, password);
+          await _saveCredentials(accessTokenResponse!);
 
           Navigator.push(
             context,

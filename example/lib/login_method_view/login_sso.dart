@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '/login_result.dart';
 import '../components/callkit_constants.dart';
 
 class LoginSSO extends StatefulWidget {
-  const LoginSSO({Key? key}) : super(key: key);
+  const LoginSSO({super.key});
 
   @override
   State<LoginSSO> createState() => _LoginSSOState();
@@ -20,7 +21,15 @@ class _LoginSSOState extends State<LoginSSO> {
       TextEditingController(text: "D1B85F69-5565-4301-8602-0FAA88DB6F39");
   final String baseUrl = CallkitConstants.BASE_URL;
   final String apiKey = CallkitConstants.API_KEY;
-  Map<String, dynamic>? userData;
+  String? accessTokenResponse;
+
+  static const String _accessTokenKey = 'saved_access_token';
+
+  Future<void> _saveCredentials(String accessToken) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_accessTokenKey, accessToken);
+    print('Saved credentials access token: $accessToken');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,13 +44,15 @@ class _LoginSSOState extends State<LoginSSO> {
               SnackBar(content: Text(error ?? 'Login SSO failed')),
             );
           },
-          data: (data) {
-            userData = data;
-            print("Response data: $data");
+          accessTokenResponse: (accessToken) {
+            accessTokenResponse = accessToken;
+            print("Response data: $accessTokenResponse");
           },
         );
 
-        if (result) {
+        if (result && accessTokenResponse != null) {
+          await _saveCredentials(accessTokenResponse!);
+
           Navigator.push(
             context,
             MaterialPageRoute(

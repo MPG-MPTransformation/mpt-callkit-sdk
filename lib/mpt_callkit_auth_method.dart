@@ -38,6 +38,7 @@ class MptCallkitAuthMethod {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
+
         data?.call(responseData);
         print('Login Response data: $responseData');
         if (responseData != null) {

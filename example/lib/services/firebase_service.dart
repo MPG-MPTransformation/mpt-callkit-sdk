@@ -70,8 +70,7 @@ class FirebaseService {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   String? _tokenFCM = "";
   static const String _tokenKey = 'fcm_token';
-  static const String _usernameKey = 'saved_username';
-  static const String _passwordKey = 'saved_password';
+  static const String _accessTokenKey = 'saved_access_token';
 
   FirebaseService() {
     _initializeFCM();
@@ -97,14 +96,10 @@ class FirebaseService {
 
   Future<bool> autoLogin(BuildContext? context) async {
     final prefs = await SharedPreferences.getInstance();
-    final username = prefs.getString(_usernameKey);
-    final password = prefs.getString(_passwordKey);
+    final accessToken = prefs.getString(_accessTokenKey);
 
-    if (username != null &&
-        password != null &&
-        username.isNotEmpty &&
-        password.isNotEmpty) {
-      print('Auto login with saved credentials: $username');
+    if (accessToken != null && accessToken.isNotEmpty) {
+      print('Auto login with saved credentials: $accessToken');
 
       MptCallKitController().initSdk(
         apiKey: CallkitConstants.API_KEY,
@@ -113,17 +108,17 @@ class FirebaseService {
         appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
       );
 
-      var result = await MptCallKitController().loginRequest(
-        username: username,
-        password: password,
-        tenantId: CallkitConstants.TENANT_ID,
-        baseUrl: CallkitConstants.BASE_URL,
-        onError: (error) {
-          print('Auto login failed: $error');
-        },
-      );
+      // var result = await MptCallKitController().loginRequest(
+      //   username: username,
+      //   password: password,
+      //   tenantId: CallkitConstants.TENANT_ID,
+      //   baseUrl: CallkitConstants.BASE_URL,
+      //   onError: (error) {
+      //     print('Auto login failed: $error');
+      //   },
+      // );
 
-      if (result && context != null) {
+      if (context != null) {
         print('Auto login successful');
 
         // Chuyển hướng đến màn hình LoginResultScreen

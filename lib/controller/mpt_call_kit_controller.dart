@@ -19,7 +19,6 @@ class MptCallKitController {
   String extension = '';
   String pushToken = "";
   String appId = "";
-  Map<String, dynamic>? userData;
   Map<String, dynamic>? currentUserInfo;
   ExtensionData? extensionData;
   Map<String, dynamic>? _configuration;
@@ -150,6 +149,9 @@ class MptCallKitController {
   final bool _calleeAnswered = false;
   bool? get calleeAnswered => _calleeAnswered;
 
+  String? _currentAppEvent = "";
+  String? get currentAppEvent => _currentAppEvent;
+
   /// current available audio devices, ONLY AVAILABLE ON ANDROID
   List<String>? _currentAvailableAudioDevices = [];
   List<String>? get currentAvailableAudioDevices =>
@@ -268,6 +270,7 @@ class MptCallKitController {
     print("init appId: $appId");
 
     _appEvent.add(AppEventConstants.READY);
+    _currentAppEvent = AppEventConstants.READY;
   }
 
   // Future<void> connectSocketByUser({
@@ -285,7 +288,7 @@ class MptCallKitController {
     required String password,
     required int tenantId,
     String? baseUrl,
-    Function(Map<String, dynamic>)? data,
+    Function(String?)? accessTokenResponse,
     Function(String?)? onError,
   }) async {
     var result = await MptCallkitAuthMethod().login(
@@ -295,12 +298,12 @@ class MptCallKitController {
       baseUrl: baseUrl,
       onError: onError,
       data: (e) {
-        userData = e;
-        data?.call(e);
+        accessTokenResponse?.call(e["result"]["accessToken"]);
       },
     );
     if (result) {
       _appEvent.add(AppEventConstants.LOGGED_IN);
+      _currentAppEvent = AppEventConstants.LOGGED_IN;
     }
     return result;
   }
@@ -310,7 +313,7 @@ class MptCallKitController {
     required String organization,
     String? baseUrl,
     Function(String?)? onError,
-    Function(Map<String, dynamic>)? data,
+    Function(String?)? accessTokenResponse,
   }) async {
     var result = await MptCallkitAuthMethod().loginSSO(
       ssoToken: ssoToken,
@@ -318,12 +321,12 @@ class MptCallKitController {
       baseUrl: baseUrl,
       onError: onError,
       data: (e) {
-        userData = e;
-        data?.call(e);
+        accessTokenResponse?.call(e["result"]["accessToken"]);
       },
     );
     if (result) {
       _appEvent.add(AppEventConstants.LOGGED_IN);
+      _currentAppEvent = AppEventConstants.LOGGED_IN;
     }
     return result;
   }
@@ -331,17 +334,32 @@ class MptCallKitController {
   Future<void> initDataWhenLoginSuccess({
     required BuildContext context,
     Function(String?)? onError,
+    String? accessToken,
   }) async {
     this.context = context;
-    if (userData != null) {
-      await _getCurrentUserInfo();
-      await _getConfiguration();
-      await _connectToSocketServer();
-      await _registerToSipServer(context: context);
+
+    if (accessToken != null) {
+      await _getCurrentUserInfo(accessToken);
+      await _getConfiguration(accessToken);
+
+      if (currentUserInfo != null &&
+          currentUserInfo!["user"] != null &&
+          currentUserInfo!["tenant"] != null &&
+          _configuration!["MOBILE_SIP_URL"] != null &&
+          _configuration!["MOBILE_SIP_PORT"] != null) {
+        await _connectToSocketServer(accessToken);
+        await _registerToSipServer(context: context);
+      } else {
+        _appEvent.add(AppEventConstants.TOKEN_EXPIRED);
+        onError?.call("Access token is expired");
+        print("Access token is expired");
+        _currentAppEvent = AppEventConstants.TOKEN_EXPIRED;
+      }
     } else {
       print("Access token is null");
       _appEvent.add(AppEventConstants.TOKEN_EXPIRED);
       onError?.call("Access token is null");
+      _currentAppEvent = AppEventConstants.TOKEN_EXPIRED;
     }
   }
 
@@ -380,47 +398,58 @@ class MptCallKitController {
         );
       } else {
         _appEvent.add(AppEventConstants.ERROR);
+        _currentAppEvent = AppEventConstants.ERROR;
       }
     } else {
       _appEvent.add(AppEventConstants.TOKEN_EXPIRED);
+      _currentAppEvent = AppEventConstants.TOKEN_EXPIRED;
     }
   }
 
   // get current user info
-  Future<void> _getCurrentUserInfo() async {
+  Future<void> _getCurrentUserInfo(String accessToken) async {
     currentUserInfo = await MptCallkitAuthMethod().getCurrentUserInfo(
       baseUrl: baseUrl,
-      accessToken: userData!["result"]["accessToken"],
+      accessToken: accessToken,
       onError: (p0) {
         print("Error in get current user info: ${p0.toString()}");
       },
     );
-    if (currentUserInfo == null) {
+    if (currentUserInfo != null &&
+        currentUserInfo!["user"] == null &&
+        currentUserInfo!["tenant"] == null) {
       _appEvent.add(AppEventConstants.TOKEN_EXPIRED);
+      _currentAppEvent = AppEventConstants.TOKEN_EXPIRED;
+      print("Access token is expired");
     }
   }
 
-  Future<void> _connectToSocketServer() async {
+  Future<void> _connectToSocketServer(String accessToken) async {
     print("connectToSocketServer");
+
     if (_configuration != null) {
-      MptSocketSocketServer.initialize(
-        tokenParam: userData!["result"]["accessToken"],
-        configuration: _configuration!,
-        currentUserInfo: currentUserInfo!,
-        onMessageReceivedParam: (p0) {
-          print("Message received in callback: $p0");
-        },
-      );
+      try {
+        MptSocketSocketServer.initialize(
+          tokenParam: accessToken,
+          configuration: _configuration!,
+          currentUserInfo: currentUserInfo!,
+          onMessageReceivedParam: (p0) {
+            print("Message received in callback: $p0");
+          },
+        );
+      } catch (e) {
+        print("Error in connect to socket server: ${e.toString()}");
+      }
     } else {
       print("Cannot connect agent to socket server - configuration is null");
     }
   }
 
   // get configuration
-  Future<void> _getConfiguration() async {
+  Future<void> _getConfiguration(String accessToken) async {
     _configuration = await MptCallkitAuthMethod().getConfiguration(
       baseUrl: baseUrl,
-      accessToken: userData!["result"]["accessToken"],
+      accessToken: accessToken,
       onError: (p0) {
         print("Error in get configuration: ${p0.toString()}");
       },
@@ -474,9 +503,11 @@ class MptCallKitController {
 
     if (isLogoutAccountSuccess && isUnregistered) {
       _appEvent.add(AppEventConstants.LOGGED_OUT);
+      _currentAppEvent = AppEventConstants.LOGGED_OUT;
       return true;
     } else {
       _appEvent.add(AppEventConstants.ERROR);
+      _currentAppEvent = AppEventConstants.ERROR;
       return false;
     }
   }
@@ -779,6 +810,7 @@ class MptCallKitController {
     required String extraInfo,
     bool? isVideoCall,
     Function(String?)? onError,
+    required String accessToken,
   }) async {
     var extraInfoResult = {
       "type": isVideoCall == true ? CallType.VIDEO : CallType.VOICE,
@@ -791,7 +823,7 @@ class MptCallKitController {
       senderId: destination,
       agentId: currentUserInfo!["user"]["id"] ?? 0,
       extraInfo: jsonEncode(extraInfoResult),
-      authToken: userData!["result"]["accessToken"],
+      authToken: accessToken,
       onError: onError,
     );
   }
@@ -803,6 +835,7 @@ class MptCallKitController {
     required String extraInfo,
     bool? isVideoCall,
     Function(String?)? onError,
+    required String accessToken,
   }) async {
     var extraInfoResult = {
       "type": isVideoCall == true ? CallType.VIDEO : CallType.VOICE,
@@ -816,7 +849,7 @@ class MptCallKitController {
       senderId: senderId ?? currentUserInfo!["user"]["extension"],
       agentId: currentUserInfo!["user"]["id"] ?? 0,
       extraInfo: jsonEncode(extraInfoResult),
-      authToken: userData!["result"]["accessToken"],
+      authToken: accessToken,
       onError: onError,
     );
   }
@@ -858,19 +891,22 @@ class MptCallKitController {
     required int reasonCodeId,
     required String statusName,
     Function(String?)? onError,
+    required String accessToken,
   }) async {
-    if (currentUserInfo != null && userData != null) {
+    if (currentUserInfo != null) {
       return await MptCallKitControllerRepo().changeAgentStatus(
-          cloudAgentId: currentUserInfo!["user"]["id"],
-          cloudTenantId: currentUserInfo!["tenant"]["id"],
-          cloudAgentName: currentUserInfo!["user"]["fullName"] ?? "",
-          reasonCodeId: reasonCodeId,
-          statusName: statusName,
-          baseUrl: baseUrl,
-          accessToken: userData!["result"]["accessToken"]);
+        cloudAgentId: currentUserInfo!["user"]["id"],
+        cloudTenantId: currentUserInfo!["tenant"]["id"],
+        cloudAgentName: currentUserInfo!["user"]["fullName"] ?? "",
+        reasonCodeId: reasonCodeId,
+        statusName: statusName,
+        baseUrl: baseUrl,
+        accessToken: accessToken,
+        onError: onError,
+      );
     } else {
-      onError
-          ?.call("changeAgentStatus: current user info or user data is null");
+      onError?.call(
+          "changeAgentStatus: current user info is null - currentUserInfo: $currentUserInfo");
       return false;
     }
   }

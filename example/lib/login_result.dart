@@ -29,6 +29,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
       TextEditingController(text: "10001");
   StreamSubscription<String>? _callStateSubscription;
   StreamSubscription<String>? _callTypeSubscription;
+  var tokenExpired = false;
 
   @override
   void initState() {
@@ -38,7 +39,6 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
         _initDataWhenLoginSuccess();
       }
     });
-
     // _callStateSubscription = MptCallKitController().callEvent.listen((state) {
     //   // Chỉ khi nhận được INCOMING mới route đến call_pad
     //   if (state == CallStateConstants.INCOMING && mounted) {
@@ -57,9 +57,14 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
   }
 
   Future<void> _initDataWhenLoginSuccess() async {
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString("saved_access_token");
+
     await MptCallKitController().initDataWhenLoginSuccess(
       context: context,
+      accessToken: accessToken,
       onError: (p0) {
+        tokenExpired = true;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content:
@@ -122,6 +127,18 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
 
   // Logout account
   Future<void> logout() async {
+    if (MptCallKitController().currentAppEvent ==
+            AppEventConstants.TOKEN_EXPIRED ||
+        MptCallKitController().currentAppEvent == AppEventConstants.ERROR) {
+      // Remove saved credentials
+      print("Current app event: ${MptCallKitController().currentAppEvent}");
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove("saved_access_token");
+
+      Navigator.pop(context);
+      return;
+    }
+
     var result = await MptCallKitController().logout(
       onError: (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -136,8 +153,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
     if (result) {
       // Remove saved credentials
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove("saved_username");
-      await prefs.remove("saved_password");
+      await prefs.remove("saved_access_token");
 
       Navigator.pop(context);
     }
@@ -179,39 +195,40 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
     required String statusName,
     required int reasonCodeId,
   }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString("saved_access_token");
+
     bool result = await MptCallKitController().changeAgentStatus(
       reasonCodeId: reasonCodeId,
       statusName: statusName,
+      accessToken: accessToken ?? "",
       onError: (error) {
         print("Change status failed! $error");
+
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Change agent status failed, '),
+            content: const Text('Logout?'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(false);
+                },
+                child: const Text('No'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop(true);
+                  await logout();
+                },
+                child: const Text('Yes'),
+              ),
+            ],
+          ),
+        );
       },
     );
-
-    if (!result) {
-      //so dialog
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Socket server has disconnected'),
-          content: const Text('Logout?'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(false);
-              },
-              child: const Text('No'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.of(context).pop(true);
-                await logout();
-              },
-              child: const Text('Yes'),
-            ),
-          ],
-        ),
-      );
-    }
 
     return result;
   }
@@ -468,6 +485,8 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
 
   Future<void> _makeCallOutbound() async {
     final String destination = _destinationController.text.trim();
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString("saved_access_token");
 
     if (destination.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -506,6 +525,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
       senderId: MptCallKitController().currentUserInfo!["user"]["extension"],
       isVideoCall: true,
       extraInfo: "",
+      accessToken: accessToken ?? "",
       onError: (error) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

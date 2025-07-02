@@ -48,14 +48,10 @@ class _HomeScreenState extends State<HomeScreen> {
   // Auto login with saved credentials - Login by account and password
   Future<bool> autoLogin(BuildContext? context) async {
     final prefs = await SharedPreferences.getInstance();
-    final username = prefs.getString("saved_username");
-    final password = prefs.getString("saved_password");
+    final accessToken = prefs.getString("saved_access_token");
 
-    if (username != null &&
-        password != null &&
-        username.isNotEmpty &&
-        password.isNotEmpty) {
-      print('Auto login with saved credentials: $username');
+    if (accessToken != null && accessToken.isNotEmpty) {
+      print('Auto login with saved credentials: $accessToken');
 
       MptCallKitController().initSdk(
         apiKey: CallkitConstants.API_KEY,
@@ -64,17 +60,17 @@ class _HomeScreenState extends State<HomeScreen> {
         appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
       );
 
-      var result = await MptCallKitController().loginRequest(
-        username: username,
-        password: password,
-        tenantId: CallkitConstants.TENANT_ID,
-        baseUrl: CallkitConstants.BASE_URL,
-        onError: (error) {
-          print('Auto login failed: $error');
-        },
-      );
+      // var result = await MptCallKitController().loginRequest(
+      //   username: username,
+      //   password: password,
+      //   tenantId: CallkitConstants.TENANT_ID,
+      //   baseUrl: CallkitConstants.BASE_URL,
+      //   onError: (error) {
+      //     print('Auto login failed: $error');
+      //   },
+      // );
 
-      if (result && context != null) {
+      if (context != null) {
         print('Auto login successful');
 
         // Chuyển hướng đến màn hình LoginResultScreen
