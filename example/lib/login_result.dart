@@ -27,6 +27,8 @@ class LoginResultScreen extends StatefulWidget {
 class _LoginResultScreenState extends State<LoginResultScreen> {
   final TextEditingController _destinationController =
       TextEditingController(text: "10001");
+  final TextEditingController _extraInfoController =
+      TextEditingController(text: "extraInfo");
   StreamSubscription<String>? _callStateSubscription;
   StreamSubscription<String>? _callTypeSubscription;
   var tokenExpired = false;
@@ -162,6 +164,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
   @override
   void dispose() {
     _destinationController.dispose();
+    _extraInfoController.dispose();
     _callStateSubscription?.cancel();
     _callTypeSubscription?.cancel();
     super.dispose();
@@ -450,6 +453,15 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                               ),
                             ),
                             const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _extraInfoController,
+                              decoration: const InputDecoration(
+                                labelText: 'Extra Info',
+                                hintText: 'Enter extra info',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
                             StreamBuilder<bool>(
                               stream:
                                   MptCallKitController().onlineStatuslistener,
@@ -524,7 +536,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
       destination: _destinationController.text.trim(),
       senderId: MptCallKitController().currentUserInfo!["user"]["extension"],
       isVideoCall: true,
-      extraInfo: "",
+      extraInfo: _extraInfoController.text.trim(),
       accessToken: accessToken ?? "",
       onError: (error) {
         ScaffoldMessenger.of(context).showSnackBar(

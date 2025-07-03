@@ -21,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final String _baseUrl = CallkitConstants.BASE_URL;
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _callTo = TextEditingController();
+  final TextEditingController _extraInfo = TextEditingController();
   String? _fcmToken;
   static const String _tokenKey = 'fcm_token';
 
@@ -29,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _phoneController.text = "200011";
     _callTo.text = "20015";
+    _extraInfo.text = "extraInfo";
     _loadFcmToken();
     _checkSavedCredentials();
   }
@@ -115,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
               userPhoneNumber: _phoneController.text,
               destination: _callTo.text,
               isVideoCall: true,
-              extraInfo: "",
+              extraInfo: _extraInfo.text,
               onError: (errorMessage) {
                 if (errorMessage == null) return;
                 var snackBar = SnackBar(
@@ -152,6 +154,16 @@ class _HomeScreenState extends State<HomeScreen> {
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(
                 labelText: 'Call to',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _extraInfo,
+              decoration: const InputDecoration(
+                labelText: 'Extra Info',
                 border: OutlineInputBorder(),
               ),
             ),

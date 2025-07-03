@@ -219,6 +219,9 @@ class MptSocketSocketServer {
       StreamController<String>.broadcast();
   Stream<String> get callExtraInfoStream => _callExtraInfoController.stream;
 
+  String? _currentCallExtraInfo;
+  String? get currentCallExtraInfo => _currentCallExtraInfo;
+
   final participantType = "SUPERVISOR";
   final chanels = [
     ChannelConstants.FB_MESSAGE,
@@ -508,6 +511,7 @@ class MptSocketSocketServer {
               if (!_callExtraInfoController.isClosed &&
                   callExtraInfo is String) {
                 _callExtraInfoController.add(callExtraInfo);
+                _currentCallExtraInfo = callExtraInfo;
               }
             } else {
               print(

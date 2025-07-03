@@ -73,6 +73,7 @@ class _CallPadState extends State<CallPad> {
   @override
   void initState() {
     super.initState();
+    _callExtraInfo = MptSocketSocketServer.instance.currentCallExtraInfo ?? "";
 
     // call state listener
     _callStateSubscription = MptCallKitController().callEvent.listen((state) {

@@ -347,8 +347,15 @@ class MptCallKitController {
           currentUserInfo!["tenant"] != null &&
           _configuration!["MOBILE_SIP_URL"] != null &&
           _configuration!["MOBILE_SIP_PORT"] != null) {
-        await _connectToSocketServer(accessToken);
-        await _registerToSipServer(context: context);
+        final isSocketConnected = await _connectToSocketServer(accessToken);
+        if (isSocketConnected) {
+          await _registerToSipServer(context: context);
+        } else {
+          _appEvent.add(AppEventConstants.ERROR);
+          onError?.call("Failed to connect to socket server");
+          _currentAppEvent = AppEventConstants.ERROR;
+          print("Failed to connect to socket server");
+        }
       } else {
         _appEvent.add(AppEventConstants.TOKEN_EXPIRED);
         onError?.call("Access token is expired");
@@ -424,7 +431,7 @@ class MptCallKitController {
     }
   }
 
-  Future<void> _connectToSocketServer(String accessToken) async {
+  Future<bool> _connectToSocketServer(String accessToken) async {
     print("connectToSocketServer");
 
     if (_configuration != null) {
@@ -437,11 +444,50 @@ class MptCallKitController {
             print("Message received in callback: $p0");
           },
         );
+
+        // Wait for socket connection with timeout
+        final completer = Completer<bool>();
+        StreamSubscription<bool>? subscription;
+        Timer? timeoutTimer;
+
+        // Set up timeout
+        timeoutTimer = Timer(const Duration(seconds: 10), () {
+          subscription?.cancel();
+          if (!completer.isCompleted) {
+            completer.complete(false);
+            print("Socket connection timeout after 10 seconds");
+          }
+        });
+
+        // Listen to connection status
+        subscription =
+            MptSocketSocketServer.connectionStatus.listen((isConnected) {
+          if (isConnected && !completer.isCompleted) {
+            timeoutTimer?.cancel();
+            subscription?.cancel();
+            completer.complete(true);
+            print("Socket server connected successfully");
+          }
+        });
+
+        // Check if already connected
+        if (MptSocketSocketServer.getCurrentConnectionState()) {
+          timeoutTimer.cancel();
+          subscription.cancel();
+          if (!completer.isCompleted) {
+            completer.complete(true);
+            print("Socket server already connected");
+          }
+        }
+
+        return await completer.future;
       } catch (e) {
         print("Error in connect to socket server: ${e.toString()}");
+        return false;
       }
     } else {
       print("Cannot connect agent to socket server - configuration is null");
+      return false;
     }
   }
 
