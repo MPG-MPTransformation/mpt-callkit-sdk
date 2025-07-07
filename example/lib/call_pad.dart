@@ -52,11 +52,11 @@ class _CallPadState extends State<CallPad> {
 
   String _currentAudioDevice = MptCallKitController().currentAudioDevice ?? "";
 
-  String _callExtraInfo = "";
+  String _callExtraInfoData = "";
 
   StreamSubscription<String>? _callStateSubscription;
   StreamSubscription<String>? _agentStatusSubscription;
-  StreamSubscription<String>? _callExtraInfoSubscription;
+  StreamSubscription<Map<String, String>>? _callExtraInfoSubscription;
   StreamSubscription<bool>? _microphoneStateSubscription;
   StreamSubscription<bool>? _cameraStateSubscription;
   StreamSubscription<bool>? _holdCallStateSubscription;
@@ -73,7 +73,10 @@ class _CallPadState extends State<CallPad> {
   @override
   void initState() {
     super.initState();
-    _callExtraInfo = MptSocketSocketServer.instance.currentCallExtraInfo ?? "";
+    // Safe access to current call extra info
+    final currentExtraInfo =
+        MptSocketSocketServer.instance.currentCallExtraInfo;
+    _callExtraInfoData = currentExtraInfo?['extraInfo'] ?? "";
 
     // call state listener
     _callStateSubscription = MptCallKitController().callEvent.listen((state) {
@@ -146,10 +149,18 @@ class _CallPadState extends State<CallPad> {
     _callExtraInfoSubscription =
         MptSocketSocketServer.callExtraInfoEvent.listen((callExtraInfo) {
       if (mounted) {
-        setState(() {
-          _callExtraInfo = callExtraInfo;
-        });
         print("Call Extra Info received: $callExtraInfo");
+
+        // Safe access to Map keys
+        final sessionId = callExtraInfo['sessionId'];
+        final extraInfo = callExtraInfo['extraInfo'];
+
+        if (sessionId != null &&
+            sessionId == MptCallKitController().currentSessionId) {
+          setState(() {
+            _callExtraInfoData = extraInfo ?? "";
+          });
+        }
       }
     });
 
@@ -308,7 +319,7 @@ class _CallPadState extends State<CallPad> {
                   ),
                 ),
                 Text(
-                  'Call Extra Info: ${_callExtraInfo.isEmpty ? "None" : _callExtraInfo}',
+                  'Call Extra Info: ${_callExtraInfoData.isEmpty ? "None" : _callExtraInfoData}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

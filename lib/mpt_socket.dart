@@ -215,12 +215,13 @@ class MptSocketSocketServer {
   Stream<bool> get connectionStatusStream => _connectionStatusController.stream;
 
   // Stream for call extra info
-  StreamController<String> _callExtraInfoController =
-      StreamController<String>.broadcast();
-  Stream<String> get callExtraInfoStream => _callExtraInfoController.stream;
+  StreamController<Map<String, String>> _callExtraInfoController =
+      StreamController<Map<String, String>>.broadcast();
+  Stream<Map<String, String>> get callExtraInfoStream =>
+      _callExtraInfoController.stream;
 
-  String? _currentCallExtraInfo;
-  String? get currentCallExtraInfo => _currentCallExtraInfo;
+  Map<String, String>? _currentCallExtraInfo;
+  Map<String, String>? get currentCallExtraInfo => _currentCallExtraInfo;
 
   final participantType = "SUPERVISOR";
   final chanels = [
@@ -252,7 +253,8 @@ class MptSocketSocketServer {
 
     // Create new call extra info controller if closed
     if (_callExtraInfoController.isClosed) {
-      _callExtraInfoController = StreamController<String>.broadcast();
+      _callExtraInfoController =
+          StreamController<Map<String, String>>.broadcast();
     }
 
     // Set parameters
@@ -503,20 +505,24 @@ class MptSocketSocketServer {
 
           if (extraInfo.containsKey('extraInfo')) {
             var callExtraInfo = extraInfo['extraInfo'];
-            if (data['sessionId'] == MptCallKitController().currentSessionId) {
-              print(
-                  "Socket server - CALL_EVENT - saved extraInfo: $callExtraInfo");
+            // if (data['sessionId'] == MptCallKitController().currentSessionId) {
+            print(
+                "Socket server - CALL_EVENT - saved extraInfo: $callExtraInfo");
 
-              // Emit callExtraInfo to stream
-              if (!_callExtraInfoController.isClosed &&
-                  callExtraInfo is String) {
-                _callExtraInfoController.add(callExtraInfo);
-                _currentCallExtraInfo = callExtraInfo;
-              }
-            } else {
-              print(
-                  "Socket server - CALL_EVENT - saved extraInfo incorect sessionId: ${data['sessionId']} != ${MptCallKitController().currentSessionId}");
+            // Emit callExtraInfo to stream
+            if (!_callExtraInfoController.isClosed && callExtraInfo is String) {
+              final extraInfoMap = {
+                'sessionId': sessionId.toString(),
+                'extraInfo': callExtraInfo,
+                "state": data['state'].toString(),
+              };
+              _callExtraInfoController.add(extraInfoMap);
+              _currentCallExtraInfo = extraInfoMap;
             }
+            // } else {
+            //   print(
+            //       "Socket server - CALL_EVENT - saved extraInfo incorect sessionId: ${data['sessionId']} != ${MptCallKitController().currentSessionId}");
+            // }
           }
         } else {
           print("Socket server - CALL_EVENT - Data has no extraInfo");
@@ -705,7 +711,8 @@ class MptSocketSocketServer {
   static Stream<String> get agentStatusEvent => instance.statusStream;
 
   /// Static getter for call extra info stream
-  static Stream<String> get callExtraInfoEvent => instance.callExtraInfoStream;
+  static Stream<Map<String, String>> get callExtraInfoEvent =>
+      instance.callExtraInfoStream;
 
   /// Disconnect
   static Future<void> disconnect() async {
