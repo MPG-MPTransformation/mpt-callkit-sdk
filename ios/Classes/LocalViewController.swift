@@ -160,8 +160,8 @@ class LocalViewController: UIViewController {
            localVideo.isHidden = false
            localVideo.backgroundColor = UIColor.darkGray
           
-           // Hiển thị placeholder báo camera tắt
-           showCameraOffPlaceholder()
+//           // Hiển thị placeholder báo camera tắt
+//           showCameraOffPlaceholder()
        }
    }
   

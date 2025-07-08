@@ -81,12 +81,21 @@ class VideoManager {
     }
 
     func updateLocalVideoCaptureSize(width: Int, height: Int) {
-        guard width > 0, height > 0 else { return }
+        guard width > 0, height > 0 else { 
+            NSLog("VideoManager - Invalid video capture size: width=\(width), height=\(height)")
+            return 
+        }
+        
+        // Additional validation to prevent extremely large or invalid values
+        guard width <= 4096, height <= 4096 else {
+            NSLog("VideoManager - Video capture size too large: width=\(width), height=\(height)")
+            return
+        }
 
         if mLocalVideoHeight != height || mLocalVideoWidth != width {
             mLocalVideoWidth = width
             mLocalVideoHeight = height
-            print("Updated local video capture size: width=\(width), height=\(height)")
+            NSLog("VideoManager - Updated local video capture size: width=\(width), height=\(height)")
         }
     }
 }

@@ -126,8 +126,8 @@ class RemoteViewController: UIViewController {
            remoteVideo.backgroundColor = UIColor.darkGray
            print("[Debug] RemoteViewController - Remote camera OFF - showing placeholder")
           
-           // Hiển thị placeholder báo camera đã tắt
-           self.showCameraOffPlaceholder()
+//           // Hiển thị placeholder báo camera đã tắt
+//           self.showCameraOffPlaceholder()
        }
    }
   

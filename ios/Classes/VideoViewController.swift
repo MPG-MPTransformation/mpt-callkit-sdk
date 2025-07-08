@@ -1,14 +1,62 @@
 import UIKit
 import PortSIPVoIPSDK
 
+// MARK: - Safe CoreGraphics Extensions
+extension CGFloat {
+    var safeValue: CGFloat {
+        return isFinite ? self : 0.0
+    }
+    
+    static func safeDivision(_ numerator: CGFloat, _ denominator: CGFloat) -> CGFloat {
+        guard denominator != 0 && denominator.isFinite && numerator.isFinite else {
+            return 0.0
+        }
+        let result = numerator / denominator
+        return result.isFinite ? result : 0.0
+    }
+}
+
+extension CGRect {
+    var isSafe: Bool {
+        return origin.x.isFinite && origin.y.isFinite && 
+               size.width.isFinite && size.height.isFinite &&
+               size.width >= 0 && size.height >= 0
+    }
+    
+    var safeRect: CGRect {
+        return CGRect(
+            x: origin.x.safeValue,
+            y: origin.y.safeValue,
+            width: max(0, size.width.safeValue),
+            height: max(0, size.height.safeValue)
+        )
+    }
+}
+
 class VideoViewController: UIViewController {
     var mCameraDeviceId: Int = 1 // 1 - FrontCamera 0 - BackCamera
     var speakState: Int = 0 // 1 - Headphone 0 - speaker
     var mSoundService: SoundService!
     var muteState: Bool = true
     var muteMic: Bool = true
-    var mLocalVideoWidth: Int = 352
-    var mLocalVideoHeight: Int = 288
+    var mLocalVideoWidth: Int = 352 {
+        didSet {
+            // Validate video width to prevent invalid calculations
+            if mLocalVideoWidth <= 0 {
+                NSLog("VideoViewController - Invalid video width: \(mLocalVideoWidth), resetting to 352")
+                mLocalVideoWidth = 352
+            }
+        }
+    }
+    var mLocalVideoHeight: Int = 288 {
+        didSet {
+            // Validate video height to prevent invalid calculations
+            if mLocalVideoHeight <= 0 {
+                NSLog("VideoViewController - Invalid video height: \(mLocalVideoHeight), resetting to 288")
+                mLocalVideoHeight = 288
+            }
+        }
+    }
     var isStartVideo = false
     var isInitVideo = false
     var sessionId: Int = 0
@@ -41,10 +89,36 @@ class VideoViewController: UIViewController {
     var shareInSmallWindow = true
     
     override func viewWillAppear(_ animated: Bool) {
-        // Initialize the views
-        otherButtonSize = (70 / 430) * deviceWidth
-        leftRightSpacing = (20 / 430) * deviceWidth
-        spacing = (10 / 430) * deviceWidth
+        // Initialize the views with safe calculations
+        
+        // Validate deviceWidth to prevent NaN calculations
+        guard deviceWidth > 0 && deviceWidth.isFinite else {
+            NSLog("VideoViewController - Invalid device width: \(deviceWidth)")
+            otherButtonSize = 60.0  // fallback value
+            leftRightSpacing = 20.0  // fallback value
+            spacing = 10.0  // fallback value
+            return
+        }
+        
+        otherButtonSize = (70.0 / 430.0) * deviceWidth
+        leftRightSpacing = (20.0 / 430.0) * deviceWidth
+        spacing = (10.0 / 430.0) * deviceWidth
+        
+        // Validate calculated values
+        guard otherButtonSize.isFinite && leftRightSpacing.isFinite && spacing.isFinite else {
+            NSLog("VideoViewController - Invalid calculated dimensions")
+            otherButtonSize = 60.0  // fallback value
+            leftRightSpacing = 20.0  // fallback value
+            spacing = 10.0  // fallback value
+            // Continue with initialization even with fallback values
+            mSoundService = SoundService()
+            initVideoViews()
+            initButtons()
+            hideButtons()
+            initCallingLabel()
+            return
+        }
+        
         mSoundService = SoundService()
         initVideoViews()
         initButtons()
@@ -542,22 +616,69 @@ class VideoViewController: UIViewController {
                 return
             }
             
+            // Validate video dimensions to prevent NaN calculations
+            guard self.mLocalVideoWidth > 0 && self.mLocalVideoHeight > 0 else {
+                NSLog("VideoViewController - Invalid video dimensions: width=\(self.mLocalVideoWidth), height=\(self.mLocalVideoHeight)")
+                return
+            }
+            
+            // Validate screen size to prevent NaN calculations
+            guard screenSize.width > 0 && screenSize.height > 0 && 
+                  screenSize.width.isFinite && screenSize.height.isFinite else {
+                NSLog("VideoViewController - Invalid screen size: \(screenSize)")
+                return
+            }
+            
             if screenSize.width > screenSize.height {
                 // Landscape
                 var rectLocal: CGRect = self.viewLocalVideo.frame
                 rectLocal.size.width = 176
-                rectLocal.size.height = CGFloat(Int(rectLocal.size.width) * self.mLocalVideoHeight / self.mLocalVideoWidth)
+                
+                // Safe calculation to prevent NaN
+                let aspectRatio = CGFloat(self.mLocalVideoHeight) / CGFloat(self.mLocalVideoWidth)
+                rectLocal.size.height = rectLocal.size.width * aspectRatio
+                
+                // Validate calculated values
+                guard rectLocal.size.height.isFinite && rectLocal.size.height > 0 else {
+                    NSLog("VideoViewController - Invalid calculated height in landscape: \(rectLocal.size.height)")
+                    return
+                }
+                
                 rectLocal.origin.x = screenSize.width - rectLocal.size.width - 10
                 rectLocal.origin.y = 10
-                self.viewLocalVideo.frame = rectLocal
+                
+                // Final safety check before setting frame
+                if rectLocal.isSafe {
+                    self.viewLocalVideo.frame = rectLocal
+                } else {
+                    NSLog("VideoViewController - Unsafe frame calculated for landscape: \(rectLocal)")
+                    self.viewLocalVideo.frame = rectLocal.safeRect
+                }
             } else {
                 // Portrait
                 var rectLocal: CGRect = self.viewLocalVideo.frame
                 rectLocal.size.width = 144
-                rectLocal.size.height = CGFloat(Int(rectLocal.size.width) * self.mLocalVideoWidth / self.mLocalVideoHeight)
+                
+                // Safe calculation to prevent NaN
+                let aspectRatio = CGFloat.safeDivision(CGFloat(self.mLocalVideoWidth), CGFloat(self.mLocalVideoHeight))
+                rectLocal.size.height = rectLocal.size.width * aspectRatio
+                
+                // Validate calculated values
+                guard rectLocal.size.height.isFinite && rectLocal.size.height > 0 else {
+                    NSLog("VideoViewController - Invalid calculated height in portrait: \(rectLocal.size.height)")
+                    return
+                }
+                
                 rectLocal.origin.x = screenSize.width - rectLocal.size.width - 10
                 rectLocal.origin.y = 30
-                self.viewLocalVideo.frame = rectLocal
+                
+                // Final safety check before setting frame
+                if rectLocal.isSafe {
+                    self.viewLocalVideo.frame = rectLocal
+                } else {
+                    NSLog("VideoViewController - Unsafe frame calculated for portrait: \(rectLocal)")
+                    self.viewLocalVideo.frame = rectLocal.safeRect
+                }
             }
         }
     }

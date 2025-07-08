@@ -676,7 +676,7 @@ public class PortSipService extends Service
 
         sendPortSipMessage(description, broadIntent);
 
-        Ring.getInstance(this).startRingTone();
+        // Ring.getInstance(this).startRingTone();
 
         // Gửi thông tin cuộc gọi đến đến Flutter
         sendCallStateToFlutter("INCOMING");
@@ -705,7 +705,7 @@ public class PortSipService extends Service
         if (Engine.Instance().getEngine().getSipMessageHeaderValue(sipMessage, "Answer-Mode").toString()
                 .equals("Auto;require")) {
             System.out.println("SDK-Android: Auto answering call with video preference: " + existsVideo);
-            Ring.getInstance(this).stopRingTone();
+            // Ring.getInstance(this).stopRingTone();
             // Ring.getInstance(this).startRingBackTone();
             // Answer với video status hiện tại (có thể là false)
             boolean result = MptCallkitPlugin.answerCall(true);
@@ -840,7 +840,7 @@ public class PortSipService extends Service
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
 
         if (session != null && !session.bEarlyMedia) {
-            Ring.getInstance(this).startRingBackTone();
+            // Ring.getInstance(this).startRingBackTone();
         }
     }
 
@@ -871,7 +871,7 @@ public class PortSipService extends Service
             sendPortSipMessage(description, broadIntent);
         }
 
-        Ring.getInstance(this).stopRingBackTone();
+        // Ring.getInstance(this).stopRingBackTone();
     }
 
     @Override
@@ -897,7 +897,7 @@ public class PortSipService extends Service
             sendPortSipMessage(description, broadIntent);
         }
 
-        Ring.getInstance(this).stopRingBackTone();
+        // Ring.getInstance(this).stopRingBackTone();
         sendCallStateToFlutter("FAILED");
         sendCallTypeToFlutter("ENDED");
     }
@@ -995,7 +995,7 @@ public class PortSipService extends Service
 
             sendPortSipMessage(description, broadIntent);
         }
-        Ring.getInstance(this).stopRingTone();
+        // Ring.getInstance(this).stopRingTone();
         mNotificationManager.cancel(PENDINGCALL_NOTIFICATION);
         sendCallStateToFlutter("CLOSED");
         sendCallTypeToFlutter("ENDED");
@@ -1040,7 +1040,7 @@ public class PortSipService extends Service
 
             sendPortSipMessage(description, broadIntent);
         }
-        Ring.getInstance(this).stopRingTone();
+        // Ring.getInstance(this).stopRingTone();
     }
 
     @Override
