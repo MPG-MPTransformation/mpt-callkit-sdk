@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
+import 'package:mpt_callkit/models/models.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
 import 'package:mpt_callkit/views/local_view.dart';
@@ -52,7 +53,7 @@ class _CallPadState extends State<CallPad> {
 
   String _currentAudioDevice = MptCallKitController().currentAudioDevice ?? "";
 
-  String _callExtraInfoData = "";
+  CallEventSocketRecv _callEventSocketData = CallEventSocketRecv();
 
   StreamSubscription<String>? _callStateSubscription;
   StreamSubscription<String>? _agentStatusSubscription;
@@ -63,6 +64,7 @@ class _CallPadState extends State<CallPad> {
   StreamSubscription<String>?
       _currentAudioDeviceSubscription; // Thêm subscription cho currentAudioDeviceStream
   StreamSubscription<bool>? _calleeAnswerSubscription;
+  StreamSubscription<CallEventSocketRecv>? _callEventSocketSubscription;
 
   // New subscriptions for media states
   StreamSubscription<bool>? _localCamStateSubscription;
@@ -73,10 +75,34 @@ class _CallPadState extends State<CallPad> {
   @override
   void initState() {
     super.initState();
-    // Safe access to current call extra info
-    final currentExtraInfo =
-        MptSocketSocketServer.instance.currentCallExtraInfo;
-    _callExtraInfoData = currentExtraInfo?['extraInfo'] ?? "";
+    _callEventSocketData =
+        MptSocketSocketServer.instance.currentCallEventSocketData ??
+            CallEventSocketRecv();
+
+    _callEventSocketSubscription =
+        MptSocketSocketServer.callEvent.listen((callEvent) {
+      if (mounted) {
+        setState(() {
+          _callEventSocketData = callEvent;
+          print("Call Event Data: ${_callEventSocketData.toJson()}");
+        });
+
+// show dialog when call ended
+        if (_callEventSocketData.state ==
+                CallEventSocketConstants.REJECT_CALL ||
+            _callEventSocketData.state == CallEventSocketConstants.END_CALL) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (widget.isGuest == false) {
+              MptCallKitController().leaveCallMediaRoomChannel();
+            }
+
+            if (mounted) {
+              _showCallEndedDialog(_callEventSocketData.state ?? "NONE");
+            }
+          });
+        }
+      }
+    });
 
     // call state listener
     _callStateSubscription = MptCallKitController().callEvent.listen((state) {
@@ -95,11 +121,7 @@ class _CallPadState extends State<CallPad> {
         if (state == CallStateConstants.CLOSED ||
             state == CallStateConstants.FAILED) {
           Future.delayed(const Duration(milliseconds: 500), () {
-            if (widget.isGuest == false) {
-              MptCallKitController().leaveCallMediaRoomChannel();
-            }
-
-            if (mounted) {
+            if (mounted && widget.isGuest == true) {
               _showCallEndedDialog(state);
             }
           });
@@ -142,25 +164,6 @@ class _CallPadState extends State<CallPad> {
         setState(() {
           _agentStatus = status;
         });
-      }
-    });
-
-    // call extra info listener
-    _callExtraInfoSubscription =
-        MptSocketSocketServer.callExtraInfoEvent.listen((callExtraInfo) {
-      if (mounted) {
-        print("Call Extra Info received: $callExtraInfo");
-
-        // Safe access to Map keys
-        final sessionId = callExtraInfo['sessionId'];
-        final extraInfo = callExtraInfo['extraInfo'];
-
-        if (sessionId != null &&
-            sessionId == MptCallKitController().currentSessionId) {
-          setState(() {
-            _callExtraInfoData = extraInfo ?? "";
-          });
-        }
       }
     });
 
@@ -246,16 +249,18 @@ class _CallPadState extends State<CallPad> {
     _currentAudioDeviceSubscription
         ?.cancel(); // Hủy subscription khi widget bị dispose
     _calleeAnswerSubscription?.cancel();
-
+    _callEventSocketSubscription?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        _showEndCallConfirmDialog();
-        return false;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _showEndCallConfirmDialog();
+        }
       },
       child: Scaffold(
         appBar: AppBar(
@@ -274,14 +279,23 @@ class _CallPadState extends State<CallPad> {
                     color: _getCallStateColor(),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    'Call State: ${_callState.isEmpty ? "IDLE" : _callState}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
+                  child: widget.isGuest == true
+                      ? Text(
+                          'Call State: ${_callState.isEmpty ? "IDLE" : _callState}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        )
+                      : Text(
+                          'Call event socket state: ${_callEventSocketData.state ?? "NONE"}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
                 ),
                 Text(
                   'Microphone: ${_isMuted ? "OFF" : "ON"}',
@@ -319,7 +333,7 @@ class _CallPadState extends State<CallPad> {
                   ),
                 ),
                 Text(
-                  'Call Extra Info: ${_callExtraInfoData.isEmpty ? "None" : _callExtraInfoData}',
+                  'Call Extra Info: ${_callEventSocketData.extraInfo?.extraInfo ?? "None"}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -527,8 +541,13 @@ class _CallPadState extends State<CallPad> {
   }
 
   void _showCallEndedDialog(String state) {
-    String message =
-        state == CallStateConstants.CLOSED ? "Call ended" : "Call failed";
+    String message = state == CallStateConstants.CLOSED
+        ? "Call ended"
+        : state == CallEventSocketConstants.REJECT_CALL
+            ? "Call rejected"
+            : state == CallEventSocketConstants.END_CALL
+                ? "Call ended"
+                : "Call failed";
 
     showDialog(
       context: context,
@@ -571,12 +590,14 @@ class _CallPadState extends State<CallPad> {
             onPressed: () {
               // End call
               MptCallKitController().hangup();
+              if (widget.isGuest == false) {
+                MptCallKitController().leaveCallMediaRoomChannel();
+              }
 
-              // Go back to previous screen
-              // Close dialog
+              // Close dialog first
               Navigator.of(context).pop();
-              // // Close call_pad screen
-              // Navigator.of(context).pop();
+              // Then close call_pad screen
+              Navigator.of(context).pop();
             },
             style: ButtonStyle(
               foregroundColor: WidgetStateProperty.all<Color>(Colors.red),
@@ -586,7 +607,5 @@ class _CallPadState extends State<CallPad> {
         ],
       ),
     );
-
-    Navigator.of(context).pop();
   }
 }

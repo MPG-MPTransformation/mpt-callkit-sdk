@@ -13,6 +13,32 @@ class CallStateConstants {
   static const String CLOSED = "CLOSED";
 }
 
+class CallEventSocketConstants {
+  static const String INIT = "INIT"; //agent call out - INCOMING
+  static const String RINGING = "RINGING";
+  static const String OFFER_CALL = "OFFER"; //agent get call in - INCOMING
+  static const String ANSWER_CALL = "ANSWER";
+  static const String REJECT_CALL = "REJECT"; //reject call
+  static const String END_CALL = "HANGUP"; //end call
+  static const String CLOSE = "CLOSE_CONVERSATION";
+  static const String EXTEND_TIME_CLOSE = "EXTEND_CLOSE_TIME_CONVERSATION";
+  static const String READ_CONVERSATION = "READ_CONVERSATION";
+  static const String MESSAGE_TRANSFERED = "MESSAGE_TRANSFERED";
+  static const String ASSIGN_CONVERSATION = "ASSIGN_CONVERSATION";
+  static const String NEW_CONVERSATION = "NEW_CONVERSATION";
+  static const String TRANSFER_CONVERSATION = "TRANSFER_CONVERSATION";
+  static const String PICK_CONVERSATION = "PICK_CONVERSATION";
+  static const String UNASSIGN_CONVERSATION = "UNASSIGN_CONVERSATION";
+  static const String START_CONVERSATION = "START_CONVERSATION";
+  static const String AGENT_STATUS_CHANGED = "AGENT_STATUS_CHANGED";
+  static const String SAVE_BUSINESS_RESULT = "SAVE_BUSINESS_RESULT";
+  static const String EDIT_NOTE_MESSAGE = "EDIT_NOTE_MESSAGE";
+  static const String ATTACH_TAGS = "ATTACH_TAGS";
+  static const String TRANSFER_RINGING = "TRANSFER_RINGING";
+  static const String TRANSFER_ANSWER = "TRANSFER_ANSWER";
+  static const String TRANSFER_ACCEPTED = "TRANSFER_ACCEPTED";
+}
+
 class AgentStatusConstants {
   static const String READY = "READY";
   static const String NOT_READY = "NOT_READY";

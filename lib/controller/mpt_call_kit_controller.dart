@@ -1089,7 +1089,7 @@ class MptCallKitController {
   Future<void> getAudioDevices() async {
     try {
       final result = await channel.invokeMethod('getAudioDevices');
-      print('Audio devices: $result');
+      print('Audio devices: ${result.toString()}');
     } catch (e) {
       print('Error getting audio devices: $e');
     }

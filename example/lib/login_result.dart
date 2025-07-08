@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:example/components/callkit_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
+import 'package:mpt_callkit/models/models.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,6 +32,8 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
       TextEditingController(text: "extraInfo");
   StreamSubscription<String>? _callStateSubscription;
   StreamSubscription<String>? _callTypeSubscription;
+  StreamSubscription<CallEventSocketRecv>? _callEventSocketSubscription;
+  final CallEventSocketRecv _callEventData = CallEventSocketRecv();
   var tokenExpired = false;
 
   @override
@@ -41,19 +44,23 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
         _initDataWhenLoginSuccess();
       }
     });
-    // _callStateSubscription = MptCallKitController().callEvent.listen((state) {
-    //   // Chỉ khi nhận được INCOMING mới route đến call_pad
-    //   if (state == CallStateConstants.INCOMING && mounted) {
+
+    // /* Route to CallPad if call session established */
+    // _callTypeSubscription = MptCallKitController().callType.listen((type) {
+    //   if ((type == CallTypeConstants.INCOMING_CALL ||
+    //           type == CallTypeConstants.OUTGOING_CALL) &&
+    //       mounted) {
     //     _navigateToCallPad();
     //   }
     // });
 
-    /* Route to CallPad if call session established */
-    _callTypeSubscription = MptCallKitController().callType.listen((type) {
-      if ((type == CallTypeConstants.INCOMING_CALL ||
-              type == CallTypeConstants.OUTGOING_CALL) &&
-          mounted) {
-        _navigateToCallPad();
+    _callEventSocketSubscription =
+        MptSocketSocketServer.callEvent.listen((callEvent) {
+      if (mounted) {
+        if (callEvent.state == CallEventSocketConstants.OFFER_CALL ||
+            callEvent.state == CallEventSocketConstants.INIT) {
+          _navigateToCallPad();
+        }
       }
     });
   }
@@ -167,6 +174,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
     _extraInfoController.dispose();
     _callStateSubscription?.cancel();
     _callTypeSubscription?.cancel();
+    _callEventSocketSubscription?.cancel();
     super.dispose();
   }
 
