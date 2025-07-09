@@ -663,6 +663,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         System.out.println("SDK-Android: Answer call currentLine: " + currentLine);
         System.out.println("SDK-Android: Answer call sessionID: " + currentLine.sessionID);
         System.out.println("SDK-Android: Answer call state: " + currentLine.state);
+        Ring.getInstance(MainActivity.activity).stopRingTone();
+        Ring.getInstance(MainActivity.activity).stopRingBackTone();
         if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING) {
             int result = Engine.Instance().getEngine().answerCall(currentLine.sessionID, currentLine.hasVideo);
             System.out.println("SDK-Android: Answer call with video: " + currentLine.hasVideo);

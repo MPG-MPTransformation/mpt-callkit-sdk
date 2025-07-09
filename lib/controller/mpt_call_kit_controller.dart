@@ -673,7 +673,32 @@ class MptCallKitController {
           )
           .timeout(const Duration(seconds: 10));
 
-      final data = json.decode(response.body);
+      // Log response details for debugging
+      print("getExtension - Response status code: ${response.statusCode}");
+      print("getExtension - Response headers: ${response.headers}");
+      print("getExtension - Response body: ${response.body}");
+
+      // Check if response is successful
+      if (response.statusCode != 200) {
+        throw Exception(
+            'Server returned ${response.statusCode}: ${response.body}');
+      }
+
+      // Check if response body is not empty
+      if (response.body.isEmpty) {
+        throw Exception('Server returned empty response');
+      }
+
+      // Try to parse JSON with better error handling
+      dynamic data;
+      try {
+        data = json.decode(response.body);
+      } catch (e) {
+        print("getExtension - JSON parsing error: $e");
+        print("getExtension - Raw response body: '${response.body}'");
+        throw Exception('Invalid JSON response from server: $e');
+      }
+
       final result = ExtensionModel.fromJson(
         data.runtimeType is String ? jsonDecode(data) : data,
       );
@@ -713,7 +738,31 @@ class MptCallKitController {
         }),
       );
 
-      final data = json.decode(response.body);
+      // Log response details for debugging
+      print("releaseExtension - Response status code: ${response.statusCode}");
+      print("releaseExtension - Response body: ${response.body}");
+
+      // Check if response is successful
+      if (response.statusCode != 200) {
+        throw Exception(
+            'Server returned ${response.statusCode}: ${response.body}');
+      }
+
+      // Check if response body is not empty
+      if (response.body.isEmpty) {
+        throw Exception('Server returned empty response');
+      }
+
+      // Try to parse JSON with better error handling
+      dynamic data;
+      try {
+        data = json.decode(response.body);
+      } catch (e) {
+        print("releaseExtension - JSON parsing error: $e");
+        print("releaseExtension - Raw response body: '${response.body}'");
+        throw Exception('Invalid JSON response from server: $e');
+      }
+
       final result = ReleaseExtensionModel.fromJson(data);
       extension = '';
       if (result.success ?? false) {

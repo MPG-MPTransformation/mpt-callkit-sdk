@@ -102,6 +102,9 @@ class SoundService {
         if playerRingBackTone != nil, playerRingBackTone.isPlaying {
             playerRingBackTone.stop()
             _ = speakerEnabled(true)
+            NSLog("stopRingBackTone success")
+        } else {
+            NSLog("stopRingBackTone failed")
         }
         return true
     }

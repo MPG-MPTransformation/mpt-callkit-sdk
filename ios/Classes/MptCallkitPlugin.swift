@@ -181,7 +181,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   
    var sipRegistered: Bool!
    var portSIPSDK: PortSIPSDK!
-//   var mSoundService: SoundService!
+  var mSoundService: SoundService!
    var internetReach: Reachability!
    var _callManager: CallManager!
    var videoManager: VideoManager!
@@ -265,7 +265,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        super.init()
        portSIPSDK = PortSIPSDK()
        portSIPSDK.delegate = self
-//       mSoundService = SoundService()
+       mSoundService = SoundService()
        // change "CallKit" to true if wanna use iOS CallKit
        UserDefaults.standard.register(defaults: ["CallKit": false])
        UserDefaults.standard.register(defaults: ["PushNotification": true])
@@ -794,7 +794,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        }
        let result = _callManager.findCallBySessionID(sessionId)
        if !result!.session.existEarlyMedia {
-//           mSoundService.playRingBackTone()
+          mSoundService.playRingBackTone()
        }
    }
   
@@ -842,8 +842,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        if isConference == true {
            _callManager.joinToConference(sessionid: sessionId)
        }
-//       mSoundService.stopRingBackTone()
-//       mSoundService.stopRingTone()
+       mSoundService.stopRingBackTone()
+       mSoundService.stopRingTone()
        
        // Gửi trạng thái về Flutter
        sendCallStateToFlutter(.ANSWERED)
@@ -885,8 +885,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        }
        _callManager.removeCall(call: result.session)
       
-//       mSoundService.stopRingTone()
-//       mSoundService.stopRingBackTone()
+       mSoundService.stopRingTone()
+       mSoundService.stopRingBackTone()
        // setLoudspeakerStatus(true)
        videoViewController.onClearState()
     //    loginViewController.offLine()
@@ -956,8 +956,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        if result != nil {
            _callManager.endCall(sessionid: sessionId)
        }
-//       _ = mSoundService.stopRingTone()
-//       _ = mSoundService.stopRingBackTone()
+       _ = mSoundService.stopRingTone()
+       _ = mSoundService.stopRingBackTone()
       
        if activeSessionid == sessionId {
            activeSessionid = CLong(INVALID_SESSION_ID)
@@ -1279,8 +1279,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    func hungUpCall() {
        NSLog("hungUpCall")
        if activeSessionid != CLong(INVALID_SESSION_ID) {
-//           mSoundService.stopRingTone()
-//           mSoundService.stopRingBackTone()
+           _ = mSoundService.stopRingTone()
+           _ = mSoundService.stopRingBackTone()
            _callManager.endCall(sessionid: activeSessionid)
           
            sendCallStateToFlutter(.CLOSED)
@@ -1399,8 +1399,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            postNotification(title: "Cuộc gọi đến", body: stringAlert, sound: UNNotificationSound.default, trigger: nil)
        }
       
-//       // Phát âm thanh chuông mà không hiển thị UI
-//       _ = mSoundService.playRingTone()
+      // Phát âm thanh chuông mà không hiển thị UI
+      _ = mSoundService.playRingTone()
       
        // KHÔNG hiển thị bất kỳ alert hoặc UI native nào
        // Gửi thêm thông tin chi tiết về cuộc gọi để Flutter có thể hiển thị UI riêng
@@ -1472,8 +1472,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            }
        }
       
-//       mSoundService.stopRingTone()
-//       mSoundService.stopRingBackTone()
+       _ = mSoundService.stopRingTone()
+       _ = mSoundService.stopRingBackTone()
       
        if activeSessionid == CLong(INVALID_SESSION_ID) {
            activeSessionid = sessionId
@@ -1499,8 +1499,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            activeSessionid = CLong(INVALID_SESSION_ID)
        }
       
-//       _ = mSoundService.stopRingTone()
-//       _ = mSoundService.stopRingBackTone()
+      _ = mSoundService.stopRingTone()
+      _ = mSoundService.stopRingBackTone()
       
        // if _callManager.getConnectCallNum() == 0 {
        //     setLoudspeakerStatus(true)
@@ -1674,8 +1674,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                if sessionResult != nil && !sessionResult!.session.sessionState {
                    portSIPSDK.rejectCall(activeSessionid, code: 486)
                    _callManager.removeCall(call: sessionResult!.session)
-//                   mSoundService.stopRingTone()
-//                   mSoundService.stopRingBackTone()
+                   _ = mSoundService.stopRingTone()
+                   _ = mSoundService.stopRingBackTone()
                    
                    sendCallStateToFlutter(.CLOSED)
                    methodChannel?.invokeMethod("callType", arguments: "ENDED")
@@ -1830,11 +1830,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    func answerCall(isAutoAnswer: Bool) {
        NSLog("answerCall")
         if activeSessionid != CLong(INVALID_SESSION_ID) {
+            _ = mSoundService.stopRingTone()
+            _ = mSoundService.stopRingBackTone()
             let result = _callManager.findCallBySessionID(activeSessionid)
             if result != nil {
-//                mSoundService.stopRingTone()
-//                mSoundService.stopRingBackTone()
-                
                 let answerRes = portSIPSDK.answerCall(activeSessionid, videoCall: result!.session.videoState)
                 if (answerRes == 0) {
                     //Notice to remote
@@ -2329,8 +2328,4 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             NSLog("🔥 Video state refresh completed")
         }
     }
-
-    
 }
-
-
