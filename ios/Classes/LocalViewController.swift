@@ -54,26 +54,23 @@ class LocalViewController: UIViewController {
   
    @objc private func handleCallStateChange(_ notification: Notification) {
        guard let userInfo = notification.userInfo,
-             let hasVideo = userInfo["hasVideo"] as? Bool,
              let state = userInfo["state"] as? String else {
            return
        }
       
-       print("LocalViewController - Call state changed: \(state), hasVideo: \(hasVideo)")
+       print("LocalViewController - Call state changed: \(state)")
       
        DispatchQueue.main.async { [weak self] in
            guard let self = self else { return }
           
            switch state {
-           case "ANSWERED", "CONNECTED":
-               if hasVideo {
-                   if !self.isVideoInitialized {
-                       self.initializeLocalVideo()
-                   }
-                   self.updateVideoVisibility(isVisible: true)
-               } else {
-                   self.updateVideoVisibility(isVisible: false)
+           case "INCOMING", "ANSWERED", "CONNECTED":
+               // 🔥 SIMPLE: Always show local video for any active call
+               NSLog("LocalViewController - Active call (\(state)), showing local video")
+               if !self.isVideoInitialized {
+                   self.initializeLocalVideo()
                }
+               self.updateVideoVisibility(isVisible: true)
            case "CLOSED", "FAILED":
                self.updateVideoVisibility(isVisible: false)
                self.cleanupVideo()
@@ -89,7 +86,7 @@ class LocalViewController: UIViewController {
            return
        }
       
-       print("LocalViewController - Video state changed: \(isVideoEnabled)")
+       print("LocalViewController - handleVideoStateChange - video enabled: \(isVideoEnabled)")
       
        DispatchQueue.main.async { [weak self] in
            guard let self = self else { return }
@@ -97,7 +94,7 @@ class LocalViewController: UIViewController {
            if isVideoEnabled && !self.isVideoInitialized {
                self.initializeLocalVideo()
            }
-           self.updateVideoVisibility(isVisible: isVideoEnabled)
+           self.updateVideoVisibility(isVisible: true)
        }
    }
   
@@ -114,11 +111,17 @@ class LocalViewController: UIViewController {
            guard let self = self else { return }
           
            if isCameraOn {
-               self.mCameraDeviceId = useFrontCamera ? 1 : 0
+               let newCameraId: Int32 = useFrontCamera ? 1 : 0
+               
                if !self.isVideoInitialized {
+                   self.mCameraDeviceId = newCameraId
                    self.initializeLocalVideo()
                } else {
-                   self.switchCamera()
+                   // Only update camera if it's different from current
+                   if self.mCameraDeviceId != newCameraId {
+                       self.mCameraDeviceId = newCameraId
+                       self.setCameraDirectly(useFrontCamera: useFrontCamera)
+                   }
                }
                // Hiển thị video khi camera bật
                self.updateCameraDisplay(isOn: true)
@@ -204,7 +207,7 @@ class LocalViewController: UIViewController {
        super.viewWillAppear(animated)
        print("LocalViewController - viewWillAppear")
        if !isVideoInitialized {
-           mCameraDeviceId = 1
+           print("LocalViewController - viewWillAppear camera setting: \(mCameraDeviceId)")
            initializeLocalVideo()
        }
    }
@@ -212,6 +215,8 @@ class LocalViewController: UIViewController {
    override func viewDidAppear(_ animated: Bool) {
        super.viewDidAppear(animated)
        print("LocalViewController - viewDidAppear")
+       
+       // Ready notification removed - views manage themselves via state manager
    }
   
    override func viewDidDisappear(_ animated: Bool) {
@@ -321,6 +326,48 @@ class LocalViewController: UIViewController {
            print("LocalViewController - setVideoDeviceId failed with result: \(setVideoResult)")
        }
    }
+   
+   func setCameraDirectly(useFrontCamera: Bool) {
+       print("LocalViewController - setCameraDirectly: front=\(useFrontCamera)")
+      
+       // Safety check: ensure SDK is available
+       guard let sdk = portSIPSDK else {
+           print("LocalViewController - setCameraDirectly failed: portSIPSDK is nil")
+           return
+       }
+      
+       // Safety check: ensure video view is available
+       guard let localVideo = viewLocalVideo else {
+           print("LocalViewController - setCameraDirectly failed: viewLocalVideo is nil")
+           return
+       }
+      
+       // Safety check: ensure video is initialized
+       if !isVideoInitialized {
+           print("LocalViewController - setCameraDirectly failed: video is not initialized")
+           return
+       }
+      
+       let cameraId: Int32 = useFrontCamera ? 1 : 0
+       let setVideoResult = sdk.setVideoDeviceId(cameraId)
+       if setVideoResult == 0 {
+           // Enable mirror only for front camera
+           let shouldMirror = useFrontCamera
+          
+           let displayResult = sdk.displayLocalVideo(true, mirror: shouldMirror, localVideoWindow: localVideo)
+           if displayResult == 0 {
+               print("LocalViewController - Set to \(shouldMirror ? "front" : "back") camera with mirror \(shouldMirror ? "enabled" : "disabled")")
+              
+               // Make sure the view is visible
+               localVideo.isHidden = false
+               self.view.isHidden = false
+           } else {
+               print("LocalViewController - displayLocalVideo failed with result: \(displayResult)")
+           }
+       } else {
+           print("LocalViewController - setVideoDeviceId failed with result: \(setVideoResult)")
+       }
+   }
   
    func updateVideoVisibility(isVisible: Bool) {
        print("LocalViewController - updateVideoVisibility: \(isVisible)")
@@ -340,7 +387,6 @@ class LocalViewController: UIViewController {
        // Check viewLocalVideo
        guard let localVideo = viewLocalVideo else {
            print("[Warning] LocalViewController - viewLocalVideo is nil, view may be destroyed")
-           // If view is destroyed, unregister from notifications to prevent future crashes
            self.safeUnregisterFromNotifications()
            return
        }

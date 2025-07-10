@@ -5,11 +5,9 @@ import PortSIPVoIPSDK
 
 class RemoteViewFactory: NSObject, FlutterPlatformViewFactory {
    private var messenger: FlutterBinaryMessenger
-   var sharedRemoteViewController: RemoteViewController!
   
-   init(messenger: FlutterBinaryMessenger, remoteViewController: RemoteViewController) {
+   init(messenger: FlutterBinaryMessenger) {
        self.messenger = messenger
-       self.sharedRemoteViewController = remoteViewController
        super.init()
    }
   
@@ -18,10 +16,13 @@ class RemoteViewFactory: NSObject, FlutterPlatformViewFactory {
        viewIdentifier viewId: Int64,
        arguments args: Any?
    ) -> FlutterPlatformView {
-       // Tạo view controller riêng cho mỗi platform view instance
+       // 🔥 PATTERN: Each view creates its own controller instance
        let independentRemoteViewController = RemoteViewController()
-       independentRemoteViewController.portSIPSDK = sharedRemoteViewController.portSIPSDK
-       independentRemoteViewController.sessionId = sharedRemoteViewController.sessionId
+       
+       // Get shared SDK reference from plugin
+       let plugin = MptCallkitPlugin.shared
+       independentRemoteViewController.portSIPSDK = plugin.portSIPSDK
+       independentRemoteViewController.sessionId = 0 // Will be set later via notifications
       
        return RemoteView(
            frame: frame,
@@ -115,34 +116,9 @@ class RemoteView: NSObject, FlutterPlatformView {
    }
   
    private func setupRemoteVideoForActiveCall(remoteViewController: RemoteViewController) {
-       // Delay để đảm bảo view đã được setup hoàn toàn
-       DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-           let plugin = MptCallkitPlugin.shared
-          
-           // Kiểm tra xem có active video call không
-           guard plugin.activeSessionid != CLong(INVALID_SESSION_ID),
-                 let result = plugin._callManager.findCallBySessionID(plugin.activeSessionid),
-                 result.session.videoState && result.session.sessionState else {
-               print("RemoteViewFactory - No active video call to setup")
-               return
-           }
-          
-           print("RemoteViewFactory - Found active video call, setting up remote video")
-          
-           // Cập nhật sessionId cho remote view controller
-           remoteViewController.sessionId = Int(plugin.activeSessionid)
-           remoteViewController.portSIPSDK = plugin.portSIPSDK
-          
-           // Initialize và setup remote video
-           if !remoteViewController.isVideoInitialized {
-               remoteViewController.initializeRemoteVideo()
-           }
-          
-           // Setup remote video window
-           remoteViewController.onStartVideo(Int(plugin.activeSessionid))
-          
-           print("RemoteViewFactory - Remote video setup completed for session \(plugin.activeSessionid)")
-       }
+       // 🔥 PATTERN: Views self-manage via state notifications
+       // No direct setup calls needed - views will receive notifications and handle themselves
+       print("RemoteViewFactory - View created, will self-manage via state notifications")
    }
   
 }

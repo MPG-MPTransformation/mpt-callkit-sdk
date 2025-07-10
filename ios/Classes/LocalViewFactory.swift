@@ -5,11 +5,9 @@ import PortSIPVoIPSDK
 
 class LocalViewFactory: NSObject, FlutterPlatformViewFactory {
    private var messenger: FlutterBinaryMessenger
-   var sharedLocalViewController: LocalViewController!
   
-   init(messenger: FlutterBinaryMessenger, localViewController: LocalViewController) {
+   init(messenger: FlutterBinaryMessenger) {
        self.messenger = messenger
-       self.sharedLocalViewController = localViewController
        super.init()
    }
   
@@ -18,10 +16,13 @@ class LocalViewFactory: NSObject, FlutterPlatformViewFactory {
        viewIdentifier viewId: Int64,
        arguments args: Any?
    ) -> FlutterPlatformView {
-       // Tạo view controller riêng cho mỗi platform view instance
+       // 🔥 ANDROID PATTERN: Each view creates its own controller instance
        let independentLocalViewController = LocalViewController()
-       independentLocalViewController.portSIPSDK = sharedLocalViewController.portSIPSDK
-       independentLocalViewController.mCameraDeviceId = sharedLocalViewController.mCameraDeviceId
+       
+       // Get shared SDK reference from plugin
+       let plugin = MptCallkitPlugin.shared
+       independentLocalViewController.portSIPSDK = plugin.portSIPSDK
+       independentLocalViewController.mCameraDeviceId = plugin.mUseFrontCamera ? 1 : 0
       
        return LocalView(
            frame: frame,
@@ -115,34 +116,9 @@ class LocalView: NSObject, FlutterPlatformView {
    }
   
    private func setupLocalVideoForActiveCall(localViewController: LocalViewController) {
-       // Delay để đảm bảo view đã được setup hoàn toàn
-       DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-           let plugin = MptCallkitPlugin.shared
-          
-           // Kiểm tra xem có active video call không
-           guard plugin.activeSessionid != CLong(INVALID_SESSION_ID),
-                 let result = plugin._callManager.findCallBySessionID(plugin.activeSessionid),
-                 result.session.videoState && result.session.sessionState else {
-               print("LocalViewFactory - No active video call to setup")
-               return
-           }
-          
-           print("LocalViewFactory - Found active video call, setting up local video")
-          
-           // Cập nhật portSIPSDK cho local view controller
-           localViewController.portSIPSDK = plugin.portSIPSDK
-           localViewController.mCameraDeviceId = plugin.mUseFrontCamera ? 1 : 0
-          
-           // Initialize và setup local video
-           if !localViewController.isVideoInitialized {
-               localViewController.initializeLocalVideo()
-           }
-          
-           // Hiển thị local video
-           localViewController.updateVideoVisibility(isVisible: true)
-          
-           print("LocalViewFactory - Local video setup completed for session \(plugin.activeSessionid)")
-       }
+       // 🔥 ANDROID PATTERN: Views self-manage via state notifications
+       // No direct setup calls needed - views will receive notifications and handle themselves
+       print("LocalViewFactory - View created, will self-manage via state notifications")
    }
   
 }

@@ -1,5 +1,6 @@
 package com.mpt.mpt_callkit.util;
 
+
 import android.text.TextUtils;
 import com.portsip.PortSipSdk;
 import com.portsip.PortSipEnumDefine;
@@ -7,7 +8,9 @@ import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
 import io.flutter.plugin.common.MethodChannel;
 import android.content.Intent;
 
+
 public class Engine {
+
 
     private static Engine mInstance;
     private PortSipSdk mEngine;
@@ -17,16 +20,20 @@ public class Engine {
     private PortMessageReceiver receiver;
     private MethodChannel channel;
 
+
     public void setMethodChannel(MethodChannel obj) {
         channel = obj;
     }
+
 
     public MethodChannel getMethodChannel() {
         return channel;
     }
 
+
     public void setReceiver(PortMessageReceiver obj) {
         receiver = obj;
+
 
         // Add a default fallback listener as PERSISTENT to ensure it's never garbage
         // collected
@@ -38,6 +45,7 @@ public class Engine {
                     if (intent != null) {
                         String action = intent.getAction();
                         System.out.println("SDK-Android: Engine - Fallback handling action: " + action);
+
 
                         // Basic handling for critical actions
                         if ("PortSip.AndroidSample.Test.CallStatusChagnge".equals(action)) {
@@ -52,6 +60,7 @@ public class Engine {
                     + receiver.getListenersInfo());
         }
     }
+
 
     /**
      * Clean up stale listeners (call this periodically or when memory pressure is
@@ -69,9 +78,11 @@ public class Engine {
         }
     }
 
+
     public PortMessageReceiver getReceiver() {
         return receiver;
     }
+
 
     public static Engine Instance() {
         if (mInstance == null) {
@@ -82,8 +93,10 @@ public class Engine {
             }
         }
 
+
         return mInstance;
     }
+
 
     public void setEngine(PortSipSdk obj) {
         if (obj == null) {
@@ -95,25 +108,31 @@ public class Engine {
         mEngine.addAudioCodec(PortSipEnumDefine.ENUM_AUDIOCODEC_PCMU);
         mEngine.addAudioCodec(PortSipEnumDefine.ENUM_AUDIOCODEC_G729);
 
+
         mEngine.clearVideoCodec();
         mEngine.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_H264);
         mEngine.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_VP8);
         mEngine.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_VP9);
 
-        mEngine.setVideoBitrate(-1, 512);
-        mEngine.setVideoFrameRate(-1, 20);
+
+        mEngine.setVideoBitrate(-1, 2048);
+        mEngine.setVideoFrameRate(-1, 30);
         mEngine.setAudioSamples(20, 60);
+
 
         // 1 - FrontCamra 0 - BackCamra
         mEngine.setVideoDeviceId(1);
 
+
         mEngine.setVideoNackStatus(true);
+
 
         mEngine.enableAEC(true);
         mEngine.enableAGC(true);
         mEngine.enableCNG(true);
         mEngine.enableVAD(true);
         mEngine.enableANS(false);
+
 
         boolean foward = false;
         boolean fowardBusy = false;
@@ -122,9 +141,11 @@ public class Engine {
             mEngine.enableCallForward(fowardBusy, fowardto);
         }
 
+
         mEngine.setReliableProvisional(0);
 
-        String resolution = "720P";
+
+        String resolution = "1080P";
         int width = 352;
         int height = 288;
         if (resolution.equals("QCIF")) {
@@ -144,12 +165,15 @@ public class Engine {
             height = 1080;
         }
 
+
         mEngine.setVideoResolution(width, height);
     }
+
 
     public PortSipSdk getEngine() {
         return mEngine;
     }
+
 
     public String getHeaderValueFromCurrentSession(String headerName) {
         Session currentSession = CallManager.Instance().getCurrentSession();

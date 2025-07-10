@@ -60,23 +60,35 @@ class RemoteViewController: UIViewController {
        DispatchQueue.main.async { [weak self] in
            guard let self = self else { return }
           
-           switch state {
-           case "ANSWERED", "CONNECTED":
-               if hasVideo {
-                   if !self.isVideoInitialized {
-                       self.initializeRemoteVideo()
-                   }
-                   self.onStartVideo(sessionId)
-                   self.updateVideoVisibility(isVisible: true)
-               } else {
-                   self.updateVideoVisibility(isVisible: false)
+                  switch state {
+       case "INCOMING":
+           // 🔥 FIX: Prepare remote video for incoming video calls but don't show yet
+           if hasVideo {
+               NSLog("RemoteViewController - Incoming video call, preparing remote video")
+               if !self.isVideoInitialized {
+                   self.initializeRemoteVideo()
                }
-           case "CLOSED", "FAILED":
+               // Don't show remote video until call is answered/connected
                self.updateVideoVisibility(isVisible: false)
-               self.cleanupVideo()
-           default:
-               break
+           } else {
+               self.updateVideoVisibility(isVisible: false)
            }
+       case "ANSWERED", "CONNECTED":
+           if hasVideo {
+               if !self.isVideoInitialized {
+                   self.initializeRemoteVideo()
+               }
+               self.onStartVideo(sessionId)
+               self.updateVideoVisibility(isVisible: true)
+           } else {
+               self.updateVideoVisibility(isVisible: false)
+           }
+       case "CLOSED", "FAILED":
+           self.updateVideoVisibility(isVisible: false)
+           self.cleanupVideo()
+       default:
+           break
+       }
        }
    }
   
@@ -177,6 +189,8 @@ class RemoteViewController: UIViewController {
    override func viewDidAppear(_ animated: Bool) {
        super.viewDidAppear(animated)
        print("RemoteViewController - viewDidAppear")
+       
+       // Ready notification removed - views manage themselves via state manager
    }
   
    override func viewDidDisappear(_ animated: Bool) {
@@ -302,7 +316,6 @@ class RemoteViewController: UIViewController {
        // Check viewRemoteVideo
        guard let remoteVideo = viewRemoteVideo else {
            print("[Warning] RemoteViewController - viewRemoteVideo is nil, view may be destroyed")
-           // If view is destroyed, unregister from notifications to prevent future crashes
            self.safeUnregisterFromNotifications()
            return
        }

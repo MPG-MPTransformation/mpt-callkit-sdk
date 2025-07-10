@@ -169,13 +169,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        instance.methodChannel = channel
        registrar.addMethodCallDelegate(instance, channel: channel)
 
-       let factory = FLNativeViewFactory(messenger: registrar.messenger(), videoViewController: instance.videoViewController)
-       registrar.register(factory, withId: "VideoView")
-
-       let localFactory = LocalViewFactory(messenger: registrar.messenger(), localViewController: instance.localViewController)
+       // REMOVED: No shared view controller instances
+       let localFactory = LocalViewFactory(messenger: registrar.messenger())
        registrar.register(localFactory, withId: "LocalView")
        
-       let remoteFactory = RemoteViewFactory(messenger: registrar.messenger(), remoteViewController: instance.remoteViewController)
+       let remoteFactory = RemoteViewFactory(messenger: registrar.messenger())
        registrar.register(remoteFactory, withId: "RemoteView")
    }
   
@@ -185,9 +183,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    var internetReach: Reachability!
    var _callManager: CallManager!
    var videoManager: VideoManager!
-   var videoViewController: VideoViewController!
-   var localViewController: LocalViewController!
-   var remoteViewController: RemoteViewController!
   
    var sipURL: String?
    var isConference: Bool!
@@ -257,10 +252,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    }
 
 
-   // Track view availability
-   private var isLocalViewAvailable: Bool = false
-   private var isRemoteViewAvailable: Bool = false
-
    override init() {
        super.init()
        portSIPSDK = PortSIPSDK()
@@ -291,13 +282,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        sipRegistered = false
        isConference = false
   
-       videoViewController = VideoViewController()
-       localViewController = LocalViewController()
-       remoteViewController = RemoteViewController()
        loginViewController = LoginViewController(portSIPSDK: portSIPSDK)
-       videoViewController.portSIPSDK = portSIPSDK
-       localViewController.portSIPSDK = portSIPSDK
-       remoteViewController.portSIPSDK = portSIPSDK
+
        videoManager = VideoManager(portSIPSDK: portSIPSDK)
       
        internetReach = Reachability.forInternetConnection()
@@ -320,73 +306,35 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            }
        }
        setupNotificationHandling()
-       setupViewLifecycleObservers()
+       // setupViewLifecycleObservers() // REMOVED - Views manage themselves
    }
    
-   private func setupViewLifecycleObservers() {
-       // Lắng nghe khi views được tạo
-       NotificationCenter.default.addObserver(
-           self,
-           selector: #selector(handleLocalViewCreated),
-           name: NSNotification.Name("LocalViewCreated"),
-           object: nil
-       )
-       
-       NotificationCenter.default.addObserver(
-           self,
-           selector: #selector(handleRemoteViewCreated),
-           name: NSNotification.Name("RemoteViewCreated"),
-           object: nil
-       )
-       
-       // Lắng nghe khi views bị destroyed
-       NotificationCenter.default.addObserver(
-           self,
-           selector: #selector(handleLocalViewDestroyed),
-           name: NSNotification.Name("LocalViewDestroyed"),
-           object: nil
-       )
-       
-       NotificationCenter.default.addObserver(
-           self,
-           selector: #selector(handleRemoteViewDestroyed),
-           name: NSNotification.Name("RemoteViewDestroyed"),
-           object: nil
-       )
-   }
-   
-   // Sử dụng reference counting để track số lượng views
-   private var localViewCount: Int = 0
-   private var remoteViewCount: Int = 0
+   private func setupViewLifecycleObservers() {}
+  
    
    @objc private func handleLocalViewCreated() {
-       localViewCount += 1
-       NSLog("🏗️ Local view created (count: \(localViewCount))")
-       isLocalViewAvailable = localViewCount > 0
-       
-       // 🔥 Auto refresh video state cho view mới được tạo
-       refreshVideoStateForNewViews()
+       // REMOVED - Plugin doesn't need to track view creation
    }
    
    @objc private func handleRemoteViewCreated() {
-       remoteViewCount += 1
-       NSLog("🏗️ Remote view created (count: \(remoteViewCount))")
-       isRemoteViewAvailable = remoteViewCount > 0
-       
-       // 🔥 Auto refresh video state cho view mới được tạo
-       refreshVideoStateForNewViews()
+       // REMOVED - Plugin doesn't need to track view creation  
    }
    
    @objc private func handleLocalViewDestroyed() {
-       localViewCount = max(0, localViewCount - 1)
-       NSLog("🗑️ Local view destroyed (count: \(localViewCount))")
-       isLocalViewAvailable = localViewCount > 0
+       // REMOVED - Plugin doesn't need to track view destruction
    }
    
    @objc private func handleRemoteViewDestroyed() {
-       remoteViewCount = max(0, remoteViewCount - 1)
-       NSLog("🗑️ Remote view destroyed (count: \(remoteViewCount))")
-       isRemoteViewAvailable = remoteViewCount > 0
+       // REMOVED - Plugin doesn't need to track view destruction
+   }
+   
+   // 🔥 NEW: Handle view ready notifications
+   @objc private func handleLocalViewReady() {
+       // REMOVED - Plugin doesn't need to handle view ready events
+   }
+   
+   @objc private func handleRemoteViewReady() {
+       // REMOVED - Plugin doesn't need to handle view ready events
    }
     
     deinit {
@@ -727,6 +675,28 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        lineSessions[index] = sessionId
       
        _callManager.incomingCall(sessionid: sessionId, existsVideo: existsVideo, remoteParty: remoteParty!, remoteDisplayName: remoteDisplayName!, callUUID: uuid!, completionHandle: {})
+       
+       // Send PortSIPStateManager notification immediately for incoming call
+       let callState = PortSIPCallState(
+           sessionId: Int64(sessionId),
+           hasVideo: existsVideo,
+           hasAudio: true,
+           isIncoming: true,
+           remoteParty: remoteParty,
+           remoteDisplayName: remoteDisplayName,
+           state: .incoming
+       )
+       PortSIPStateManager.shared.updateCallState(callState)
+       
+       // 🔥 SIMPLE: Always send video state for local video display regardless of call type
+       NSLog("onInviteIncoming - Always sending video state for local video display")
+       let videoState = PortSIPVideoState(
+           sessionId: Int64(sessionId),
+           isVideoEnabled: true, // Always enabled for local video
+           isCameraOn: true,
+           useFrontCamera: mUseFrontCamera
+       )
+       PortSIPStateManager.shared.updateVideoState(videoState)
       
        self.currentSessionid = portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "X-Session-Id")
 
@@ -768,15 +738,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
       
        if existsEarlyMedia {
            // Checking does this call has video
-           if existsVideo {
-               // This incoming call has video
-               // If more than one codecs using, then they are separated with "#",
-               // for example: "g.729#GSM#AMR", "H264#H263", you have to parse them by yourself.
-           }
+           if existsVideo {}
           
            if existsAudio {
-               // If more than one codecs using, then they are separated with "#",
-               // for example: "g.729#GSM#AMR", "H264#H263", you have to parse them by yourself.
            }
        }
       
@@ -799,40 +763,62 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    }
   
    public func onInviteAnswered(_ sessionId: Int, callerDisplayName: String!, caller: String!, calleeDisplayName: String!, callee: String!, audioCodecs: String!, videoCodecs: String!, existsAudio: Bool, existsVideo: Bool, sipMessage: String!) {
-       NSLog("onInviteAnswered... sessionId: \(sessionId), existsVideo: \(existsVideo)")
+       NSLog("🔍 onInviteAnswered... sessionId: \(sessionId), existsVideo: \(existsVideo)")
        guard let result = _callManager.findCallBySessionID(sessionId) else {
-           NSLog("Not exist this SessionId = \(sessionId)")
+           NSLog("❌ onInviteAnswered - Not exist this SessionId = \(sessionId)")
            return
        }
+       
+       // 🔍 LOG: Session state BEFORE setting
+       NSLog("🔍 onInviteAnswered - BEFORE:")
+       NSLog("🔍   sessionId: \(sessionId)")
+       NSLog("🔍   result.session.sessionId: \(result.session.sessionId)")
+       NSLog("🔍   result.session.videoState: \(result.session.videoState)")
+       NSLog("🔍   result.session.videoMuted: \(result.session.videoMuted)")
+       NSLog("🔍   result.session.sessionState: \(result.session.sessionState)")
        
        result.session.sessionState = true
        result.session.videoState = existsVideo
        result.session.videoMuted = !existsVideo
        
-       if existsVideo {
-           // Đảm bảo camera được thiết lập đúng
-           NSLog("Setting camera and initializing video views")
-           setCamera(useFrontCamera: mUseFrontCamera)
-           
-           // Khởi tạo rõ ràng từng view controller
-           NSLog("Initializing video controllers")
-           videoViewController.onStartVideo(sessionId)
-           
-           // Đảm bảo local video được khởi tạo và hiển thị
-           localViewController.initializeLocalVideo()
-           localViewController.updateVideoVisibility(isVisible: true)
-           
-           // Đảm bảo remote video được khởi tạo và hiển thị
-           remoteViewController.onStartVideo(sessionId)
-           remoteViewController.updateVideoVisibility(isVisible: true)
-           
-           // Buộc hiển thị video
-           NSLog("⭐️ Call is answered with video - forcing video display")
-           forceShowVideo()
-       }
+       // 🔍 LOG: Session state AFTER setting
+       NSLog("🔍 onInviteAnswered - AFTER:")
+       NSLog("🔍   result.session.videoState: \(result.session.videoState)")
+       NSLog("🔍   result.session.videoMuted: \(result.session.videoMuted)")
+       NSLog("🔍   result.session.sessionState: \(result.session.sessionState)")
        
-       // Cập nhật trạng thái video
-       updateVideo(sessionId: sessionId)
+       // 🔥 ANDROID PATTERN: Send single unified state notification  
+       if let result = _callManager.findCallBySessionID(sessionId) {
+           // Set camera if it's a video call
+           if existsVideo {
+               NSLog("Setting camera for video call")
+               setCamera(useFrontCamera: mUseFrontCamera)
+           }
+           
+           // Send unified video state notification with accurate data
+           let videoState = PortSIPVideoState(
+               sessionId: Int64(sessionId),
+               isVideoEnabled: result.session.videoState,
+               isCameraOn: result.session.videoState && !result.session.videoMuted,
+               useFrontCamera: mUseFrontCamera
+           )
+           PortSIPStateManager.shared.updateVideoState(videoState)
+           
+           NSLog("⭐️ onInviteAnswered - Sent unified video state: enabled=\(result.session.videoState), camera=\(!result.session.videoMuted)")
+           
+           // 🔥 Send call state notification with correct sessionId and video info
+           let callState = PortSIPCallState(
+               sessionId: Int64(sessionId),
+               hasVideo: result.session.videoState,
+               hasAudio: true,
+               isIncoming: !result.session.recvCallState,
+               remoteParty: caller,
+               remoteDisplayName: callerDisplayName,
+               state: .answered
+           )
+           PortSIPStateManager.shared.updateCallState(callState)
+           NSLog("⭐️ onInviteAnswered - Sent call state: ANSWERED with hasVideo=\(result.session.videoState)")
+       }
        
        if result.session.isReferCall {
            result.session.isReferCall = false
@@ -845,7 +831,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        mSoundService.stopRingBackTone()
        mSoundService.stopRingTone()
        
-       // Gửi trạng thái về Flutter
+       // Legacy Flutter state (keep for compatibility)
        sendCallStateToFlutter(.ANSWERED)
    }
   
@@ -888,11 +874,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        mSoundService.stopRingTone()
        mSoundService.stopRingBackTone()
        // setLoudspeakerStatus(true)
-       videoViewController.onClearState()
+       // REMOVED: No direct view calls in Android pattern
+       // videoViewController.onClearState()
     //    loginViewController.offLine()
         
-//       remoteViewController.onClearState()
-//       localViewController.onClearState()
+       // REMOVED: Views handle themselves via state notifications
+       // remoteViewController.onClearState()
+       // localViewController.onClearState()
     //    loginViewController.unRegister()
       
        // Gửi trạng thái về Flutter
@@ -902,28 +890,69 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   
     public func onInviteUpdated(_ sessionId: Int, audioCodecs: String!, videoCodecs: String!, screenCodecs: String!, existsAudio: Bool, existsVideo: Bool, existsScreen: Bool, sipMessage: String!) {
        guard let result = _callManager.findCallBySessionID(sessionId) else {
-           print("onInviteUpdated... not found sessionId: \(sessionId)")
+           print("❌ onInviteUpdated... not found sessionId: \(sessionId)")
            return
        }
         
-        NSLog("onInviteUpdated... sessionId: \(sessionId) session_videoState: \(result.session.videoState) existsVideo: \(existsVideo) videoCodecs: \(videoCodecs ?? "")")
+        // 🔍 LOG: Session state BEFORE processing
+        NSLog("🔍 onInviteUpdated - BEFORE:")
+        NSLog("🔍   sessionId: \(sessionId)")
+        NSLog("🔍   result.session.sessionId: \(result.session.sessionId)")
+        NSLog("🔍   result.session.videoState: \(result.session.videoState)")
+        NSLog("🔍   result.session.videoMuted: \(result.session.videoMuted)")
+        NSLog("🔍   existsVideo: \(existsVideo)")
+        NSLog("🔍   existsAudio: \(existsAudio)")
+        NSLog("🔍   existsScreen: \(existsScreen)")
+        NSLog("🔍   audioCodecs: \(audioCodecs ?? "nil")")
+        NSLog("🔍   videoCodecs: \(videoCodecs ?? "nil")")
+        NSLog("🔍   screenCodecs: \(screenCodecs ?? "nil")")
         
-        if (result.session.videoState && !existsVideo && videoCodecs.isEmpty){
+        // 🔍 LOG: Check condition
+        let condition1 = result.session.videoState
+        let condition2 = !existsVideo
+        let condition3 = (videoCodecs?.isEmpty ?? true)
+        NSLog("🔍 onInviteUpdated - CHECK CONDITIONS:")
+        NSLog("🔍   condition1 (session.videoState): \(condition1)")
+        NSLog("🔍   condition2 (!existsVideo): \(condition2)")
+        NSLog("🔍   condition3 (videoCodecs.isEmpty): \(condition3)")
+        NSLog("🔍   ALL CONDITIONS: \(condition1 && condition2 && condition3)")
+        
+        if (result.session.videoState && !existsVideo && (videoCodecs?.isEmpty ?? true)){
+            NSLog("🔥 onInviteUpdated - ENTERING RE-SEND LOGIC!")
             let sendVideoRes = portSIPSDK.sendVideo(result.session.sessionId, sendState: true)
-            print("onInviteUpdate... re-sendVideo: \(sendVideoRes)")
+            NSLog("🔥 onInviteUpdated - re-sendVideo: \(sendVideoRes)")
             
             let updateRes = portSIPSDK.updateCall(result.session.sessionId, enableAudio: true, enableVideo: true)
-            print("onInviteUpdate... re-updateCall: \(updateRes)")
+            NSLog("🔥 onInviteUpdated - re-updateCall: \(updateRes)")
+        } else {
+            NSLog("🔍 onInviteUpdated - CONDITIONS NOT MET, skipping re-send logic")
         }
+       
+       // 🔍 LOG: Session state BEFORE override
+       NSLog("🔍 onInviteUpdated - BEFORE OVERRIDE:")
+       NSLog("🔍   result.session.videoState: \(result.session.videoState)")
+       NSLog("🔍   result.session.videoMuted: \(result.session.videoMuted)")
        
        // Cập nhật trạng thái video
        result.session.videoState = existsVideo
        result.session.videoMuted = !existsVideo
        result.session.screenShare = existsScreen
-       // Cập nhật giao diện
-       updateVideo(sessionId: sessionId)
        
-       print("The call has been updated on line \(result.index)")
+       // 🔍 LOG: Session state AFTER override
+       NSLog("🔍 onInviteUpdated - AFTER OVERRIDE:")
+       NSLog("🔍   result.session.videoState: \(result.session.videoState)")
+       NSLog("🔍   result.session.videoMuted: \(result.session.videoMuted)")
+       
+       // 🔥 ANDROID PATTERN: Send state notification instead of direct call
+       let videoState = PortSIPVideoState(
+           sessionId: Int64(sessionId),
+           isVideoEnabled: existsVideo,
+           isCameraOn: existsVideo && !result.session.videoMuted,
+           useFrontCamera: mUseFrontCamera
+       )
+       PortSIPStateManager.shared.updateVideoState(videoState)
+       
+       NSLog("🔍 onInviteUpdated - COMPLETE: The call has been updated on line \(result.index)")
    }
 
    public func onInviteConnected(_ sessionId: Int) {
@@ -933,12 +962,18 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        }
 
        print("The call is connected on line \(findSession(sessionid: sessionId))")
-       mUseFrontCamera = true
+       // REMOVED: mUseFrontCamera = true  // ❌ Don't force reset camera setting
        
-       // Buộc hiển thị video nếu cuộc gọi là video call
+       // 🔥 ANDROID PATTERN: Send state notification instead of direct call
        if result.session.videoState {
-           NSLog("⭐️ Call is connected with video - forcing video display")
-           forceShowVideo()
+           NSLog("⭐️ Call is connected with video - sending state notification")
+           let videoState = PortSIPVideoState(
+               sessionId: Int64(sessionId),
+               isVideoEnabled: true,
+               isCameraOn: !result.session.videoMuted,
+               useFrontCamera: mUseFrontCamera
+           )
+           PortSIPStateManager.shared.updateVideoState(videoState)
        }
       
        // Gửi trạng thái về Flutter
@@ -962,12 +997,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        if activeSessionid == sessionId {
            activeSessionid = CLong(INVALID_SESSION_ID)
        }
-       videoViewController.onClearState()
-       //    loginViewController.offLine()
-
-//       localViewController.onClearState()
-//       remoteViewController.onClearState()
-    //    loginViewController.unRegister()
       
        // Gửi trạng thái về Flutter
        sendCallStateToFlutter(.CLOSED)
@@ -1030,10 +1059,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            session.originCallSessionId = sessionId
           
        }
-       /* if you want to reject Refer
-        [mPortSIPSDK rejectRefer:referId);
-        [numpadViewController setStatusText("Rejected the the refer.");
-        */
    }
   
    public func onReferAccepted(_ sessionId: Int) {
@@ -1383,8 +1408,29 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            return
        }
       
-       // Thay đổi phần này: Không hiển thị cảnh báo hoặc UI native, chỉ gửi thông báo đến Flutter
-       // Gửi trạng thái về Flutter
+       // Send PortSIPStateManager notification for incoming call
+       let callState = PortSIPCallState(
+           sessionId: Int64(sessionId),
+           hasVideo: existsVideo,
+           hasAudio: true,
+           isIncoming: true,
+           remoteParty: remoteParty,
+           remoteDisplayName: remoteDisplayName,
+           state: .incoming
+       )
+       PortSIPStateManager.shared.updateCallState(callState)
+       
+       // 🔥 SIMPLE: Always send video state for local video display regardless of call type
+       NSLog("onIncomingCallWithoutCallKit - Always sending video state for local video display")
+       let videoState = PortSIPVideoState(
+           sessionId: Int64(sessionId),
+           isVideoEnabled: true, // Always enabled for local video
+           isCameraOn: true,
+           useFrontCamera: mUseFrontCamera
+       )
+       PortSIPStateManager.shared.updateVideoState(videoState)
+      
+       // Legacy Flutter state (keep for compatibility)
        sendCallStateToFlutter(.INCOMING)
       
        // Nếu ứng dụng ở trạng thái nền, có thể hiển thị thông báo hệ thống đơn giản
@@ -1416,19 +1462,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    func onNewOutgoingCall(sessionid: CLong) {
        NSLog("onNewOutgoingCall")
        lineSessions[_activeLine] = sessionid
-       videoViewController.initVideoViews()
-//       localViewController.initVideoViews()
-//       remoteViewController.initVideoViews()
-       
-    //    if isVideoCall {
-    //        videoViewController.onStartVideo(sessionid)
-    //        localViewController.onStartVideo(sessionid)
-    //        remoteViewController.onStartVideo(sessionid)
-    //    } else {
-    //        videoViewController.onStartVoiceCall(sessionid)
-    //        localViewController.onStartVoiceCall(sessionid)
-    //        remoteViewController.onStartVoiceCall(sessionid)
-    //    }
    }
   
    func onAnsweredCall(sessionId: CLong) {
@@ -1438,7 +1471,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        if result != nil {
            NSLog("Found call session, videoState: \(result!.session.videoState)")
            
-           // Thay vì gọi trực tiếp UI controllers, sử dụng state manager
+           // Send call state notification - LocalViewController will always show local video regardless of hasVideo
            let callState = PortSIPCallState(
                sessionId: Int64(sessionId),
                hasVideo: result!.session.videoState,
@@ -1450,21 +1483,18 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            )
            PortSIPStateManager.shared.updateCallState(callState)
            
-           // Cập nhật video state nếu cần
-           if result!.session.videoState {
-               let videoState = PortSIPVideoState(
-                   sessionId: Int64(sessionId),
-                   isVideoEnabled: true,
-                   isCameraOn: true,
-                   useFrontCamera: mUseFrontCamera
-               )
-               PortSIPStateManager.shared.updateVideoState(videoState)
-               
-               // Vẫn cập nhật VideoViewController để tương thích ngược
-               videoViewController.onStartVideo(Int(sessionId))
-           } else {
-               videoViewController.onStartVoiceCall(Int(sessionId))
-           }
+           // 🔥 SIMPLE: Always send video state for local video display
+           NSLog("onAnsweredCall() - Always sending video state for local video display")
+           let videoState = PortSIPVideoState(
+               sessionId: Int64(sessionId),
+               isVideoEnabled: true, // Always enabled for local video
+               isCameraOn: true,
+               useFrontCamera: mUseFrontCamera
+           )
+           PortSIPStateManager.shared.updateVideoState(videoState)
+           
+           // Set camera for local video
+           setCamera(useFrontCamera: mUseFrontCamera)
           
            let line = findSession(sessionid: sessionId)
            if line >= 0 {
@@ -1524,8 +1554,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
            } else {
                if(!isConference){
-                   portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: videoViewController.viewRemoteVideo)
-                   portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: remoteViewController.viewRemoteVideo)
                }
            }
        }
@@ -1734,33 +1762,52 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
               let isVideo = args["isVideo"] as? Bool {
                        // Check if we have an active session
                 if activeSessionid <= CLong(INVALID_SESSION_ID) {
-                    NSLog("Cannot reinvite - no active session")
+                    NSLog("❌ updateVideoCall - Cannot reinvite - no active session")
                     result(false)
+                    return
                 }
        
                 guard let sessionResult = _callManager.findCallBySessionID(activeSessionid) else {
-                    NSLog("Cannot find session with ID: \(activeSessionid)")
-                    return;
+                    NSLog("❌ updateVideoCall - Cannot find session with ID: \(activeSessionid)")
+                    result(false)
+                    return
                 }
  
-                 // Update video state
+                // 🔍 LOG: Session state BEFORE update
+                NSLog("🔍 updateVideoCall - BEFORE:")
+                NSLog("🔍   sessionId: \(sessionResult.session.sessionId)")
+                NSLog("🔍   videoState: \(sessionResult.session.videoState)")
+                NSLog("🔍   videoMuted: \(sessionResult.session.videoMuted)")
+                NSLog("🔍   sessionState: \(sessionResult.session.sessionState)")
+                NSLog("🔍   activeSessionid: \(activeSessionid)")
+                
+                // Update video state
                 sessionResult.session.videoState = true
                 
+                // 🔍 LOG: Session state AFTER manual update
+                NSLog("🔍 updateVideoCall - AFTER setting videoState=true:")
+                NSLog("🔍   videoState: \(sessionResult.session.videoState)")
+                NSLog("🔍   videoMuted: \(sessionResult.session.videoMuted)")
+                
                 // Send video from camera
-                setCamera(useFrontCamera: mUseFrontCamera)
+//                setCamera(useFrontCamera: mUseFrontCamera)
                 let sendVideoRes = portSIPSDK.sendVideo(sessionResult.session.sessionId, sendState: isVideo)
-                NSLog("reinviteSession - sendVideo(): \(sendVideoRes)")
+                NSLog("🔍 updateVideoCall - sendVideo(\(isVideo)): \(sendVideoRes)")
                 
                 // Update call to add video stream
                 let updateRes = portSIPSDK.updateCall(sessionResult.session.sessionId, enableAudio: true, enableVideo: isVideo)
-                NSLog("reinviteSession - updateCall(): \(updateRes)")
-                // Update the video UI
-                updateVideo(sessionId: Int(sessionResult.session.sessionId))
+                NSLog("🔍 updateVideoCall - updateCall(audio=true, video=\(isVideo)): \(updateRes)")
                 
-                // Buộc hiển thị video
-                forceShowVideo()
- 
-               result(true)
+                // 🔥 SIMPLE: Just send notification, let views handle themselves
+                let videoState = PortSIPVideoState(
+                    sessionId: Int64(sessionResult.session.sessionId),
+                    isVideoEnabled: isVideo,
+                    isCameraOn: isVideo,
+                    useFrontCamera: mUseFrontCamera
+                )
+                PortSIPStateManager.shared.updateVideoState(videoState)
+                
+                result(updateRes == 0)
             } else {
                result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing or invalid arguments for updateVideoCall", details: nil))
             }
@@ -1828,40 +1875,44 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   
    // Thêm phương thức để trả lời cuộc gọi
    func answerCall(isAutoAnswer: Bool) {
-       NSLog("answerCall")
+       NSLog("🔍 answerCall - START")
         if activeSessionid != CLong(INVALID_SESSION_ID) {
             _ = mSoundService.stopRingTone()
             _ = mSoundService.stopRingBackTone()
             let result = _callManager.findCallBySessionID(activeSessionid)
             if result != nil {
+                // 🔍 LOG: Session state BEFORE answer
+                NSLog("🔍 answerCall - BEFORE answer:")
+                NSLog("🔍   activeSessionid: \(activeSessionid)")
+                NSLog("🔍   result.session.sessionId: \(result!.session.sessionId)")
+                NSLog("🔍   result.session.videoState: \(result!.session.videoState)")
+                NSLog("🔍   result.session.videoMuted: \(result!.session.videoMuted)")
+                NSLog("🔍   result.session.sessionState: \(result!.session.sessionState)")
+                
                 let answerRes = portSIPSDK.answerCall(activeSessionid, videoCall: result!.session.videoState)
+                NSLog("🔍 answerCall - portSIPSDK.answerCall result: \(answerRes)")
+                
                 if (answerRes == 0) {
                     //Notice to remote
                     if !isAutoAnswer {
                         let sessionInfo = getCurrentSessionInfo()
                         sendCustomMessage(callSessionId: sessionInfo.0, userExtension: sessionInfo.1, type: "call_state", payloadKey: "answered", payloadValue: true)
                     }
-                    
-                    sendCallStateToFlutter(.ANSWERED)
-                    reInvite(xSessionIdRecv)
+
+                    NSLog("🔍 answerCall() - SDK answer success, waiting for onInviteAnswered() callback")
+//                    reInvite(xSessionIdRecv)
                 } else {
-                    NSLog( "Answer call failed with error code: \(String(describing: answerRes))")
+                    NSLog("❌ answerCall - Answer call failed with error code: \(String(describing: answerRes))")
                 }
+
+                NSLog("🔍 answerCall() - Waiting for onInviteAnswered() to send proper state notifications")
                 
-                // Đảm bảo video được hiển thị nếu là cuộc gọi video
-                if result!.session.videoState {
-                    NSLog("⭐️ Call answered with video - forcing video display")
-                    // Đặt một timer để đảm bảo video được kích hoạt sau khi cuộc gọi được thiết lập
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                        self?.forceShowVideo()
-                    }
-                }
-                else{
-                    NSLog("⭐️ Call answered with no video - videoState is false")
-                }
-                
-                print("Call answered")
+                NSLog("🔍 answerCall - Call answered")
+            } else {
+                NSLog("❌ answerCall - Cannot find session for activeSessionid: \(activeSessionid)")
             }
+        } else {
+            NSLog("❌ answerCall - No active session")
         }
    }
   
@@ -1958,19 +2009,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        }
    }
 
-   // 🔥 NEW: Method to ensure shared localViewController is ready for video operations
-   private func ensureSharedLocalViewControllerReady() -> Bool {
-       guard let localVC = localViewController else { return false }
-       
-       // If view is not loaded, trigger viewDidLoad
-       if !localVC.isViewLoaded {
-           NSLog("switchCamera() - Loading shared localViewController view...")
-           _ = localVC.view // This triggers viewDidLoad
-       }
-       
-       // Check if view and video view are now available
-       return localVC.isViewLoaded && localVC.viewLocalVideo != nil
-   }
+   // REMOVED: No shared view controller instances in Android pattern
    
    func switchCamera() -> Bool {
        NSLog("switchCamera() called")
@@ -1988,85 +2027,31 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            return false
        }
        
-       // Safety check: ensure localViewController is available
-       guard let localVC = localViewController else {
-           NSLog("switchCamera() failed - localViewController is nil")
-           return false
-       }
-       
        // Safety check: ensure SDK is initialized
        guard let sdk = portSIPSDK else {
            NSLog("switchCamera() failed - portSIPSDK is nil")
            return false
        }
        
-       // 🔥 NEW: Ensure shared localViewController view is ready
-       guard ensureSharedLocalViewControllerReady() else {
-           NSLog("switchCamera() failed - unable to setup shared localViewController view")
-           return false
-       }
+       // 🔥 ANDROID PATTERN: Just update SIP and send state notification
+       let newUseFrontCamera = !mUseFrontCamera
+       setCamera(useFrontCamera: newUseFrontCamera)
+       mUseFrontCamera = newUseFrontCamera
        
-       // 🔥 NEW: Auto-initialize shared localViewController if needed
-       if !localVC.isVideoInitialized {
-           NSLog("switchCamera() - shared localViewController not initialized, initializing now...")
-           // Setup SDK reference
-           localVC.portSIPSDK = sdk
-           localVC.mCameraDeviceId = mUseFrontCamera ? 1 : 0
-           
-           // Initialize video 
-           localVC.initializeLocalVideo()
-           
-           // Verify initialization was successful
-           guard localVC.isVideoInitialized else {
-               NSLog("switchCamera() failed - unable to initialize video on shared localViewController")
-               return false
-           }
-       }
+       // Send state notification - views will handle themselves
+       let videoState = PortSIPVideoState(
+           sessionId: Int64(activeSessionid),
+           isVideoEnabled: true,
+           isCameraOn: true,
+           useFrontCamera: newUseFrontCamera
+       )
+       PortSIPStateManager.shared.updateVideoState(videoState)
        
-       // Safety check: ensure viewLocalVideo exists after initialization
-       guard let _ = localVC.viewLocalVideo else {
-           NSLog("switchCamera() failed - viewLocalVideo is nil even after initialization")
-           return false
-       }
-       
-       // Check if we're on main thread, if not dispatch to main thread
-       if Thread.isMainThread {
-           return performSwitchCamera()
-       } else {
-           var result = false
-           DispatchQueue.main.sync {
-               result = performSwitchCamera()
-           }
-           return result
-       }
+       NSLog("SDK-iOS: Camera switched to \(newUseFrontCamera ? "front" : "back") via state notification")
+       return true
    }
    
-   private func performSwitchCamera() -> Bool {
-       let value = !mUseFrontCamera
-       localViewController.mCameraDeviceId = value == true ? 1: 0
-       
-       // Call switchCamera on LocalViewController with additional safety
-       do {
-           localViewController.switchCamera()
-           mUseFrontCamera = value
-           
-           // 🔥 NEW: Also update camera state via notifications for all LocalView instances
-           let videoState = PortSIPVideoState(
-               sessionId: Int64(activeSessionid),
-               isVideoEnabled: true,
-               isCameraOn: true, // Camera is still on, just switched
-               useFrontCamera: value
-           )
-           PortSIPStateManager.shared.updateVideoState(videoState)
-           
-           // Log để debug
-           NSLog("SDK-iOS: Camera switched to \(value ? "front" : "back")")
-           return value
-       } catch {
-           NSLog("switchCamera() failed with error: \(error)")
-           return false
-       }
-   }
+   // REMOVED: No direct view controller calls in Android pattern
 
    public func setCamera(useFrontCamera: Bool) {
        if useFrontCamera {
@@ -2075,123 +2060,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        } else {
            print("SDK-iOS: Setting back camera (ID 0)")
            portSIPSDK.setVideoDeviceId(0)
-       }
-   }
-
-   private func initLocalView() {
-       // Thiết lập camera dựa vào trạng thái hiện tại
-       setCamera(useFrontCamera: mUseFrontCamera)
-       
-       // ... existing code ...
-   }
-
-   // Thêm phương thức để xử lý video
-   func updateVideo(sessionId: CLong) {
-       NSLog("⭐️ updateVideo... sessionId: \(sessionId)")
-       if let result = _callManager.findCallBySessionID(sessionId) {
-           NSLog("⭐️ Found session with ID \(sessionId), session state: \(result.session.sessionState), video state: \(result.session.videoState)")
-           
-           // Check if views are available before sending state updates
-           let hasViewsAvailable = checkViewsAvailability()
-           
-           if hasViewsAvailable {
-               // Chỉ gửi state update khi views sẵn sàng
-               let videoState = PortSIPVideoState(
-                   sessionId: Int64(sessionId),
-                   isVideoEnabled: result.session.videoState && sessionId > 0,
-                   isCameraOn: result.session.videoState && !result.session.videoMuted,
-                   useFrontCamera: mUseFrontCamera
-               )
-               PortSIPStateManager.shared.updateVideoState(videoState)
-           } else {
-               NSLog("⭐️ Views not available, skipping state update to prevent crashes")
-           }
-           
-           if !isConference && sessionId > 0 && result.session.videoState {
-               // Đảm bảo video được gửi đi
-               NSLog("⭐️ Enabling send video state")
-               portSIPSDK.sendVideo(sessionId, sendState: true)
-           }
-           
-           // Vẫn cập nhật cho VideoViewController để tương thích ngược (an toàn)
-           DispatchQueue.main.async { [weak self] in
-               guard let self = self else { return }
-               
-               if sessionId > 0 && result.session.videoState {
-                   self.videoViewController.viewLocalVideo?.isHidden = false
-                   self.videoViewController.viewRemoteVideo?.isHidden = false
-               } else {
-                   self.videoViewController.viewLocalVideo?.isHidden = true
-                   self.videoViewController.viewRemoteVideo?.isHidden = true
-               }
-           }
-       } else {
-           NSLog("⭐️ Could not find session with ID \(sessionId) - call may have ended")
-           // Gửi state để clear video (chỉ khi cần thiết)
-           let videoState = PortSIPVideoState(
-               sessionId: Int64(sessionId),
-               isVideoEnabled: false,
-               isCameraOn: false,
-               useFrontCamera: mUseFrontCamera
-           )
-           PortSIPStateManager.shared.updateVideoState(videoState)
-       }
-   }
-   
-   // Helper method để kiểm tra xem views có sẵn sàng không
-   private func checkViewsAvailability() -> Bool {
-       NSLog("⭐️ Views availability check - Local: \(isLocalViewAvailable), Remote: \(isRemoteViewAvailable)")
-       
-       // Return true nếu ít nhất một view sẵn sàng
-       return isLocalViewAvailable || isRemoteViewAvailable
-   }
-
-   // Thêm phương thức mới để buộc hiển thị video
-   func forceShowVideo() {
-       NSLog("⭐️ Force showing video for active session: \(activeSessionid ?? CLong(INVALID_SESSION_ID))")
-       
-       if activeSessionid != CLong(INVALID_SESSION_ID) {
-           if let result = _callManager.findCallBySessionID(activeSessionid) {
-               if result.session.videoState {
-                   NSLog("⭐️ Forcing video display for active call")
-                   
-                   // Đảm bảo camera được thiết lập đúng
-                   setCamera(useFrontCamera: mUseFrontCamera)
-                   
-                   // Hiển thị các video
-                   localViewController.updateVideoVisibility(isVisible: true)
-                   remoteViewController.updateVideoVisibility(isVisible: true)
-                   
-                   // Đảm bảo video được gửi đi
-                   portSIPSDK.sendVideo(activeSessionid, sendState: true)
-               }
-           }
-       }
-   }
-
-   // Thêm phương thức để gửi thông báo
-   private func sendNotification(name: String, userInfo: [AnyHashable: Any]? = nil) {
-       NotificationCenter.default.post(name: NSNotification.Name(name), object: nil, userInfo: userInfo)
-   }
- 
-   // Cập nhật các phương thức để gửi thông báo khi trạng thái thay đổi
-   func toggleVideo(_ enable: Bool) {
-       if activeSessionid != CLong(INVALID_SESSION_ID) {
-           let result = _callManager.findCallBySessionID(activeSessionid)
-           if result != nil {
-               result!.session.videoMuted = !enable
-               portSIPSDK.muteSession(activeSessionid,
-                                      muteIncomingAudio: false,
-                                      muteOutgoingAudio: false,
-                                      muteIncomingVideo: false,
-                                      muteOutgoingVideo: !enable)
-               
-               // Gửi thông báo cho LocalView và RemoteView
-               sendNotification(name: "VIDEO_MUTE_STATE_CHANGED")
-               
-               // Gửi trạng thái đến Flutter
-               sendCameraStateToFlutter(enable)
-           }
        }
    }
     
@@ -2225,11 +2093,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            // Update call to add video stream
            let updateRes = portSIPSDK.updateCall(sessionResult.session.sessionId, enableAudio: true, enableVideo: true)
            NSLog("reinviteSession - updateCall(): \(updateRes)")
-           // Update the video UI
-           updateVideo(sessionId: Int(sessionResult.session.sessionId))
            
-           // Buộc hiển thị video
-           forceShowVideo()
+           // 🔥 ANDROID PATTERN: Send state notification instead of direct calls
+           let videoState = PortSIPVideoState(
+               sessionId: Int64(sessionResult.session.sessionId),
+               isVideoEnabled: true,
+               isCameraOn: true,
+               useFrontCamera: mUseFrontCamera
+           )
+           PortSIPStateManager.shared.updateVideoState(videoState)
            
            NSLog("Successfully updated call with video for session: \(sessionId)")
        } else {
@@ -2282,50 +2154,5 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         let userExtension = !currentUsername.isEmpty ? currentUsername : "unknown"
         return (sessionId, userExtension)
     }
-    
-    /**
-     * 🔥 Refresh video state cho views mới được tạo
-     */
-    private func refreshVideoStateForNewViews() {
-        // Delay một chút để đảm bảo views đã được setup
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-            guard let self = self else { return }
-            
-            // Kiểm tra có active video call không
-            guard self.activeSessionid != CLong(INVALID_SESSION_ID),
-                  let result = self._callManager.findCallBySessionID(self.activeSessionid),
-                  result.session.videoState && result.session.sessionState else {
-                NSLog("🔥 No active video call to refresh")
-                return
-            }
-            
-            NSLog("🔥 Refreshing video state for newly created views - session: \(self.activeSessionid)")
-            
-            // Gửi lại call state để views mới nhận được thông tin
-            let callState = PortSIPCallState(
-                sessionId: Int64(self.activeSessionid),
-                hasVideo: result.session.videoState,
-                hasAudio: true,
-                isIncoming: !result.session.recvCallState,
-                remoteParty: nil,
-                remoteDisplayName: nil,
-                state: .connected // Assuming connected state
-            )
-            PortSIPStateManager.shared.updateCallState(callState)
-            
-            // Gửi lại video state để views mới nhận được thông tin
-            let videoState = PortSIPVideoState(
-                sessionId: Int64(self.activeSessionid),
-                isVideoEnabled: true,
-                isCameraOn: !result.session.videoMuted,
-                useFrontCamera: self.mUseFrontCamera
-            )
-            PortSIPStateManager.shared.updateVideoState(videoState)
-            
-            // Force update video để đảm bảo remote video được hiển thị
-            self.forceShowVideo()
-            
-            NSLog("🔥 Video state refresh completed")
-        }
-    }
+
 }

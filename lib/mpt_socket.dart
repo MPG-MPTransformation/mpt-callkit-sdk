@@ -458,55 +458,55 @@ class MptSocketSocketServer {
         var sessionId = data['sessionId'];
         print("Socket server - CALL_EVENT - Received sessionId - $sessionId");
 
-        if (data.containsKey('extraInfo')) {
-          var extraInfo;
-          if (data['extraInfo'] is String) {
-            try {
-              final extraInfoStr = data['extraInfo'] as String;
-              if (extraInfoStr.isNotEmpty) {
-                extraInfo = jsonDecode(extraInfoStr);
-                print("Socket server - CALL_EVENT - extraInfo: $extraInfo");
-              } else {
-                print(
-                    "Socket server - CALL_EVENT - extraInfo is an empty string");
-                return;
-              }
-            } catch (e) {
-              print(
-                  "Socket server - CALL_EVENT - Error parsing extraInfo JSON: $e");
-              return;
-            }
-          } else {
-            extraInfo = data['extraInfo'];
-          }
+        // if (data.containsKey('extraInfo')) {
+        //   var extraInfo;
+        //   if (data['extraInfo'] is String) {
+        //     try {
+        //       final extraInfoStr = data['extraInfo'] as String;
+        //       if (extraInfoStr.isNotEmpty) {
+        //         extraInfo = jsonDecode(extraInfoStr);
+        //         print("Socket server - CALL_EVENT - extraInfo: $extraInfo");
+        //       } else {
+        //         print(
+        //             "Socket server - CALL_EVENT - extraInfo is an empty string");
+        //         return;
+        //       }
+        //     } catch (e) {
+        //       print(
+        //           "Socket server - CALL_EVENT - Error parsing extraInfo JSON: $e");
+        //       return;
+        //     }
+        //   } else {
+        //     extraInfo = data['extraInfo'];
+        //   }
 
-          if (extraInfo.containsKey('type')) {
-            var callType = extraInfo['type'];
+        //   if (extraInfo.containsKey('type')) {
+        //     var callType = extraInfo['type'];
 
-            if (callType.toString() == CallType.VIDEO.toString() &&
-                data['state'] == MessageSocket.ANSWER_CALL) {
-              // Handle video call
-              try {
-                await MptCallKitController.channel.invokeMethod('reInvite', {
-                  'sessionId': sessionId.toString(),
-                });
+        //     if (callType.toString() == CallType.VIDEO.toString() &&
+        //         data['state'] == MessageSocket.ANSWER_CALL) {
+        //       // Handle video call
+        //       try {
+        //         await MptCallKitController.channel.invokeMethod('reInvite', {
+        //           'sessionId': sessionId.toString(),
+        //         });
 
-                print(
-                    "Socket server - CALL_EVENT - currentSessionId: $sessionId");
-              } catch (e) {
-                print(
-                    "Socket server - CALL_EVENT - Error invoking reinvite method: $e");
-              }
-            } else {
-              print("Socket server - CALL_EVENT - Call type has no video");
-            }
-          } else {
-            print(
-                "Socket server - CALL_EVENT - ExtraInfo has no type - state: ${data['state']}");
-          }
-        } else {
-          print("Socket server - CALL_EVENT - Data has no extraInfo");
-        }
+        //         print(
+        //             "Socket server - CALL_EVENT - currentSessionId: $sessionId");
+        //       } catch (e) {
+        //         print(
+        //             "Socket server - CALL_EVENT - Error invoking reinvite method: $e");
+        //       }
+        //     } else {
+        //       print("Socket server - CALL_EVENT - Call type has no video");
+        //     }
+        //   } else {
+        //     print(
+        //         "Socket server - CALL_EVENT - ExtraInfo has no type - state: ${data['state']}");
+        //   }
+        // } else {
+        //   print("Socket server - CALL_EVENT - Data has no extraInfo");
+        // }
 
         if (data.containsKey('agentId')) {
           var agentId = data['agentId'];
@@ -516,7 +516,7 @@ class MptSocketSocketServer {
             currentCallEventSessionId = sessionId;
             print(
                 "Socket server - CALL_EVENT - agentId is equal to the current user id");
-
+            // save call event info if agent is callee
             if (!_callEventController.isClosed) {
               _callEventController.add(
                   CallEventSocketRecv.fromJson(data as Map<String, dynamic>));
@@ -525,7 +525,46 @@ class MptSocketSocketServer {
               print(
                   "Socket server - CALL_EVENT - callEventController is closed");
             }
+
+            //reInvite call if state is ANSWER_CALL
+            if (data['state'] == CallEventSocketConstants.ANSWER_CALL) {
+              if (data.containsKey('extraInfo')) {
+                var extraInfo;
+                if (data['extraInfo'] is String) {
+                  try {
+                    final extraInfoStr = data['extraInfo'] as String;
+                    if (extraInfoStr.isNotEmpty) {
+                      extraInfo = jsonDecode(extraInfoStr);
+                    } else {
+                      print(
+                          "Socket server - CALL_EVENT - extraInfo is an empty string");
+                      return;
+                    }
+                  } catch (e) {
+                    print(
+                        "Socket server - CALL_EVENT - Error parsing extraInfo JSON: $e");
+                    return;
+                  }
+                } else {
+                  extraInfo = data['extraInfo'];
+                }
+
+                if (extraInfo != null && extraInfo.containsKey('type')) {
+                  if (extraInfo['type'].toString() ==
+                      CallType.VIDEO.toString()) {
+                    MptCallKitController().updateVideoCall(isVideo: true);
+                  }
+                } else {
+                  print(
+                      "Socket server - CALL_EVENT - extraInfo has no type field");
+                }
+              } else {
+                print(
+                    "Socket server - CALL_EVENT - data has no extraInfo field");
+              }
+            }
           } else {
+            // save call event info if agent is caller
             if (currentCallEventSessionId == data['sessionId'] &&
                 data['state'] != CallEventSocketConstants.OFFER_CALL) {
               // handle msg when call out going (agent logged in)
