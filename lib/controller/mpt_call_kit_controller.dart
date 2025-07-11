@@ -1157,6 +1157,7 @@ class MptCallKitController {
   }
 
   Future<bool> updateVideoCall({required bool isVideo}) async {
+    print("updateVideoCall: $isVideo");
     try {
       final result = await channel.invokeMethod("updateVideoCall", {
         "isVideo": isVideo,

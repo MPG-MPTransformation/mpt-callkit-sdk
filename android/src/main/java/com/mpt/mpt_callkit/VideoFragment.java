@@ -168,7 +168,7 @@ public class VideoFragment extends BaseFragment implements View.OnClickListener,
         Session currentLine = CallManager.Instance().getCurrentSession();
         System.out.println("SDK-Android: video updateVideo onViewCreated");
         updateVideo(portSipLib);
-        startTimer(portSipLib, currentLine);
+        // startTimer(portSipLib, currentLine);
 
         if (CallManager.Instance().getCurrentSession().state == Session.CALL_STATE_FLAG.CONNECTED) {
             countDownTimer.cancel();
