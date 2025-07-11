@@ -47,8 +47,10 @@ public class NetWorkReceiver extends BroadcastReceiver {
                 System.out.println("SDK-Android: getNetWorkState - " + activeNetworkInfo.getType());
                 if (activeNetworkInfo.getType() == (ConnectivityManager.TYPE_WIFI)) {
                     return ConnectivityManager.TYPE_WIFI;
+                } else if (activeNetworkInfo.getType() == (ConnectivityManager.TYPE_MOBILE)) {
+                    return ConnectivityManager.TYPE_MOBILE;
                 } else {
-                    return ConnectivityManager.TYPE_WIFI;
+                    return ConnectivityManager.TYPE_WIFI; // Default fallback
                 }
             } else {
                 return -1;
@@ -64,9 +66,10 @@ public class NetWorkReceiver extends BroadcastReceiver {
                 // 获取ConnectivityManager对象对应的NetworkInfo对象
                 NetworkInfo networkInfo = connMgr.getNetworkInfo(networks[i]);
                 if (networkInfo.isConnected()) {
+                    System.out.println("SDK-Android: getNetWorkState - " + networkInfo.getType());
                     if (networkInfo.getType() == ConnectivityManager.TYPE_MOBILE) {
                         return ConnectivityManager.TYPE_MOBILE;
-                    } else {
+                    } else if (networkInfo.getType() == ConnectivityManager.TYPE_WIFI) {
                         return ConnectivityManager.TYPE_WIFI;
                     }
                 }

@@ -126,12 +126,18 @@ public class Engine {
 
         mEngine.setVideoNackStatus(true);
 
-
-        mEngine.enableAEC(true);
-        mEngine.enableAGC(true);
-        mEngine.enableCNG(true);
-        mEngine.enableVAD(true);
-        mEngine.enableANS(false);
+        // Enhanced audio processing configuration
+        mEngine.enableAEC(true);  // Acoustic Echo Cancellation - essential for clear audio
+        mEngine.enableAGC(true);  // Automatic Gain Control - maintains consistent volume
+        mEngine.enableCNG(true);  // Comfort Noise Generation - reduces silence gaps
+        mEngine.enableVAD(true);  // Voice Activity Detection - optimizes bandwidth
+        mEngine.enableANS(true);  // Automatic Noise Suppression - reduces background noise
+        
+        // Set audio samples for better quality
+        mEngine.setAudioSamples(20, 60);  // 20ms packet time, 60ms jitter buffer
+        
+        // Enable audio device auto-switching
+        mEngine.setAudioDeviceAutoSwitch(true);
 
 
         boolean foward = false;

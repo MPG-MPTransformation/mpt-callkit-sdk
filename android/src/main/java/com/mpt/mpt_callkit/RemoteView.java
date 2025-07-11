@@ -177,6 +177,16 @@ public class RemoteView implements PlatformView {
         CallManager callManager = CallManager.Instance();
         Session cur = CallManager.Instance().getCurrentSession();
 
+        // Debug logging
+        System.out.println("SDK-Android: RemoteView updateVideo - Engine initialized: " + (portSipLib != null));
+        System.out.println("SDK-Android: RemoteView updateVideo - Current session: " + (cur != null));
+        if (cur != null) {
+            System.out.println("SDK-Android: RemoteView updateVideo - Session state: " + cur.state);
+            System.out.println("SDK-Android: RemoteView updateVideo - Session ID: " + cur.sessionID);
+            System.out.println("SDK-Android: RemoteView updateVideo - Has video: " + cur.hasVideo);
+            System.out.println("SDK-Android: RemoteView updateVideo - Screen share: " + cur.bScreenShare);
+        }
+
         if (Engine.Instance().mConference) {
             System.out.println("SDK-Android: application.mConference = true && setConferenceVideoWindow");
             callManager.setConferenceVideoWindow(portSipLib, remoteRenderVideoView);
@@ -184,24 +194,31 @@ public class RemoteView implements PlatformView {
             System.out.println("SDK-Android: application.mConference = false");
             if (cur != null && !cur.IsIdle() && cur.sessionID != -1) {
                 if (cur.hasVideo) {
-                    System.out.println("SDK-Android: application.mConference = false - cur.hasVideo = true");
+                    System.out.println("SDK-Android: RemoteView - Has video, setting remote video window");
                     if (remoteRenderVideoView != null) {
                         remoteRenderVideoView.setVisibility(View.VISIBLE);
+                        callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderVideoView);
+                        int sendResult = portSipLib.sendVideo(cur.sessionID, true);
+                        System.out.println("SDK-Android: RemoteView sendVideo result: " + sendResult);
+                    } else {
+                        System.out.println("SDK-Android: RemoteView - remoteRenderVideoView is null");
                     }
-                    callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderVideoView);
-                    portSipLib.sendVideo(cur.sessionID, true);
                 } else {
-                    System.out.println("SDK-Android: application.mConference = false - cur.hasVideo = false");
+                    System.out.println("SDK-Android: RemoteView - No video, checking for screen share");
                     if (remoteRenderVideoView != null) {
                         remoteRenderVideoView.setVisibility(View.VISIBLE);
                     }
                     callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, null);
                     if (cur.bScreenShare) {
+                        System.out.println("SDK-Android: RemoteView - Setting screen share window");
                         callManager.setShareVideoWindow(portSipLib, cur.sessionID, remoteRenderVideoView);
+                    } else {
+                        System.out.println("SDK-Android: RemoteView - No video and no screen share");
                     }
                 }
 
             } else {
+                System.out.println("SDK-Android: RemoteView - No active session, clearing video window");
                 callManager.setRemoteVideoWindow(portSipLib, -1, null);
             }
         }

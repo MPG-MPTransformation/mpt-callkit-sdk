@@ -63,10 +63,21 @@ abstract class MptCallkitPlatform extends PlatformInterface {
         'unregisterConnection() has not been implemented.');
   }
 
-  void startActivity() {
-    throw UnimplementedError(
-        'unregisterConnection() has not been implemented.');
-  }
+  void startActivity();
+
+  Future<bool> requestAudioPermissions();
+
+  Future<bool> configureAudioSession();
+
+  Future<bool> refreshCamera();
+
+  Future<bool> checkCameraPermissions();
+
+  Future<bool> updateVideoQuality();
+
+  Future<Map<String, dynamic>> getVideoState();
+
+  Future<bool> forceRefreshVideo();
 
   void hold() {
     throw UnimplementedError(

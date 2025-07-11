@@ -54,9 +54,17 @@ public class LocalView implements PlatformView {
     }
 
     public void setCameraMirror() {
-        PortSipSdk portSipLib = Engine.Instance().getEngine();
-        if (portSipLib != null) {
-            portSipLib.displayLocalVideo(true, Engine.Instance().mUseFrontCamera, localRenderVideoView);
+        try {
+            // Ensure camera is properly initialized before displaying
+            if (Engine.Instance().getEngine() != null) {
+                PortSipSdk portSipLib = Engine.Instance().getEngine();
+                portSipLib.displayLocalVideo(true, Engine.Instance().mUseFrontCamera, localRenderVideoView);
+                System.out.println("SDK-Android: LocalView - Camera mirror set successfully");
+            } else {
+                System.out.println("SDK-Android: LocalView - Engine not initialized, cannot set camera mirror");
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: LocalView - Error setting camera mirror: " + e.getMessage());
         }
     }
 
@@ -89,6 +97,16 @@ public class LocalView implements PlatformView {
         CallManager callManager = CallManager.Instance();
         Session cur = CallManager.Instance().getCurrentSession();
 
+        // Debug logging
+        System.out.println("SDK-Android: LocalView updateVideo - Engine initialized: " + (portSipLib != null));
+        System.out.println("SDK-Android: LocalView updateVideo - Current session: " + (cur != null));
+        if (cur != null) {
+            System.out.println("SDK-Android: LocalView updateVideo - Session state: " + cur.state);
+            System.out.println("SDK-Android: LocalView updateVideo - Session ID: " + cur.sessionID);
+            System.out.println("SDK-Android: LocalView updateVideo - Video muted: " + cur.bMuteVideo);
+            System.out.println("SDK-Android: LocalView updateVideo - Has video: " + cur.hasVideo);
+        }
+
         if (Engine.Instance().mConference) {
             System.out.println("SDK-Android: application.mConference = true && setConferenceVideoWindow");
         } else {
@@ -110,8 +128,15 @@ public class LocalView implements PlatformView {
                     if (localRenderVideoView != null) {
                         localRenderVideoView.setVisibility(View.VISIBLE);
                     }
-                    portSipLib.displayLocalVideo(true, Engine.Instance().mUseFrontCamera, localRenderVideoView);
-                    portSipLib.sendVideo(cur.sessionID, true);
+                    
+                    // Check if camera is properly initialized
+                    if (Engine.Instance().mUseFrontCamera != null) {
+                        portSipLib.displayLocalVideo(true, Engine.Instance().mUseFrontCamera, localRenderVideoView);
+                        int sendResult = portSipLib.sendVideo(cur.sessionID, true);
+                        System.out.println("SDK-Android: sendVideo result: " + sendResult);
+                    } else {
+                        System.out.println("SDK-Android: Camera not initialized, cannot display local video");
+                    }
                 }
             } else {
                 // Không có cuộc gọi đang diễn ra, tắt video

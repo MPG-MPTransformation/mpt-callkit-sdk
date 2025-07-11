@@ -576,19 +576,43 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
       
        switch netStatus {
        case NotReachable:
-           NSLog("reachabilityChanged:kNotReachable")
+           NSLog("PortSIP: Network changed - Not Reachable")
+           // Handle no network connection
+           handleNetworkChange(isMobileNetwork: false, isConnected: false)
        case ReachableViaWWAN:
+           NSLog("PortSIP: Network changed - Mobile Network (4G/3G)")
            loginViewController.refreshRegister()
-           NSLog("reachabilityChanged:kReachableViaWWAN")
+           // Handle mobile network
+           handleNetworkChange(isMobileNetwork: true, isConnected: true)
        case ReachableViaWiFi:
+           NSLog("PortSIP: Network changed - WiFi Network")
            loginViewController.refreshRegister()
-           NSLog("reachabilityChanged:kReachableViaWiFi")
+           // Handle WiFi network
+           handleNetworkChange(isMobileNetwork: false, isConnected: true)
        default:
+           NSLog("PortSIP: Network changed - Unknown status")
            break
        }
-      
    }
-  
+   
+   private func handleNetworkChange(isMobileNetwork: Bool, isConnected: Bool) {
+       if isConnected {
+           // Adjust video quality based on network type
+           configureVideoQualityForNetwork(isMobileNetwork)
+           
+           // If there's an active video call, update the quality
+           if activeSessionid != CLong(INVALID_SESSION_ID) {
+               if let result = _callManager.findCallBySessionID(activeSessionid),
+                  result.session.videoState {
+                   NSLog("PortSIP: Updating video quality for active call on network change")
+                   // The video quality will be applied on next video frame
+               }
+           }
+       } else {
+           NSLog("PortSIP: No network connection - video quality unchanged")
+       }
+   }
+
    func startNotifierNetwork() {
        NotificationCenter.default.addObserver(self, selector: #selector(reachabilityChanged), name: NSNotification.Name.reachabilityChanged, object: nil)
 
@@ -1280,20 +1304,48 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        }
    }
   
-   func makeCall(_ callee: String, videoCall: Bool) -> (CLong) {
-       if activeSessionid != CLong(INVALID_SESSION_ID) {
-           return CLong(INVALID_SESSION_ID)
+   func makeCall(_ phoneNumber: String, videoCall: Bool) -> CLong {
+       NSLog("PortSIP: makeCall - phoneNumber: \(phoneNumber), videoCall: \(videoCall)")
+       
+       // Configure video quality before making call
+       if videoCall {
+           // Get current network type and configure accordingly
+           let networkInfo = getCurrentNetworkType()
+           if networkInfo.isConnected {
+               configureVideoQualityForNetwork(networkInfo.isMobile)
+               NSLog("PortSIP: Video quality configured for \(networkInfo.isMobile ? "mobile" : "WiFi") network")
+           } else {
+               // Fallback to default iOS settings if no network
+               configureVideoQualityForiOS()
+               NSLog("PortSIP: Using default iOS video quality (no network detected)")
+           }
+           
+           // Initialize camera for video call
+           let cameraInitialized = initializeCameraWithRetry()
+           if !cameraInitialized {
+               NSLog("PortSIP: Warning - Camera initialization failed for video call")
+           }
        }
-      
-       let sessionId = _callManager.makeCall(callee: callee, displayName: displayName, videoCall: videoCall)
-      
-       if sessionId >= 0 {
+       
+       // Configure audio session
+       configureAudioSession()
+       
+       let sessionId = portSIPSDK.call(phoneNumber, videoCall: videoCall)
+       NSLog("PortSIP: makeCall - sessionId: \(sessionId)")
+       
+       if sessionId > 0 {
            activeSessionid = sessionId
-           print("makeCall------------------ \(String(describing: activeSessionid))")
-           return activeSessionid
-       } else {
-           return sessionId
+           let lineIndex = findIdleLine()
+           if lineIndex >= 0 {
+               lineSessions[lineIndex] = sessionId
+               _activeLine = lineIndex
+           }
+           
+           // Update call state
+           sendCallStateToFlutter(.TRYING)
        }
+       
+       return sessionId
    }
   
    func updateCall() {
@@ -1630,6 +1682,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                // Lưu username hiện tại
                currentUsername = username
                
+               // Initialize camera before login
+               let cameraInitialized = initializeCameraWithRetry()
+               if !cameraInitialized {
+                   NSLog("PortSIP: Warning - Camera initialization failed, but continuing with login")
+               }
+               
                // Register to SIP server
                loginViewController.onLine(
                    username: username,
@@ -1811,6 +1869,31 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             } else {
                result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing or invalid arguments for updateVideoCall", details: nil))
             }
+       case "configureAudioSession":
+           configureAudioSession()
+           result(true)
+           break
+        case "refreshCamera":
+            let refreshResult = refreshCamera()
+            result(refreshResult)
+            break
+        case "checkCameraPermissions":
+            let hasCameraPermission = checkCameraPermission()
+            result(hasCameraPermission)
+            break
+        case "updateVideoQuality":
+            let networkInfo = getCurrentNetworkType()
+            configureVideoQualityForNetwork(networkInfo.isMobile)
+            result(true)
+            break
+        case "getVideoState":
+            let videoState = getVideoState()
+            result(videoState)
+            break
+        case "forceRefreshVideo":
+            let refreshResult = forceRefreshVideo()
+            result(refreshResult)
+            break
        default:
            result(FlutterMethodNotImplemented)
        }
@@ -2054,12 +2137,42 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    // REMOVED: No direct view controller calls in Android pattern
 
    public func setCamera(useFrontCamera: Bool) {
-       if useFrontCamera {
-           print("SDK-iOS: Setting front camera (ID 1)")
-           portSIPSDK.setVideoDeviceId(1)
-       } else {
-           print("SDK-iOS: Setting back camera (ID 0)")
-           portSIPSDK.setVideoDeviceId(0)
+       do {
+           // Check camera permission first
+           guard checkCameraPermission() else {
+               NSLog("PortSIP: Cannot set camera - permission not granted")
+               return
+           }
+           
+           let deviceId = useFrontCamera ? 1 : 0
+           let deviceName = useFrontCamera ? "front" : "back"
+           
+           NSLog("PortSIP: Setting \(deviceName) camera (ID \(deviceId))")
+           
+           // Set video device with retry
+           var success = false
+           var retryCount = 0
+           let maxRetries = 3
+           
+           while !success && retryCount < maxRetries {
+               do {
+                   portSIPSDK.setVideoDeviceId(deviceId)
+                   success = true
+                   NSLog("PortSIP: Camera set successfully on attempt \(retryCount + 1)")
+               } catch {
+                   retryCount += 1
+                   NSLog("PortSIP: Failed to set camera on attempt \(retryCount): \(error.localizedDescription)")
+                   
+                   if retryCount >= maxRetries {
+                       NSLog("PortSIP: Failed to set camera after \(maxRetries) attempts")
+                       return
+                   } else {
+                       Thread.sleep(forTimeInterval: 0.5) // Wait 0.5 second before retry
+                   }
+               }
+           }
+       } catch {
+           NSLog("PortSIP: Error in setCamera: \(error.localizedDescription)")
        }
    }
     
@@ -2154,5 +2267,265 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         let userExtension = !currentUsername.isEmpty ? currentUsername : "unknown"
         return (sessionId, userExtension)
     }
+
+   // MARK: - Audio Session Management
+   private func configureAudioSession() {
+       do {
+           let audioSession = AVAudioSession.sharedInstance()
+           
+           // Set category for voice chat with video support
+           try audioSession.setCategory(.playAndRecord, 
+                                       mode: .videoChat, // Changed from .voiceChat to .videoChat
+                                       options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker])
+           
+           // Set preferred sample rate and I/O buffer duration for video calls
+           try audioSession.setPreferredSampleRate(48000.0) // Higher sample rate for video
+           try audioSession.setPreferredIOBufferDuration(0.01) // 10ms buffer for video
+           
+           // Set preferred input/output ports
+           try audioSession.setPreferredInput(nil) // Use default input
+           
+           // Activate audio session
+           try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+           
+           NSLog("PortSIP: Audio session configured successfully for video calls")
+       } catch {
+           NSLog("PortSIP: Error configuring audio session: \(error)")
+       }
+   }
+   
+   private func requestAudioPermissions() -> Bool {
+       var audioGranted = false
+       let semaphore = DispatchSemaphore(value: 0)
+       
+       AVAudioSession.sharedInstance().requestRecordPermission { granted in
+           audioGranted = granted
+           semaphore.signal()
+       }
+       
+       _ = semaphore.wait(timeout: .now() + 5.0) // 5 second timeout
+       return audioGranted
+   }
+   
+   // MARK: - Camera Permission Management
+   private func requestCameraPermission() -> Bool {
+       var cameraGranted = false
+       let semaphore = DispatchSemaphore(value: 0)
+       
+       AVCaptureDevice.requestAccess(for: .video) { granted in
+           cameraGranted = granted
+           semaphore.signal()
+       }
+       
+       _ = semaphore.wait(timeout: .now() + 5.0) // 5 second timeout
+       return cameraGranted
+   }
+   
+   private func checkCameraPermission() -> Bool {
+       return AVCaptureDevice.authorizationStatus(for: .video) == .authorized
+   }
+   
+   private func initializeCameraWithRetry() -> Bool {
+       let maxRetries = 3
+       var retryCount = 0
+       
+       while retryCount < maxRetries {
+           do {
+               // Check camera permission first
+               guard checkCameraPermission() else {
+                   NSLog("PortSIP: Camera permission not granted")
+                   return false
+               }
+               
+               // Set video device ID (1 = front camera, 0 = back camera)
+               portSIPSDK.setVideoDeviceId(mUseFrontCamera ? 1 : 0)
+               
+               NSLog("PortSIP: Camera initialized successfully on attempt \(retryCount + 1)")
+               return true
+           } catch {
+               retryCount += 1
+               NSLog("PortSIP: Camera initialization failed on attempt \(retryCount): \(error.localizedDescription)")
+               
+               if retryCount >= maxRetries {
+                   NSLog("PortSIP: Camera initialization failed after \(maxRetries) attempts")
+                   return false
+               } else {
+                   Thread.sleep(forTimeInterval: 1.0) // Wait 1 second before retry
+               }
+           }
+       }
+       return false
+   }
+
+   // MARK: - iOS Video Quality Optimization
+   private func configureVideoQualityForiOS() {
+       do {
+           // iOS-specific video settings
+           portSIPSDK.setVideoResolution(1280, 720) // 720P for better performance
+           portSIPSDK.setVideoBitrate(-1, 1024) // 1024kbps - balanced quality
+           portSIPSDK.setVideoFrameRate(-1, 24) // 24fps - smooth on iOS
+           
+           // Enable video processing features
+           portSIPSDK.setVideoNackStatus(true)
+           
+           NSLog("PortSIP: iOS video quality configured successfully")
+       } catch {
+           NSLog("PortSIP: Error configuring video quality: \(error.localizedDescription)")
+       }
+   }
+   
+   // MARK: - Network Detection
+   private func getCurrentNetworkType() -> (isMobile: Bool, isConnected: Bool) {
+       let netStatus = internetReach.currentReachabilityStatus()
+       
+       switch netStatus {
+       case NotReachable:
+           return (isMobile: false, isConnected: false)
+       case ReachableViaWWAN:
+           return (isMobile: true, isConnected: true)
+       case ReachableViaWiFi:
+           return (isMobile: false, isConnected: true)
+       default:
+           return (isMobile: false, isConnected: false)
+       }
+   }
+   
+   private func configureVideoQualityForNetwork(_ isMobileNetwork: Bool) {
+       do {
+           if isMobileNetwork {
+               // Mobile network (4G/3G) - Lower quality for better performance
+               NSLog("PortSIP: Configuring video quality for mobile network (4G/3G)")
+               portSIPSDK.setVideoResolution(640, 480) // VGA
+               portSIPSDK.setVideoBitrate(-1, 512) // 512kbps
+               portSIPSDK.setVideoFrameRate(-1, 15) // 15fps
+               
+               // Enable video processing for mobile
+               portSIPSDK.setVideoNackStatus(true)
+               
+           } else {
+               // WiFi network - Higher quality
+               NSLog("PortSIP: Configuring video quality for WiFi network")
+               portSIPSDK.setVideoResolution(1280, 720) // 720P
+               portSIPSDK.setVideoBitrate(-1, 1024) // 1024kbps
+               portSIPSDK.setVideoFrameRate(-1, 24) // 24fps
+               
+               // Enable video processing for WiFi
+               portSIPSDK.setVideoNackStatus(true)
+           }
+           
+           NSLog("PortSIP: Video quality configured successfully for \(isMobileNetwork ? "mobile" : "WiFi") network")
+       } catch {
+           NSLog("PortSIP: Error configuring network-based video quality: \(error.localizedDescription)")
+       }
+   }
+
+   func refreshCamera() -> Bool {
+       NSLog("PortSIP: refreshCamera() called")
+       
+       // Safety check: ensure there's an active session 
+       guard activeSessionid != CLong(INVALID_SESSION_ID) else {
+           NSLog("PortSIP: refreshCamera() failed - no active session")
+           return false
+       }
+       
+       // Safety check: ensure it's a video call
+       guard let result = _callManager.findCallBySessionID(activeSessionid),
+             result.session.videoState else {
+           NSLog("PortSIP: refreshCamera() failed - not a video call or session not found")
+           return false
+       }
+       
+       // Safety check: ensure SDK is initialized
+       guard let sdk = portSIPSDK else {
+           NSLog("PortSIP: refreshCamera() failed - portSIPSDK is nil")
+           return false
+       }
+       
+       // Check camera permission
+       guard checkCameraPermission() else {
+           NSLog("PortSIP: refreshCamera() failed - camera permission not granted")
+           return false
+       }
+       
+       // Re-initialize camera with current settings
+       let cameraRefreshed = initializeCameraWithRetry()
+       if cameraRefreshed {
+           NSLog("PortSIP: Camera refreshed successfully")
+           
+           // Send state notification
+           let videoState = PortSIPVideoState(
+               sessionId: Int64(activeSessionid),
+               isVideoEnabled: true,
+               isCameraOn: true,
+               useFrontCamera: mUseFrontCamera
+           )
+           PortSIPStateManager.shared.updateVideoState(videoState)
+           
+           return true
+       } else {
+           NSLog("PortSIP: Camera refresh failed")
+           return false
+       }
+   }
+
+   func forceRefreshVideo() -> Bool {
+       NSLog("PortSIP: forceRefreshVideo() called")
+       
+       guard activeSessionid != CLong(INVALID_SESSION_ID) else {
+           NSLog("PortSIP: forceRefreshVideo() failed - no active session")
+           return false
+       }
+       
+       guard let result = _callManager.findCallBySessionID(activeSessionid) else {
+           NSLog("PortSIP: forceRefreshVideo() failed - session not found")
+           return false
+       }
+       
+       do {
+           // Force refresh local video
+           portSIPSDK.displayLocalVideo(true, mirror: mUseFrontCamera, localVideoWindow: nil)
+           portSIPSDK.sendVideo(result.session.sessionId, sendState: true)
+           
+           // Force refresh remote video
+           _callManager.setRemoteVideoWindow(result.session.sessionId, remoteVideoWindow: nil)
+           
+           NSLog("PortSIP: Video refreshed successfully")
+           return true
+       } catch {
+           NSLog("PortSIP: Error forcing video refresh: \(error.localizedDescription)")
+           return false
+       }
+   }
+   
+   func getVideoState() -> [String: Any] {
+       var state: [String: Any] = [:]
+       
+       do {
+           if activeSessionid != CLong(INVALID_SESSION_ID) {
+               if let result = _callManager.findCallBySessionID(activeSessionid) {
+                   state["hasActiveSession"] = true
+                   state["sessionId"] = result.session.sessionId
+                   state["sessionState"] = result.session.sessionState ? "CONNECTED" : "IDLE"
+                   state["hasVideo"] = result.session.videoState
+                   state["videoMuted"] = result.session.videoMuted
+                   state["isConnected"] = result.session.sessionState
+               } else {
+                   state["hasActiveSession"] = false
+               }
+           } else {
+               state["hasActiveSession"] = false
+           }
+           
+           state["engineInitialized"] = portSIPSDK != nil
+           state["cameraPermission"] = checkCameraPermission()
+           state["useFrontCamera"] = mUseFrontCamera
+           
+       } catch {
+           NSLog("PortSIP: Error getting video state: \(error.localizedDescription)")
+           state["error"] = error.localizedDescription
+       }
+       
+       return state
+   }
 
 }

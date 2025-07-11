@@ -44,6 +44,8 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Set;
 import org.json.JSONObject;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 
 public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
 
@@ -293,6 +295,29 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 System.out.println("SDK-Android: reinviteSession - updateCall(): " + updateCallRes);
 
                 result.success(updateCallRes == 0);
+                break;
+            case "configureAudioSession":
+                result.success(true);
+                break;
+            case "refreshCamera":
+                boolean refreshResult = refreshCamera();
+                result.success(refreshResult);
+                break;
+            case "checkCameraPermissions":
+                boolean hasCameraPermission = checkCameraPermission();
+                result.success(hasCameraPermission);
+                break;
+            case "updateVideoQuality":
+                boolean qualityUpdated = updateVideoQuality();
+                result.success(qualityUpdated);
+                break;
+            case "getVideoState":
+                Map<String, Object> videoState = getVideoState();
+                result.success(videoState);
+                break;
+            case "forceRefreshVideo":
+                boolean refreshResult = forceRefreshVideo();
+                result.success(refreshResult);
                 break;
             default:
                 result.notImplemented();
@@ -766,23 +791,124 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
-    boolean switchCamera() {
+    public static boolean switchCamera() {
         boolean value = !Engine.Instance().mUseFrontCamera;
         setCamera(Engine.Instance().getEngine(), value);
         Engine.Instance().mUseFrontCamera = value;
 
-        // Gửi broadcast để thông báo LocalView cập nhật mirror
         // Camera trước: mirror = true, Camera sau: mirror = false
-        if (context != null) {
-            Intent updateMirrorIntent = new Intent("CAMERA_SWITCH_ACTION");
-            updateMirrorIntent.putExtra("useFrontCamera", value);
-            context.sendBroadcast(updateMirrorIntent);
-            System.out.println("SDK-Android: Sent broadcast to update camera mirror: " + value);
-        }
+        Intent updateMirrorIntent = new Intent("CAMERA_SWITCH_ACTION");
+        updateMirrorIntent.putExtra("useFrontCamera", value);
+        Engine.Instance().getContext().sendBroadcast(updateMirrorIntent);
+        System.out.println("SDK-Android: Sent broadcast to update camera mirror: " + value);
 
-        // Log để debug
         System.out.println("SDK-Android: Camera switched to " + (value ? "front" : "back") + " with mirror: " + value);
-        return value;
+        return true;
+    }
+
+    public static boolean refreshCamera() {
+        try {
+            // Re-initialize camera with current settings
+            Engine.Instance().getEngine().setVideoDeviceId(Engine.Instance().mUseFrontCamera ? 1 : 0);
+            System.out.println("SDK-Android: Camera refreshed successfully");
+            return true;
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error refreshing camera: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public static boolean checkCameraPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return Engine.Instance().getContext().checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+        }
+        return true;
+    }
+
+    public static boolean updateVideoQuality() {
+        try {
+            // Get current network type and update video quality
+            int networkType = getCurrentNetworkType();
+            if (networkType == ConnectivityManager.TYPE_MOBILE) {
+                // Mobile network - lower quality
+                Engine.Instance().getEngine().setVideoResolution(640, 480);
+                Engine.Instance().getEngine().setVideoBitrate(-1, 512);
+                Engine.Instance().getEngine().setVideoFrameRate(-1, 15);
+            } else {
+                // WiFi network - higher quality
+                Engine.Instance().getEngine().setVideoResolution(1280, 720);
+                Engine.Instance().getEngine().setVideoBitrate(-1, 1024);
+                Engine.Instance().getEngine().setVideoFrameRate(-1, 24);
+            }
+            return true;
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error updating video quality: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public static Map<String, Object> getVideoState() {
+        Map<String, Object> state = new HashMap<>();
+        try {
+            Session currentSession = CallManager.Instance().getCurrentSession();
+            if (currentSession != null) {
+                state.put("hasActiveSession", true);
+                state.put("sessionId", currentSession.sessionID);
+                state.put("sessionState", currentSession.state.toString());
+                state.put("hasVideo", currentSession.hasVideo);
+                state.put("videoMuted", currentSession.bMuteVideo);
+                state.put("isConnected", !currentSession.IsIdle());
+            } else {
+                state.put("hasActiveSession", false);
+            }
+            
+            state.put("engineInitialized", Engine.Instance().getEngine() != null);
+            state.put("cameraPermission", checkCameraPermission());
+            state.put("useFrontCamera", Engine.Instance().mUseFrontCamera);
+            
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error getting video state: " + e.getMessage());
+            state.put("error", e.getMessage());
+        }
+        return state;
+    }
+
+    public static boolean forceRefreshVideo() {
+        try {
+            Session currentSession = CallManager.Instance().getCurrentSession();
+            if (currentSession != null && !currentSession.IsIdle()) {
+                // Force refresh local video
+                Engine.Instance().getEngine().displayLocalVideo(true, Engine.Instance().mUseFrontCamera, null);
+                Engine.Instance().getEngine().sendVideo(currentSession.sessionID, true);
+                
+                // Force refresh remote video
+                CallManager.Instance().setRemoteVideoWindow(Engine.Instance().getEngine(), currentSession.sessionID, null);
+                
+                System.out.println("SDK-Android: Video refreshed successfully");
+                return true;
+            } else {
+                System.out.println("SDK-Android: No active session to refresh video");
+                return false;
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error forcing video refresh: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private static int getCurrentNetworkType() {
+        try {
+            ConnectivityManager connectivityManager = (ConnectivityManager) Engine.Instance().getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (connectivityManager != null) {
+                NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+                if (activeNetworkInfo != null && activeNetworkInfo.isConnected()) {
+                    return activeNetworkInfo.getType();
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error getting network type: " + e.getMessage());
+        }
+        return ConnectivityManager.TYPE_WIFI; // Default to WiFi
     }
 
     private void setCamera(PortSipSdk portSipLib, boolean userFront) {

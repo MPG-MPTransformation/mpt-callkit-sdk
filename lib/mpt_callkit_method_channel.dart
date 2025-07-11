@@ -109,6 +109,83 @@ class MethodChannelMptCallkit extends MptCallkitPlatform {
   }
 
   @override
+  Future<bool> requestAudioPermissions() async {
+    try {
+      final result = await methodChannel.invokeMethod<bool>('requestAudioPermissions');
+      return result ?? false;
+    } catch (e) {
+      debugPrint("Error requesting audio permissions: $e");
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> configureAudioSession() async {
+    try {
+      final result = await methodChannel.invokeMethod<bool>('configureAudioSession');
+      return result ?? false;
+    } catch (e) {
+      debugPrint("Error configuring audio session: $e");
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> refreshCamera() async {
+    try {
+      final result = await methodChannel.invokeMethod<bool>('refreshCamera');
+      return result ?? false;
+    } catch (e) {
+      debugPrint("Error refreshing camera: $e");
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> checkCameraPermissions() async {
+    try {
+      final result = await methodChannel.invokeMethod<bool>('checkCameraPermissions');
+      return result ?? false;
+    } catch (e) {
+      debugPrint("Error checking camera permissions: $e");
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> updateVideoQuality() async {
+    try {
+      final result = await methodChannel.invokeMethod<bool>('updateVideoQuality');
+      return result ?? false;
+    } catch (e) {
+      debugPrint("Error updating video quality: $e");
+      return false;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> getVideoState() async {
+    try {
+      final result = await methodChannel.invokeMethod<Map<String, dynamic>>('getVideoState');
+      return result ?? {};
+    } catch (e) {
+      debugPrint("Error getting video state: $e");
+      return {};
+    }
+  }
+
+  @override
+  Future<bool> forceRefreshVideo() async {
+    try {
+      final result = await methodChannel.invokeMethod<bool>('forceRefreshVideo');
+      return result ?? false;
+    } catch (e) {
+      debugPrint("Error forcing video refresh: $e");
+      return false;
+    }
+  }
+
+  @override
   void hold() {
     methodChannel.invokeMethod('hold');
   }

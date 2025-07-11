@@ -39,4 +39,32 @@ class MptCallkit {
   void startActivity() {
     MptCallkitPlatform.instance.startActivity();
   }
+
+  Future<bool> requestAudioPermissions() async {
+    return await MptCallkitPlatform.instance.requestAudioPermissions();
+  }
+
+  Future<bool> configureAudioSession() async {
+    return await MptCallkitPlatform.instance.configureAudioSession();
+  }
+
+  Future<bool> refreshCamera() async {
+    return await MptCallkitPlatform.instance.refreshCamera();
+  }
+
+  Future<bool> checkCameraPermissions() async {
+    return await MptCallkitPlatform.instance.checkCameraPermissions();
+  }
+
+  Future<bool> updateVideoQuality() async {
+    return await MptCallkitPlatform.instance.updateVideoQuality();
+  }
+
+  Future<Map<String, dynamic>> getVideoState() async {
+    return await MptCallkitPlatform.instance.getVideoState();
+  }
+
+  Future<bool> forceRefreshVideo() async {
+    return await MptCallkitPlatform.instance.forceRefreshVideo();
+  }
 }

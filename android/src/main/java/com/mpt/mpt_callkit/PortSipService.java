@@ -12,6 +12,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
@@ -54,6 +55,8 @@ import java.util.UUID;
 
 
 import com.mpt.mpt_callkit.MainActivity;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 
 
 public class PortSipService extends Service
@@ -594,9 +597,20 @@ public class PortSipService extends Service
 
 
     private int initialSDK() {
+        // Check audio permissions first
+        if (!checkAudioPermissions()) {
+            showTipMessage("Audio permissions not granted");
+            return PortSipErrorcode.ECoreErrorNone - 1; // Custom error code
+        }
+        
+        // Check camera permissions
+        if (!checkCameraPermissions()) {
+            showTipMessage("Camera permissions not granted");
+            return PortSipErrorcode.ECoreErrorNone - 2; // Custom error code
+        }
+        
         Engine.Instance().getEngine().setOnPortSIPEvent(this);
         CallManager.Instance().online = true;
-
 
         String dataPath = getExternalFilesDir(null).getAbsolutePath();
         String certRoot = dataPath + "/certs";
@@ -605,25 +619,23 @@ public class PortSipService extends Service
         int localPort = 5060 + rm.nextInt(60000);
         int transType = preferences.getInt(TRANS, 0);
 
-
         // Reduce max lines to minimize resource usage
         int maxLines = 4; // Reduced from default 8
-
 
         int result = Engine.Instance().getEngine().initialize(getTransType(transType), "0.0.0.0", localPort,
                 PortSipEnumDefine.ENUM_LOG_LEVEL_ERROR, dataPath, // Changed to ERROR level to reduce logging overhead
                 maxLines, "PortSIP SDK for Android", 0, 0, certRoot, "", false, null);
 
-
         if (result != PortSipErrorcode.ECoreErrorNone) {
             showTipMessage("initialize failure ErrorCode = " + result);
             CallManager.Instance().resetAll();
         } else {
-            // Set high quality video settings for 1080P
-            Engine.Instance().getEngine().setVideoResolution(1920, 1080); // 1080P resolution
-            Engine.Instance().getEngine().setVideoBitrate(-1, 2048); // Higher bitrate for better quality
-            Engine.Instance().getEngine().setVideoFrameRate(-1, 30); // Higher frame rate for smoother video
-
+            // Initialize camera with retry logic
+            initializeCameraWithRetry();
+            
+            // Set initial video quality based on current network
+            int currentNetworkType = getCurrentNetworkType();
+            adjustVideoQualityForNetwork(currentNetworkType);
 
             result = Engine.Instance().getEngine().setLicenseKey("LicenseKey");
             if (result == PortSipErrorcode.ECoreWrongLicenseKey) {
@@ -637,6 +649,58 @@ public class PortSipService extends Service
             }
         }
         return result;
+    }
+
+    private boolean checkCameraPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return checkSelfPermission(android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+        }
+        return true;
+    }
+
+    private void initializeCameraWithRetry() {
+        int maxRetries = 3;
+        int retryCount = 0;
+        
+        while (retryCount < maxRetries) {
+            try {
+                // Set video device ID (1 = front camera, 0 = back camera)
+                Engine.Instance().getEngine().setVideoDeviceId(1);
+                Engine.Instance().mUseFrontCamera = true;
+                
+                System.out.println("SDK-Android: Camera initialized successfully on attempt " + (retryCount + 1));
+                break;
+            } catch (Exception e) {
+                retryCount++;
+                System.out.println("SDK-Android: Camera initialization failed on attempt " + retryCount + ": " + e.getMessage());
+                
+                if (retryCount >= maxRetries) {
+                    System.out.println("SDK-Android: Camera initialization failed after " + maxRetries + " attempts");
+                } else {
+                    try {
+                        Thread.sleep(1000); // Wait 1 second before retry
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    private int getCurrentNetworkType() {
+        try {
+            ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (connectivityManager != null) {
+                NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+                if (activeNetworkInfo != null && activeNetworkInfo.isConnected()) {
+                    return activeNetworkInfo.getType();
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error getting network type: " + e.getMessage());
+        }
+        return ConnectivityManager.TYPE_WIFI; // Default to WiFi
     }
 
 
@@ -1448,10 +1512,16 @@ public class PortSipService extends Service
         System.out.println("SDK-Android: onAudioDeviceChanged - " + audioDevice);
         CallManager.Instance().setSelectableAudioDevice(audioDevice, set);
 
+        // Ensure audio device is properly set
+        try {
+            Engine.Instance().getEngine().setAudioDevice(audioDevice);
+            System.out.println("SDK-Android: Audio device set to: " + audioDevice);
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error setting audio device: " + e.getMessage());
+        }
 
         Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice", audioDevice.toString());
         MptCallkitPlugin.sendToFlutter("currentAudioDevice", audioDevice.toString());
-
 
         Intent intent = new Intent();
         intent.setAction(ACTION_SIP_AUDIODEVICE);
@@ -1498,7 +1568,11 @@ public class PortSipService extends Service
 
     @Override
     public void onNetworkChange(int netMobile) {
-        System.out.println("SDK-Android: onNetworkChange");
+        System.out.println("SDK-Android: onNetworkChange - Network type: " + netMobile);
+        
+        // Adjust video quality based on network type
+        adjustVideoQualityForNetwork(netMobile);
+        
         if (netMobile == -1) {
             // invaluable
         } else {
@@ -1507,6 +1581,26 @@ public class PortSipService extends Service
             } else {
                 //
             }
+        }
+    }
+
+    private void adjustVideoQualityForNetwork(int networkType) {
+        try {
+            if (networkType == ConnectivityManager.TYPE_MOBILE) {
+                // Mobile network (4G/3G) - Use lower quality
+                System.out.println("SDK-Android: Adjusting video quality for mobile network");
+                Engine.Instance().getEngine().setVideoResolution(640, 480); // VGA
+                Engine.Instance().getEngine().setVideoBitrate(-1, 512); // 512kbps
+                Engine.Instance().getEngine().setVideoFrameRate(-1, 15); // 15fps
+            } else if (networkType == ConnectivityManager.TYPE_WIFI) {
+                // WiFi network - Use higher quality
+                System.out.println("SDK-Android: Adjusting video quality for WiFi network");
+                Engine.Instance().getEngine().setVideoResolution(1280, 720); // 720P
+                Engine.Instance().getEngine().setVideoBitrate(-1, 1024); // 1024kbps
+                Engine.Instance().getEngine().setVideoFrameRate(-1, 30); // 30fps
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error adjusting video quality: " + e.getMessage());
         }
     }
 
@@ -1631,5 +1725,13 @@ public class PortSipService extends Service
             Engine.Instance().getMethodChannel().invokeMethod("callType", state);
             MptCallkitPlugin.sendToFlutter("callType", state);
         }
+    }
+
+    private boolean checkAudioPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
+                   checkSelfPermission(android.Manifest.permission.MODIFY_AUDIO_SETTINGS) == PackageManager.PERMISSION_GRANTED;
+        }
+        return true;
     }
 }
