@@ -1158,28 +1158,32 @@ public class PortSipService extends Service
 
     @Override
     public void onInviteConnected(long sessionId) {
-        System.out.println("SDK-Android: onInviteConnected");
+        System.out.println("SDK-Android: onInviteConnected - sessionId: " + sessionId);
+        
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
         if (session != null) {
             session.state = Session.CALL_STATE_FLAG.CONNECTED;
-            session.sessionID = sessionId;
-
-
-            if (/* applicaton.mConference */true) {
-                Engine.Instance().getEngine().joinToConference(session.sessionID);
-                Engine.Instance().getEngine().sendVideo(session.sessionID, true);
-            }
-
-
-            Intent broadIntent = new Intent(CALL_CHANGE_ACTION);
-            broadIntent.putExtra(EXTRA_CALL_SEESIONID, sessionId);
-            String description = session.lineName + " OnInviteConnected";
-            broadIntent.putExtra(EXTRA_CALL_DESCRIPTION, description);
-
-
-            sendPortSipMessage(description, broadIntent);
+            session.sessionState = true;
+            
+            // Start network quality monitoring when call is connected
+            startNetworkQualityMonitoring();
+            
+            // Set initial video quality based on current network
+            int currentNetworkType = getCurrentNetworkType();
+            adjustVideoQualityForNetwork(currentNetworkType);
+            
+            // Gửi video từ camera
+            int sendVideoRes = Engine.Instance().getEngine().sendVideo(session.sessionID, true);
+            System.out.println("SDK-Android: onInviteConnected - sendVideo(): " + sendVideoRes);
+            
+            // Send call state to Flutter
+            sendCallStateToFlutter("CONNECTED");
+            sendCallTypeToFlutter("VIDEO_CALL");
+            
+            // Stop ring tones
+            Ring.getInstance(this).stopRingTone();
+            Ring.getInstance(this).stopRingBackTone();
         }
-        sendCallStateToFlutter("CONNECTED");
     }
 
 
@@ -1602,6 +1606,170 @@ public class PortSipService extends Service
         } catch (Exception e) {
             System.out.println("SDK-Android: Error adjusting video quality: " + e.getMessage());
         }
+    }
+
+    // MARK: - Network Quality Monitoring
+    private void startNetworkQualityMonitoring() {
+        // Start monitoring network quality every 5 seconds
+        new Thread(() -> {
+            while (CallManager.Instance().online) {
+                try {
+                    Thread.sleep(5000); // Check every 5 seconds
+                    monitorNetworkQuality();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }).start();
+    }
+
+    private void monitorNetworkQuality() {
+        try {
+            // Get current network statistics
+            long currentSessionId = getCurrentActiveSessionId();
+            if (currentSessionId > 0) {
+                String stats = Engine.Instance().getEngine().getStatistics(currentSessionId);
+                if (stats != null && !stats.isEmpty()) {
+                    analyzeNetworkQuality(stats, currentSessionId);
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error monitoring network quality: " + e.getMessage());
+        }
+    }
+
+    private void analyzeNetworkQuality(String stats, long sessionId) {
+        try {
+            // Parse statistics to determine network quality
+            NetworkQuality quality = parseNetworkStatistics(stats);
+            
+            // Adjust video quality based on network quality
+            adjustVideoQualityForNetworkQuality(quality, sessionId);
+            
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error analyzing network quality: " + e.getMessage());
+        }
+    }
+
+    private NetworkQuality parseNetworkStatistics(String stats) {
+        // Parse PortSIP statistics to determine network quality
+        // This is a simplified implementation - you may need to adjust based on actual PortSIP stats format
+        try {
+            if (stats.contains("packet loss") || stats.contains("jitter")) {
+                // Check for high packet loss or jitter
+                if (stats.contains("packet loss: 0%") && stats.contains("jitter: < 20ms")) {
+                    return NetworkQuality.EXCELLENT;
+                } else if (stats.contains("packet loss: < 5%") && stats.contains("jitter: < 50ms")) {
+                    return NetworkQuality.GOOD;
+                } else if (stats.contains("packet loss: < 10%") && stats.contains("jitter: < 100ms")) {
+                    return NetworkQuality.FAIR;
+                } else {
+                    return NetworkQuality.POOR;
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error parsing network statistics: " + e.getMessage());
+        }
+        return NetworkQuality.UNKNOWN;
+    }
+
+    private void adjustVideoQualityForNetworkQuality(NetworkQuality quality, long sessionId) {
+        try {
+            switch (quality) {
+                case EXCELLENT:
+                    // High quality for excellent network
+                    System.out.println("SDK-Android: Network quality EXCELLENT - Using high quality video");
+                    Engine.Instance().getEngine().setVideoResolution(1280, 720); // 720P
+                    Engine.Instance().getEngine().setVideoBitrate(-1, 1024); // 1024kbps
+                    Engine.Instance().getEngine().setVideoFrameRate(-1, 30); // 30fps
+                    break;
+                case GOOD:
+                    // Medium quality for good network
+                    System.out.println("SDK-Android: Network quality GOOD - Using medium quality video");
+                    Engine.Instance().getEngine().setVideoResolution(1280, 720); // 720P
+                    Engine.Instance().getEngine().setVideoBitrate(-1, 768); // 768kbps
+                    Engine.Instance().getEngine().setVideoFrameRate(-1, 24); // 24fps
+                    break;
+                case FAIR:
+                    // Lower quality for fair network
+                    System.out.println("SDK-Android: Network quality FAIR - Using lower quality video");
+                    Engine.Instance().getEngine().setVideoResolution(640, 480); // VGA
+                    Engine.Instance().getEngine().setVideoBitrate(-1, 512); // 512kbps
+                    Engine.Instance().getEngine().setVideoFrameRate(-1, 20); // 20fps
+                    break;
+                case POOR:
+                    // Very low quality for poor network
+                    System.out.println("SDK-Android: Network quality POOR - Using very low quality video");
+                    Engine.Instance().getEngine().setVideoResolution(320, 240); // QVGA
+                    Engine.Instance().getEngine().setVideoBitrate(-1, 256); // 256kbps
+                    Engine.Instance().getEngine().setVideoFrameRate(-1, 15); // 15fps
+                    break;
+                case UNKNOWN:
+                default:
+                    // Default quality for unknown network
+                    System.out.println("SDK-Android: Network quality UNKNOWN - Using default quality");
+                    Engine.Instance().getEngine().setVideoResolution(640, 480); // VGA
+                    Engine.Instance().getEngine().setVideoBitrate(-1, 512); // 512kbps
+                    Engine.Instance().getEngine().setVideoFrameRate(-1, 20); // 20fps
+                    break;
+            }
+            
+            // Notify Flutter about quality change
+            notifyVideoQualityChange(quality);
+            
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error adjusting video quality for network quality: " + e.getMessage());
+        }
+    }
+
+    private void notifyVideoQualityChange(NetworkQuality quality) {
+        try {
+            if (Engine.Instance().getMethodChannel() != null) {
+                java.util.Map<String, Object> qualityInfo = new java.util.HashMap<>();
+                qualityInfo.put("quality", quality.toString());
+                qualityInfo.put("resolution", getCurrentVideoResolution());
+                qualityInfo.put("bitrate", getCurrentVideoBitrate());
+                qualityInfo.put("frameRate", getCurrentVideoFrameRate());
+                
+                Engine.Instance().getMethodChannel().invokeMethod("videoQualityChanged", qualityInfo);
+                MptCallkitPlugin.sendToFlutter("videoQualityChanged", qualityInfo);
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error notifying video quality change: " + e.getMessage());
+        }
+    }
+
+    private String getCurrentVideoResolution() {
+        // This would need to be implemented based on PortSIP SDK capabilities
+        return "640x480"; // Default fallback
+    }
+
+    private int getCurrentVideoBitrate() {
+        // This would need to be implemented based on PortSIP SDK capabilities
+        return 512; // Default fallback
+    }
+
+    private int getCurrentVideoFrameRate() {
+        // This would need to be implemented based on PortSIP SDK capabilities
+        return 20; // Default fallback
+    }
+
+    private long getCurrentActiveSessionId() {
+        Session currentSession = CallManager.Instance().getCurrentSession();
+        if (currentSession != null && !currentSession.IsIdle()) {
+            return currentSession.sessionID;
+        }
+        return -1;
+    }
+
+    // Network Quality Enum
+    private enum NetworkQuality {
+        EXCELLENT,
+        GOOD,
+        FAIR,
+        POOR,
+        UNKNOWN
     }
 
 

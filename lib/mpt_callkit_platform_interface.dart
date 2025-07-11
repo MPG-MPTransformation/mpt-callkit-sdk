@@ -43,10 +43,11 @@ abstract class MptCallkitPlatform extends PlatformInterface {
   void registrationStateStream({
     required void Function() onSuccess,
     required void Function() onFailure,
-  }) {
-    throw UnimplementedError(
-        'registrationStateStream() has not been implemented.');
-  }
+  });
+
+  void videoQualityStream({
+    required void Function(Map<String, dynamic>) onQualityChanged,
+  });
 
   Future<bool> unregisterConnection() {
     throw UnimplementedError(

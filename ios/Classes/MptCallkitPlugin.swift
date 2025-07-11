@@ -979,29 +979,46 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        NSLog("🔍 onInviteUpdated - COMPLETE: The call has been updated on line \(result.index)")
    }
 
-   public func onInviteConnected(_ sessionId: Int) {
-       NSLog("onInviteConnected... sessionId: \(sessionId)")
+   public func onInviteConnected(_ sessionId: Int, callerDisplayName: String!, caller: String!, calleeDisplayName: String!, callee: String!, audioCodecs: String!, videoCodecs: String!, existsAudio: Bool, existsVideo: Bool, sipMessage: String!) {
+       NSLog("🔍 onInviteConnected... sessionId: \(sessionId), existsVideo: \(existsVideo)")
        guard let result = _callManager.findCallBySessionID(sessionId) else {
+           NSLog("❌ onInviteConnected - Not exist this SessionId = \(sessionId)")
            return
        }
-
-       print("The call is connected on line \(findSession(sessionid: sessionId))")
-       // REMOVED: mUseFrontCamera = true  // ❌ Don't force reset camera setting
        
-       // 🔥 ANDROID PATTERN: Send state notification instead of direct call
-       if result.session.videoState {
-           NSLog("⭐️ Call is connected with video - sending state notification")
-           let videoState = PortSIPVideoState(
-               sessionId: Int64(sessionId),
-               isVideoEnabled: true,
-               isCameraOn: !result.session.videoMuted,
-               useFrontCamera: mUseFrontCamera
-           )
-           PortSIPStateManager.shared.updateVideoState(videoState)
+       result.session.sessionState = true
+       
+       // Start network quality monitoring when call is connected
+       startNetworkQualityMonitoring()
+       
+       // Set initial video quality based on current network
+       let networkInfo = getCurrentNetworkType()
+       configureVideoQualityForNetwork(networkInfo.isMobile)
+       
+       // Set camera if it's a video call
+       if existsVideo {
+           NSLog("Setting camera for video call")
+           setCamera(useFrontCamera: mUseFrontCamera)
        }
-      
-       // Gửi trạng thái về Flutter
+       
+       // Send unified state notification
+       let videoState = PortSIPVideoState(
+           sessionId: Int64(sessionId),
+           isVideoEnabled: result.session.videoState,
+           isCameraOn: result.session.videoState && !result.session.videoMuted,
+           useFrontCamera: mUseFrontCamera
+       )
+       PortSIPStateManager.shared.updateVideoState(videoState)
+       
+       NSLog("⭐️ onInviteConnected - Sent unified video state: enabled=\(result.session.videoState), camera=\(!result.session.videoMuted)")
+       
+       // Send call state to Flutter
        sendCallStateToFlutter(.CONNECTED)
+       methodChannel?.invokeMethod("callType", arguments: "VIDEO_CALL")
+       
+       // Stop ring tones
+       _ = mSoundService.stopRingTone()
+       _ = mSoundService.stopRingBackTone()
    }
   
    public func onInviteBeginingForward(_ forwardTo: String) {
@@ -1009,22 +1026,35 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        print("Call has been forward to:\(forwardTo)")
    }
   
-   public func onInviteClosed(_ sessionId: Int, sipMessage: String) {
-       NSLog("onInviteClosed...")
+   public func onInviteClosed(_ sessionId: Int, sipMessage: String!) {
+       NSLog("onInviteClosed... sessionId: \(sessionId)")
+       
+       // Stop network quality monitoring when call ends
+       stopNetworkQualityMonitoring()
+       
+       let index = findSession(sessionid: sessionId)
+       if index == -1 {
+           return
+       }
+       
        let result = _callManager.findCallBySessionID(sessionId)
        if result != nil {
-           _callManager.endCall(sessionid: sessionId)
+           _callManager.removeCall(call: result!.session)
        }
-       _ = mSoundService.stopRingTone()
-       _ = mSoundService.stopRingBackTone()
-      
-       if activeSessionid == sessionId {
+       
+       freeLine(sessionid: sessionId)
+       
+       if (activeSessionid == sessionId) {
            activeSessionid = CLong(INVALID_SESSION_ID)
        }
-      
-       // Gửi trạng thái về Flutter
+       
+       // Send call state to Flutter
        sendCallStateToFlutter(.CLOSED)
        methodChannel?.invokeMethod("callType", arguments: "ENDED")
+       
+       // Stop ring tones
+       _ = mSoundService.stopRingTone()
+       _ = mSoundService.stopRingBackTone()
    }
   
    public func onDialogStateUpdated(_ BLFMonitoredUri: String!, blfDialogState BLFDialogState: String!, blfDialogId BLFDialogId: String!, blfDialogDirection BLFDialogDirection: String!) {
@@ -2526,6 +2556,162 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        }
        
        return state
+   }
+
+   // MARK: - Network Quality Monitoring
+   private var networkQualityTimer: Timer?
+   private var currentNetworkQuality: NetworkQuality = .UNKNOWN
+   
+   private func startNetworkQualityMonitoring() {
+       NSLog("PortSIP: Starting network quality monitoring")
+       
+       // Stop existing timer if any
+       stopNetworkQualityMonitoring()
+       
+       // Start monitoring every 5 seconds
+       networkQualityTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+           self?.monitorNetworkQuality()
+       }
+   }
+   
+   private func stopNetworkQualityMonitoring() {
+       networkQualityTimer?.invalidate()
+       networkQualityTimer = nil
+       NSLog("PortSIP: Stopped network quality monitoring")
+   }
+   
+   private func monitorNetworkQuality() {
+       guard activeSessionid != CLong(INVALID_SESSION_ID) else {
+           NSLog("PortSIP: No active session for network quality monitoring")
+           return
+       }
+       
+       do {
+           // Get current network statistics
+           let stats = portSIPSDK.getStatistics(activeSessionid)
+           if !stats.isEmpty {
+               analyzeNetworkQuality(stats)
+           }
+       } catch {
+           NSLog("PortSIP: Error monitoring network quality: \(error.localizedDescription)")
+       }
+   }
+   
+   private func analyzeNetworkQuality(_ stats: String) {
+       NSLog("PortSIP: Analyzing network quality from stats: \(stats)")
+       
+       // Parse statistics to determine network quality
+       let quality = parseNetworkStatistics(stats)
+       
+       // Only adjust if quality changed significantly
+       if quality != currentNetworkQuality {
+           NSLog("PortSIP: Network quality changed from \(currentNetworkQuality) to \(quality)")
+           currentNetworkQuality = quality
+           adjustVideoQualityForNetworkQuality(quality)
+       }
+   }
+   
+   private func parseNetworkStatistics(_ stats: String) -> NetworkQuality {
+       // Parse PortSIP statistics to determine network quality
+       // This is a simplified implementation - adjust based on actual PortSIP stats format
+       
+       if stats.contains("packet loss") || stats.contains("jitter") {
+           // Check for high packet loss or jitter
+           if stats.contains("packet loss: 0%") && stats.contains("jitter: < 20ms") {
+               return .EXCELLENT
+           } else if stats.contains("packet loss: < 5%") && stats.contains("jitter: < 50ms") {
+               return .GOOD
+           } else if stats.contains("packet loss: < 10%") && stats.contains("jitter: < 100ms") {
+               return .FAIR
+           } else {
+               return .POOR
+           }
+       }
+       
+       return .UNKNOWN
+   }
+   
+   private func adjustVideoQualityForNetworkQuality(_ quality: NetworkQuality) {
+       do {
+           switch quality {
+           case .EXCELLENT:
+               // High quality for excellent network
+               NSLog("PortSIP: Network quality EXCELLENT - Using high quality video")
+               portSIPSDK.setVideoResolution(1280, 720) // 720P
+               portSIPSDK.setVideoBitrate(-1, 1024) // 1024kbps
+               portSIPSDK.setVideoFrameRate(-1, 30) // 30fps
+               
+           case .GOOD:
+               // Medium quality for good network
+               NSLog("PortSIP: Network quality GOOD - Using medium quality video")
+               portSIPSDK.setVideoResolution(1280, 720) // 720P
+               portSIPSDK.setVideoBitrate(-1, 768) // 768kbps
+               portSIPSDK.setVideoFrameRate(-1, 24) // 24fps
+               
+           case .FAIR:
+               // Lower quality for fair network
+               NSLog("PortSIP: Network quality FAIR - Using lower quality video")
+               portSIPSDK.setVideoResolution(640, 480) // VGA
+               portSIPSDK.setVideoBitrate(-1, 512) // 512kbps
+               portSIPSDK.setVideoFrameRate(-1, 20) // 20fps
+               
+           case .POOR:
+               // Very low quality for poor network
+               NSLog("PortSIP: Network quality POOR - Using very low quality video")
+               portSIPSDK.setVideoResolution(320, 240) // QVGA
+               portSIPSDK.setVideoBitrate(-1, 256) // 256kbps
+               portSIPSDK.setVideoFrameRate(-1, 15) // 15fps
+               
+           case .UNKNOWN:
+               // Default quality for unknown network
+               NSLog("PortSIP: Network quality UNKNOWN - Using default quality")
+               portSIPSDK.setVideoResolution(640, 480) // VGA
+               portSIPSDK.setVideoBitrate(-1, 512) // 512kbps
+               portSIPSDK.setVideoFrameRate(-1, 20) // 20fps
+           }
+           
+           // Notify Flutter about quality change
+           notifyVideoQualityChange(quality)
+           
+       } catch {
+           NSLog("PortSIP: Error adjusting video quality for network quality: \(error.localizedDescription)")
+       }
+   }
+   
+   private func notifyVideoQualityChange(_ quality: NetworkQuality) {
+       let qualityInfo: [String: Any] = [
+           "quality": quality.rawValue,
+           "resolution": getCurrentVideoResolution(),
+           "bitrate": getCurrentVideoBitrate(),
+           "frameRate": getCurrentVideoFrameRate()
+       ]
+       
+       methodChannel?.invokeMethod("videoQualityChanged", arguments: qualityInfo)
+       NSLog("PortSIP: Notified Flutter about video quality change: \(quality.rawValue)")
+   }
+   
+   private func getCurrentVideoResolution() -> String {
+       // This would need to be implemented based on PortSIP SDK capabilities
+       return "640x480" // Default fallback
+   }
+   
+   private func getCurrentVideoBitrate() -> Int {
+       // This would need to be implemented based on PortSIP SDK capabilities
+       return 512 // Default fallback
+   }
+   
+   private func getCurrentVideoFrameRate() -> Int {
+       // This would need to be implemented based on PortSIP SDK capabilities
+       return 20 // Default fallback
+   }
+   
+   // Network Quality Enum
+   private enum NetworkQuality: String {
+       case EXCELLENT = "EXCELLENT"
+       case GOOD = "GOOD"
+       case FAIR = "FAIR"
+       case POOR = "POOR"
+       case UNKNOWN = "UNKNOWN"
    }
 
 }

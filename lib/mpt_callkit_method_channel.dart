@@ -77,6 +77,19 @@ class MethodChannelMptCallkit extends MptCallkitPlatform {
   }
 
   @override
+  void videoQualityStream({
+    required void Function(Map<String, dynamic>) onQualityChanged,
+  }) {
+    methodChannel.setMethodCallHandler((call) async {
+      if (call.method == 'videoQualityChanged') {
+        if (call.arguments is Map<String, dynamic>) {
+          onQualityChanged.call(call.arguments as Map<String, dynamic>);
+        }
+      }
+    });
+  }
+
+  @override
   Future<bool> unregisterConnection() async {
     final extension = await releaseExtension();
     if (extension == false) {

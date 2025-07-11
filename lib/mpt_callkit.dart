@@ -24,6 +24,13 @@ class MptCallkit {
         .registrationStateStream(onSuccess: onSuccess, onFailure: onFailure);
   }
 
+  void videoQualityStream({
+    required void Function(Map<String, dynamic>) onQualityChanged,
+  }) {
+    MptCallkitPlatform.instance
+        .videoQualityStream(onQualityChanged: onQualityChanged);
+  }
+
   Future<bool> unregisterConnection() async {
     return await MptCallkitPlatform.instance.unregisterConnection();
   }
