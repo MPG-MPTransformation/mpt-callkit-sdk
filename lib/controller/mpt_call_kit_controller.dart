@@ -429,6 +429,14 @@ class MptCallKitController {
       _currentAppEvent = AppEventConstants.TOKEN_EXPIRED;
       print("Access token is expired");
     }
+
+    if (currentUserInfo != null &&
+        currentUserInfo!["user"] != null &&
+        currentUserInfo!["tenant"] != null) {
+      _appEvent.add(AppEventConstants.READY);
+      _currentAppEvent = AppEventConstants.READY;
+      print("Get current user info success, ready to connect to socket server");
+    }
   }
 
   Future<bool> _connectToSocketServer(String accessToken) async {
@@ -620,7 +628,7 @@ class MptCallKitController {
         try {
           // Wait for registration result with timeout
           final registrationResult = await _guestRegistrationCompleter!.future
-              .timeout(const Duration(seconds: 30));
+              .timeout(const Duration(seconds: 10));
 
           if (registrationResult) {
             await MptCallKitControllerRepo().makeCallByGuest(
@@ -631,7 +639,6 @@ class MptCallKitController {
               extraInfo: jsonEncode(extraInfoResult),
               onError: onError,
             );
-            // showAndroidCallKit();
           } else {
             print('SIP Registration has failed');
             onError?.call('SIP Registration failed');
@@ -1004,6 +1011,35 @@ class MptCallKitController {
           "changeAgentStatus: current user info is null - currentUserInfo: $currentUserInfo");
       return false;
     }
+  }
+
+  // Get current agent status
+  Future<String?> getCurrentAgentStatus({
+    Function(String?)? onError,
+    required String accessToken,
+  }) async {
+    if (currentUserInfo == null) {
+      onError?.call("getCurrentAgentStatus: current user info is null");
+      return null;
+    }
+
+    final cloudAgentId = currentUserInfo!["user"]["id"];
+    final cloudTenantId = currentUserInfo!["tenant"]["id"];
+    final cloudAgentName = currentUserInfo!["user"]["fullName"] ?? "";
+
+    if (cloudAgentId == null || cloudTenantId == null) {
+      onError?.call("getCurrentAgentStatus: missing required user info");
+      return null;
+    }
+
+    return await MptCallKitControllerRepo().getCurrentAgentStatus(
+      cloudAgentId: cloudAgentId,
+      cloudTenantId: cloudTenantId,
+      cloudAgentName: cloudAgentName,
+      baseUrl: baseUrl,
+      accessToken: accessToken,
+      onError: onError,
+    );
   }
 
   // Method do unregister from SIP server

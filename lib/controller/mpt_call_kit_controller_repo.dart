@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 class MptCallKitControllerRepo {
   final _changeStatusApi = "/acd-asm-chat/agent-status/change";
+  final _getCurrentStatusApi = "/acd-asm-chat/agent-status/current-status";
   final _channelCall = "CALL";
   final _makeCallOutboundAPI = "/chat-acd/conversation/start-outbound";
   final _makeCallByGuestAPI = "/integration/make-call";
@@ -66,6 +67,74 @@ class MptCallKitControllerRepo {
           "MptCallKitControllerRepo - changeAgentStatus - Error in change agent status: $e");
       onError?.call("Change agent status with error: $e");
       return false;
+    }
+  }
+
+  // Get current agent status
+  Future<String?> getCurrentAgentStatus({
+    required int cloudAgentId,
+    required int cloudTenantId,
+    required String cloudAgentName,
+    required String baseUrl,
+    required String accessToken,
+    Function(String?)? onError,
+  }) async {
+    final headers = {
+      "Content-Type": "application/json",
+      "Accept": "*/*",
+      "Authorization": "Bearer $accessToken",
+    };
+
+    try {
+      final url = Uri.parse("$baseUrl$_getCurrentStatusApi").replace(
+        queryParameters: {
+          'cloudAgentId': cloudAgentId.toString(),
+          'cloudTenantId': cloudTenantId.toString(),
+          'cloudAgentName': cloudAgentName,
+        },
+      );
+
+      final response = await http
+          .get(url, headers: headers)
+          .timeout(const Duration(seconds: 10));
+
+      print(
+          "MptCallKitControllerRepo - getCurrentAgentStatus - Response status code: ${response.statusCode}");
+      print(
+          "MptCallKitControllerRepo - getCurrentAgentStatus - Response body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        if (response.body.isEmpty) {
+          throw Exception('Server returned empty response');
+        }
+
+        final responseData = convert.jsonDecode(response.body);
+        if (responseData != null &&
+            responseData["status"] == true &&
+            responseData["success"] == true) {
+          print(
+              "MptCallKitControllerRepo - getCurrentAgentStatus - Get current agent status success");
+          final statusName = responseData["data"]?["statusName"] as String?;
+          return statusName;
+        } else {
+          print(
+              "MptCallKitControllerRepo - getCurrentAgentStatus - Get current agent status failed: $responseData");
+          onError?.call(
+              responseData["message"] ?? "Get current agent status failed");
+          return null;
+        }
+      } else {
+        print(
+            'MptCallKitControllerRepo - getCurrentAgentStatus - Failed to get current agent status. Status code: ${response.statusCode}');
+        onError?.call(
+            'Failed to get current agent status. Status code: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print(
+          "MptCallKitControllerRepo - getCurrentAgentStatus - Error in get current agent status: $e");
+      onError?.call("Get current agent status with error: $e");
+      return null;
     }
   }
 

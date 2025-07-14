@@ -1912,7 +1912,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 NSLog("❌ answerCall - Cannot find session for activeSessionid: \(activeSessionid)")
             }
         } else {
-            NSLog("❌ answerCall - No active session")
+            NSLog("❌ answerCall - No active session - \(activeSessionid)")
         }
    }
   

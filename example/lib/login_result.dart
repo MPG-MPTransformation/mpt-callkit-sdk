@@ -35,6 +35,7 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
   StreamSubscription<CallEventSocketRecv>? _callEventSocketSubscription;
   final CallEventSocketRecv _callEventData = CallEventSocketRecv();
   var tokenExpired = false;
+  String? _currentAgentStatus;
 
   @override
   void initState() {
@@ -83,6 +84,46 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
         );
       },
     );
+
+    // Test getCurrentAgentStatus API after successful init
+    if (!tokenExpired && accessToken != null) {
+      await _testGetCurrentAgentStatus(accessToken);
+    }
+  }
+
+  // Test getCurrentAgentStatus API
+  Future<void> _testGetCurrentAgentStatus(String accessToken) async {
+    try {
+      final agentStatus = await MptCallKitController().getCurrentAgentStatus(
+        accessToken: accessToken,
+        onError: (error) {
+          print("Error getting current agent status: $error");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Error getting agent status: $error"),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        },
+      );
+
+      if (agentStatus != null && mounted) {
+        setState(() {
+          _currentAgentStatus = agentStatus;
+        });
+        print("Current agent status: $agentStatus");
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Agent status loaded: $agentStatus"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      print("Exception in _testGetCurrentAgentStatus: $e");
+    }
   }
 
   // register SIP
@@ -419,6 +460,54 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                                   return const Text("Agent Status: null");
                                 }
                               },
+                            ),
+                            const SizedBox(height: 10),
+                            // Display current agent status from API
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.blue.shade200),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Current Agent Status (API):",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  if (_currentAgentStatus != null)
+                                    Text("Status: $_currentAgentStatus")
+                                  else
+                                    const Text("No agent status data"),
+                                  const SizedBox(height: 8),
+                                  ElevatedButton(
+                                    onPressed: () async {
+                                      final prefs =
+                                          await SharedPreferences.getInstance();
+                                      final accessToken =
+                                          prefs.getString("saved_access_token");
+                                      if (accessToken != null) {
+                                        await _testGetCurrentAgentStatus(
+                                            accessToken);
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue,
+                                      foregroundColor: Colors.white,
+                                      minimumSize:
+                                          const Size(double.infinity, 36),
+                                    ),
+                                    child: const Text("Refresh Agent Status"),
+                                  ),
+                                ],
+                              ),
                             ),
                             Row(
                               mainAxisSize: MainAxisSize.min,
