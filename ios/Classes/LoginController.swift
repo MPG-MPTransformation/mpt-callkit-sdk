@@ -45,7 +45,7 @@ class LoginViewController {
             return
         }
         
-        let transport = TRANSPORT_UDP
+        let transport = TRANSPORT_TCP
         //        switch userData["transport"] {
         //        case "UDP":
         //            transport = TRANSPORT_UDP
@@ -125,7 +125,7 @@ class LoginViewController {
         
         portSIPSDK.registerServer(90, retryTimes: 0)
         var sipURL: String
-        if sipServerPort == 5060 {
+        if sipServerPort == 5063 {
             sipURL = "sip:\(username):\(userDomain)"
         } else {
             sipURL = "sip:\(username):\(userDomain):\(String(describing: sipServerPort))"

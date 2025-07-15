@@ -1818,7 +1818,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   
   
    public func onRegisterSuccess(_ statusText: String!, statusCode: Int32, sipMessage: String!) {
-       NSLog("Status: \(String(describing: statusText)), Message: \(String(describing: sipMessage))")
+       NSLog("onRegisterSuccess Status: \(String(describing: statusText)), Message: \(String(describing: sipMessage))")
        sipRegistered = true
        methodChannel?.invokeMethod("onlineStatus", arguments: true)
        methodChannel?.invokeMethod("registrationStateStream", arguments: true)
@@ -1826,7 +1826,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    }
   
    public func onRegisterFailure(_ statusText: String!, statusCode: Int32, sipMessage: String!) {
-       NSLog("Status: \(String(describing: statusText)), Message: \(String(describing: sipMessage))")
+       NSLog("onRegisterFailure Status: \(String(describing: statusText)), Message: \(String(describing: sipMessage))")
        sipRegistered = false
        methodChannel?.invokeMethod("onlineStatus", arguments: false)
     //    loginViewController.unRegister()

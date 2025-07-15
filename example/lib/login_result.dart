@@ -145,7 +145,8 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
       password: extensionData.password!,
       userDomain: extensionData.domain!,
       sipServer: extensionData.sipServer!,
-      sipServerPort: extensionData.port ?? 5060,
+      // sipServerPort: extensionData.port ?? 5060,
+      sipServerPort: 5063,
       transportType: 0,
       onError: (p0) {
         ScaffoldMessenger.of(context).showSnackBar(

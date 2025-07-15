@@ -26,7 +26,7 @@ class MethodChannelMptCallkit extends MptCallkitPlatform {
   /// 1. username -> String : sip username required
   /// 2. password -> String : sip password required
   /// 3. domain -> String : sip domain required
-  /// 4. port -> int : not required default port is 5060 (UDP)
+  /// 4. port -> int : not required default port is 5060 (UDP), TCP port is 5063
   /// 5. protocol -> String : default is UDP but also TCP and TLS are supported
   @override
   Future<Map<String, dynamic>> initSipConnection({
