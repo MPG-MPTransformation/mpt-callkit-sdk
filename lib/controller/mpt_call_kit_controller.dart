@@ -433,8 +433,8 @@ class MptCallKitController {
     if (currentUserInfo != null &&
         currentUserInfo!["user"] != null &&
         currentUserInfo!["tenant"] != null) {
-      _appEvent.add(AppEventConstants.READY);
-      _currentAppEvent = AppEventConstants.READY;
+      _appEvent.add(AppEventConstants.LOGGED_IN);
+      _currentAppEvent = AppEventConstants.LOGGED_IN;
       print("Get current user info success, ready to connect to socket server");
     }
   }
