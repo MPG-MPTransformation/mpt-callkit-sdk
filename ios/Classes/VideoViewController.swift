@@ -127,65 +127,67 @@ class VideoViewController: UIViewController {
     }
     
     func initVideoViews() {
-        self.viewLocalVideo?.removeFromSuperview()
-        self.viewLocalVideo?.isHidden = true
-        ///Khởi tạo với isVideoCall = true
-        let appDelegate = MptCallkitPlugin.shared
-        NSLog("isVideoCall init: \(appDelegate.isVideoCall)")
-        if (appDelegate.isVideoCall) {
-            viewRemoteVideo = PortSIPVideoRenderView()
-            viewRemoteVideo.translatesAutoresizingMaskIntoConstraints = false
-            viewRemoteVideo.backgroundColor = .black
-            self.view.addSubview(viewRemoteVideo)
-            viewLocalVideo = PortSIPVideoRenderView()
-            viewLocalVideo.translatesAutoresizingMaskIntoConstraints = false
-            viewLocalVideo.backgroundColor = .darkGray
-            viewLocalVideo.layer.cornerRadius = 10
-            viewLocalVideo.layer.masksToBounds = true
-            self.view.addSubview(viewLocalVideo)
-            // viewRemoteVideoSmall = PortSIPVideoRenderView()
-            // viewRemoteVideoSmall.translatesAutoresizingMaskIntoConstraints = false
-            // self.view.addSubview(viewRemoteVideoSmall)
-            
-            NSLayoutConstraint.activate([
-                // Constraints for the remote video (full screen)
-                viewRemoteVideo.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-                viewRemoteVideo.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-                viewRemoteVideo.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
-                viewRemoteVideo.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+        DispatchQueue.main.async {
+            self.viewLocalVideo?.removeFromSuperview()
+            self.viewLocalVideo?.isHidden = true
+            ///Khởi tạo với isVideoCall = true
+            let appDelegate = MptCallkitPlugin.shared
+            NSLog("isVideoCall init: \(appDelegate.isVideoCall)")
+            if (appDelegate.isVideoCall) {
+                self.viewRemoteVideo = PortSIPVideoRenderView()
+                self.viewRemoteVideo.translatesAutoresizingMaskIntoConstraints = false
+                self.viewRemoteVideo.backgroundColor = .black
+                self.view.addSubview(self.viewRemoteVideo)
+                self.viewLocalVideo = PortSIPVideoRenderView()
+                self.viewLocalVideo.translatesAutoresizingMaskIntoConstraints = false
+                self.viewLocalVideo.backgroundColor = .darkGray
+                self.viewLocalVideo.layer.cornerRadius = 10
+                self.viewLocalVideo.layer.masksToBounds = true
+                self.view.addSubview(self.viewLocalVideo)
+                // viewRemoteVideoSmall = PortSIPVideoRenderView()
+                // viewRemoteVideoSmall.translatesAutoresizingMaskIntoConstraints = false
+                // self.view.addSubview(viewRemoteVideoSmall)
                 
-                // Constraints for the local video (custom size) - change the size here
-                viewLocalVideo.widthAnchor.constraint(equalToConstant: 130),
-                viewLocalVideo.heightAnchor.constraint(equalToConstant: 180),
-                viewLocalVideo.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor, constant: (-70 / 430) * deviceWidth - otherButtonSize),
-                viewLocalVideo.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10),
+                NSLayoutConstraint.activate([
+                    // Constraints for the remote video (full screen)
+                    self.viewRemoteVideo.topAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.topAnchor),
+                    self.viewRemoteVideo.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor),
+                    self.viewRemoteVideo.leadingAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.leadingAnchor),
+                    self.viewRemoteVideo.trailingAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.trailingAnchor),
+                    
+                    // Constraints for the local video (custom size) - change the size here
+                    self.viewLocalVideo.widthAnchor.constraint(equalToConstant: 130),
+                    self.viewLocalVideo.heightAnchor.constraint(equalToConstant: 180),
+                    self.viewLocalVideo.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor, constant: (-70 / 430) * self.deviceWidth - self.otherButtonSize),
+                    self.viewLocalVideo.trailingAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.trailingAnchor, constant: -10),
+                    
+                    // Constraints for the small remote video (top right corner)
+                    // viewRemoteVideoSmall.widthAnchor.constraint(equalToConstant: 144),
+                    // viewRemoteVideoSmall.heightAnchor.constraint(equalTo: viewRemoteVideoSmall.widthAnchor),
+                    // viewRemoteVideoSmall.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+                    // viewRemoteVideoSmall.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10)
+                ])
+                // Check if the outlets are properly initialized
+                self.isInitVideo = true
                 
-                // Constraints for the small remote video (top right corner)
-                // viewRemoteVideoSmall.widthAnchor.constraint(equalToConstant: 144),
-                // viewRemoteVideoSmall.heightAnchor.constraint(equalTo: viewRemoteVideoSmall.widthAnchor),
-                // viewRemoteVideoSmall.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-                // viewRemoteVideoSmall.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -10)
-            ])
-            // Check if the outlets are properly initialized
-            isInitVideo = true
-            
-            viewLocalVideo.initVideoRender()
-            viewRemoteVideo.initVideoRender()
-            viewRemoteVideo.contentMode = .scaleAspectFit
-            // viewRemoteVideoSmall.initVideoRender()
-            updateLocalVideoPosition(UIScreen.main.bounds.size)
+                self.viewLocalVideo.initVideoRender()
+                self.viewRemoteVideo.initVideoRender()
+                self.viewRemoteVideo.contentMode = .scaleAspectFit
+                // viewRemoteVideoSmall.initVideoRender()
+                self.updateLocalVideoPosition(UIScreen.main.bounds.size)
 
-            portSIPSDK.displayLocalVideo(true, mirror: mCameraDeviceId == 1, localVideoWindow: viewLocalVideo)
-            
-            let tapGesture = UITapGestureRecognizer(target: self, action: #selector(onSwichShareScreenClick(action:)))
-            // viewRemoteVideoSmall.addGestureRecognizer(tapGesture)
-            
-            updateLocalVideoPosition(UIScreen.main.bounds.size)
-            return;
-        } else {
-            viewLocalVideo?.releaseVideoRender()
-            viewLocalVideo?.removeFromSuperview()
-            viewLocalVideo?.isHidden = true
+                self.portSIPSDK.displayLocalVideo(true, mirror: self.mCameraDeviceId == 1, localVideoWindow: self.viewLocalVideo)
+                
+                let tapGesture = UITapGestureRecognizer(target: self, action: #selector(self.onSwichShareScreenClick(action:)))
+                // viewRemoteVideoSmall.addGestureRecognizer(tapGesture)
+                
+                self.updateLocalVideoPosition(UIScreen.main.bounds.size)
+                return;
+            } else {
+                self.viewLocalVideo?.releaseVideoRender()
+                self.viewLocalVideo?.removeFromSuperview()
+                self.viewLocalVideo?.isHidden = true
+            }
         }
     }
     
@@ -367,59 +369,65 @@ class VideoViewController: UIViewController {
     }
     
     func hangUpButton() {
-        hangupButton?.removeFromSuperview()
+        DispatchQueue.main.async {
+            self.hangupButton?.removeFromSuperview()
 
-        hangupButton = UIButton(type: .system)
-        hangupButton.setImage(UIImage(systemName: "phone.down.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
-        hangupButton.tintColor = .white
-        hangupButton.backgroundColor = .red
-        
-        hangupButton.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
-        hangupButton.layer.cornerRadius = otherButtonSize / 2
-        hangupButton.translatesAutoresizingMaskIntoConstraints = false
-        hangupButton.widthAnchor.constraint(equalToConstant: CGFloat(otherButtonSize)).isActive = true
-        hangupButton.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
-        hangupButton.imageView?.contentMode = .scaleAspectFit
-        hangupButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
-        hangupButton.addTarget(self, action: #selector(hangup(_:)), for: .touchUpInside)
+            self.hangupButton = UIButton(type: .system)
+            self.hangupButton.setImage(UIImage(systemName: "phone.down.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+            self.hangupButton.tintColor = .white
+            self.hangupButton.backgroundColor = .red
+            
+            self.hangupButton.frame = CGRect(x: 0, y: 0, width: self.otherButtonSize, height: self.otherButtonSize)
+            self.hangupButton.layer.cornerRadius = self.otherButtonSize / 2
+            self.hangupButton.translatesAutoresizingMaskIntoConstraints = false
+            self.hangupButton.widthAnchor.constraint(equalToConstant: CGFloat(self.otherButtonSize)).isActive = true
+            self.hangupButton.heightAnchor.constraint(equalToConstant: self.otherButtonSize).isActive = true
+            self.hangupButton.imageView?.contentMode = .scaleAspectFit
+            self.hangupButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+            self.hangupButton.addTarget(self, action: #selector(self.hangup(_:)), for: .touchUpInside)
+        }
     }
     
     func swapUIButton() {
-        swapButton?.removeFromSuperview()
+        DispatchQueue.main.async {
+            self.swapButton?.removeFromSuperview()
 
-        swapButton = UIButton(type: .system)
-        swapButton.setImage(UIImage(systemName: "camera.rotate.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
-        swapButton.tintColor = .white
-        swapButton.backgroundColor = UIColor.white.withAlphaComponent(0.3)
-        
-        swapButton.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
-        swapButton.layer.cornerRadius = (50 / 430) * deviceWidth / 2
-        swapButton.addTarget(self, action: #selector(onSwitchCameraClick(_:)), for: .touchUpInside)
-        
-        swapButton.translatesAutoresizingMaskIntoConstraints = false
-        swapButton.widthAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
-        swapButton.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
-        swapButton.imageView?.contentMode = .scaleAspectFit
-        swapButton.contentEdgeInsets = UIEdgeInsets(top: 4, left: 4, bottom: 4, right: 4)
+            self.swapButton = UIButton(type: .system)
+            self.swapButton.setImage(UIImage(systemName: "camera.rotate.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+            self.swapButton.tintColor = .white
+            self.swapButton.backgroundColor = UIColor.white.withAlphaComponent(0.3)
+            
+            self.swapButton.frame = CGRect(x: 0, y: 0, width: self.otherButtonSize, height: self.otherButtonSize)
+            self.swapButton.layer.cornerRadius = (50 / 430) * self.deviceWidth / 2
+            self.swapButton.addTarget(self, action: #selector(self.onSwitchCameraClick(_:)), for: .touchUpInside)
+            
+            self.swapButton.translatesAutoresizingMaskIntoConstraints = false
+            self.swapButton.widthAnchor.constraint(equalToConstant: self.otherButtonSize).isActive = true
+            self.swapButton.heightAnchor.constraint(equalToConstant: self.otherButtonSize).isActive = true
+            self.swapButton.imageView?.contentMode = .scaleAspectFit
+            self.swapButton.contentEdgeInsets = UIEdgeInsets(top: 4, left: 4, bottom: 4, right: 4)
+        }
     }
     
     func videoCallButton() {
-        smallVideoCallButton?.removeFromSuperview()
+        DispatchQueue.main.async {
+            self.smallVideoCallButton?.removeFromSuperview()
 
-        smallVideoCallButton = UIButton(type: .system)
-        smallVideoCallButton.setImage(UIImage(systemName: "video.badge.plus.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
-        smallVideoCallButton.tintColor = .white
-        smallVideoCallButton.backgroundColor = UIColor.white.withAlphaComponent(0.5)
-        
-        smallVideoCallButton.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
-        smallVideoCallButton.layer.cornerRadius = otherButtonSize / 2
-        smallVideoCallButton.addTarget(self, action: #selector(activeVideoCall(_:)), for: .touchUpInside)
-        
-        smallVideoCallButton.translatesAutoresizingMaskIntoConstraints = false
-        smallVideoCallButton.widthAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
-        smallVideoCallButton.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
-        smallVideoCallButton.imageView?.contentMode = .scaleAspectFit
-        smallVideoCallButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+            self.smallVideoCallButton = UIButton(type: .system)
+            self.smallVideoCallButton.setImage(UIImage(systemName: "video.badge.plus.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+            self.smallVideoCallButton.tintColor = .white
+            self.smallVideoCallButton.backgroundColor = UIColor.white.withAlphaComponent(0.5)
+            
+            self.smallVideoCallButton.frame = CGRect(x: 0, y: 0, width: self.otherButtonSize, height: self.otherButtonSize)
+            self.smallVideoCallButton.layer.cornerRadius = self.otherButtonSize / 2
+            self.smallVideoCallButton.addTarget(self, action: #selector(self.activeVideoCall(_:)), for: .touchUpInside)
+            
+            self.smallVideoCallButton.translatesAutoresizingMaskIntoConstraints = false
+            self.smallVideoCallButton.widthAnchor.constraint(equalToConstant: self.otherButtonSize).isActive = true
+            self.smallVideoCallButton.heightAnchor.constraint(equalToConstant: self.otherButtonSize).isActive = true
+            self.smallVideoCallButton.imageView?.contentMode = .scaleAspectFit
+            self.smallVideoCallButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        }
     }
 
     func hideButtons() {
@@ -438,70 +446,76 @@ class VideoViewController: UIViewController {
     }
     
     func initMuteButton() {
-        muteButton?.removeFromSuperview()
-        muteButton = UIButton(type: .system)
-        if speakState == 0{
-            portSIPSDK.setLoudspeakerStatus(true)
-            muteButton.setImage(UIImage(systemName: "speaker.3.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
-        } else{
-            portSIPSDK.setLoudspeakerStatus(false)
-            muteButton.setImage(UIImage(systemName: "speaker.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+        DispatchQueue.main.async {
+            self.muteButton?.removeFromSuperview()
+            self.muteButton = UIButton(type: .system)
+            if self.speakState == 0{
+                self.portSIPSDK.setLoudspeakerStatus(true)
+                self.muteButton.setImage(UIImage(systemName: "speaker.3.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+            } else{
+                self.portSIPSDK.setLoudspeakerStatus(false)
+                self.muteButton.setImage(UIImage(systemName: "speaker.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+            }
+            self.muteButton.tintColor = .white
+            self.muteButton.backgroundColor = UIColor.gray.withAlphaComponent(0.5)
+            
+            self.muteButton.frame = CGRect(x: 0, y: 0, width: self.otherButtonSize, height: self.otherButtonSize)
+            self.muteButton.layer.cornerRadius = self.otherButtonSize / 2
+            self.muteButton.addTarget(self, action: #selector(self.onMuteClick(_:)), for: .touchUpInside)
+            
+            self.muteButton.translatesAutoresizingMaskIntoConstraints = false
+            self.muteButton.widthAnchor.constraint(equalToConstant: self.otherButtonSize).isActive = true
+            self.muteButton.heightAnchor.constraint(equalToConstant: self.otherButtonSize).isActive = true
+            self.muteButton.imageView?.contentMode = .scaleAspectFit
+            self.muteButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
         }
-        muteButton.tintColor = .white
-        muteButton.backgroundColor = UIColor.gray.withAlphaComponent(0.5)
-        
-        muteButton.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
-        muteButton.layer.cornerRadius = otherButtonSize / 2
-        muteButton.addTarget(self, action: #selector(onMuteClick(_:)), for: .touchUpInside)
-        
-        muteButton.translatesAutoresizingMaskIntoConstraints = false
-        muteButton.widthAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
-        muteButton.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
-        muteButton.imageView?.contentMode = .scaleAspectFit
-        muteButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
     }
     
     func speakButton() {
-        buttonSpeaker?.removeFromSuperview()
-        buttonSpeaker = UIButton(type: .system)
-        if muteMic {
-            portSIPSDK.muteSession(sessionId, muteIncomingAudio: false, muteOutgoingAudio: false, muteIncomingVideo: false, muteOutgoingVideo: false)
-            buttonSpeaker.setImage(UIImage(systemName: "mic.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
-        } else {
-            portSIPSDK.muteSession(sessionId, muteIncomingAudio: false, muteOutgoingAudio: true, muteIncomingVideo: false, muteOutgoingVideo: false)
-            buttonSpeaker.setImage(UIImage(systemName: "mic.slash.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
-        }
+        DispatchQueue.main.async {
+            self.buttonSpeaker?.removeFromSuperview()
+            self.buttonSpeaker = UIButton(type: .system)
+            if self.muteMic {
+                self.portSIPSDK.muteSession(self.sessionId, muteIncomingAudio: false, muteOutgoingAudio: false, muteIncomingVideo: false, muteOutgoingVideo: false)
+                self.buttonSpeaker.setImage(UIImage(systemName: "mic.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+            } else {
+                self.portSIPSDK.muteSession(self.sessionId, muteIncomingAudio: false, muteOutgoingAudio: true, muteIncomingVideo: false, muteOutgoingVideo: false)
+                self.buttonSpeaker.setImage(UIImage(systemName: "mic.slash.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+            }
 
-        buttonSpeaker.tintColor = .white
-        buttonSpeaker.backgroundColor = UIColor.gray.withAlphaComponent(0.5)
-        
-        buttonSpeaker.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
-        buttonSpeaker.layer.cornerRadius = otherButtonSize / 2
-        buttonSpeaker.addTarget(self, action: #selector(onSwitchSpeakerClick(_:)), for: .touchUpInside)
-        
-        buttonSpeaker.translatesAutoresizingMaskIntoConstraints = false
-        buttonSpeaker.widthAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
-        buttonSpeaker.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
-        buttonSpeaker.imageView?.contentMode = .scaleAspectFit
-        buttonSpeaker.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+            self.buttonSpeaker.tintColor = .white
+            self.buttonSpeaker.backgroundColor = UIColor.gray.withAlphaComponent(0.5)
+            
+            self.buttonSpeaker.frame = CGRect(x: 0, y: 0, width: self.otherButtonSize, height: self.otherButtonSize)
+            self.buttonSpeaker.layer.cornerRadius = self.otherButtonSize / 2
+            self.buttonSpeaker.addTarget(self, action: #selector(self.onSwitchSpeakerClick(_:)), for: .touchUpInside)
+            
+            self.buttonSpeaker.translatesAutoresizingMaskIntoConstraints = false
+            self.buttonSpeaker.widthAnchor.constraint(equalToConstant: self.otherButtonSize).isActive = true
+            self.buttonSpeaker.heightAnchor.constraint(equalToConstant: self.otherButtonSize).isActive = true
+            self.buttonSpeaker.imageView?.contentMode = .scaleAspectFit
+            self.buttonSpeaker.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        }
     }
     
     func sendingVideo() {
-        buttonSendingVideo?.removeFromSuperview()
-        buttonSendingVideo = UIButton(type: .system)
-        buttonSendingVideo.setImage(UIImage(systemName: "video.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
-        buttonSendingVideo.tintColor = .white
-        buttonSendingVideo.backgroundColor = UIColor.gray.withAlphaComponent(0.5)
-        
-        buttonSendingVideo.frame = CGRect(x: 0, y: 0, width: otherButtonSize, height: otherButtonSize)
-        buttonSendingVideo.layer.cornerRadius = otherButtonSize / 2
-        buttonSendingVideo.addTarget(self, action: #selector(onSendingVideoClick(_:)), for: .touchUpInside)
-        
-        buttonSendingVideo.translatesAutoresizingMaskIntoConstraints = false
-        buttonSendingVideo.widthAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
-        buttonSendingVideo.heightAnchor.constraint(equalToConstant: otherButtonSize).isActive = true
-        buttonSendingVideo.imageView?.contentMode = .scaleAspectFit
-        buttonSendingVideo.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        DispatchQueue.main.async {
+            self.buttonSendingVideo?.removeFromSuperview()
+            self.buttonSendingVideo = UIButton(type: .system)
+            self.buttonSendingVideo.setImage(UIImage(systemName: "video.fill", withConfiguration: UIImage.SymbolConfiguration(scale: .large)), for: .normal)
+            self.buttonSendingVideo.tintColor = .white
+            self.buttonSendingVideo.backgroundColor = UIColor.gray.withAlphaComponent(0.5)
+            
+            self.buttonSendingVideo.frame = CGRect(x: 0, y: 0, width: self.otherButtonSize, height: self.otherButtonSize)
+            self.buttonSendingVideo.layer.cornerRadius = self.otherButtonSize / 2
+            self.buttonSendingVideo.addTarget(self, action: #selector(self.onSendingVideoClick(_:)), for: .touchUpInside)
+            
+            self.buttonSendingVideo.translatesAutoresizingMaskIntoConstraints = false
+            self.buttonSendingVideo.widthAnchor.constraint(equalToConstant: self.otherButtonSize).isActive = true
+            self.buttonSendingVideo.heightAnchor.constraint(equalToConstant: self.otherButtonSize).isActive = true
+            self.buttonSendingVideo.imageView?.contentMode = .scaleAspectFit
+            self.buttonSendingVideo.contentEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        }
     }
     
     @objc func onSwitchSpeakerClick(_ sender: AnyObject) {

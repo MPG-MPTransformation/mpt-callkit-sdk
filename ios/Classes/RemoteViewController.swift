@@ -126,54 +126,60 @@ class RemoteViewController: UIViewController {
            return
        }
       
-       if hasCameraOn {
-           // Remote camera bật - hiển thị video bình thường
-           remoteVideo.isHidden = false
-           remoteVideo.backgroundColor = UIColor.clear
-           removeCameraOffPlaceholder() // Xóa placeholder khi camera bật
-           print("[Debug] RemoteViewController - Remote camera ON - showing video")
-       } else {
-           // Remote camera tắt - hiển thị placeholder thay vì ẩn view
-           remoteVideo.isHidden = false
-           remoteVideo.backgroundColor = UIColor.darkGray
-           print("[Debug] RemoteViewController - Remote camera OFF - showing placeholder")
-          
-//           // Hiển thị placeholder báo camera đã tắt
-//           self.showCameraOffPlaceholder()
+       DispatchQueue.main.async {
+           if hasCameraOn {
+               // Remote camera bật - hiển thị video bình thường
+               remoteVideo.isHidden = false
+               remoteVideo.backgroundColor = UIColor.clear
+               self.removeCameraOffPlaceholder() // Xóa placeholder khi camera bật
+               print("[Debug] RemoteViewController - Remote camera ON - showing video")
+           } else {
+               // Remote camera tắt - hiển thị placeholder thay vì ẩn view
+               remoteVideo.isHidden = false
+               remoteVideo.backgroundColor = UIColor.darkGray
+               print("[Debug] RemoteViewController - Remote camera OFF - showing placeholder")
+              
+//               // Hiển thị placeholder báo camera đã tắt
+//               self.showCameraOffPlaceholder()
+           }
        }
    }
   
    private func showCameraOffPlaceholder() {
        guard let remoteVideo = viewRemoteVideo else { return }
       
-       // Remove existing placeholder nếu có
-       removeCameraOffPlaceholder()
-      
-       // Tạo placeholder label
-       let placeholderLabel = UILabel()
-       placeholderLabel.text = "Remote Camera Off"
-       placeholderLabel.textColor = UIColor.white
-       placeholderLabel.textAlignment = .center
-       placeholderLabel.backgroundColor = UIColor.clear
-       placeholderLabel.tag = 999
-       placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
-      
-       remoteVideo.addSubview(placeholderLabel)
-      
-       // Center placeholder
-       NSLayoutConstraint.activate([
-           placeholderLabel.centerXAnchor.constraint(equalTo: remoteVideo.centerXAnchor),
-           placeholderLabel.centerYAnchor.constraint(equalTo: remoteVideo.centerYAnchor)
-       ])
+       DispatchQueue.main.async {
+           // Remove existing placeholder nếu có
+           self.removeCameraOffPlaceholder()
+          
+           // Tạo placeholder label
+           let placeholderLabel = UILabel()
+           placeholderLabel.text = "Remote Camera Off"
+           placeholderLabel.textColor = UIColor.white
+           placeholderLabel.textAlignment = .center
+           placeholderLabel.backgroundColor = UIColor.clear
+           placeholderLabel.tag = 999
+           placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
+          
+           remoteVideo.addSubview(placeholderLabel)
+          
+           // Center placeholder
+           NSLayoutConstraint.activate([
+               placeholderLabel.centerXAnchor.constraint(equalTo: remoteVideo.centerXAnchor),
+               placeholderLabel.centerYAnchor.constraint(equalTo: remoteVideo.centerYAnchor)
+           ])
+       }
    }
   
    private func removeCameraOffPlaceholder() {
        guard let remoteVideo = viewRemoteVideo else { return }
       
-       // Remove existing placeholder nếu có
-       remoteVideo.subviews.forEach { view in
-           if view.tag == 999 { // Tag để identify placeholder
-               view.removeFromSuperview()
+       DispatchQueue.main.async {
+           // Remove existing placeholder nếu có
+           remoteVideo.subviews.forEach { view in
+               if view.tag == 999 { // Tag để identify placeholder
+                   view.removeFromSuperview()
+               }
            }
        }
    }

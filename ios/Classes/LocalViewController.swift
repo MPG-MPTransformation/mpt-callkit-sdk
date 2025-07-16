@@ -141,64 +141,70 @@ class LocalViewController: UIViewController {
            return
        }
       
-       if isOn {
-           // Bật camera - hiển thị video
-           let result = sdk.displayLocalVideo(true,
-                                            mirror: mCameraDeviceId == 1,
-                                            localVideoWindow: localVideo)
-           print("[Debug] LocalViewController - Enable camera display result: \(result)")
-          
-           // Đảm bảo view hiển thị và xóa placeholder
-           localVideo.isHidden = false
-           localVideo.backgroundColor = UIColor.clear
-           removeCameraOffPlaceholder()
-       } else {
-           // Tắt camera - dừng video nhưng vẫn hiển thị view với background
-           let result = sdk.displayLocalVideo(false,
-                                            mirror: false,
-                                            localVideoWindow: nil)
-           print("[Debug] LocalViewController - Disable camera display result: \(result)")
-          
-           // Vẫn hiển thị view nhưng với background thay vì video
-           localVideo.isHidden = false
-           localVideo.backgroundColor = UIColor.darkGray
-          
-//           // Hiển thị placeholder báo camera tắt
-//           showCameraOffPlaceholder()
+       DispatchQueue.main.async {
+           if isOn {
+               // Bật camera - hiển thị video
+               let result = sdk.displayLocalVideo(true,
+                                                mirror: self.mCameraDeviceId == 1,
+                                                localVideoWindow: localVideo)
+               print("[Debug] LocalViewController - Enable camera display result: \(result)")
+              
+               // Đảm bảo view hiển thị và xóa placeholder
+               localVideo.isHidden = false
+               localVideo.backgroundColor = UIColor.clear
+               self.removeCameraOffPlaceholder()
+           } else {
+               // Tắt camera - dừng video nhưng vẫn hiển thị view với background
+               let result = sdk.displayLocalVideo(false,
+                                                mirror: false,
+                                                localVideoWindow: nil)
+               print("[Debug] LocalViewController - Disable camera display result: \(result)")
+              
+               // Vẫn hiển thị view nhưng với background thay vì video
+               localVideo.isHidden = false
+               localVideo.backgroundColor = UIColor.darkGray
+              
+//               // Hiển thị placeholder báo camera tắt
+//               self.showCameraOffPlaceholder()
+           }
        }
    }
   
    private func showCameraOffPlaceholder() {
        guard let localVideo = viewLocalVideo else { return }
       
-       // Remove existing placeholder nếu có
-       removeCameraOffPlaceholder()
-      
-       // Tạo placeholder label
-       let placeholderLabel = UILabel()
-       placeholderLabel.text = "Camera Off"
-       placeholderLabel.textColor = UIColor.white
-       placeholderLabel.textAlignment = .center
-       placeholderLabel.backgroundColor = UIColor.clear
-       placeholderLabel.tag = 998 // Tag để identify placeholder cho local view
-       placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
-      
-       localVideo.addSubview(placeholderLabel)
-      
-       // Center placeholder
-       NSLayoutConstraint.activate([
-           placeholderLabel.centerXAnchor.constraint(equalTo: localVideo.centerXAnchor),
-           placeholderLabel.centerYAnchor.constraint(equalTo: localVideo.centerYAnchor)
-       ])
+       DispatchQueue.main.async {
+           // Remove existing placeholder nếu có
+           self.removeCameraOffPlaceholder()
+          
+           // Tạo placeholder label
+           let placeholderLabel = UILabel()
+           placeholderLabel.text = "Camera Off"
+           placeholderLabel.textColor = UIColor.white
+           placeholderLabel.textAlignment = .center
+           placeholderLabel.backgroundColor = UIColor.clear
+           placeholderLabel.tag = 998 // Tag để identify placeholder cho local view
+           placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
+          
+           localVideo.addSubview(placeholderLabel)
+          
+           // Center placeholder
+           NSLayoutConstraint.activate([
+               placeholderLabel.centerXAnchor.constraint(equalTo: localVideo.centerXAnchor),
+               placeholderLabel.centerYAnchor.constraint(equalTo: localVideo.centerYAnchor)
+           ])
+       }
    }
   
    private func removeCameraOffPlaceholder() {
        guard let localVideo = viewLocalVideo else { return }
       
-       // Remove existing placeholder nếu có
-       localVideo.subviews.forEach { view in
-           if view.tag == 998 { // Tag để identify placeholder cho local view
-               view.removeFromSuperview()
+       DispatchQueue.main.async {
+           // Remove existing placeholder nếu có
+           localVideo.subviews.forEach { view in
+               if view.tag == 998 { // Tag để identify placeholder cho local view
+                   view.removeFromSuperview()
+               }
            }
        }
    }

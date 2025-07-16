@@ -630,7 +630,7 @@ class MptCallKitController {
         try {
           // Wait for registration result with timeout
           final registrationResult = await _guestRegistrationCompleter!.future
-              .timeout(const Duration(seconds: 10));
+              .timeout(const Duration(seconds: 20));
 
           if (registrationResult) {
             await MptCallKitControllerRepo().makeCallByGuest(

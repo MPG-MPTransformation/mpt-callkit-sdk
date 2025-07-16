@@ -397,6 +397,8 @@ public class PortSipService extends Service
                 MptCallkitPlugin.sendToFlutter("releaseExtension", true);
                 context.stopService(new Intent(this, PortSipService.class));
                 System.out.println("SDK-Android: service unregisterToServer done");
+                Engine.Instance().getMethodChannel().invokeMethod("registrationStateStream", false);
+                MptCallkitPlugin.sendToFlutter("registrationStateStream", false);
             } else if (ACTION_STOP.equals(intent.getAction())) {
                 return START_NOT_STICKY;
             } else if (ACTION_KEEP_ALIVE.equals(intent.getAction())) {
@@ -706,14 +708,10 @@ public class PortSipService extends Service
         CallManager.Instance().online = false;
         CallManager.Instance().isRegistered = false;
         CallManager.Instance().resetAll();
-
-
-        keepCpuRun(false);
-
-
-        // Send registration failure notification to Flutter
         Engine.Instance().getMethodChannel().invokeMethod("registrationStateStream", false);
         MptCallkitPlugin.sendToFlutter("registrationStateStream", false);
+
+        keepCpuRun(false);
     }
 
 
