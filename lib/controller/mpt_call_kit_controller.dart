@@ -124,6 +124,12 @@ class MptCallKitController {
       StreamController<bool>.broadcast();
   Stream<bool> get calleeAnsweredStream => _calleeAnsweredStream.stream;
 
+  /// SIP server connectivity stream
+  /// Returns response time in milliseconds, null if connection failed
+  final StreamController<int?> _sipPingStream =
+      StreamController<int?>.broadcast();
+  Stream<int?> get sipPingStream => _sipPingStream.stream;
+
   String? _currentSessionId = "";
   String? get currentSessionId => _currentSessionId;
 
@@ -157,6 +163,10 @@ class MptCallKitController {
   List<String>? get currentAvailableAudioDevices =>
       _currentAvailableAudioDevices;
 
+  /// Get current SIP connectivity check status
+  bool get isSipPinging => _isPinging;
+  String? get sipServerUrl => _sipServerUrl;
+
   // Track the last sent media status
   Map<String, dynamic>? _lastSentMediaStatus;
 
@@ -165,6 +175,11 @@ class MptCallKitController {
 
   // Add Completer for guest registration
   Completer<bool>? _guestRegistrationCompleter;
+
+  // SIP server connectivity check variables
+  Timer? _pingTimer;
+  String? _sipServerUrl;
+  bool _isPinging = false;
 
   ///
 
@@ -177,6 +192,13 @@ class MptCallKitController {
           _isOnline = call.arguments as bool;
           _onlineStatuslistener.add(call.arguments as bool);
           print("onlineStatus: ${call.arguments}");
+
+          // Handle SIP ping based on registration status
+          if (call.arguments as bool) {
+          } else {
+            // SIP registration failed - stop ping
+            stopSipPing();
+          }
         }
         if (call.method == 'callState') {
           _currentCallState = call.arguments as String;
@@ -394,8 +416,8 @@ class MptCallKitController {
           password: extensionData?.password ?? "",
           userDomain: extensionData?.domain ?? "",
           sipServer: extensionData?.sipServer ?? "",
-          // sipServerPort: extensionData?.port ?? 5060,
-          sipServerPort: 5063,
+          sipServerPort: extensionData?.port ?? 5063,
+          // sipServerPort: 5063,
           transportType: 0,
           pushToken: pushToken,
           appId: appId,
@@ -607,6 +629,9 @@ class MptCallKitController {
       };
 
       if (result != null) {
+        // Set extension data for guest call (needed for SIP ping)
+        extensionData = result;
+
         online(
           username: result.username ?? "",
           displayName: userPhoneNumber,
@@ -614,8 +639,8 @@ class MptCallKitController {
           password: result.password ?? "",
           userDomain: result.domain ?? "",
           sipServer: result.sipServer ?? "",
-          // sipServerPort: result.port ?? 5060,
-          sipServerPort: 5063,
+          sipServerPort: result.port ?? 5063,
+          // sipServerPort: 5063,
           transportType: 0,
           srtpType: 0,
           context: context,
@@ -623,6 +648,13 @@ class MptCallKitController {
           pushToken: pushToken,
           isMakeCallByGuest: true,
         );
+
+        // 🔧 FIX: Ensure no previous completer is pending
+        if (_guestRegistrationCompleter != null &&
+            !_guestRegistrationCompleter!.isCompleted) {
+          print('Cancelling previous guest registration attempt...');
+          _guestRegistrationCompleter!.complete(false);
+        }
 
         // Wait for SIP registration to complete
         _guestRegistrationCompleter = Completer<bool>();
@@ -648,7 +680,15 @@ class MptCallKitController {
         } catch (e) {
           print('Registration timeout or error: $e');
           onError?.call('Registration timeout');
+
+          // 🔧 FIX: Use helper method to cleanup state properly
+          await _cleanupGuestRegistrationState();
         } finally {
+          // Ensure completer is always cleaned up
+          if (_guestRegistrationCompleter != null &&
+              !_guestRegistrationCompleter!.isCompleted) {
+            _guestRegistrationCompleter!.complete(false);
+          }
           _guestRegistrationCompleter = null;
         }
       } else {
@@ -867,6 +907,10 @@ class MptCallKitController {
     this.isMakeCallByGuest = isMakeCallByGuest ?? false;
     print("isMakeCallByGuest: $isMakeCallByGuest");
 
+    print("sipServer: $sipServer");
+
+    startSipPing(sipServer);
+
     try {
       final hasPermission = await requestPermission(context);
       if (!hasPermission) {
@@ -958,39 +1002,6 @@ class MptCallKitController {
     );
   }
 
-  // Future<bool> callMethod({
-  //   required BuildContext context,
-  //   required String destination,
-  //   required bool isVideoCall,
-  //   Function(String?)? onError,
-  // }) async {
-  //   try {
-  //     final hasPermission = await requestPermission(context);
-  //     if (!hasPermission) {
-  //       onError?.call("Permission denied");
-  //       return false;
-  //     }
-  //     if (!isOnline) {
-  //       onError?.call("You need register to SIP server first");
-  //       return false;
-  //     } else {
-  //       final result = await channel.invokeMethod('call', {
-  //         'destination': destination,
-  //         'isVideoCall': isVideoCall,
-  //       });
-  //       if (result == false) {
-  //         onError?.call("Current line is busy");
-  //         return false;
-  //       } else {
-  //         return true;
-  //       }
-  //     }
-  //   } on PlatformException catch (e) {
-  //     debugPrint("Failed to call: '${e.message}'.");
-  //     return false;
-  //   }
-  // }
-
   Future<bool> changeAgentStatus({
     required int reasonCodeId,
     required String statusName,
@@ -1047,6 +1058,9 @@ class MptCallKitController {
   // Method do unregister from SIP server
   Future<bool> offline({Function(String?)? onError}) async {
     try {
+      // Stop SIP connectivity check when going offline
+      stopSipPing();
+
       // if (isOnline == false) {
       //   onError?.call("You need register to SIP server first");
       //   return false;
@@ -1473,6 +1487,13 @@ class MptCallKitController {
           case 'onlineStatus':
             _isOnline = data as bool;
             _onlineStatuslistener.add(data);
+
+            // Handle SIP ping based on registration status
+            if (data) {
+            } else {
+              // SIP registration failed - stop ping
+              stopSipPing();
+            }
             break;
           case 'callState':
             _currentCallState = data.toString();
@@ -1551,11 +1572,47 @@ class MptCallKitController {
     }
   }
 
+  // 🔧 FIX: Helper method to cleanup guest registration state safely
+  Future<void> _cleanupGuestRegistrationState() async {
+    try {
+      print('Cleaning up guest registration state...');
+
+      // Complete any pending completer
+      if (_guestRegistrationCompleter != null &&
+          !_guestRegistrationCompleter!.isCompleted) {
+        _guestRegistrationCompleter!.complete(false);
+      }
+      _guestRegistrationCompleter = null;
+
+      // Cleanup SIP state
+      await offline();
+
+      // Reset guest flag and extension data
+      isMakeCallByGuest = false;
+      extensionData = null;
+
+      // Small delay to ensure cleanup is complete
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      print('Guest registration state cleanup completed');
+    } catch (e) {
+      print('Error during guest registration cleanup: $e');
+    }
+  }
+
   // Dispose method to clean up resources
   void dispose() {
     _eventChannelSubscription?.cancel();
+
+    // 🔧 FIX: Use helper method for consistent cleanup
+    _cleanupGuestRegistrationState();
+
+    // Legacy cleanup (keeping for safety)
     _guestRegistrationCompleter?.complete(false);
     _guestRegistrationCompleter = null;
+
+    // Stop SIP connectivity check
+    stopSipPing();
 
     // Close all stream controllers
     _onlineStatuslistener.close();
@@ -1572,6 +1629,7 @@ class MptCallKitController {
     _localMicStateController.close();
     _remoteCamStateController.close();
     _remoteMicStateController.close();
+    _sipPingStream.close();
   }
 
   /// Ensure LocalView and RemoteView listeners are registered
@@ -1584,6 +1642,93 @@ class MptCallKitController {
       }
     } catch (e) {
       print('Error ensuring view listeners registered: $e');
+    }
+  }
+
+  /// Start checking SIP server connectivity to monitor connection quality
+  void startSipPing(String sipServerUrl,
+      {Duration interval = const Duration(seconds: 5)}) {
+    stopSipPing(); // Stop any existing connectivity check
+
+    _sipServerUrl = sipServerUrl;
+    _isPinging = true;
+
+    print('Starting SIP connectivity check to: $sipServerUrl');
+
+    _pingTimer = Timer.periodic(interval, (timer) async {
+      if (!_isPinging) {
+        timer.cancel();
+        return;
+      }
+
+      await _performPing();
+    });
+
+    // Perform initial check immediately
+    _performPing();
+  }
+
+  /// Stop checking SIP server connectivity
+  void stopSipPing() {
+    _isPinging = false;
+    _pingTimer?.cancel();
+    _pingTimer = null;
+    print('Stopped SIP connectivity check');
+  }
+
+  /// Perform a single ping to SIP server using TCP socket connection
+  Future<void> _performPing() async {
+    if (_sipServerUrl == null || _sipServerUrl!.isEmpty) {
+      return;
+    }
+
+    try {
+      final stopwatch = Stopwatch()..start();
+
+      // Parse host and port
+      String host = _sipServerUrl!;
+      int port = 5063; // Default SIP port
+
+      // Remove protocol prefix if exists
+      if (host.startsWith('http://')) {
+        host = host.substring(7);
+      } else if (host.startsWith('https://')) {
+        host = host.substring(8);
+      }
+
+      // Extract port if specified
+      if (host.contains(':')) {
+        final parts = host.split(':');
+        host = parts[0];
+        port = int.tryParse(parts[1]) ?? 5063;
+      }
+
+      // Try to connect to the host via TCP socket
+      final socket = await Socket.connect(
+        host,
+        port,
+        timeout: const Duration(seconds: 5),
+      );
+
+      stopwatch.stop();
+      final pingTime = stopwatch.elapsedMilliseconds;
+
+      // Close the socket immediately
+      await socket.close();
+
+      _sipPingStream.add(pingTime);
+      print(
+          'SIP connectivity check to $host:$port: ${pingTime}ms (TCP connection successful)');
+    } on SocketException catch (e) {
+      _sipPingStream.add(null);
+      if (e.message.contains('timed out')) {
+        print('SIP connectivity check to $_sipServerUrl timed out');
+      } else {
+        print('SIP connectivity check to $_sipServerUrl failed: ${e.message}');
+      }
+    } catch (e) {
+      _sipPingStream.add(null);
+      print('SIP connectivity check to $_sipServerUrl error: $e');
     }
   }
 
@@ -1700,9 +1845,19 @@ class MptCallKitController {
           if (isAnswered) {
             // Handle call answered logic
             print('Remote party answered the call');
+            updateVideoCall(isVideo: true);
             _calleeAnsweredStream.add(true);
           }
           break;
+
+        // case "isVideo":
+        //   final bool isVideo = value as bool;
+        //   print(
+        //       'Remote party send request reinvite video call state: $isVideo');
+        //   if (isVideo) {
+        //     updateVideoCall(isVideo: isVideo);
+        //   }
+        //   break;
 
         default:
           print('Unknown call state key: $key');

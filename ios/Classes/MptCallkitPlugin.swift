@@ -1494,7 +1494,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        }
    }
   
-  
    func onCloseCall(sessionId: CLong) {
        NSLog("onCloseCall")
        freeLine(sessionid: sessionId)
@@ -2131,7 +2130,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
     }
    
-       /**
+    /**
      * Helper method để lấy session ID và extension hiện tại
      */
     private func getCurrentSessionInfo() -> (String, String) {

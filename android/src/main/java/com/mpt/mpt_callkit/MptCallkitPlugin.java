@@ -278,7 +278,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 break;
             case "reInvite":
                 xSessionId = call.argument("sessionId");
-                boolean reinviteResult = reinviteSession(xSessionId);
+                // boolean reinviteResult = reinviteSession(xSessionId);
+                sendCustomMessage(xSessionId, currentUsername, "call_state", "isVideo", true);
+                boolean reinviteResult = true;
                 result.success(reinviteResult);
                 break;
             case "updateVideoCall":
