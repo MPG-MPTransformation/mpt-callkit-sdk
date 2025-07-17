@@ -72,6 +72,10 @@ class _CallPadState extends State<CallPad> {
   StreamSubscription<bool>? _remoteCamStateSubscription;
   StreamSubscription<bool>? _remoteMicStateSubscription;
 
+  // SIP ping subscription
+  StreamSubscription<int?>? _sipPingSubscription;
+  int? _pingTime;
+
   @override
   void initState() {
     super.initState();
@@ -92,9 +96,9 @@ class _CallPadState extends State<CallPad> {
                 CallEventSocketConstants.REJECT_CALL ||
             _callEventSocketData.state == CallEventSocketConstants.END_CALL) {
           Future.delayed(const Duration(milliseconds: 500), () {
-            if (widget.isGuest == false) {
-              MptCallKitController().leaveCallMediaRoomChannel();
-            }
+            // if (widget.isGuest == false) {
+            //   MptCallKitController().leaveCallMediaRoomChannel();
+            // }
 
             if (mounted) {
               _showCallEndedDialog(_callEventSocketData.state ?? "NONE");
@@ -112,9 +116,9 @@ class _CallPadState extends State<CallPad> {
         });
 
         if (_callState == CallStateConstants.CONNECTED) {
-          if (widget.isGuest == false) {
-            MptCallKitController().subscribeToMediaStatusChannel();
-          }
+          // if (widget.isGuest == false) {
+          //   MptCallKitController().subscribeToMediaStatusChannel();
+          // }
         }
 
         // show dialog when call ended
@@ -136,6 +140,7 @@ class _CallPadState extends State<CallPad> {
         setState(() {
           _isMuted = isActive; // true when microphone is off
           _localMicState = !isActive; // update local microphone state
+          print("local microphone state: $isActive");
         });
 
         // Update controller's microphone state
@@ -187,15 +192,6 @@ class _CallPadState extends State<CallPad> {
       }
     });
 
-    _localMicStateSubscription =
-        MptCallKitController().localMicStateStream.listen((state) {
-      if (mounted) {
-        setState(() {
-          _localMicState = state;
-        });
-      }
-    });
-
     _remoteCamStateSubscription =
         MptCallKitController().remoteCamStateStream.listen((state) {
       if (mounted) {
@@ -232,6 +228,16 @@ class _CallPadState extends State<CallPad> {
         });
       }
     });
+
+    // SIP ping listener
+    _sipPingSubscription =
+        MptCallKitController().sipPingStream.listen((pingTime) {
+      if (mounted) {
+        setState(() {
+          _pingTime = pingTime;
+        });
+      }
+    });
   }
 
   @override
@@ -250,6 +256,7 @@ class _CallPadState extends State<CallPad> {
         ?.cancel(); // Hủy subscription khi widget bị dispose
     _calleeAnswerSubscription?.cancel();
     _callEventSocketSubscription?.cancel();
+    _sipPingSubscription?.cancel();
     super.dispose();
   }
 
@@ -384,6 +391,20 @@ class _CallPadState extends State<CallPad> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      Text(
+                        'SIP Ping: ${_pingTime != null ? "${_pingTime}ms" : "Connecting..."}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: _pingTime != null
+                              ? (_pingTime! < 100
+                                  ? Colors.green
+                                  : _pingTime! < 300
+                                      ? Colors.orange
+                                      : Colors.red)
+                              : Colors.grey,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -476,9 +497,9 @@ class _CallPadState extends State<CallPad> {
         break;
       case 'hangup':
         MptCallKitController().hangup();
-        if (widget.isGuest == false) {
-          MptCallKitController().leaveCallMediaRoomChannel();
-        }
+        // if (widget.isGuest == false) {
+        //   MptCallKitController().leaveCallMediaRoomChannel();
+        // }
         break;
       case 'showAndroidCallKit':
         MptCallKitController().showAndroidCallKit();
@@ -589,9 +610,9 @@ class _CallPadState extends State<CallPad> {
             onPressed: () {
               // End call
               MptCallKitController().hangup();
-              if (widget.isGuest == false) {
-                MptCallKitController().leaveCallMediaRoomChannel();
-              }
+              // if (widget.isGuest == false) {
+              //   MptCallKitController().leaveCallMediaRoomChannel();
+              // }
 
               // Close dialog first
               Navigator.of(context).pop();

@@ -115,7 +115,8 @@ public class Engine {
         mEngine.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_VP9);
 
 
-        mEngine.setVideoBitrate(-1, 2048);
+        mEngine.setVideoBitrate(-1, 512);
+        // mEngine.setVideoBitrate(-1, 2048);
         mEngine.setVideoFrameRate(-1, 30);
         mEngine.setAudioSamples(20, 60);
 
@@ -145,7 +146,8 @@ public class Engine {
         mEngine.setReliableProvisional(0);
 
 
-        String resolution = "1080P";
+        String resolution = "720P";
+        // String resolution = "1080P";
         int width = 352;
         int height = 288;
         if (resolution.equals("QCIF")) {

@@ -120,7 +120,7 @@ public class LoginFragment extends BaseFragment
         etUsername.setText(sharedPreferences.getString(PortSipService.USER_NAME, null));
         etPassword.setText(sharedPreferences.getString(PortSipService.USER_PWD, null));
         etSipServer.setText(sharedPreferences.getString(PortSipService.SVR_HOST, null));
-        etSipServerPort.setText(sharedPreferences.getString(PortSipService.SVR_PORT, "5060"));
+        etSipServerPort.setText(sharedPreferences.getString(PortSipService.SVR_PORT, "5063"));
 
         etDisplayName.setText(sharedPreferences.getString(PortSipService.USER_DISPALYNAME, null));
         etUserDomain.setText(sharedPreferences.getString(PortSipService.USER_DOMAIN, null));

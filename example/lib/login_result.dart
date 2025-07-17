@@ -62,6 +62,8 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
             callEvent.state == CallEventSocketConstants.INIT) {
           _navigateToCallPad();
         }
+
+        if (callEvent.state == CallEventSocketConstants.ANSWER_CALL) {}
       }
     });
   }
@@ -145,7 +147,8 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
       password: extensionData.password!,
       userDomain: extensionData.domain!,
       sipServer: extensionData.sipServer!,
-      sipServerPort: extensionData.port ?? 5060,
+      sipServerPort: extensionData.port ?? 5063,
+      // sipServerPort: 5063,
       transportType: 0,
       onError: (p0) {
         ScaffoldMessenger.of(context).showSnackBar(

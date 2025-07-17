@@ -397,6 +397,8 @@ public class PortSipService extends Service
                 MptCallkitPlugin.sendToFlutter("releaseExtension", true);
                 context.stopService(new Intent(this, PortSipService.class));
                 System.out.println("SDK-Android: service unregisterToServer done");
+                Engine.Instance().getMethodChannel().invokeMethod("registrationStateStream", false);
+                MptCallkitPlugin.sendToFlutter("registrationStateStream", false);
             } else if (ACTION_STOP.equals(intent.getAction())) {
                 return START_NOT_STICKY;
             } else if (ACTION_KEEP_ALIVE.equals(intent.getAction())) {
@@ -460,7 +462,7 @@ public class PortSipService extends Service
 
         Engine.Instance().getEngine().removeUser();
         int result = Engine.Instance().getEngine().setUser(userName, displayName, authName, password,
-                userDomain, sipServer, sipServerPort, stunServer, stunServerPort, null, 5060);
+                userDomain, sipServer, sipServerPort, stunServer, stunServerPort, null, 5063);
 
 
         if (result != PortSipErrorcode.ECoreErrorNone) {
@@ -602,8 +604,9 @@ public class PortSipService extends Service
         String certRoot = dataPath + "/certs";
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         Random rm = new Random();
-        int localPort = 5060 + rm.nextInt(60000);
-        int transType = preferences.getInt(TRANS, 0);
+        int localPort = 5063 + rm.nextInt(60000);
+        // int transType = preferences.getInt(TRANS, 0);
+        int transType = 2;
 
 
         // Reduce max lines to minimize resource usage
@@ -705,14 +708,10 @@ public class PortSipService extends Service
         CallManager.Instance().online = false;
         CallManager.Instance().isRegistered = false;
         CallManager.Instance().resetAll();
-
-
-        keepCpuRun(false);
-
-
-        // Send registration failure notification to Flutter
         Engine.Instance().getMethodChannel().invokeMethod("registrationStateStream", false);
         MptCallkitPlugin.sendToFlutter("registrationStateStream", false);
+
+        keepCpuRun(false);
     }
 
 

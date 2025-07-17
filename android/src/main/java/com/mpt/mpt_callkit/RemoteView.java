@@ -196,9 +196,10 @@ public class RemoteView implements PlatformView {
                         remoteRenderVideoView.setVisibility(View.VISIBLE);
                     }
                     callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, null);
-                    if (cur.bScreenShare) {
-                        callManager.setShareVideoWindow(portSipLib, cur.sessionID, remoteRenderVideoView);
-                    }
+                    portSipLib.sendVideo(cur.sessionID, true);
+                    // if (cur.bScreenShare) {
+                    //     callManager.setShareVideoWindow(portSipLib, cur.sessionID, remoteRenderVideoView);
+                    // }
                 }
 
             } else {

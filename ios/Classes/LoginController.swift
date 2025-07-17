@@ -45,7 +45,7 @@ class LoginViewController {
             return
         }
         
-        let transport = TRANSPORT_UDP
+        let transport = TRANSPORT_TCP
         //        switch userData["transport"] {
         //        case "UDP":
         //            transport = TRANSPORT_UDP
@@ -102,9 +102,11 @@ class LoginViewController {
         portSIPSDK.addVideoCodec(VIDEO_CODEC_VP8);
         portSIPSDK.addVideoCodec(VIDEO_CODEC_VP9);
         
-        portSIPSDK.setVideoBitrate(-1, bitrateKbps: 2048) // Higher bitrate for better quality
+        portSIPSDK.setVideoBitrate(-1, bitrateKbps: 512) // Higher bitrate for better quality
+        // portSIPSDK.setVideoBitrate(-1, bitrateKbps: 2048) // Higher bitrate for better quality
         portSIPSDK.setVideoFrameRate(-1, frameRate: 30) // Higher frame rate for smoother video
-        portSIPSDK.setVideoResolution(1920, height: 1080) // 1080P resolution
+        portSIPSDK.setVideoResolution(1280, height: 720) // 1080P resolution
+        // portSIPSDK.setVideoResolution(1920, height: 1080) // 1080P resolution
         portSIPSDK.setAudioSamples(20, maxPtime: 60) // ptime 20
         
         // 1 - FrontCamra 0 - BackCamra
@@ -125,7 +127,7 @@ class LoginViewController {
         
         portSIPSDK.registerServer(90, retryTimes: 0)
         var sipURL: String
-        if sipServerPort == 5060 {
+        if sipServerPort == 5063 {
             sipURL = "sip:\(username):\(userDomain)"
         } else {
             sipURL = "sip:\(username):\(userDomain):\(String(describing: sipServerPort))"

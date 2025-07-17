@@ -650,7 +650,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   
    // Call Event
    public func onInviteIncoming(_ sessionId: Int, callerDisplayName: String!, caller: String!, calleeDisplayName: String!, callee: String!, audioCodecs: String!, videoCodecs: String!, existsAudio: Bool, existsVideo: Bool, sipMessage: String!) {
-       NSLog("onInviteIncoming...")
+       NSLog("onInviteIncoming - sessionId: \(sessionId) - callerDisplayName: \(String(describing: callerDisplayName)) - caller: \(String(describing: caller)) - calleeDisplayName: \(String(describing: calleeDisplayName)) - callee: \(String(describing: callee)) - audioCodecs: \(String(describing: audioCodecs)) - videoCodecs: \(String(describing: videoCodecs)) - existsAudio: \(existsAudio) - existsVideo: \(existsVideo) - sipMessage: \(String(describing: sipMessage))")
        self.activeSessionid = sessionId
        let num = _callManager.getConnectCallNum()
        let index = findIdleLine()
@@ -836,7 +836,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    }
   
    public func onInviteFailure(_ sessionId: Int, callerDisplayName: String!, caller: String!, calleeDisplayName: String!, callee: String!, reason: String!, code: Int32, sipMessage: String!) {
-       NSLog("onInviteFailure...")
+       NSLog("onInviteFailure - sessionId: \(sessionId) - callerDisplayName: \(String(describing: callerDisplayName)) - caller: \(String(describing: caller)) - calleeDisplayName: \(String(describing: calleeDisplayName)) - callee: \(String(describing: callee)) - reason: \(String(describing: reason)) - code: \(code) - sipMessage: \(String(describing: sipMessage))")
        if(sessionId==INVALID_SESSION_ID){
            NSLog("This is an invalidate session from \(caller!).reason=\(reason!)");
            return
@@ -890,48 +890,34 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   
     public func onInviteUpdated(_ sessionId: Int, audioCodecs: String!, videoCodecs: String!, screenCodecs: String!, existsAudio: Bool, existsVideo: Bool, existsScreen: Bool, sipMessage: String!) {
        guard let result = _callManager.findCallBySessionID(sessionId) else {
-           print("❌ onInviteUpdated... not found sessionId: \(sessionId)")
+           print("onInviteUpdated... not found sessionId: \(sessionId)")
            return
        }
         
         // 🔍 LOG: Session state BEFORE processing
-        NSLog("🔍 onInviteUpdated - BEFORE:")
-        NSLog("🔍   sessionId: \(sessionId)")
-        NSLog("🔍   result.session.sessionId: \(result.session.sessionId)")
-        NSLog("🔍   result.session.videoState: \(result.session.videoState)")
-        NSLog("🔍   result.session.videoMuted: \(result.session.videoMuted)")
-        NSLog("🔍   existsVideo: \(existsVideo)")
-        NSLog("🔍   existsAudio: \(existsAudio)")
-        NSLog("🔍   existsScreen: \(existsScreen)")
-        NSLog("🔍   audioCodecs: \(audioCodecs ?? "nil")")
-        NSLog("🔍   videoCodecs: \(videoCodecs ?? "nil")")
-        NSLog("🔍   screenCodecs: \(screenCodecs ?? "nil")")
+        NSLog("onInviteUpdated - sessionId: \(sessionId), audioCodecs: \(audioCodecs ?? ""), videoCodecs: \(videoCodecs ?? ""), screenCodecs: \(screenCodecs ?? ""), existsAudio: \(existsAudio), existsVideo: \(existsVideo), existsScreen: \(existsScreen), sipMessage: \(sipMessage ?? "")")
         
         // 🔍 LOG: Check condition
         let condition1 = result.session.videoState
         let condition2 = !existsVideo
         let condition3 = (videoCodecs?.isEmpty ?? true)
-        NSLog("🔍 onInviteUpdated - CHECK CONDITIONS:")
-        NSLog("🔍   condition1 (session.videoState): \(condition1)")
-        NSLog("🔍   condition2 (!existsVideo): \(condition2)")
-        NSLog("🔍   condition3 (videoCodecs.isEmpty): \(condition3)")
-        NSLog("🔍   ALL CONDITIONS: \(condition1 && condition2 && condition3)")
+        NSLog("onInviteUpdated - CHECK CONDITIONS: session.videoState - \(condition1), !existsVideo - \(condition2), videoCodecs.isEmpty - \(condition3)")
         
         if (result.session.videoState && !existsVideo && (videoCodecs?.isEmpty ?? true)){
-            NSLog("🔥 onInviteUpdated - ENTERING RE-SEND LOGIC!")
+            NSLog("onInviteUpdated - ENTERING RE-SEND LOGIC!")
             let sendVideoRes = portSIPSDK.sendVideo(result.session.sessionId, sendState: true)
-            NSLog("🔥 onInviteUpdated - re-sendVideo: \(sendVideoRes)")
+            NSLog("onInviteUpdated - re-sendVideo: \(sendVideoRes)")
             
             let updateRes = portSIPSDK.updateCall(result.session.sessionId, enableAudio: true, enableVideo: true)
-            NSLog("🔥 onInviteUpdated - re-updateCall: \(updateRes)")
+            NSLog("onInviteUpdated - re-updateCall: \(updateRes)")
         } else {
-            NSLog("🔍 onInviteUpdated - CONDITIONS NOT MET, skipping re-send logic")
+            NSLog("onInviteUpdated - CONDITIONS NOT MET, skipping re-send logic")
         }
        
        // 🔍 LOG: Session state BEFORE override
-       NSLog("🔍 onInviteUpdated - BEFORE OVERRIDE:")
-       NSLog("🔍   result.session.videoState: \(result.session.videoState)")
-       NSLog("🔍   result.session.videoMuted: \(result.session.videoMuted)")
+       NSLog("onInviteUpdated - BEFORE OVERRIDE: ")
+       NSLog("result.session.videoState: \(result.session.videoState)")
+       NSLog("result.session.videoMuted: \(result.session.videoMuted)")
        
        // Cập nhật trạng thái video
        result.session.videoState = existsVideo
@@ -939,9 +925,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        result.session.screenShare = existsScreen
        
        // 🔍 LOG: Session state AFTER override
-       NSLog("🔍 onInviteUpdated - AFTER OVERRIDE:")
-       NSLog("🔍   result.session.videoState: \(result.session.videoState)")
-       NSLog("🔍   result.session.videoMuted: \(result.session.videoMuted)")
+       NSLog("🔍 onInviteUpdated - AFTER OVERRIDE - result.session.videoState: \(result.session.videoState) - result.session.videoMuted: \(result.session.videoMuted)")
        
        // 🔥 ANDROID PATTERN: Send state notification instead of direct call
        let videoState = PortSIPVideoState(
@@ -952,11 +936,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        )
        PortSIPStateManager.shared.updateVideoState(videoState)
        
-       NSLog("🔍 onInviteUpdated - COMPLETE: The call has been updated on line \(result.index)")
+       NSLog("onInviteUpdated - COMPLETE: The call has been updated on line \(result.index)")
    }
 
    public func onInviteConnected(_ sessionId: Int) {
-       NSLog("onInviteConnected... sessionId: \(sessionId)")
+       NSLog("onInviteConnected - sessionId: \(sessionId)")
        guard let result = _callManager.findCallBySessionID(sessionId) else {
            return
        }
@@ -986,7 +970,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    }
   
    public func onInviteClosed(_ sessionId: Int, sipMessage: String) {
-       NSLog("onInviteClosed...")
+       NSLog("onInviteClosed - sessionId: \(sessionId), sipMessage: \(sipMessage)")
        let result = _callManager.findCallBySessionID(sessionId)
        if result != nil {
            _callManager.endCall(sessionid: sessionId)
@@ -1510,7 +1494,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        }
    }
   
-  
    func onCloseCall(sessionId: CLong) {
        NSLog("onCloseCall")
        freeLine(sessionid: sessionId)
@@ -1818,7 +1801,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   
   
    public func onRegisterSuccess(_ statusText: String!, statusCode: Int32, sipMessage: String!) {
-       NSLog("Status: \(String(describing: statusText)), Message: \(String(describing: sipMessage))")
+       NSLog("onRegisterSuccess Status: \(String(describing: statusText)), Message: \(String(describing: sipMessage))")
        sipRegistered = true
        methodChannel?.invokeMethod("onlineStatus", arguments: true)
        methodChannel?.invokeMethod("registrationStateStream", arguments: true)
@@ -1826,9 +1809,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    }
   
    public func onRegisterFailure(_ statusText: String!, statusCode: Int32, sipMessage: String!) {
-       NSLog("Status: \(String(describing: statusText)), Message: \(String(describing: sipMessage))")
+       NSLog("onRegisterFailure Status: \(String(describing: statusText)), Message: \(String(describing: sipMessage))")
        sipRegistered = false
        methodChannel?.invokeMethod("onlineStatus", arguments: false)
+       methodChannel?.invokeMethod("registrationStateStream", arguments: false)
     //    loginViewController.unRegister()
        NSLog("onRegisterFailure")
    }
@@ -1996,7 +1980,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
    // Gửi trạng thái microphone
    func sendMicrophoneStateToFlutter(_ isMuted: Bool) {
-       methodChannel?.invokeMethod("microphoneState", arguments: !isMuted)
+       methodChannel?.invokeMethod("microphoneState", arguments: isMuted)
        
        // Cập nhật state manager
        if activeSessionid != CLong(INVALID_SESSION_ID) {
@@ -2146,7 +2130,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
     }
    
-       /**
+    /**
      * Helper method để lấy session ID và extension hiện tại
      */
     private func getCurrentSessionInfo() -> (String, String) {
