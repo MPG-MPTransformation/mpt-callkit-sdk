@@ -9,7 +9,7 @@ import 'components/callkit_constants.dart';
 import 'login_method_view/login_sso.dart';
 
 class LoginMethod extends StatefulWidget {
-  const LoginMethod({Key? key}) : super(key: key);
+  const LoginMethod({super.key});
 
   @override
   State<LoginMethod> createState() => _LoginMethodState();
@@ -38,6 +38,7 @@ class _LoginMethodState extends State<LoginMethod> {
       baseUrl: CallkitConstants.BASE_URL,
       pushToken: Platform.isAndroid ? _fcmToken : null,
       appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
+      enableDebugLog: true,
     );
   }
 

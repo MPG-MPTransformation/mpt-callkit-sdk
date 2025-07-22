@@ -37,12 +37,10 @@ class LoginViewController {
     }
     
     
-    func onLine(username: String, displayName: String, authName: String, password: String, userDomain: String, sipServer: String, sipServerPort: Int32, transportType: Int, srtpType: Int)  {
+    func onLine(username: String, displayName: String, authName: String, password: String, userDomain: String, sipServer: String, sipServerPort: Int32, transportType: Int, srtpType: Int, enableDebugLog: Bool)  {
         
         if sipInitialized {
-            print("You already registered, go offline first!")
-            MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: true)
-            return
+            offLine()
         }
         
         let transport = TRANSPORT_TCP
@@ -71,7 +69,16 @@ class LoginViewController {
         let loaclIPaddress = "0.0.0.0"
         let appDelegate = MptCallkitPlugin.shared
         
-        let ret = portSIPSDK.initialize(transport, localIP: loaclIPaddress, localSIPPort: Int32(localPort), loglevel: PORTSIP_LOG_NONE, logPath: "", maxLine: 8, agent: "PortSIP SDK for IOS", audioDeviceLayer: 0, videoDeviceLayer: 0, tlsCertificatesRootPath: "", tlsCipherList: "", verifyTLSCertificate: false, dnsServers: "")
+        let logPath: String
+        if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first{
+            logPath = documentsDirectory.path
+        } else {
+            logPath = ""
+        }
+        
+        print("Initialize SDk with enableDebugLog \(enableDebugLog) - logPath \(logPath)")
+        
+        let ret = portSIPSDK.initialize(transport, localIP: loaclIPaddress, localSIPPort: Int32(localPort), loglevel: enableDebugLog ? PORTSIP_LOG_DEBUG : PORTSIP_LOG_NONE, logPath: enableDebugLog ? logPath : "", maxLine: 8, agent: "PortSIP SDK for IOS", audioDeviceLayer: 0, videoDeviceLayer: 0, tlsCertificatesRootPath: "", tlsCipherList: "", verifyTLSCertificate: false, dnsServers: "")
         
         if ret != 0 {
             print("Initialize failure ErrorCode = \(ret)")
@@ -153,9 +160,6 @@ class LoginViewController {
             sipInitialized = false
             sipRegistrationStatus = .LOGIN_STATUS_OFFLINE
             
-            // Thông báo về trạng thái offline
-            MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: false)
-            
             print("SIP Unregistered and Offline")
         }
         print("Offline and Unregistered")
@@ -203,7 +207,6 @@ class LoginViewController {
             var interval = TimeInterval(autoRegisterRetryTimes * 2 + 1)
             interval = min(interval, 60)
             autoRegisterRetryTimes += 1
-            
         }
     }
 }

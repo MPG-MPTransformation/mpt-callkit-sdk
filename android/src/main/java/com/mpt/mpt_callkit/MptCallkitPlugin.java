@@ -239,42 +239,35 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 String sipServerPort = call.argument("sipServerPort") + "";
                 String appId = call.argument("appId");
                 String pushToken = call.argument("pushToken");
+                Boolean enableDebugLog = call.argument("enableDebugLog");
 
                 // Lưu username hiện tại
                 currentUsername = username;
 
                 if (CallManager.Instance().online) {
-                    System.out.println("SDK-Android: Already online");
-                    Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", CallManager.Instance().online);
-                    MptCallkitPlugin.sendToFlutter("onlineStatus", CallManager.Instance().online);
-                } else {
-                    Intent onLineIntent = new Intent(activity, PortSipService.class);
-                    onLineIntent.setAction(PortSipService.ACTION_SIP_REGIEST);
-                    onLineIntent.putExtra("username", username);
-                    onLineIntent.putExtra("password", password);
-                    onLineIntent.putExtra("domain", userDomain);
-                    onLineIntent.putExtra("sipServer", sipServer);
-                    onLineIntent.putExtra("port", sipServerPort);
-                    onLineIntent.putExtra("displayName", displayName);
-                    onLineIntent.putExtra("transportType", transportType);
-                    onLineIntent.putExtra("srtpType", srtpType);
-                    onLineIntent.putExtra("appId", appId);
-                    onLineIntent.putExtra("pushToken", pushToken);
-                    PortSipService.startServiceCompatibility(context, onLineIntent);
-                    System.out.println("SDK-Android: RegisterServer..");
-                    pendingResult = result;
-                    // Set timeout handler
-                    new Handler().postDelayed(() -> {
-                        if (pendingResult != null) {
-                            pendingResult.success(false);
-                            Engine.Instance().getMethodChannel().invokeMethod("registerFailure",
-                                    "Request Timeout - 408 - SIP/2.0 408 Request Timeout");
-                            pendingResult = null;
-                            MptCallkitPlugin.sendToFlutter("registerFailure",
-                                    "Request Timeout - 408 - SIP/2.0 408 Request Timeout");
-                        }
-                    }, 30000); // 30 seconds timeout
+                    Intent kOffLineIntent = new Intent(activity, PortSipService.class);
+                    kOffLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
+                    PortSipService.startServiceCompatibility(activity, kOffLineIntent);
+                    System.out.println("SDK-Android: UnregisterServer..");
                 }
+
+                Intent onLineIntent = new Intent(activity, PortSipService.class);
+                onLineIntent.setAction(PortSipService.ACTION_SIP_REGIEST);
+                onLineIntent.putExtra("username", username);
+                onLineIntent.putExtra("password", password);
+                onLineIntent.putExtra("domain", userDomain);
+                onLineIntent.putExtra("sipServer", sipServer);
+                onLineIntent.putExtra("port", sipServerPort);
+                onLineIntent.putExtra("displayName", displayName);
+                onLineIntent.putExtra("transportType", transportType);
+                onLineIntent.putExtra("srtpType", srtpType);
+                onLineIntent.putExtra("appId", appId);
+                onLineIntent.putExtra("pushToken", pushToken);
+                onLineIntent.putExtra("enableDebugLog", enableDebugLog);
+                PortSipService.startServiceCompatibility(context, onLineIntent);
+                System.out.println("SDK-Android: RegisterServer..");
+
+                result.success(true);
                 break;
             case "reInvite":
                 xSessionId = call.argument("sessionId");

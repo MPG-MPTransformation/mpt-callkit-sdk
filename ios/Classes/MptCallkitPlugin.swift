@@ -1608,6 +1608,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
               let password = args["password"] as? String,
               let userDomain = args["userDomain"] as? String,
               let sipServer = args["sipServer"] as? String,
+              let enableDebugLog = args["enableDebugLog"] as? Bool,
               let sipServerPort = args["sipServerPort"] as? Int32 {
               
                // Lưu username hiện tại
@@ -1623,7 +1624,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                    sipServer: sipServer,
                    sipServerPort: sipServerPort,
                    transportType: 0,
-                   srtpType: 0
+                   srtpType: 0,
+                   enableDebugLog: enableDebugLog
                )
             //    result(loginViewController.sipInitialized)
                result(true)
