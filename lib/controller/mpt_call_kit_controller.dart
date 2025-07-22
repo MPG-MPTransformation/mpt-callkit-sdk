@@ -26,6 +26,7 @@ class MptCallKitController {
   bool? get isOnline => _isOnline;
   BuildContext? context;
   bool isMakeCallByGuest = false;
+  bool? enableDebugLog = false;
 
   static const MethodChannel channel = MethodChannel('mpt_callkit');
   static const eventChannel = EventChannel('native_events');
@@ -280,6 +281,7 @@ class MptCallKitController {
     String? baseUrl,
     String? pushToken,
     String? appId,
+    bool? enableDebugLog,
   }) async {
     this.apiKey = apiKey;
     this.baseUrl = baseUrl != null && baseUrl.isNotEmpty
@@ -287,7 +289,8 @@ class MptCallKitController {
         : "https://crm-dev-v2.metechvn.com";
     this.pushToken = pushToken ?? "";
     this.appId = appId ?? "";
-
+    this.enableDebugLog = enableDebugLog ?? false;
+    // this.enableDebugLog = true;
     print("init pushToken: $pushToken");
     print("init appId: $appId");
 
@@ -628,6 +631,8 @@ class MptCallKitController {
         "extraInfo": extraInfo,
       };
 
+      print("extension result: $result");
+
       if (result != null) {
         // Set extension data for guest call (needed for SIP ping)
         extensionData = result;
@@ -915,31 +920,31 @@ class MptCallKitController {
       final hasPermission = await requestPermission(context);
       if (!hasPermission) {
         onError?.call('Permission denied');
+        print("Permission denied");
         return false;
       }
-      if (isOnline == true) {
-        onError?.call("You already registered. Please unregister first!");
-        return false;
-      } else {
-        final bool result = await channel.invokeMethod(
-          MptCallKitConstants.login,
-          {
-            'username': username,
-            'displayName': displayName,
-            'authName': authName,
-            'password': password,
-            'userDomain': userDomain,
-            'sipServer': sipServer,
-            'sipServerPort': sipServerPort,
-            'transportType': transportType,
-            'srtpType': srtpType,
-            "pushToken": pushToken ?? "",
-            "appId": appId ?? "",
-          },
-        );
+      print("login");
+      final bool result = await channel.invokeMethod(
+        MptCallKitConstants.login,
+        {
+          'username': username,
+          'displayName': displayName,
+          'authName': authName,
+          'password': password,
+          'userDomain': userDomain,
+          'sipServer': sipServer,
+          'sipServerPort': sipServerPort,
+          'transportType': transportType,
+          'srtpType': srtpType,
+          "pushToken": pushToken ?? "",
+          "appId": appId ?? "",
+          "enableDebugLog": enableDebugLog ?? false,
+        },
+      );
 
-        return result;
-      }
+      print("login result: $result");
+
+      return result;
     } on PlatformException catch (e) {
       debugPrint("Login failed: ${e.message}");
       // if (Platform.isIOS) {
@@ -1567,7 +1572,7 @@ class MptCallKitController {
       print('SIP Registration successful for guest');
       _guestRegistrationCompleter?.complete(true);
     } else {
-      print('SIP Registration has failed');
+      print('SIP Registration has failed for guest');
       _guestRegistrationCompleter?.complete(false);
     }
   }

@@ -7,6 +7,9 @@ import com.portsip.PortSipEnumDefine;
 import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
 import io.flutter.plugin.common.MethodChannel;
 import android.content.Intent;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 
 public class Engine {
@@ -19,7 +22,14 @@ public class Engine {
     public boolean mUseFrontCamera = true;
     private PortMessageReceiver receiver;
     private MethodChannel channel;
+    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault());
 
+    /**
+     * Get formatted timestamp for logging
+     */
+    private static String getTimestamp() {
+        return dateFormat.format(new Date());
+    }
 
     public void setMethodChannel(MethodChannel obj) {
         channel = obj;
@@ -41,22 +51,22 @@ public class Engine {
             receiver.addPersistentListener(new PortMessageReceiver.BroadcastListener() {
                 @Override
                 public void onBroadcastReceiver(Intent intent) {
-                    System.out.println("SDK-Android: Engine - Persistent fallback listener handling broadcast");
+                    System.out.println("[" + getTimestamp() + "] SDK-Android: Engine - Persistent fallback listener handling broadcast");
                     if (intent != null) {
                         String action = intent.getAction();
-                        System.out.println("SDK-Android: Engine - Fallback handling action: " + action);
+                        System.out.println("[" + getTimestamp() + "] SDK-Android: Engine - Fallback handling action: " + action);
 
 
                         // Basic handling for critical actions
                         if ("PortSip.AndroidSample.Test.CallStatusChagnge".equals(action)) {
-                            System.out.println("SDK-Android: Engine - Fallback handling call status change");
+                            System.out.println("[" + getTimestamp() + "] SDK-Android: Engine - Fallback handling call status change");
                         } else if ("PortSip.AndroidSample.Test.RegisterStatusChagnge".equals(action)) {
-                            System.out.println("SDK-Android: Engine - Fallback handling register status change");
+                            System.out.println("[" + getTimestamp() + "] SDK-Android: Engine - Fallback handling register status change");
                         }
                     }
                 }
             }, "EngineFallback");
-            System.out.println("SDK-Android: Engine - Added persistent fallback listener to receiver, listeners info: "
+            System.out.println("[" + getTimestamp() + "] SDK-Android: Engine - Added persistent fallback listener to receiver, listeners info: "
                     + receiver.getListenersInfo());
         }
     }
@@ -72,8 +82,7 @@ public class Engine {
             // The getListenersCount() method already triggers cleanup
             int newCount = receiver.getListenersCount();
             if (oldCount != newCount) {
-                System.out.println(
-                        "SDK-Android: Engine - Cleaned up receiver, listeners: " + oldCount + " -> " + newCount);
+                System.out.println("[" + getTimestamp() + "] SDK-Android: Engine - Cleaned up receiver, listeners: " + oldCount + " -> " + newCount);
             }
         }
     }
