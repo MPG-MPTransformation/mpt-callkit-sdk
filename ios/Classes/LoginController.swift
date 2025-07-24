@@ -109,11 +109,11 @@ class LoginViewController {
         portSIPSDK.addVideoCodec(VIDEO_CODEC_VP8);
         portSIPSDK.addVideoCodec(VIDEO_CODEC_VP9);
         
-        portSIPSDK.setVideoBitrate(-1, bitrateKbps: 512) // Higher bitrate for better quality
-        // portSIPSDK.setVideoBitrate(-1, bitrateKbps: 2048) // Higher bitrate for better quality
+        // portSIPSDK.setVideoBitrate(-1, bitrateKbps: 512) // Higher bitrate for better quality
+        portSIPSDK.setVideoBitrate(-1, bitrateKbps: 2048) // Higher bitrate for better quality
         portSIPSDK.setVideoFrameRate(-1, frameRate: 30) // Higher frame rate for smoother video
-        portSIPSDK.setVideoResolution(1280, height: 720) // 1080P resolution
-        // portSIPSDK.setVideoResolution(1920, height: 1080) // 1080P resolution
+        // portSIPSDK.setVideoResolution(1280, height: 720) // 1080P resolution
+        portSIPSDK.setVideoResolution(1920, height: 1080) // 1080P resolution
         portSIPSDK.setAudioSamples(20, maxPtime: 60) // ptime 20
         
         // 1 - FrontCamra 0 - BackCamra
@@ -145,6 +145,8 @@ class LoginViewController {
     }
     
     func offLine() {
+        var unReg : Int32 = 1
+        
         if sipInitialized {
             // Hủy bỏ cuộc gọi đang diễn ra nếu có
             if let activeSessionId = MptCallkitPlugin.shared.activeSessionid,
@@ -155,14 +157,18 @@ class LoginViewController {
             }
             
             // Unregister và cleanup
-            portSIPSDK.unRegisterServer(90)
+            unReg = portSIPSDK.unRegisterServer(90)
             portSIPSDK.unInitialize()
             sipInitialized = false
             sipRegistrationStatus = .LOGIN_STATUS_OFFLINE
-            
+            if (unReg == 0){
+                print("Unregister success")
+                MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: false)
+            }
             print("SIP Unregistered and Offline")
         }
-        print("Offline and Unregistered")
+
+        print("Offline and Unregistered - unRegister: \(unReg)")
     }
     
     func refreshRegister() {
@@ -187,7 +193,7 @@ class LoginViewController {
             print("Force unregister SIP")
             offLine()
         }
-        // refreshRegister()
+         refreshRegister()
     }
     
     func onRegisterSuccess(statusText: String) {

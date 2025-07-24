@@ -244,12 +244,12 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 // Lưu username hiện tại
                 currentUsername = username;
 
-                if (CallManager.Instance().online) {
-                    Intent kOffLineIntent = new Intent(activity, PortSipService.class);
-                    kOffLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
-                    PortSipService.startServiceCompatibility(activity, kOffLineIntent);
-                    System.out.println("SDK-Android: UnregisterServer..");
-                }
+                // if (CallManager.Instance().online) {
+                //     Intent kOffLineIntent = new Intent(activity, PortSipService.class);
+                //     kOffLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
+                //     PortSipService.startServiceCompatibility(activity, kOffLineIntent);
+                //     System.out.println("SDK-Android: UnregisterServer..");
+                // }
 
                 Intent onLineIntent = new Intent(activity, PortSipService.class);
                 onLineIntent.setAction(PortSipService.ACTION_SIP_REGIEST);

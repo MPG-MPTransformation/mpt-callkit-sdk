@@ -268,6 +268,10 @@ class MptCallKitController {
           print('Received call message from native: ${call.arguments}');
           handleRecvCallMessage(call.arguments);
         }
+
+        if (call.method == 'onVideoRawCallback') {
+          print('Received onVideoRawCallback from native: ${call.arguments}');
+        }
       });
     }
   }
@@ -1553,6 +1557,9 @@ class MptCallKitController {
           case 'recvCallMessage':
             print('Received call message from native: $data');
             handleRecvCallMessage(data);
+            break;
+          case 'onVideoRawCallback':
+            print('Received onVideoRawCallback from native: $data');
             break;
           // case "releaseExtension":
           //   if (isMakeCallByGuest) {

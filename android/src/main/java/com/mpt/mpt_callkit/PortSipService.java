@@ -397,10 +397,10 @@ public class PortSipService extends Service
              * }else
              */
             if (ACTION_SIP_REGIEST.equals(intent.getAction())) {
-                if (!CallManager.Instance().online) {
+                // if (!CallManager.Instance().online) {
                     initialSDK(enableDebugLog);
                     registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
-                }
+                // }
             } else if (ACTION_SIP_UNREGIEST.equals(intent.getAction())) {
                 logWithTimestamp("SDK-Android: service is doing unregisterToServer...");
                 unregisterToServer();
@@ -442,7 +442,7 @@ public class PortSipService extends Service
         String stunServer = "";
         String stunPort = "3478";
 
-
+        logWithTimestamp("SDK-Android: registerToServer called");
         int sipServerPort = Integer.parseInt(serverPort);
         int stunServerPort = Integer.parseInt(stunPort);
 
@@ -614,7 +614,7 @@ public class PortSipService extends Service
 
     private int initialSDK(boolean enableDebugLog) {
         Engine.Instance().getEngine().setOnPortSIPEvent(this);
-        CallManager.Instance().online = true;
+        // CallManager.Instance().online = true;
         logWithTimestamp("SDK-Android: initialSDK - enableDebugLog: " + enableDebugLog);
 
         String dataPath = getExternalFilesDir(null).getAbsolutePath();
@@ -639,15 +639,15 @@ public class PortSipService extends Service
             showTipMessage("initialize failure ErrorCode = " + result);
             CallManager.Instance().resetAll();
         } else {
-            // // Set high quality video settings for 1080P
-            // Engine.Instance().getEngine().setVideoResolution(1920, 1080); // 1080P resolution
-            // Engine.Instance().getEngine().setVideoBitrate(-1, 2048); // Higher bitrate for better quality
-            // Engine.Instance().getEngine().setVideoFrameRate(-1, 30); // Higher frame rate for smoother video
+            // Set high quality video settings for 1080P
+            Engine.Instance().getEngine().setVideoResolution(1920, 1080); // 1080P resolution
+            Engine.Instance().getEngine().setVideoBitrate(-1, 2048); // Higher bitrate for better quality
+            Engine.Instance().getEngine().setVideoFrameRate(-1, 30); // Higher frame rate for smoother video
 
-            // Set video resolution to 720p
-            Engine.Instance().getEngine().setVideoResolution(1280, 720);
-            Engine.Instance().getEngine().setVideoBitrate(-1, 512);
-            Engine.Instance().getEngine().setVideoFrameRate(-1, 30);
+            // // Set video resolution to 720p
+            // Engine.Instance().getEngine().setVideoResolution(1280, 720);
+            // Engine.Instance().getEngine().setVideoBitrate(-1, 512);
+            // Engine.Instance().getEngine().setVideoFrameRate(-1, 30);
 
 
             result = Engine.Instance().getEngine().setLicenseKey("LicenseKey");
@@ -1578,7 +1578,8 @@ public class PortSipService extends Service
         sdk.setReliableProvisional(0);
 
 
-        String resolution = "720P";
+        // String resolution = "720P";
+        String resolution = "1080P";
         int width = 352;
         int height = 288;
         if (resolution.equals("QCIF")) {

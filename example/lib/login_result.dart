@@ -345,10 +345,10 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
                                     IconButton(
                                       onPressed: () {
                                         // Khi cần kết nối lại thủ công
-                                        if (!isSocketConnected) {
-                                          // Khởi tạo lại kết nối nếu cần
-                                          _initDataWhenLoginSuccess();
-                                        }
+                                        // if (!isSocketConnected) {
+                                        // Khởi tạo lại kết nối nếu cần
+                                        _initDataWhenLoginSuccess();
+                                        // }
                                       },
                                       icon: Icon(
                                         isSocketConnected
