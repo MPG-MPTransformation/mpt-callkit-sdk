@@ -324,7 +324,7 @@ class MptCallKitController {
       username: username,
       password: password,
       tenantId: tenantId,
-      baseUrl: baseUrl,
+      baseUrl: baseUrl ?? this.baseUrl,
       onError: onError,
       data: (e) {
         accessTokenResponse?.call(e["result"]["accessToken"]);
@@ -347,7 +347,7 @@ class MptCallKitController {
     var result = await MptCallkitAuthMethod().loginSSO(
       ssoToken: ssoToken,
       organization: organization,
-      baseUrl: baseUrl,
+      baseUrl: baseUrl ?? this.baseUrl,
       onError: onError,
       data: (e) {
         accessTokenResponse?.call(e["result"]["accessToken"]);
@@ -549,7 +549,7 @@ class MptCallKitController {
     required int cloudTenantId,
   }) async {
     var result = await MptCallkitAuthMethod().logout(
-      baseUrl: baseUrl,
+      baseUrl: baseUrl ?? this.baseUrl,
       onError: onError,
       cloudAgentName: cloudAgentName,
       cloudAgentId: cloudAgentId,
@@ -680,6 +680,7 @@ class MptCallKitController {
               destination: destination,
               authToken: apiKey,
               extraInfo: jsonEncode(extraInfoResult),
+              baseUrl: baseUrl,
               onError: onError,
             );
           } else {

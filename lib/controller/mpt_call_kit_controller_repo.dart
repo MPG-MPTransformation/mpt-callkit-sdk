@@ -289,6 +289,9 @@ class MptCallKitControllerRepo {
 
       print(
           "MptCallKitControllerRepo - makeCallByGuest - makeCallByGuest body: ${jsonEncode(body)}");
+      print("makeCallByGuest headers: ${jsonEncode(headers)}");
+      print(
+          "makeCallByGuest API: ${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$_makeCallByGuestAPI");
 
       final response = await http.post(
         Uri.parse(

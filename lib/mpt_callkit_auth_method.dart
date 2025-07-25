@@ -29,6 +29,10 @@ class MptCallkitAuthMethod {
     };
 
     bool status = false;
+
+    print("Login body: ${jsonEncode(body)}");
+    print(
+        "Login API: ${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$loginAPI");
     try {
       final response = await http.post(
         Uri.parse("${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$loginAPI"),
@@ -88,6 +92,10 @@ class MptCallkitAuthMethod {
       "partner_session": ssoToken,
       "partner_tenant": organization,
     };
+
+    print("Login SSO body: ${jsonEncode(body)}");
+    print(
+        "Login SSO API: ${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$loginSSOAPI");
 
     try {
       final response = await http.post(
