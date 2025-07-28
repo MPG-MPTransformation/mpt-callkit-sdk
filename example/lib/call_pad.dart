@@ -76,6 +76,10 @@ class _CallPadState extends State<CallPad> {
   StreamSubscription<int?>? _sipPingSubscription;
   int? _pingTime;
 
+  // is remote video received subscription
+  StreamSubscription<bool>? _isRemoteVideoReceivedSubscription;
+  bool _isRemoteVideoReceived = false;
+
   @override
   void initState() {
     super.initState();
@@ -238,6 +242,16 @@ class _CallPadState extends State<CallPad> {
         });
       }
     });
+
+    // is remote video received listener
+    _isRemoteVideoReceivedSubscription =
+        MptCallKitController().isRemoteVideoReceived.listen((isReceived) {
+      if (mounted) {
+        setState(() {
+          _isRemoteVideoReceived = isReceived;
+        });
+      }
+    });
   }
 
   @override
@@ -334,6 +348,13 @@ class _CallPadState extends State<CallPad> {
                 ),
                 Text(
                   'Current Audio Device: $_currentAudioDevice',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Is Remote Video Received: $_isRemoteVideoReceived',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

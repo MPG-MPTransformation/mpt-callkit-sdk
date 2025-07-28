@@ -194,6 +194,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    var phone: String = ""
    var displayName: String = ""
    var isVideoCall: Bool = false
+    var isRemoteVideoReceived: Bool = false
   
    var _VoIPPushToken: NSString!
    var _APNsPushToken: NSString!
@@ -701,6 +702,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        self.currentSessionid = portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "X-Session-Id")
 
        methodChannel?.invokeMethod("curr_sessionId", arguments: self.currentSessionid)
+       methodChannel?.invokeMethod("isRemoteVideoReceived", arguments: false)
+       self.isRemoteVideoReceived = false
        
        // Auto answer call
        if portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "Answer-Mode") == "Auto;require" {
@@ -886,6 +889,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        // Gửi trạng thái về Flutter
        sendCallStateToFlutter(.FAILED)
        methodChannel?.invokeMethod("callType", arguments: "ENDED")
+       methodChannel?.invokeMethod("isRemoteVideoReceived", arguments: false)
+       self.isRemoteVideoReceived = false
    }
   
     public func onInviteUpdated(_ sessionId: Int, audioCodecs: String!, videoCodecs: String!, screenCodecs: String!, existsAudio: Bool, existsVideo: Bool, existsScreen: Bool, sipMessage: String!) {
@@ -896,6 +901,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         
         // 🔍 LOG: Session state BEFORE processing
         NSLog("onInviteUpdated - sessionId: \(sessionId), audioCodecs: \(audioCodecs ?? ""), videoCodecs: \(videoCodecs ?? ""), screenCodecs: \(screenCodecs ?? ""), existsAudio: \(existsAudio), existsVideo: \(existsVideo), existsScreen: \(existsScreen), sipMessage: \(sipMessage ?? "")")
+        
+        if (existsVideo){
+            let strCallBack = portSIPSDK.enableVideoStreamCallback(sessionId, callbackMode: DIRECTION_RECV)
+            print("enableVideoStreamCallback result: \(strCallBack)")
+        }
         
         // 🔍 LOG: Check condition
         let condition1 = result.session.videoState
@@ -985,6 +995,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        // Gửi trạng thái về Flutter
        sendCallStateToFlutter(.CLOSED)
        methodChannel?.invokeMethod("callType", arguments: "ENDED")
+       methodChannel?.invokeMethod("isRemoteVideoReceived", arguments: false)
+       self.isRemoteVideoReceived = false
    }
   
    public func onDialogStateUpdated(_ BLFMonitoredUri: String!, blfDialogState BLFDialogState: String!, blfDialogId BLFDialogId: String!, blfDialogDirection BLFDialogDirection: String!) {
@@ -1253,6 +1265,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
       
        // Print some additional information
        print("Total data length: \(dataLength) bytes")
+       
+       if (self.isRemoteVideoReceived == false){
+           methodChannel?.invokeMethod("isRemoteVideoReceived", arguments: true)
+           self.isRemoteVideoReceived = true
+       }
       
        // Return 0 to indicate no further processing is done here
        return 0
@@ -1287,6 +1304,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   
    func hungUpCall() {
        NSLog("hungUpCall")
+       methodChannel?.invokeMethod("isRemoteVideoReceived", arguments: false)
+       self.isRemoteVideoReceived = false
        if activeSessionid != CLong(INVALID_SESSION_ID) {
            _ = mSoundService.stopRingTone()
            _ = mSoundService.stopRingBackTone()

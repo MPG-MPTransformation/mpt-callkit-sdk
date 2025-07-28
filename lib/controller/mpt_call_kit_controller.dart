@@ -72,6 +72,11 @@ class MptCallKitController {
       StreamController<String>.broadcast();
   Stream<String> get sessionId => _sessionId.stream;
 
+  /// is remote video received stream
+  final StreamController<bool> _isRemoteVideoReceived =
+      StreamController<bool>.broadcast();
+  Stream<bool> get isRemoteVideoReceived => _isRemoteVideoReceived.stream;
+
   /* -------------------------------------------------------------------------------
   current audio device stream
   1. Android 
@@ -271,6 +276,12 @@ class MptCallKitController {
 
         if (call.method == 'onVideoRawCallback') {
           print('Received onVideoRawCallback from native: ${call.arguments}');
+        }
+
+        if (call.method == 'isRemoteVideoReceived') {
+          print(
+              'Received isRemoteVideoReceived from native: ${call.arguments}');
+          _isRemoteVideoReceived.add(call.arguments as bool);
         }
       });
     }
@@ -1561,6 +1572,10 @@ class MptCallKitController {
             break;
           case 'onVideoRawCallback':
             print('Received onVideoRawCallback from native: $data');
+            break;
+          case 'isRemoteVideoReceived':
+            print('Received isRemoteVideoReceived from native: $data');
+            _isRemoteVideoReceived.add(data as bool);
             break;
           // case "releaseExtension":
           //   if (isMakeCallByGuest) {

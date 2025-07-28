@@ -528,6 +528,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     static void hangup() {
         Session currentLine = CallManager.Instance().getCurrentSession();
         Ring.getInstance(MainActivity.activity).stop();
+        MptCallkitPlugin.sendToFlutter("isRemoteVideoReceived", false);
 
         try {
             PortSipSdk engine = Engine.Instance().getEngine();
