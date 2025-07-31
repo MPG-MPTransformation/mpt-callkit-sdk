@@ -25,7 +25,8 @@ class LoginResultScreen extends StatefulWidget {
   State<LoginResultScreen> createState() => _LoginResultScreenState();
 }
 
-class _LoginResultScreenState extends State<LoginResultScreen> {
+class _LoginResultScreenState extends State<LoginResultScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _destinationController =
       TextEditingController(text: "10001");
   final TextEditingController _extraInfoController =
@@ -66,6 +67,21 @@ class _LoginResultScreenState extends State<LoginResultScreen> {
         if (callEvent.state == CallEventSocketConstants.ANSWER_CALL) {}
       }
     });
+
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    print("AppLifecycleState: $state");
+
+    if (state == AppLifecycleState.resumed) {
+      doRegister();
+    }
+
+    if (state == AppLifecycleState.paused) {
+      doUnregiter();
+    }
   }
 
   Future<void> _initDataWhenLoginSuccess() async {

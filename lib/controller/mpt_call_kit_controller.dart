@@ -194,6 +194,7 @@ class MptCallKitController {
       _setupEventChannelListener();
     } else {
       channel.setMethodCallHandler((call) async {
+        print("Received event from native: ${call.method}");
         if (call.method == 'onlineStatus') {
           _isOnline = call.arguments as bool;
           _onlineStatuslistener.add(call.arguments as bool);
@@ -215,13 +216,13 @@ class MptCallKitController {
           if (isMakeCallByGuest) {
             if (call.arguments == CallStateConstants.FAILED) {
               print("makeCallByGuest() - Call failed!");
-              offline();
+              offline(disablePushNoti: true);
               releaseExtension();
             }
 
             if (call.arguments == CallStateConstants.CLOSED) {
               print("makeCallByGuest() - Call ended!");
-              offline();
+              offline(disablePushNoti: true);
               releaseExtension();
             }
           }
@@ -579,7 +580,7 @@ class MptCallKitController {
     // Ngắt kết nối socket
     await MptSocketSocketServer.disconnect();
 
-    isLogoutAccountSuccess = await offline();
+    isLogoutAccountSuccess = await offline(disablePushNoti: true);
     // if (isOnline == true) {
     // } else {
     //   isLogoutAccountSuccess = true;
@@ -1077,7 +1078,10 @@ class MptCallKitController {
   }
 
   // Method do unregister from SIP server
-  Future<bool> offline({Function(String?)? onError}) async {
+  Future<bool> offline({
+    Function(String?)? onError,
+    bool disablePushNoti = false,
+  }) async {
     try {
       // Stop SIP connectivity check when going offline
       stopSipPing();
@@ -1086,7 +1090,9 @@ class MptCallKitController {
       //   onError?.call("You need register to SIP server first");
       //   return false;
       // } else {
-      var result = await channel.invokeMethod(MptCallKitConstants.offline);
+      var result = await channel.invokeMethod(MptCallKitConstants.offline, {
+        "disablePushNoti": disablePushNoti,
+      });
       return result;
       // }
     } on PlatformException catch (e) {
@@ -1525,13 +1531,13 @@ class MptCallKitController {
             if (isMakeCallByGuest) {
               if (data == CallStateConstants.FAILED) {
                 print("makeCallByGuest() - Call failed!");
-                offline();
+                offline(disablePushNoti: true);
                 releaseExtension();
               }
 
               if (data == CallStateConstants.CLOSED) {
                 print("makeCallByGuest() - Call ended!");
-                offline();
+                offline(disablePushNoti: true);
                 releaseExtension();
               }
             }
@@ -1613,7 +1619,7 @@ class MptCallKitController {
       _guestRegistrationCompleter = null;
 
       // Cleanup SIP state
-      await offline();
+      await offline(disablePushNoti: true);
 
       // Reset guest flag and extension data
       isMakeCallByGuest = false;

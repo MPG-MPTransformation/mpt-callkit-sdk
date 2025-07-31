@@ -51,7 +51,7 @@ class SoundService {
             options.remove(AVAudioSession.CategoryOptions.defaultToSpeaker)
         }
 
-        try! session.setCategory(AVAudioSession.Category(rawValue: convertFromAVAudioSessionCategory(AVAudioSession.Category.playAndRecord)), options: options)
+//        try! session.setCategory(AVAudioSession.Category(rawValue: convertFromAVAudioSessionCategory(AVAudioSession.Category.playAndRecord)), options: options)
         return true
     }
 

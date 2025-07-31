@@ -1646,7 +1646,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                    srtpType: 0,
                    enableDebugLog: enableDebugLog
                )
-            //    result(loginViewController.sipInitialized)
+
                result(true)
            } else {
                result(FlutterError(code: "INVALID_ARGUMENTS",
@@ -1674,6 +1674,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                                  details: nil))
            }
        case "Offline":
+           if let args = call.arguments as? [String: Any],
+              let disablePushNoti = args["disablePushNoti"] as? Bool {
+               addPushSupportWithPortPBX(!disablePushNoti)
+           }
+           
            self.loginViewController.offLine()
            result(true)
        case "hangup":

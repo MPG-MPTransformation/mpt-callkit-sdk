@@ -63,6 +63,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private static EventChannel.EventSink eventSink;
     private static String xSessionId;
     private static String currentUsername; // Lưu username hiện tại
+    private  String appId;
+    private  String pushToken;
 
     @Override
     public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
@@ -124,6 +126,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 result.success("Android " + android.os.Build.VERSION.RELEASE);
                 break;
             case "Offline":
+                boolean disablePushNoti = call.argument("disablePushNoti");
+                setPushNoti(disablePushNoti);
                 offLineIntent = new Intent(activity, PortSipService.class);
                 offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
                 PortSipService.startServiceCompatibility(activity, offLineIntent);
@@ -237,8 +241,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 String transportType = call.argument("transportType") + "";
                 String srtpType = call.argument("srtpType") + "";
                 String sipServerPort = call.argument("sipServerPort") + "";
-                String appId = call.argument("appId");
-                String pushToken = call.argument("pushToken");
+                this.appId = call.argument("appId");
+                this.pushToken = call.argument("pushToken");
                 Boolean enableDebugLog = call.argument("enableDebugLog");
 
                 // Lưu username hiện tại
@@ -904,5 +908,23 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                         : "empty_X_Session_Id";
         String extension = currentUsername != null ? currentUsername : "unknown";
         return new String[] { sessionId, extension };
+    }
+
+    private void setPushNoti(boolean disablePushNoti) {
+
+        String pushMessage = "device-os=android;device-uid=" + pushToken
+                + ";allow-call-push=" + !disablePushNoti + ";allow-message-push=" + !disablePushNoti
+                + ";app-id=" + appId;
+
+        System.out.println("SDK-Android: setPushNoti - pushMessage: " + pushMessage);
+
+        Engine.Instance().getEngine().addSipMessageHeader(-1, "REGISTER", 1, "X-Push", pushMessage);
+        if (disablePushNoti) {
+            // disable push noti
+            System.out.println("SDK-Android: Disable push noti");
+        } else {
+            // enable push noti
+            System.out.println("SDK-Android: Enable push noti");
+        }
     }
 }
