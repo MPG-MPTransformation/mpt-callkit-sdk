@@ -44,14 +44,18 @@ class SoundService {
     func speakerEnabled(_ enabled: Bool) -> Bool {
         let session = AVAudioSession.sharedInstance()
         var options = session.categoryOptions
-
+        
         if enabled {
             options.insert(AVAudioSession.CategoryOptions.defaultToSpeaker)
         } else {
             options.remove(AVAudioSession.CategoryOptions.defaultToSpeaker)
         }
-
-//        try! session.setCategory(AVAudioSession.Category(rawValue: convertFromAVAudioSessionCategory(AVAudioSession.Category.playAndRecord)), options: options)
+        
+        do {
+            try session.setCategory(AVAudioSession.Category(rawValue: convertFromAVAudioSessionCategory(AVAudioSession.Category.playAndRecord)), options: options)
+        } catch {
+            NSLog("Failed to set category: \(error.localizedDescription)")
+        }
         return true
     }
 

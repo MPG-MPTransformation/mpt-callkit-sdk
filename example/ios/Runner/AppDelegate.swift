@@ -49,8 +49,10 @@ import mpt_callkit
   
   // Thêm xử lý khi app sẽ terminate
   override func applicationWillTerminate(_ application: UIApplication) {
+    // Gọi method public để cleanup PortSIP SDK
+    MptCallkitPlugin.shared.cleanupOnTerminate()
+      
     super.applicationWillTerminate(application)
-    
   }
   
   // Thêm xử lý khi app enter background

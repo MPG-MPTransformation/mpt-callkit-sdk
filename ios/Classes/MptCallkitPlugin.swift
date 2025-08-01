@@ -162,6 +162,16 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    public func setAPNsPushToken(_ token: String) {
        _APNsPushToken = token as NSString
    }
+
+   public func cleanupOnTerminate() {
+       // Hang up call if exist call
+       if activeSessionid > 0 {
+           portSIPSDK.hangUp(activeSessionid)
+       }
+       
+       portSIPSDK.unRegisterServer(90)
+       Thread.sleep(forTimeInterval: 1.0)
+   }
    
    public static func register(with registrar: FlutterPluginRegistrar) {
        let channel = FlutterMethodChannel(name: "mpt_callkit", binaryMessenger: registrar.messenger())
@@ -476,7 +486,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
            loginViewController.refreshRegister()
            beginBackgroundRegister()
        }
-   }
+    }
   
    public func pushRegistry(_: PKPushRegistry, didUpdate pushCredentials: PKPushCredentials, for _: PKPushType) {
        var deviceTokenString = String()
@@ -607,45 +617,45 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   
    // MARK: - UIApplicationDelegate
   
-   public override func applicationDidEnterBackground(_: UIApplication) {
-       // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
-       // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
-      
-       if(_callManager.getConnectCallNum()>0){
-           return;
-       }
-       NSLog("applicationDidEnterBackground")
-       if _enableForceBackground! {
-           // Disable to save battery, or when you don't need incoming calls while APP is in background.
-           portSIPSDK.startKeepAwake()
-       } else {
-           loginViewController.unRegister()
-          
-           beginBackgroundRegister()
-       }
-       NSLog("applicationDidEnterBackground End")
-   }
+  public override func applicationDidEnterBackground(_: UIApplication) {
+      // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
+      // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+     
+      if(_callManager.getConnectCallNum()>0){
+          return;
+      }
+      NSLog("applicationDidEnterBackground")
+      if _enableForceBackground! {
+          // Disable to save battery, or when you don't need incoming calls while APP is in background.
+          portSIPSDK.startKeepAwake()
+      } else {
+          loginViewController.unRegister()
+         
+          beginBackgroundRegister()
+      }
+      NSLog("applicationDidEnterBackground End")
+  }
   
-   public override func applicationWillEnterForeground(_: UIApplication) {
-       // Called as part of the transition from the background to the inactive state; here you can undo many of the changes made on entering the background.
-       if _enableForceBackground! {
-           portSIPSDK.stopKeepAwake()
-       } else {
-           loginViewController.refreshRegister()
-       }
-   }
+  public override func applicationWillEnterForeground(_: UIApplication) {
+      // Called as part of the transition from the background to the inactive state; here you can undo many of the changes made on entering the background.
+      if _enableForceBackground! {
+          portSIPSDK.stopKeepAwake()
+      } else {
+          loginViewController.refreshRegister()
+      }
+  }
   
-   public override func applicationWillTerminate(_: UIApplication) {
-       // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
-       print("applicationWillTerminate")
-       if _enablePushNotification! {
-           portSIPSDK.unRegisterServer(90);
-          
-           Thread.sleep(forTimeInterval: 1.0)
-          
-           print("applicationWillTerminate")
-       }
-   }
+  public override func applicationWillTerminate(_: UIApplication) {
+      // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
+      print("applicationWillTerminate")
+      if _enablePushNotification! {
+          portSIPSDK.unRegisterServer(90);
+         
+          Thread.sleep(forTimeInterval: 1.0)
+         
+          print("applicationWillTerminate")
+      }
+  }
   
    // PortSIPEventDelegate
   
@@ -1402,6 +1412,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
    func switchSessionLine() {
       
    }
+    
+    public func playRingBackTone() {
+        mSoundService.playRingBackTone()
+    }
   
    //    #pragma mark - CallManager delegate
   
