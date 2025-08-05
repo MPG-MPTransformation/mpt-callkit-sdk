@@ -61,12 +61,21 @@ class RemoteView: NSObject, FlutterPlatformView {
   
    deinit {
        print("RemoteView - deinit: View is being destroyed")
-       // Thông báo cho plugin biết remote view bị destroyed
-       NotificationCenter.default.post(name: NSNotification.Name("RemoteViewDestroyed"), object: nil)
+       
+       // Fix: Ensure cleanup happens on main thread to prevent warnings
+       DispatchQueue.main.async {
+           // Thông báo cho plugin biết remote view bị destroyed
+           NotificationCenter.default.post(name: NSNotification.Name("RemoteViewDestroyed"), object: nil)
+           
+           print("RemoteView - Posted RemoteViewDestroyed notification")
+       }
       
        // SAFE cleanup: Chỉ cleanup view controller riêng của platform view này
        // Không ảnh hưởng đến shared view controllers
        if let remoteVC = remoteViewController {
+           // Fix: Dismiss keyboard input to prevent RTIInputSystemClient warnings
+           remoteVC.view.endEditing(true)
+           
            // Chỉ remove khỏi parent nếu nó thực sự là child
            if remoteVC.parent != nil {
                remoteVC.removeFromParent()
@@ -78,14 +87,24 @@ class RemoteView: NSObject, FlutterPlatformView {
            // Cleanup video để tránh memory leak
            remoteVC.cleanupVideo()
        }
-      
-       print("RemoteView - Posted RemoteViewDestroyed notification")
    }
   
    func createNativeView(view _view: UIView, arguments args: Any?, remoteViewController: RemoteViewController) {
        print("RemoteViewFactory - Creating native view")
       
-       let keyWindow = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) ?? UIApplication.shared.windows.first
+       // Fix: Use modern window access pattern for iOS 13+
+       let keyWindow: UIWindow?
+       if #available(iOS 13.0, *) {
+           keyWindow = UIApplication.shared.connectedScenes
+               .compactMap { $0 as? UIWindowScene }
+               .flatMap { $0.windows }
+               .first(where: { $0.isKeyWindow }) ?? UIApplication.shared.connectedScenes
+               .compactMap { $0 as? UIWindowScene }
+               .flatMap { $0.windows }
+               .first
+       } else {
+           keyWindow = UIApplication.shared.keyWindow
+       }
        let topController = keyWindow?.rootViewController
        let flutterView = remoteViewController
       

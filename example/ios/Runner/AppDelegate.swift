@@ -56,8 +56,16 @@ import mpt_callkit
   }
   
   // Thêm xử lý khi app enter background
+
   override func applicationDidEnterBackground(_ application: UIApplication) {
+    MptCallkitPlugin.shared.didEnterBackground()
     super.applicationDidEnterBackground(application)
+    
+  }
+
+  override func applicationWillEnterForeground(_ application: UIApplication) {
+    MptCallkitPlugin.shared.willEnterForeground()
+    super.applicationWillEnterForeground(application)
     
   }
 }

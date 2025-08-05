@@ -27,6 +27,8 @@ class MptCallKitController {
   BuildContext? context;
   bool isMakeCallByGuest = false;
   bool? enableDebugLog = false;
+  //hard code until have correct
+  String localizedCallerName = "";
 
   static const MethodChannel channel = MethodChannel('mpt_callkit');
   static const eventChannel = EventChannel('native_events');
@@ -298,6 +300,7 @@ class MptCallKitController {
     String? pushToken,
     String? appId,
     bool? enableDebugLog,
+    String? localizedCallerName,
   }) async {
     this.apiKey = apiKey;
     this.baseUrl = baseUrl != null && baseUrl.isNotEmpty
@@ -306,6 +309,7 @@ class MptCallKitController {
     this.pushToken = pushToken ?? "";
     this.appId = appId ?? "";
     this.enableDebugLog = enableDebugLog ?? false;
+    this.localizedCallerName = localizedCallerName ?? "Omicx call";
     // this.enableDebugLog = true;
     print("init pushToken: $pushToken");
     print("init appId: $appId");
@@ -925,6 +929,7 @@ class MptCallKitController {
     String? pushToken,
     String? appId,
     bool? isMakeCallByGuest = false,
+    // required String localizedCallerName,
   }) async {
     this.isMakeCallByGuest = isMakeCallByGuest ?? false;
     print("isMakeCallByGuest: $isMakeCallByGuest");
@@ -956,6 +961,7 @@ class MptCallKitController {
           "pushToken": pushToken ?? "",
           "appId": appId ?? "",
           "enableDebugLog": enableDebugLog ?? false,
+          "localizedCallerName": localizedCallerName,
         },
       );
 

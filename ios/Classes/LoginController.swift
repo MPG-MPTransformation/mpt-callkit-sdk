@@ -39,9 +39,9 @@ class LoginViewController {
     
     func onLine(username: String, displayName: String, authName: String, password: String, userDomain: String, sipServer: String, sipServerPort: Int32, transportType: Int, srtpType: Int, enableDebugLog: Bool)  {
         
-        if sipInitialized {
-            offLine()
-        }
+//        if sipInitialized {
+//            offLine()
+//        }
         
         let transport = TRANSPORT_TCP
         //        switch userData["transport"] {
@@ -172,8 +172,11 @@ class LoginViewController {
     }
     
     func refreshRegister() {
+        
+        print("refreshRegister: \(sipRegistrationStatus)")
         switch sipRegistrationStatus {
         case .LOGIN_STATUS_OFFLINE:
+            //Not register
             break
         case .LOGIN_STATUS_LOGIN:
             break

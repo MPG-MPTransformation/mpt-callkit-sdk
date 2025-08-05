@@ -38,6 +38,8 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   var tokenExpired = false;
   String? _currentAgentStatus;
 
+  bool isOnCall = false;
+
   @override
   void initState() {
     super.initState();
@@ -47,14 +49,16 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       }
     });
 
-    // /* Route to CallPad if call session established */
-    // _callTypeSubscription = MptCallKitController().callType.listen((type) {
-    //   if ((type == CallTypeConstants.INCOMING_CALL ||
-    //           type == CallTypeConstants.OUTGOING_CALL) &&
-    //       mounted) {
-    //     _navigateToCallPad();
-    //   }
-    // });
+    /* Route to CallPad if call session established */
+    _callTypeSubscription = MptCallKitController().callEvent.listen((type) {
+      print("MptCallKitController().callEvent: $type");
+      if (type == CallStateConstants.INCOMING ||
+          type == CallStateConstants.CONNECTED) {
+        isOnCall = true;
+      } else {
+        isOnCall = false;
+      }
+    });
 
     _callEventSocketSubscription =
         MptSocketSocketServer.callEvent.listen((callEvent) {
@@ -75,12 +79,8 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     print("AppLifecycleState: $state");
 
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed && isOnCall == false) {
       doRegister();
-    }
-
-    if (state == AppLifecycleState.paused) {
-      doUnregiter();
     }
   }
 

@@ -36,7 +36,7 @@ class CallManager: NSObject {
             return _enableCallKit
         }
     }
-
+    
     var isConference: Bool = false
     var _playDTMFTone: Bool = true
 
@@ -85,7 +85,7 @@ class CallManager: NSObject {
         }
     }
 
-    func reportOutgoingCall(number: String, uuid: UUID, video: Bool = false) {
+    func reportOutgoingCall(number: String, uuid: UUID, video: Bool = true) {
         if #available(iOS 10.0, *) {
             let handle = CXHandle(type: .generic, value: number)
 
@@ -102,6 +102,9 @@ class CallManager: NSObject {
                 } else {
                     print("Requested transaction successfully")
                 }
+            }
+            if let result = findCallByUUID(uuid: uuid), result.session.sessionState {
+                PortCxProvider.shareInstance.cxprovider.reportOutgoingCall(with: uuid, connectedAt: Date())
             }
         }
     }
@@ -151,8 +154,8 @@ class CallManager: NSObject {
             guard let result = findCallByUUID(uuid: uuid) else {
                 return
             }
-            let sesion = result.session as Session
-            let endCallAction = CXEndCallAction(call: sesion.uuid)
+            let session = result.session as Session
+            let endCallAction = CXEndCallAction(call: session.uuid)
             let transaction = CXTransaction()
             transaction.addAction(endCallAction)
             let callController = CXCallController()
@@ -290,7 +293,7 @@ class CallManager: NSObject {
         return sessionid
     }
 
-    func incomingCall(sessionid: CLong, existsVideo: Bool, remoteParty: String, remoteDisplayName: String, callUUID: UUID, completionHandle _: () -> Void) {
+    func incomingCall(sessionid: CLong, existsVideo: Bool, remoteParty: String, callUUID: UUID, completionHandle _: () -> Void) {
         var session: Session
         let result = findCallByUUID(uuid: callUUID)
         if result != nil {
@@ -312,13 +315,13 @@ class CallManager: NSObject {
 
             _ = addCall(call: session)
 
-            if _enableCallKit {
-                if #available(iOS 10.0, *) {
-                    reportInComingCall(uuid: session.uuid, hasVideo: existsVideo, from: remoteParty)
-                }
-            } else {
-                delegate?.onIncomingCallWithoutCallKit(sessionid, existsVideo: existsVideo, remoteParty: remoteParty, remoteDisplayName: remoteDisplayName)
-            }
+//            if _enableCallKit {
+//                if #available(iOS 10.0, *) {
+//                    reportInComingCall(uuid: session.uuid, hasVideo: existsVideo, from: remoteParty)
+//                }
+//            } else {
+//                delegate?.onIncomingCallWithoutCallKit(sessionid, existsVideo: existsVideo, remoteParty: remoteParty, remoteDisplayName: remoteDisplayName)
+//            }
         }
     }
 

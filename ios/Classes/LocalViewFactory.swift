@@ -61,12 +61,21 @@ class LocalView: NSObject, FlutterPlatformView {
   
    deinit {
        print("LocalView - deinit: View is being destroyed")
-       // Thông báo cho plugin biết local view bị destroyed
-       NotificationCenter.default.post(name: NSNotification.Name("LocalViewDestroyed"), object: nil)
+       
+       // Fix: Ensure cleanup happens on main thread to prevent warnings
+       DispatchQueue.main.async {
+           // Thông báo cho plugin biết local view bị destroyed
+           NotificationCenter.default.post(name: NSNotification.Name("LocalViewDestroyed"), object: nil)
+           
+           print("LocalView - Posted LocalViewDestroyed notification")
+       }
       
        // SAFE cleanup: Chỉ cleanup view controller riêng của platform view này
        // Không ảnh hưởng đến shared view controllers
        if let localVC = localViewController {
+           // Fix: Dismiss keyboard input to prevent RTIInputSystemClient warnings
+           localVC.view.endEditing(true)
+           
            // Chỉ remove khỏi parent nếu nó thực sự là child
            if localVC.parent != nil {
                localVC.removeFromParent()
@@ -78,14 +87,24 @@ class LocalView: NSObject, FlutterPlatformView {
            // Cleanup video để tránh memory leak
            localVC.cleanupVideo()
        }
-      
-       print("LocalView - Posted LocalViewDestroyed notification")
    }
   
    func createNativeView(view _view: UIView, arguments args: Any?, localViewController: LocalViewController) {
        print("LocalViewFactory - Creating native view")
       
-       let keyWindow = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) ?? UIApplication.shared.windows.first
+       // Fix: Use modern window access pattern for iOS 13+
+       let keyWindow: UIWindow?
+       if #available(iOS 13.0, *) {
+           keyWindow = UIApplication.shared.connectedScenes
+               .compactMap { $0 as? UIWindowScene }
+               .flatMap { $0.windows }
+               .first(where: { $0.isKeyWindow }) ?? UIApplication.shared.connectedScenes
+               .compactMap { $0 as? UIWindowScene }
+               .flatMap { $0.windows }
+               .first
+       } else {
+           keyWindow = UIApplication.shared.keyWindow
+       }
        let topController = keyWindow?.rootViewController
        let flutterView = localViewController
       

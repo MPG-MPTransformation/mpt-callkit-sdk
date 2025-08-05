@@ -51,8 +51,20 @@ class FLNativeView: NSObject, FlutterPlatformView {
     }
 
     func createNativeView(view _view: UIView, arguments args: Any?, videoViewController: VideoViewController) {
-        let keyWindow = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) ?? UIApplication.shared.windows.first
-        let topController = keyWindow?.rootViewController
+               // Fix: Use modern window access pattern for iOS 13+
+       let keyWindow: UIWindow?
+       if #available(iOS 13.0, *) {
+           keyWindow = UIApplication.shared.connectedScenes
+               .compactMap { $0 as? UIWindowScene }
+               .flatMap { $0.windows }
+               .first(where: { $0.isKeyWindow }) ?? UIApplication.shared.connectedScenes
+               .compactMap { $0 as? UIWindowScene }
+               .flatMap { $0.windows }
+               .first
+       } else {
+           keyWindow = UIApplication.shared.keyWindow
+       }
+       let topController = keyWindow?.rootViewController
         let flutterView = videoViewController
         
         let view = flutterView.view

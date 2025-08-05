@@ -548,13 +548,24 @@ class VideoViewController: UIViewController {
         // Add a custom action
         let customAction = UIAlertAction(title: "OK", style: .destructive) { [weak self] action in
             guard let self = self else { return }
+            
+            // Fix: Properly dismiss keyboard and end editing to prevent RTIInputSystemClient warnings
+            self.view.endEditing(true)
+            
             self.onClearState()
-            MptCallkitPlugin.shared.hungUpCall()
+            MptCallkitPlugin.shared.hangUpCall()
             MptCallkitPlugin.shared.loginViewController.unRegister()
-            self.dismiss(animated: true, completion: nil)
+            
+            // Fix: Add delay to ensure cleanup completes before dismissal
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.dismiss(animated: true, completion: nil)
+            }
         }
         alert.addAction(customAction)
-        present(alert, animated: true, completion: nil)
+        // Fix: Only present alert if view controller is in window hierarchy
+        if view.window != nil && presentedViewController == nil {
+            present(alert, animated: true, completion: nil)
+        }
     }
     
     @objc func onSwitchCameraClick(_ sender: AnyObject) {
@@ -791,16 +802,30 @@ class VideoViewController: UIViewController {
     
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
+        
+        // Fix: Dismiss keyboard before rotation to prevent RTIInputSystemClient warnings
+        view.endEditing(true)
+        
         coordinator.animate(alongsideTransition: { _ in
-            self.updateLocalVideoPosition(size)
+            // Fix: Only update video position if view is still in window hierarchy
+            if self.view.window != nil {
+                self.updateLocalVideoPosition(size)
+            }
         })
     }
     
     @objc func hangup(_ sender: AnyObject) {
-        MptCallkitPlugin.shared.hungUpCall()
+        // Fix: Properly dismiss keyboard and end editing to prevent RTIInputSystemClient warnings
+        view.endEditing(true)
+        
+        MptCallkitPlugin.shared.hangUpCall()
         MptCallkitPlugin.shared.loginViewController.unRegister()
         onClearState()
-        self.dismiss(animated: true, completion: nil)
+        
+        // Fix: Add delay to ensure cleanup completes before dismissal
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.dismiss(animated: true, completion: nil)
+        }
     }
     
     func initializeVideoViews() {
