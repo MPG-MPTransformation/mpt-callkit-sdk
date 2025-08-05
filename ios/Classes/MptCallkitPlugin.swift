@@ -1800,6 +1800,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             if line >= 0 {
                 didSelectLine(line)
             }
+            
+            let sessionInfo = getCurrentSessionInfo()
+            sendCustomMessage(
+                callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
+                type: "call_state", payloadKey: "answered", payloadValue: true)
         }
 
         _ = mSoundService.stopRingTone()
@@ -2225,10 +2230,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 if answerRes == true {
                     //Notice to remote
                     if !isAutoAnswer {
-                        let sessionInfo = getCurrentSessionInfo()
-                        sendCustomMessage(
-                            callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
-                            type: "call_state", payloadKey: "answered", payloadValue: true)
+//                        let sessionInfo = getCurrentSessionInfo()
+//                        sendCustomMessage(
+//                            callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
+//                            type: "call_state", payloadKey: "answered", payloadValue: true)
                     }
 
                     NSLog(
