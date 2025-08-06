@@ -44,6 +44,8 @@ dependencies:
   firebase_messaging: ^15.2.6
   flutter_local_notifications: ^19.2.1
   shared_preferences: ^2.5.3
+  flutter_callkit_incoming: ^2.5.8
+  uuid: ^4.5.1
 
 dev_dependencies:
   flutter_test:

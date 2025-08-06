@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:example/services/callkit_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
@@ -53,10 +54,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       */
 
     if (message.data['msg_title'] == "Received a new call.") {
-      await PushNotifications.showSimpleNotification(
-          title: message.data['msg_title'] ?? "Thông báo mới",
-          body: message.data['msg_content'] ?? "Nhấn để xem chi tiết",
-          payload: message.data.toString());
+      await CallKitService.showCallkitIncoming(
+        callerName: message.data['msg_title'] ?? "Thông báo mới",
+        callerNumber: message.data['msg_content'] ?? "Nhấn để xem chi tiết",
+      );
+      // await PushNotifications.showSimpleNotification(
+      //     title: message.data['msg_title'] ?? "Thông báo mới",
+      //     body: message.data['msg_content'] ?? "Nhấn để xem chi tiết",
+      //     payload: message.data.toString());
     }
   } catch (e) {
     print('Error in background handler: $e');
