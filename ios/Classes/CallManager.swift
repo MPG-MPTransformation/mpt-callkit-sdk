@@ -331,7 +331,7 @@ class CallManager: NSObject {
         }
         if _enableCallKit {
             result.session.videoState = isVideo
-            reportAnswerCall(uuid: result.session.uuid)
+                reportAnswerCall(uuid: result.session.uuid)
             return true
         } else {
             return answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo)

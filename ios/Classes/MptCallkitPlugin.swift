@@ -238,6 +238,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     var xSessionIdRecv: String = ""
     var currentUsername: String = ""  // Lưu username hiện tại
     var currentRemoteName: String = ""
+    var currentLocalizedCallerName: String = ""  // Lưu localizedCallerName
     var currentUUID: UUID? = UUID()
 
     var _enablePushNotification: Bool?
@@ -300,6 +301,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         let enableCallKit = UserDefaults.standard.bool(forKey: "CallKit")
         _enablePushNotification = UserDefaults.standard.bool(forKey: "PushNotification")
         _enableForceBackground = UserDefaults.standard.bool(forKey: "ForceBackground")
+        
+        // Load localizedCallerName from UserDefaults
+        currentLocalizedCallerName = loadLocalizedCallerName()
+        currentRemoteName = currentLocalizedCallerName
 
         let cxProvider = PortCxProvider.shareInstance
         _callManager = CallManager(portsipSdk: portSIPSDK)
@@ -344,6 +349,26 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
     private func setupViewLifecycleObservers() {}
+    
+    // MARK: - UserDefaults Methods for LocalizedCallerName
+    
+    /**
+     * Save localizedCallerName to UserDefaults (similar to shared_preferences)
+     */
+    private func saveLocalizedCallerName(_ name: String) {
+        UserDefaults.standard.set(name, forKey: "LocalizedCallerName")
+        UserDefaults.standard.synchronize()
+        NSLog("Saved localizedCallerName to UserDefaults: \(name)")
+    }
+    
+    /**
+     * Load localizedCallerName from UserDefaults
+     */
+    private func loadLocalizedCallerName() -> String {
+        let savedName = UserDefaults.standard.string(forKey: "LocalizedCallerName") ?? ""
+        NSLog("Loaded localizedCallerName from UserDefaults: \(savedName)")
+        return savedName
+    }
 
     @objc private func handleLocalViewCreated() {
         // REMOVED - Plugin doesn't need to track view creation
@@ -878,8 +903,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         {
             print("onInviteIncoming - Outgoing call API")
             if _callManager.enableCallKit {
-                _callManager.reportOutgoingCall(
-                    number: self.currentRemoteName, uuid: self.currentUUID!, video: existsVideo)
+                if #available(iOS 10.0, *) {
+                    _callManager.reportOutgoingCall(
+                        number: self.currentRemoteName, uuid: self.currentUUID!, video: existsVideo)
+                }
             } else {
                 //               _callManager.delegate?.onIncomingCallWithoutCallKit(sessionId, existsVideo: existsVideo, remoteParty: remoteParty!, remoteDisplayName: remoteDisplayName!)
             }
@@ -1936,6 +1963,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 // Lưu username hiện tại
                 currentUsername = username
 
+                // Lưu localizedCallerName vào UserDefaults và biến hiện tại
+                currentLocalizedCallerName = localizedCallerName
+                saveLocalizedCallerName(localizedCallerName)
+                
                 // save hard-code current remote name
                 self.currentRemoteName = localizedCallerName
 
