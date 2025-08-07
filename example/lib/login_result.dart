@@ -90,6 +90,9 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     if (state == AppLifecycleState.resumed && isOnCall == false) {
       doRegister();
     }
+    if (state == AppLifecycleState.inactive && isOnCall == false) {
+      doUnregiter();
+    }
   }
 
   Future<void> _initDataWhenLoginSuccess() async {

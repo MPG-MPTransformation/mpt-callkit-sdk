@@ -528,12 +528,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         let timeout = DispatchWorkItem {
             if !hasCompleted {
                 hasCompleted = true
-                print(
-                    "⚠️ VoIP push processing timeout - calling completion to avoid app termination")
+                print("⚠️ VoIP push processing timeout - calling completion to avoid app termination")
                 completion()
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0, execute: timeout)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0, execute: timeout)
 
         // Wrap completion to ensure it's only called once
         let safeCompletion = {
@@ -574,9 +573,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             let sendFrom = parsedObject["send_from"] as? String ?? "Unknown"
             let sendTo = parsedObject["send_to"] as? String ?? "Unknown"
 
-            print(
-                "📞 Processing VoIP push - From: \(sendFrom), IsVideo: \(isVideoCall), UUID: \(uuid!)"
-            )
+            print("📞 Processing VoIP push - From: \(sendFrom), IsVideo: \(isVideoCall), UUID: \(uuid!)")
 
             if !_callManager.enableCallKit {
                 // If not enable Call Kit, show the local Notification
@@ -587,50 +584,47 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     sound: UNNotificationSound.default, trigger: nil)
                 safeCompletion()
             } else {
-                // 🔥 FIX: Create session FIRST, then report to CallKit
-                print("📱 CallKit enabled - creating session then reporting to CallKit")
-
-                // Create session first (required for CallKit reporting)
-                _callManager.incomingCall(
-                    sessionid: -1, existsVideo: isVideoCall, remoteParty: self.currentRemoteName,
-                    callUUID: uuid!, completionHandle: {})
-
+                // 🔥 CRITICAL FIX: Report to CallKit IMMEDIATELY to avoid app termination
+                print("📱 CallKit enabled - reporting to CallKit immediately")
+                
                 if #available(iOS 10.0, *) {
-                    // Add timeout protection for CallKit reporting
-                    var hasReported = false
-                    let callKitTimeout = DispatchWorkItem {
-                        if !hasReported {
-                            hasReported = true
-                            print("⚠️ CallKit reporting timeout - calling completion")
-                            safeCompletion()
-                        }
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 8.0, execute: callKitTimeout)
-
-                    // Report incoming call to CallKit (session must exist first)
+                    // Report incoming call to CallKit FIRST (before any other processing)
+                    _callManager.callkitIsShow = false
                     _callManager.reportInComingCall(
-                        uuid: uuid!, hasVideo: isVideoCall, from: self.currentRemoteName
+                        uuid: uuid!, hasVideo: true, from: self.currentRemoteName
                     ) { error in
-                        callKitTimeout.cancel()
-                        if !hasReported {
-                            hasReported = true
-                            if let error = error {
-                                print("❌ Error reporting incoming call to CallKit: \(error)")
-                            } else {
-                                print("✅ Successfully reported incoming call to CallKit")
-                            }
-
-                            safeCompletion()
+                        if let error = error {
+                            print("❌ Error reporting incoming call to CallKit: \(error)")
+                        } else {
+                            print("✅ Successfully reported incoming call to CallKit")
+                            self._callManager.callkitIsShow = true
                         }
+                        
+                        // Create session after CallKit reporting
+                        self._callManager.incomingCall(
+                            sessionid: -1, existsVideo: isVideoCall, remoteParty: self.currentRemoteName,
+                            callUUID: uuid!, completionHandle: {})
+                        
+                        // Refresh registration and begin background task
+                        self.loginViewController.refreshRegister()
+                        self.beginBackgroundRegister()
+                        
+                        safeCompletion()
                     }
                 } else {
                     // For iOS < 10.0, fallback to non-CallKit
                     print("📱 iOS < 10.0 - using non-CallKit flow")
+                    
+                    // Create session for non-CallKit flow
+                    self._callManager.incomingCall(
+                        sessionid: -1, existsVideo: isVideoCall, remoteParty: self.currentRemoteName,
+                        callUUID: uuid!, completionHandle: {})
+                    
+                    self.loginViewController.refreshRegister()
+                    self.beginBackgroundRegister()
+                    
                     safeCompletion()
                 }
-
-                loginViewController.refreshRegister()
-                beginBackgroundRegister()
             }
         } catch {
             print("❌ Error processing VoIP push: \(error)")
@@ -668,6 +662,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             return
         }
 
+        // 🔥 FIX: Use the completion-based version to ensure proper handling
         processPushMessageFromPortPBX(payload.dictionaryPayload, completion: {})
     }
 
@@ -680,18 +675,36 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             "🔔 App state: \(UIApplication.shared.applicationState.rawValue), SIP registered: \(sipRegistered), Active calls: \(_callManager.getConnectCallNum())"
         )
 
+        // 🔥 CRITICAL: Set a safety timeout to ensure completion is always called
+        var hasCompleted = false
+        let safetyTimeout = DispatchWorkItem {
+            if !hasCompleted {
+                hasCompleted = true
+                print("⚠️ Safety timeout - calling completion to prevent app termination")
+                completion()
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 9.0, execute: safetyTimeout)
+
+        // Wrap completion to ensure it's only called once
+        let safeCompletion = {
+            safetyTimeout.cancel()
+            if !hasCompleted {
+                hasCompleted = true
+                completion()
+            }
+        }
+
         if sipRegistered,
             UIApplication.shared.applicationState == .active || _callManager.getConnectCallNum() > 0
         {  // ignore push message when app is active
             print("🔔 Ignoring push - app is active or has active calls")
-
-            // 🔥 FIX: Always call completion handler to avoid iOS killing the app
-            completion()
+            safeCompletion()
             return
         }
 
         print("🔔 Processing VoIP push notification")
-        processPushMessageFromPortPBX(payload.dictionaryPayload, completion: completion)
+        processPushMessageFromPortPBX(payload.dictionaryPayload, completion: safeCompletion)
     }
 
     func beginBackgroundRegister() {
@@ -904,8 +917,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             print("onInviteIncoming - Outgoing call API")
             if _callManager.enableCallKit {
                 if #available(iOS 10.0, *) {
+                    _callManager.callkitIsShow = true
                     _callManager.reportOutgoingCall(
-                        number: self.currentRemoteName, uuid: self.currentUUID!, video: existsVideo)
+                        number: self.currentRemoteName, uuid: self.currentUUID!, video: true)
                 }
             } else {
                 //               _callManager.delegate?.onIncomingCallWithoutCallKit(sessionId, existsVideo: existsVideo, remoteParty: remoteParty!, remoteDisplayName: remoteDisplayName!)
@@ -918,9 +932,14 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             print("onInviteIncoming - Incoming call API")
             if _callManager.enableCallKit {
                 if #available(iOS 10.0, *) {
-                    _callManager.reportInComingCall(
-                        uuid: self.currentUUID!, hasVideo: existsVideo, from: self.currentRemoteName
-                    )
+                    if UIApplication.shared.applicationState != .active {
+                        _callManager.callkitIsShow = false
+                        _callManager.reportInComingCall(
+                            uuid: self.currentUUID!, hasVideo: true, from: self.currentRemoteName
+                        ) { err in
+                            self._callManager.callkitIsShow = true
+                        }
+                    }
                 }
             } else {
                 _callManager.delegate?.onIncomingCallWithoutCallKit(

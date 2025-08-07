@@ -68,4 +68,10 @@ import mpt_callkit
     super.applicationWillEnterForeground(application)
     
   }
+
+    override func applicationDidBecomeActive(_ application: UIApplication) {
+        print("applicationDidBecomeActive")
+        
+        super.applicationDidBecomeActive(application)
+    }
 }

@@ -23,6 +23,9 @@ protocol CallManagerDelegate: NSObjectProtocol {
 
 class CallManager: NSObject {
     weak var delegate: CallManagerDelegate?
+    
+    var callkitIsShow = false
+    var localizedCallerName = "OMICX CALL"
 
     var _enableCallKit: Bool = false
     var enableCallKit: Bool {
@@ -77,8 +80,9 @@ class CallManager: NSObject {
             update.remoteHandle = handle
             update.hasVideo = hasVideo
             update.supportsGrouping = true
-            update.supportsDTMF = true
+            update.supportsDTMF = false
             update.supportsUngrouping = true
+            update.supportsHolding = true
             update.localizedCallerName = from
 
             PortCxProvider.shareInstance.cxprovider.reportCall(with: uuid, updated: update)
@@ -111,17 +115,18 @@ class CallManager: NSObject {
 
     @available(iOS 10.0, *)
     func reportInComingCall(uuid: UUID, hasVideo: Bool, from: String, completion: ((Error?) -> Void)? = nil) {
-        guard findCallByUUID(uuid: uuid) != nil else {
-            return
-        }
-
+        // 🔥 FIX: Remove the guard check for VoIP push scenarios where call session is created after reporting
+        // The call session might not exist yet when called from VoIP push processing
         let handle = CXHandle(type: .generic, value: from)
         let update = CXCallUpdate()
         update.remoteHandle = handle
         update.hasVideo = hasVideo
         update.supportsGrouping = true
-        update.supportsDTMF = true
+        update.supportsDTMF = false
         update.supportsUngrouping = true
+        update.supportsHolding = true
+        update.localizedCallerName = from
+        localizedCallerName = from
 
         PortCxProvider.shareInstance.cxprovider.reportNewIncomingCall(with: uuid, update: update, completion: { error in
             print("ErrorCode: \(String(describing: error))")
@@ -331,7 +336,19 @@ class CallManager: NSObject {
         }
         if _enableCallKit {
             result.session.videoState = isVideo
+            if callkitIsShow {
                 reportAnswerCall(uuid: result.session.uuid)
+            } else {
+                reportInComingCall(uuid: result.session.uuid, hasVideo: isVideo, from: localizedCallerName) { error in
+                    if let err = error {
+                        print("❌ Error reporting incoming call to CallKit: \(err)")
+                        self.answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo)
+                    } else {
+                        print("✅ Successfully reported incoming call to CallKit")
+                        self.reportAnswerCall(uuid: result.session.uuid)
+                    }
+                }
+            }
             return true
         } else {
             return answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo)
