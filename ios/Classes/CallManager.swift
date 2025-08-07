@@ -24,6 +24,8 @@ protocol CallManagerDelegate: NSObjectProtocol {
 class CallManager: NSObject {
     weak var delegate: CallManagerDelegate?
 
+    var localizedCallerName = "Omicx Call"
+    var callkitIsShow = false
     var _enableCallKit: Bool = false
     var enableCallKit: Bool {
         set {
@@ -80,12 +82,13 @@ class CallManager: NSObject {
             update.supportsDTMF = true
             update.supportsUngrouping = true
             update.localizedCallerName = from
+            localizedCallerName = from
 
             PortCxProvider.shareInstance.cxprovider.reportCall(with: uuid, updated: update)
         }
     }
 
-    func reportOutgoingCall(number: String, uuid: UUID, video: Bool = true) {
+    func reportOutgoingCall(number: String, uuid: UUID, video: Bool = true, completion: ((Error?) -> Void)? = nil) {
         if #available(iOS 10.0, *) {
             let handle = CXHandle(type: .generic, value: number)
 
@@ -99,8 +102,10 @@ class CallManager: NSObject {
             callController.request(transaction) { error in
                 if let err = error {
                     print("Error requesting transaction: \(err)")
+                    completion?(error)
                 } else {
                     print("Requested transaction successfully")
+                    completion?(nil)
                 }
             }
             if let result = findCallByUUID(uuid: uuid), result.session.sessionState {
@@ -122,6 +127,8 @@ class CallManager: NSObject {
         update.supportsGrouping = true
         update.supportsDTMF = true
         update.supportsUngrouping = true
+        update.localizedCallerName = from
+        localizedCallerName = from
 
         PortCxProvider.shareInstance.cxprovider.reportNewIncomingCall(with: uuid, update: update, completion: { error in
             print("ErrorCode: \(String(describing: error))")
@@ -331,7 +338,17 @@ class CallManager: NSObject {
         }
         if _enableCallKit {
             result.session.videoState = isVideo
+            if callkitIsShow {
                 reportAnswerCall(uuid: result.session.uuid)
+            } else {
+                reportInComingCall(uuid: result.session.uuid, hasVideo: isVideo, from: localizedCallerName){ err in
+                        if let _ = err {
+                            _ = self.answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo)
+                        } else {
+                            self.reportAnswerCall(uuid: result.session.uuid)
+                        }
+                    }
+            }
             return true
         } else {
             return answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo)

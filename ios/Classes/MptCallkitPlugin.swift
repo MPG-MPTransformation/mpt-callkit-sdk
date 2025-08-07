@@ -608,8 +608,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     DispatchQueue.main.asyncAfter(deadline: .now() + 8.0, execute: callKitTimeout)
 
                     // Report incoming call to CallKit (session must exist first)
+                    _callManager.callkitIsShow = false
                     _callManager.reportInComingCall(
-                        uuid: uuid!, hasVideo: isVideoCall, from: self.currentRemoteName
+                        uuid: uuid!, hasVideo: true, from: self.currentRemoteName
                     ) { error in
                         callKitTimeout.cancel()
                         if !hasReported {
@@ -618,6 +619,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                                 print("❌ Error reporting incoming call to CallKit: \(error)")
                             } else {
                                 print("✅ Successfully reported incoming call to CallKit")
+                                self._callManager.callkitIsShow = true
                             }
 
                             safeCompletion()
@@ -904,8 +906,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             print("onInviteIncoming - Outgoing call API")
             if _callManager.enableCallKit {
                 if #available(iOS 10.0, *) {
+                    _callManager.callkitIsShow = false
                     _callManager.reportOutgoingCall(
-                        number: self.currentRemoteName, uuid: self.currentUUID!, video: existsVideo)
+                        number: self.currentRemoteName, uuid: self.currentUUID!, video: true) { err in
+                            if let error = err {
+                                
+                            } else {
+                                self._callManager.callkitIsShow = true
+                            }
+                        }
                 }
             } else {
                 //               _callManager.delegate?.onIncomingCallWithoutCallKit(sessionId, existsVideo: existsVideo, remoteParty: remoteParty!, remoteDisplayName: remoteDisplayName!)
@@ -918,9 +927,21 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             print("onInviteIncoming - Incoming call API")
             if _callManager.enableCallKit {
                 if #available(iOS 10.0, *) {
-                    _callManager.reportInComingCall(
-                        uuid: self.currentUUID!, hasVideo: existsVideo, from: self.currentRemoteName
-                    )
+                    if UIApplication.shared.applicationState != .active {
+                        _callManager.callkitIsShow = false
+                        _callManager.reportInComingCall(
+                            uuid: self.currentUUID!, hasVideo: true, from: self.currentRemoteName
+                        ){ err in
+                            if let error = err {
+                                
+                            } else {
+                                self._callManager.callkitIsShow = true
+                            }
+                        }
+                    }else{
+                        mSoundService.playRingTone()
+                        _callManager.callkitIsShow = false
+                    }
                 }
             } else {
                 _callManager.delegate?.onIncomingCallWithoutCallKit(
