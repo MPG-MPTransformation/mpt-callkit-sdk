@@ -25,7 +25,7 @@ class CallManager: NSObject {
     weak var delegate: CallManagerDelegate?
 
     var localizedCallerName = "Omicx Call"
-    var callkitIsShow = false
+    var callkitIsShow = true
     var _enableCallKit: Bool = false
     var enableCallKit: Bool {
         set {
@@ -341,13 +341,15 @@ class CallManager: NSObject {
             if callkitIsShow {
                 reportAnswerCall(uuid: result.session.uuid)
             } else {
-                reportInComingCall(uuid: result.session.uuid, hasVideo: isVideo, from: localizedCallerName){ err in
-                        if let _ = err {
-                            _ = self.answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo)
-                        } else {
-                            self.reportAnswerCall(uuid: result.session.uuid)
-                        }
-                    }
+                _ = self.answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo)
+//                reportOutgoingCall(number: localizedCallerName, uuid: result.session.uuid, video: isVideo) 
+//                reportInComingCall(uuid: result.session.uuid, hasVideo: isVideo, from: localizedCallerName){ err in
+//                        if let _ = err {
+//                            _ = self.answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo)
+//                        } else {
+//                            self.reportAnswerCall(uuid: result.session.uuid)
+//                        }
+//                    }
             }
             return true
         } else {
@@ -361,7 +363,11 @@ class CallManager: NSObject {
         }
         if _enableCallKit {
             let sesion = result.session as Session
-            reportEndCall(uuid: sesion.uuid)
+            if callkitIsShow {
+                reportEndCall(uuid: sesion.uuid)
+            }else {
+                hungUpCall(uuid: result.session.uuid)
+            }
         } else {
             hungUpCall(uuid: result.session.uuid)
         }
@@ -698,6 +704,9 @@ class CallManager: NSObject {
                 return (sessionArray[i], i)
             }
         }
+        if sessionArray.count > 0 {
+            return (sessionArray[sessionArray.count - 1], sessionArray.count - 1)
+        }
         return nil
     }
 
@@ -759,13 +768,14 @@ class CallManager: NSObject {
     }
 
     public func getConnectCallNum() -> Int {
-        var num: Int = 0
-        for i in 0 ..< MAX_LINES {
-            if sessionArray[i].hasAdd {
-                num += 1
-            }
-        }
-        return num
+        return 0
+//        var num: Int = 0
+//        for i in 0 ..< MAX_LINES {
+//            if sessionArray[i].hasAdd {
+//                num += 1
+//            }
+//        }
+//        return num
     }
 
     func startAudio(audioSession: AVAudioSession) {

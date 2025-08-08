@@ -8,7 +8,7 @@
 import PortSIPVoIPSDK
 
 let LINE_BASE = 0
-let MAX_LINES = 8
+let MAX_LINES = 1
 
 class Session {
     var sessionId: Int
