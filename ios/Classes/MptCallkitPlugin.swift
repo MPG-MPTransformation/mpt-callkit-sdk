@@ -608,7 +608,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     DispatchQueue.main.asyncAfter(deadline: .now() + 8.0, execute: callKitTimeout)
 
                     // Report incoming call to CallKit (session must exist first)
-                    _callManager.callkitIsShow = true
                     _callManager.reportInComingCall(
                         uuid: uuid!, hasVideo: true, from: self.currentRemoteName
                     ) { error in
@@ -619,7 +618,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                                 print("❌ Error reporting incoming call to CallKit: \(error)")
                             } else {
                                 print("✅ Successfully reported incoming call to CallKit")
-                                self._callManager.callkitIsShow = true
                             }
 
                             safeCompletion()
@@ -906,15 +904,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             print("onInviteIncoming - Outgoing call API")
             if _callManager.enableCallKit {
                 if #available(iOS 10.0, *) {
-                    _callManager.callkitIsShow = true
                     _callManager.reportOutgoingCall(
-                        number: self.currentRemoteName, uuid: self.currentUUID!, video: true) { err in
-                            if let error = err {
-                                
-                            } else {
-                                self._callManager.callkitIsShow = true
-                            }
-                        }
+                        number: self.currentRemoteName, uuid: self.currentUUID!, video: existsVideo)
                 }
             } else {
                 //               _callManager.delegate?.onIncomingCallWithoutCallKit(sessionId, existsVideo: existsVideo, remoteParty: remoteParty!, remoteDisplayName: remoteDisplayName!)
@@ -927,16 +918,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             print("onInviteIncoming - Incoming call API")
             if _callManager.enableCallKit {
                 if #available(iOS 10.0, *) {
-//                    if UIApplication.shared.applicationState != .active {
-                        _callManager.callkitIsShow = true
-                        _callManager.reportInComingCall(
-                            uuid: self.currentUUID!, hasVideo: true, from: self.currentRemoteName
-                        )
-//                    }else{
-//                        var result = mSoundService.playRingTone()
-//                        print("Play ringtone result: \(result)")
-//                        _callManager.callkitIsShow = true
-//                    }
+                    _callManager.reportInComingCall(
+                        uuid: self.currentUUID!, hasVideo: true, from: self.currentRemoteName
+                    )
                 }
             } else {
                 _callManager.delegate?.onIncomingCallWithoutCallKit(
@@ -1150,17 +1134,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             return
         }
 
-        if _enablePushNotification! {
-
-            let pushId = portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "X-Push-Id")
-            if pushId != nil {
-                self.currentUUID = UUID(uuidString: pushId!)
-            }
-        }
-        if self.currentUUID == nil {
-            self.currentUUID = UUID()
-        }
-
         // 🔍 LOG: Session state BEFORE processing
         NSLog(
             "onInviteUpdated - sessionId: \(sessionId), audioCodecs: \(audioCodecs ?? ""), videoCodecs: \(videoCodecs ?? ""), screenCodecs: \(screenCodecs ?? ""), existsAudio: \(existsAudio), existsVideo: \(existsVideo), existsScreen: \(existsScreen), sipMessage: \(sipMessage ?? "")"
@@ -1230,6 +1203,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
         print("The call is connected on line \(findSession(sessionid: sessionId))")
         // REMOVED: mUseFrontCamera = true  // ❌ Don't force reset camera setting
+        
+        self.activeSessionid = sessionId
 
         // 🔥 ANDROID PATTERN: Send state notification instead of direct call
         if result.session.videoState {
@@ -2258,7 +2233,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     // Thêm phương thức để trả lời cuộc gọi
     func answerCall(isAutoAnswer: Bool) {
         NSLog("🔍 answerCall - START")
-//        if activeSessionid != CLong(INVALID_SESSION_ID) {
+        if activeSessionid != CLong(INVALID_SESSION_ID) {
             _ = mSoundService.stopRingTone()
             _ = mSoundService.stopRingBackTone()
             let result = _callManager.findCallBySessionID(activeSessionid)
@@ -2301,9 +2276,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             } else {
                 NSLog("❌ answerCall - Cannot find session for activeSessionid: \(activeSessionid)")
             }
-//        } else {
-//            NSLog("❌ answerCall - No active session - \(activeSessionid)")
-//        }
+        } else {
+            NSLog("❌ answerCall - No active session - \(activeSessionid)")
+        }
     }
 
     // Thêm phương thức để từ chối cuộc gọi

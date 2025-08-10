@@ -72,7 +72,7 @@ class LocalViewController: UIViewController {
                }
                self.updateVideoVisibility(isVisible: true)
            case "CLOSED", "FAILED":
-               self.updateVideoVisibility(isVisible: false)
+               self.updateVideoVisibility(isVisible: true)
                self.cleanupVideo()
            default:
                break

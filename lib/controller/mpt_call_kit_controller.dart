@@ -1757,8 +1757,8 @@ class MptCallKitController {
       await socket.close();
 
       _sipPingStream.add(pingTime);
-      print(
-          'SIP connectivity check to $host:$port: ${pingTime}ms (TCP connection successful)');
+      // print(
+      //     'SIP connectivity check to $host:$port: ${pingTime}ms (TCP connection successful)');
     } on SocketException catch (e) {
       _sipPingStream.add(null);
       if (e.message.contains('timed out')) {
