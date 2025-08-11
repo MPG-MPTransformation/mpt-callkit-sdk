@@ -24,6 +24,7 @@ protocol CallManagerDelegate: NSObjectProtocol {
 class CallManager: NSObject {
     weak var delegate: CallManagerDelegate?
 
+    var isHideCallkit: Bool = false
     var _enableCallKit: Bool = false
     var enableCallKit: Bool {
         set {
@@ -87,6 +88,8 @@ class CallManager: NSObject {
 
     func reportOutgoingCall(number: String, uuid: UUID, video: Bool = true) {
         if #available(iOS 10.0, *) {
+            
+            isHideCallkit = false
             let handle = CXHandle(type: .generic, value: number)
 
             let startCallAction = CXStartCallAction(call: uuid, handle: handle)
@@ -114,6 +117,8 @@ class CallManager: NSObject {
         guard findCallByUUID(uuid: uuid) != nil else {
             return
         }
+        
+        isHideCallkit = false
 
         let handle = CXHandle(type: .generic, value: from)
         let update = CXCallUpdate()
@@ -314,14 +319,6 @@ class CallManager: NSObject {
             session.uuid = callUUID
 
             _ = addCall(call: session)
-
-//            if _enableCallKit {
-//                if #available(iOS 10.0, *) {
-//                    reportInComingCall(uuid: session.uuid, hasVideo: existsVideo, from: remoteParty)
-//                }
-//            } else {
-//                delegate?.onIncomingCallWithoutCallKit(sessionid, existsVideo: existsVideo, remoteParty: remoteParty, remoteDisplayName: remoteDisplayName)
-//            }
         }
     }
 
@@ -330,9 +327,12 @@ class CallManager: NSObject {
             return false
         }
         if _enableCallKit {
+            if isHideCallkit{
+                return answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo)
+            } else {
             result.session.videoState = isVideo
                 reportAnswerCall(uuid: result.session.uuid)
-            return true
+            return true}
         } else {
             return answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo)
         }
@@ -343,8 +343,13 @@ class CallManager: NSObject {
             return
         }
         if _enableCallKit {
-            let sesion = result.session as Session
-            reportEndCall(uuid: sesion.uuid)
+            if isHideCallkit {
+                hungUpCall(uuid: result.session.uuid)
+            } else {
+                let sesion = result.session as Session
+                reportEndCall(uuid: sesion.uuid)
+            }
+
         } else {
             hungUpCall(uuid: result.session.uuid)
         }
@@ -384,7 +389,11 @@ class CallManager: NSObject {
             return
         }
         if _enableCallKit {
-            reportSetMute(uuid: result.session.uuid, muted: muted)
+            if isHideCallkit {
+                muteCall(muted, uuid: result.session.uuid)
+            } else {
+                reportSetMute(uuid: result.session.uuid, muted: muted)
+            }
         } else {
             muteCall(muted, uuid: result.session.uuid)
         }
@@ -446,27 +455,35 @@ class CallManager: NSObject {
         }
 
         if _enableCallKit {
-            if(_conferenceGroupID==nil){
-                _conferenceGroupID = result.session.uuid
-            }else{
-                var groupWith = findCallByUUID(uuid:_conferenceGroupID)
-                if(groupWith==nil){
-                    groupWith =  findAnotherCall(result.session.sessionId)
+            if isHideCallkit {
+                joinToConference(uuid: result.session.uuid)
+                if(result.session.holdState){
+                    holdCall(uuid: result.session.uuid, onHold: false);
                 }
-                
-                if(groupWith==nil){
+            } else {
+                if(_conferenceGroupID==nil){
                     _conferenceGroupID = result.session.uuid
                 }else{
-                    _conferenceGroupID = groupWith?.session.uuid
+                    var groupWith = findCallByUUID(uuid:_conferenceGroupID)
+                    if(groupWith==nil){
+                        groupWith =  findAnotherCall(result.session.sessionId)
+                    }
+                    
+                    if(groupWith==nil){
+                        _conferenceGroupID = result.session.uuid
+                    }else{
+                        _conferenceGroupID = groupWith?.session.uuid
+                    }
+                }
+                
+                if(_conferenceGroupID == result.session.uuid){
+                    joinToConference(uuid: result.session.uuid)
+                }else{
+                    reportRemoveFromConference(uuid:result.session.uuid);
+                    reportJoninConference(uuid:result.session.uuid);
                 }
             }
-            
-            if(_conferenceGroupID == result.session.uuid){
-                joinToConference(uuid: result.session.uuid)
-            }else{
-                reportRemoveFromConference(uuid:result.session.uuid);
-                reportJoninConference(uuid:result.session.uuid);
-            }
+           
         }else{
             joinToConference(uuid: result.session.uuid)
             if(result.session.holdState){
@@ -486,7 +503,11 @@ class CallManager: NSObject {
         }
 
         if _enableCallKit {
-            reportRemoveFromConference(uuid: result.session.uuid)
+            if isHideCallkit {
+                removeFromConference(uuid: result.session.uuid)
+            } else {
+                reportRemoveFromConference(uuid: result.session.uuid)
+            }
         } else {
             removeFromConference(uuid: result.session.uuid)
         }

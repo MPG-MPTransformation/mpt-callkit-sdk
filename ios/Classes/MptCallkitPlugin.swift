@@ -606,6 +606,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                         }
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 8.0, execute: callKitTimeout)
+                    
+                    _callManager.isHideCallkit = false
 
                     // Report incoming call to CallKit (session must exist first)
                     _callManager.reportInComingCall(
@@ -904,6 +906,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             print("onInviteIncoming - Outgoing call API")
             if _callManager.enableCallKit {
                 if #available(iOS 10.0, *) {
+                    _callManager.isHideCallkit = false
                     _callManager.reportOutgoingCall(
                         number: self.currentRemoteName, uuid: self.currentUUID!, video: existsVideo)
                 }
@@ -917,10 +920,22 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         } else {
             print("onInviteIncoming - Incoming call API")
             if _callManager.enableCallKit {
-                if #available(iOS 10.0, *) {
-                    _callManager.reportInComingCall(
-                        uuid: self.currentUUID!, hasVideo: true, from: self.currentRemoteName
-                    )
+//                if #available(iOS 10.0, *) {
+//                    _callManager.reportInComingCall(
+//                        uuid: self.currentUUID!, hasVideo: true, from: self.currentRemoteName
+//                    )
+//                }
+                
+                if UIApplication.shared.applicationState != .active {
+                    _callManager.isHideCallkit = false
+                                    if #available(iOS 10.0, *) {
+                                        _callManager.reportInComingCall(
+                                            uuid: self.currentUUID!, hasVideo: true, from: self.currentRemoteName
+                                        )
+                                    }
+                } else {
+                    mSoundService.playRingTone()
+                    _callManager.isHideCallkit = true
                 }
             } else {
                 _callManager.delegate?.onIncomingCallWithoutCallKit(
@@ -1143,9 +1158,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             let strCallBack = portSIPSDK.enableVideoStreamCallback(
                 sessionId, callbackMode: DIRECTION_RECV)
             print("enableVideoStreamCallback result: \(strCallBack)")
+            
+            if (_callManager.isHideCallkit){} else {
+                _callManager.reportUpdateCall(
+                    uuid: self.currentUUID!, hasVideo: true, from: self.currentRemoteName)
+            }
 
-            _callManager.reportUpdateCall(
-                uuid: self.currentUUID!, hasVideo: true, from: self.currentRemoteName)
+
         }
 
         // 🔍 LOG: Check condition
