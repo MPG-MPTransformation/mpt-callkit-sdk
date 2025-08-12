@@ -96,19 +96,19 @@ class _CallPadState extends State<CallPad> {
         });
 
 // show dialog when call ended
-        if (_callEventSocketData.state ==
-                CallEventSocketConstants.REJECT_CALL ||
-            _callEventSocketData.state == CallEventSocketConstants.END_CALL) {
-          Future.delayed(const Duration(milliseconds: 500), () {
-            // if (widget.isGuest == false) {
-            //   MptCallKitController().leaveCallMediaRoomChannel();
-            // }
+        // if (_callEventSocketData.state ==
+        //         CallEventSocketConstants.REJECT_CALL ||
+        //     _callEventSocketData.state == CallEventSocketConstants.END_CALL) {
+        //   Future.delayed(const Duration(milliseconds: 500), () {
+        //     // if (widget.isGuest == false) {
+        //     //   MptCallKitController().leaveCallMediaRoomChannel();
+        //     // }
 
-            if (mounted) {
-              _showCallEndedDialog(_callEventSocketData.state ?? "NONE");
-            }
-          });
-        }
+        //     if (mounted) {
+        //       _showCallEndedDialog(_callEventSocketData.state ?? "NONE");
+        //     }
+        //   });
+        // }
       }
     });
 

@@ -226,6 +226,14 @@ class MptSocketSocketServer {
   CallEventSocketRecv? get currentCallEventSocketData =>
       _currentCallEventSocketData;
 
+  // Track whether initial rooms have been joined
+  bool _initialRoomsJoined = false;
+  // Stream for initial rooms joined state
+  StreamController<bool> _initialRoomsJoinedController =
+      StreamController<bool>.broadcast();
+  Stream<bool> get initialRoomsJoinedStream =>
+      _initialRoomsJoinedController.stream;
+
   final participantType = "SUPERVISOR";
   final chanels = [
     ChannelConstants.FB_MESSAGE,
@@ -259,6 +267,11 @@ class MptSocketSocketServer {
       _callEventController = StreamController<CallEventSocketRecv>.broadcast();
     }
 
+    // Create new initial rooms joined controller if closed
+    if (_initialRoomsJoinedController.isClosed) {
+      _initialRoomsJoinedController = StreamController<bool>.broadcast();
+    }
+
     // Set parameters
     serverUrl = serverUrlParam;
     token = tokenParam;
@@ -268,6 +281,8 @@ class MptSocketSocketServer {
     userName = currentUserInfoParam["user"]["userName"];
     currentUserInfo = currentUserInfoParam;
     configuration = configurationParam;
+    // Reset initial rooms joined state on new setup
+    _initialRoomsJoined = false;
     _initSocket();
   }
 
@@ -350,6 +365,8 @@ class MptSocketSocketServer {
       if (!_connectionStatusController.isClosed) {
         _connectionStatusController.add(true);
       }
+      // Reset initial rooms joined flag on fresh connection
+      _initialRoomsJoined = false;
       _listenEventChannels();
       // Rejoin all subscribed rooms after reconnection
       _rejoinSubscribedRooms();
@@ -361,6 +378,8 @@ class MptSocketSocketServer {
       if (!_connectionStatusController.isClosed) {
         _connectionStatusController.add(true);
       }
+      // On reconnect, reset until rejoin ack
+      _initialRoomsJoined = false;
       _listenEventChannels();
       // Rejoin all subscribed rooms after reconnection
       _rejoinSubscribedRooms();
@@ -372,6 +391,8 @@ class MptSocketSocketServer {
       if (!_connectionStatusController.isClosed) {
         _connectionStatusController.add(false);
       }
+      // Disconnected -> rooms not joined
+      _initialRoomsJoined = false;
     });
 
     socket!.onConnectError((error) {
@@ -414,6 +435,11 @@ class MptSocketSocketServer {
         },
         ack: (data) {
           print("Agent initialized: $data");
+          // Mark initial rooms joined
+          _initialRoomsJoined = true;
+          if (!_initialRoomsJoinedController.isClosed) {
+            _initialRoomsJoinedController.add(true);
+          }
         },
       );
     });
@@ -692,6 +718,10 @@ class MptSocketSocketServer {
       if (!_callEventController.isClosed) {
         _callEventController.close();
       }
+      // Close initial rooms joined controller
+      if (!_initialRoomsJoinedController.isClosed) {
+        _initialRoomsJoinedController.close();
+      }
     } catch (e) {
       print("Error disposing MptSocketSocketServer instance: $e");
     }
@@ -752,6 +782,50 @@ class MptSocketSocketServer {
   /// Get current connection state
   static bool getCurrentConnectionState() {
     return _instance != null && _instance!.checkConnection();
+  }
+
+  /// Static getter for initial rooms joined stream
+  static Stream<bool> get initialRoomsJoined =>
+      instance.initialRoomsJoinedStream;
+
+  /// Get current initial rooms joined state
+  static bool getCurrentInitialRoomsJoinedState() {
+    return _instance != null && _instance!._initialRoomsJoined;
+  }
+
+  /// Wait until initial rooms have been joined (with timeout)
+  static Future<bool> waitUntilInitialRoomsJoined({
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    // If already joined, return immediately
+    if (getCurrentInitialRoomsJoinedState()) return true;
+
+    final completer = Completer<bool>();
+    StreamSubscription<bool>? subscription;
+    Timer? timer;
+
+    void cleanup() {
+      subscription?.cancel();
+      timer?.cancel();
+    }
+
+    subscription = initialRoomsJoined.listen((joined) {
+      if (joined && !completer.isCompleted) {
+        cleanup();
+        completer.complete(true);
+      }
+    });
+
+    timer = Timer(timeout, () {
+      cleanup();
+      if (!completer.isCompleted) {
+        completer.complete(false);
+        print(
+            "Timeout waiting for initial rooms to be joined after ${timeout.inSeconds}s");
+      }
+    });
+
+    return completer.future;
   }
 
   /// Subscribe to a specific event
@@ -821,6 +895,11 @@ class MptSocketSocketServer {
       },
       ack: (data) {
         print("Socket server - AGENT_JOIN_ROOMS - Rejoined rooms: $data");
+        // Consider rooms joined after successful rejoin
+        _initialRoomsJoined = true;
+        if (!_initialRoomsJoinedController.isClosed) {
+          _initialRoomsJoinedController.add(true);
+        }
       },
     );
   }

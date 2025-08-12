@@ -394,7 +394,18 @@ class MptCallKitController {
           _configuration!["MOBILE_SIP_PORT"] != null) {
         final isSocketConnected = await _connectToSocketServer(accessToken);
         if (isSocketConnected) {
-          await _registerToSipServer(context: context);
+          // Wait until initial rooms joined before SIP registration
+          final roomsJoined =
+              await MptSocketSocketServer.waitUntilInitialRoomsJoined(
+                  timeout: const Duration(seconds: 10));
+          if (roomsJoined) {
+            await _registerToSipServer(context: context);
+          } else {
+            _appEvent.add(AppEventConstants.ERROR);
+            onError?.call("Timeout waiting to join initial rooms");
+            _currentAppEvent = AppEventConstants.ERROR;
+            print("Timeout waiting to join initial rooms");
+          }
         } else {
           _appEvent.add(AppEventConstants.ERROR);
           onError?.call("Failed to connect to socket server");
