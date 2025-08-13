@@ -330,7 +330,7 @@ class CallManager: NSObject {
             if isHideCallkit{
                 return answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo)
             } else {
-            result.session.videoState = isVideo
+                result.session.videoState = isVideo
                 reportAnswerCall(uuid: result.session.uuid)
             return true}
         } else {

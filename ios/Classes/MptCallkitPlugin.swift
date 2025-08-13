@@ -1223,6 +1223,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         print("The call is connected on line \(findSession(sessionid: sessionId))")
         // REMOVED: mUseFrontCamera = true  // ❌ Don't force reset camera setting
         
+        let sessionInfo = getCurrentSessionInfo()
+        sendCustomMessage(
+            callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
+            type: "call_state", payloadKey: "answered", payloadValue: true)
+        
         self.activeSessionid = sessionId
 
         // 🔥 ANDROID PATTERN: Send state notification instead of direct call

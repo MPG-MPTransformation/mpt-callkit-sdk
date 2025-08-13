@@ -1916,4 +1916,27 @@ class MptCallKitController {
       }
     });
   }
+
+  Future<void> endCallAPI({
+    required String sessionId,
+    required int agentId,
+    Function(String?)? onError,
+  }) async {
+    try {
+      final bool isSuccess = await MptCallKitControllerRepo().postEndCall(
+        baseUrl: baseUrl,
+        sessionId: sessionId,
+        agentId: agentId,
+        onError: onError,
+      );
+      if (isSuccess) {
+        print("End call API success");
+      } else {
+        print("End call API failed");
+      }
+    } catch (e) {
+      print("End call API error: $e");
+      onError?.call("End call API error: $e");
+    }
+  }
 }

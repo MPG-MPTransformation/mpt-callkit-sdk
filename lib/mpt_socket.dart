@@ -553,23 +553,24 @@ class MptSocketSocketServer {
               }
             }
           } else {
-            // save call event info if agent is caller
-            if (currentCallEventSessionId == data['sessionId'] &&
-                data['state'] != CallEventSocketConstants.OFFER_CALL) {
-              // handle msg when call out going (agent logged in)
-              if (!_callEventController.isClosed) {
-                print(
-                    "Socket server - CALL_EVENT - call out going with sessionId: $sessionId");
-                _callEventController.add(
-                    CallEventSocketRecv.fromJson(data as Map<String, dynamic>));
-                _currentCallEventSocketData =
-                    CallEventSocketRecv.fromJson(data);
-              } else {
-                print(
-                    "Socket server - CALL_EVENT - callEventController is closed");
-              }
-            }
-            print("Socket server - CALL_EVENT - data has no extraInfo");
+            /* Check again next time */
+            //   // save call event info if agent is caller
+            //   if (currentCallEventSessionId == data['sessionId'] &&
+            //       data['state'] != CallEventSocketConstants.OFFER_CALL) {
+            //     // handle msg when call out going (agent logged in)
+            //     if (!_callEventController.isClosed) {
+            //       print(
+            //           "Socket server - CALL_EVENT - call out going with sessionId: $sessionId");
+            //       _callEventController.add(
+            //           CallEventSocketRecv.fromJson(data as Map<String, dynamic>));
+            //       _currentCallEventSocketData =
+            //           CallEventSocketRecv.fromJson(data);
+            //     } else {
+            //       print(
+            //           "Socket server - CALL_EVENT - callEventController is closed");
+            //     }
+            //   }
+            //   print("Socket server - CALL_EVENT - data has no extraInfo");
           }
         } else {
           print("Socket server - CALL_EVENT - data has no agentId");

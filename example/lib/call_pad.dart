@@ -35,6 +35,7 @@ class _CallPadState extends State<CallPad> {
     if (Platform.isAndroid) 'getAudioDevices',
     'updateVideoCall',
     'hangup',
+    'endCallAPI',
   ];
 
   String _callState = MptCallKitController().currentCallState ?? "IDLE";
@@ -509,7 +510,7 @@ class _CallPadState extends State<CallPad> {
     }
   }
 
-  void _executeToggleFunction(String functionName) {
+  Future<void> _executeToggleFunction(String functionName) async {
     print('Executing $functionName function');
 
     switch (functionName) {
@@ -521,6 +522,45 @@ class _CallPadState extends State<CallPad> {
         // if (widget.isGuest == false) {
         //   MptCallKitController().leaveCallMediaRoomChannel();
         // }
+        break;
+      case 'endCallAPI':
+        {
+          final String sessionId =
+              MptCallKitController().currentSessionId ?? "";
+          final int? agentId =
+              MptCallKitController().currentUserInfo?['user']?['id'];
+
+          if (sessionId.isEmpty || agentId == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Không đủ dữ liệu: thiếu sessionId hoặc agentId'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            break;
+          }
+
+          await MptCallKitController().endCallAPI(
+            sessionId: sessionId,
+            agentId: agentId,
+            onError: (err) {
+              if (err == null) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(err),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            },
+          );
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Đã gửi yêu cầu End Call API'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
         break;
       case 'showAndroidCallKit':
         MptCallKitController().showAndroidCallKit();

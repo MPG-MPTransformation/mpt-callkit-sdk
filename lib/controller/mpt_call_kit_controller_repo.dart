@@ -316,4 +316,56 @@ class MptCallKitControllerRepo {
       return false;
     }
   }
+
+  Future<bool> postEndCall({
+    String? baseUrl,
+    required String sessionId,
+    required int agentId,
+    Function(String?)? onError,
+  }) async {
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+      };
+
+      final body = {
+        "sessionId": sessionId,
+        "agentId": agentId,
+      };
+
+      print("Post end call API body: ${jsonEncode(body)}");
+
+      final response = await http.post(
+        Uri.parse(
+            "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}/workflow/$sessionId/end"),
+        headers: headers,
+        body: convert.jsonEncode(body),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (response.body.isNotEmpty) {
+          final responseData = jsonDecode(response.body);
+          if (responseData["success"]) {
+            return true;
+          } else {
+            onError?.call(
+                "Post end call API failed: success=${responseData["success"]}, message: ${responseData["message"].toString()}");
+            return false;
+          }
+        } else {
+          onError?.call("Post end call API failed, response with empty body");
+          return false;
+        }
+      } else {
+        onError?.call(
+            "Post end call API failed, response with status code: ${response.statusCode}");
+        return false;
+      }
+    } catch (e) {
+      print(
+          "MptCallKitControllerRepo - postEndCall - Error in postEndCall: $e");
+      onError?.call("Post end call API failed with error: $e");
+      return false;
+    }
+  }
 }
