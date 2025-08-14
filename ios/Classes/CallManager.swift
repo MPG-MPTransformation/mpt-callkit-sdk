@@ -157,6 +157,7 @@ class CallManager: NSObject {
     func reportEndCall(uuid: UUID) {
         if #available(iOS 10.0, *) {
             guard let result = findCallByUUID(uuid: uuid) else {
+                print("reportEndCall: cannot find call by uuid")
                 return
             }
             let session = result.session as Session

@@ -179,6 +179,8 @@ public class CallManager {
 	public Session findIncomingCall() {
 		for (Session session : sessions) {
 			if (session.sessionID != Session.INVALID_SESSION_ID && session.state == Session.CALL_STATE_FLAG.INCOMING) {
+
+				System.out.println("findIncomingCall: sessionID: " + session.sessionID + " state: " + session.state);
 				return session;
 			}
 		}

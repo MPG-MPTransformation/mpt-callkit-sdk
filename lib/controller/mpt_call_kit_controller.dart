@@ -1939,4 +1939,8 @@ class MptCallKitController {
       onError?.call("End call API error: $e");
     }
   }
+
+  Future<bool> getCallkitAnsweredState() async {
+    return await channel.invokeMethod("getCallkitAnsweredState");
+  }
 }

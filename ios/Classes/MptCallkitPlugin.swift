@@ -592,7 +592,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
                 // Create session first (required for CallKit reporting)
                 _callManager.incomingCall(
-                    sessionid: -1, existsVideo: isVideoCall, remoteParty: self.currentRemoteName,
+                    sessionid: -1, existsVideo: true, remoteParty: self.currentRemoteName,
                     callUUID: uuid!, completionHandle: {})
 
                 if #available(iOS 10.0, *) {
@@ -847,10 +847,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         self.activeSessionid = sessionId
         let num = _callManager.getConnectCallNum()
         let index = findIdleLine()
-        if num >= MAX_LINES || index < 0 {
-            portSIPSDK.rejectCall(sessionId, code: 486)
-            return
-        }
+        // if num >= MAX_LINES || index < 0 {
+        //     portSIPSDK.rejectCall(sessionId, code: 486)
+        //     return
+        // }
         let remoteParty = caller
         let remoteDisplayName = callerDisplayName
 
@@ -867,7 +867,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         lineSessions[index] = sessionId
 
         _callManager.incomingCall(
-            sessionid: sessionId, existsVideo: existsVideo, remoteParty: self.currentRemoteName,
+            sessionid: sessionId, existsVideo: true, remoteParty: self.currentRemoteName,
             callUUID: self.currentUUID!, completionHandle: {})
 
         // Send PortSIPStateManager notification immediately for incoming call
@@ -1631,16 +1631,39 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         print("update Call result: \(result) \n")
     }
 
-    func hangUpCall() {
+    func hangUpCall() -> Int32 {
         NSLog("hangUpCall")
         methodChannel?.invokeMethod("isRemoteVideoReceived", arguments: false)
         self.isRemoteVideoReceived = false
+
+        var statusCode: Int32 = -1
+
         if activeSessionid != CLong(INVALID_SESSION_ID) {
             _ = mSoundService.stopRingTone()
             _ = mSoundService.stopRingBackTone()
-            _callManager.endCall(sessionid: activeSessionid)
 
+            // If CallKit is enabled and visible, request end via CallKit and assume success (0)
+            if _callManager.enableCallKit && !_callManager.isHideCallkit {
+                _callManager.endCall(sessionid: activeSessionid)
+                statusCode = 0
+            } else {
+                // Directly end via SDK when CallKit is hidden/disabled to get SDK status
+                if let result = _callManager.findCallBySessionID(activeSessionid) {
+                    if result.session.sessionState || result.session.outgoing {
+                        statusCode = portSIPSDK.hangUp(activeSessionid)
+                    } else {
+                        // Reject when not established; PortSIP reject may not return a code
+                        portSIPSDK.rejectCall(activeSessionid, code: 486)
+                        statusCode = 0
+                    }
+                } else {
+                    // Fallback if session lookup failed
+                    statusCode = portSIPSDK.hangUp(activeSessionid)
+                }
+            }
         }
+
+        return statusCode
     }
 
     func holdCall() {
@@ -1863,6 +1886,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
         let result = _callManager.findCallBySessionID(sessionId)
         if result != nil {
+            _callManager.reportEndCall(uuid: self.currentUUID!)
             _callManager.removeCall(call: result!.session)
         }
         if sessionId == activeSessionid {
@@ -2186,6 +2210,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                         code: "INVALID_ARGUMENTS",
                         message: "Missing or invalid arguments for updateVideoCall", details: nil))
             }
+            
+        case "getCallkitAnsweredState":
+            result(getCallkitAnsweredState())
+            return
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -2552,6 +2580,22 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         let sessionId = !currentSessionid.isEmpty ? currentSessionid : "empty_X_Session_Id"
         let userExtension = !currentUsername.isEmpty ? currentUsername : "unknown"
         return (sessionId, userExtension)
+    }
+    
+    private func getCallkitAnsweredState() -> Bool{
+        let sessionCall = _callManager.findCallByUUID(uuid: self.currentUUID!)
+        var ret = false
+        
+        if (sessionCall != nil){
+            ret =  sessionCall?.session.callKitAnswered == true;
+        }
+        else {
+            ret = false;
+        }
+        
+        print("getCallkitAnsweredState = \(ret)")
+        
+        return ret;
     }
 
 }

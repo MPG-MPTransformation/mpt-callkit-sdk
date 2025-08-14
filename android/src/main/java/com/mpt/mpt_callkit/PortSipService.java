@@ -686,11 +686,11 @@ public class PortSipService extends Service
                 + ", existsVideo: " + existsVideo
                 + ", sipMessage: " + sipMessage);
 
-        if (CallManager.Instance().findIncomingCall() != null) {
-            Engine.Instance().getEngine().rejectCall(sessionId, 486); // busy
-            logWithTimestamp("SDK-Android: Rejected call - already in a call");
-            return;
-        }
+        // if (CallManager.Instance().findIncomingCall() != null) {
+        //     Engine.Instance().getEngine().rejectCall(sessionId, 486); // busy
+        //     logWithTimestamp("SDK-Android: Rejected call - already in a call");
+        //     return;
+        // }
         Session session = CallManager.Instance().findIdleSession();
         session.state = Session.CALL_STATE_FLAG.INCOMING;
         session.sessionID = sessionId;

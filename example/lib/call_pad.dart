@@ -120,11 +120,7 @@ class _CallPadState extends State<CallPad> {
           _callState = state;
         });
 
-        if (_callState == CallStateConstants.CONNECTED) {
-          // if (widget.isGuest == false) {
-          //   MptCallKitController().subscribeToMediaStatusChannel();
-          // }
-        }
+        if (_callState == CallStateConstants.INCOMING) {}
 
         // show dialog when call ended
         if (state == CallStateConstants.CLOSED ||

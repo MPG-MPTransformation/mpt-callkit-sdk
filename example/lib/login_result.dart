@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:example/components/callkit_constants.dart';
 import 'package:example/services/callkit_service.dart';
@@ -40,6 +41,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   final CallEventSocketRecv _callEventData = CallEventSocketRecv();
   var tokenExpired = false;
   String? _currentAgentStatus;
+  var currCallSesssionID = "";
 
   bool isOnCall = false;
 
@@ -66,14 +68,19 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     _callEventSocketSubscription =
         MptSocketSocketServer.callEvent.listen((callEvent) {
       if (mounted) {
-        if (callEvent.state == CallEventSocketConstants.OFFER_CALL ||
-            callEvent.state == CallEventSocketConstants.INIT) {
+        if ((callEvent.state == CallEventSocketConstants.OFFER_CALL ||
+                callEvent.state == CallEventSocketConstants.ANSWER_CALL) &&
+            callEvent.sessionId != currCallSesssionID) {
+          currCallSesssionID = callEvent.sessionId ?? "";
+
           _navigateToCallPad();
         }
 
         if (callEvent.state == CallEventSocketConstants.REJECT_CALL ||
             callEvent.state == CallEventSocketConstants.END_CALL) {
-          CallKitService.endCallkit();
+          if (Platform.isAndroid) {
+            CallKitService.endCallkit();
+          }
         }
       }
     });
@@ -425,7 +432,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                                         color: Colors.black,
                                       ),
                                     ),
-                                    const SizedBox(width: 10),
+                                    const SizedBox(width: 5),
                                     IconButton(
                                       onPressed: () {
                                         // Khi cần kết nối lại thủ công
