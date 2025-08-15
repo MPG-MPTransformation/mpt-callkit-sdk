@@ -21,6 +21,7 @@ class MptCallKitController {
   String appId = "";
   Map<String, dynamic>? currentUserInfo;
   ExtensionData? extensionData;
+  ExtensionData? lastesExtensionData;
   Map<String, dynamic>? _configuration;
   bool? _isOnline = false;
   bool? get isOnline => _isOnline;
@@ -441,6 +442,7 @@ class MptCallKitController {
       );
 
       if (extensionData != null) {
+        lastesExtensionData = extensionData;
         // Register to SIP server
         await MptCallKitController().online(
           username: extensionData?.username ?? "",
@@ -667,6 +669,7 @@ class MptCallKitController {
       if (result != null) {
         // Set extension data for guest call (needed for SIP ping)
         extensionData = result;
+        lastesExtensionData = extensionData;
 
         online(
           username: result.username ?? "",
