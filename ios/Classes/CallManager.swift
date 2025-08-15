@@ -339,21 +339,24 @@ class CallManager: NSObject {
         }
     }
 
-    func endCall(sessionid: CLong) {
+    func endCall(sessionid: CLong) -> Int32{
         guard let result = findCallBySessionID(sessionid) else {
-            return
+            return -1
         }
+        var statusCode: Int32 = -1
         if _enableCallKit {
             if isHideCallkit {
-                hungUpCall(uuid: result.session.uuid)
+                statusCode = hungUpCall(uuid: result.session.uuid)
             } else {
                 let sesion = result.session as Session
                 reportEndCall(uuid: sesion.uuid)
+                statusCode = 0 // CallKit operations assume success
             }
 
         } else {
-            hungUpCall(uuid: result.session.uuid)
+            statusCode = hungUpCall(uuid: result.session.uuid)
         }
+        return statusCode
     }
 
     func holdCall(sessionid: CLong, onHold: Bool) {
@@ -591,27 +594,30 @@ class CallManager: NSObject {
         }
     }
 
-    func hungUpCall(uuid: UUID) {
+    func hungUpCall(uuid: UUID) -> Int32{
         guard let result = findCallByUUID(uuid: uuid) else {
-            return
+            return -1
         }
+        
+        var hangUpRet: Int32 = -1
         if isConference {
             removeFromConference(sessionid: result.session.sessionId)
         }
 
         if result.session.sessionState {
-            _portSIPSDK.hangUp(result.session.sessionId)
+            hangUpRet = Int32(_portSIPSDK.hangUp(result.session.sessionId))
             if result.session.videoState {}
-            print("Hungup call on session \(result.session.sessionId)")
+            print("Hungup call on session \(result.session.sessionId) with status: \(hangUpRet)")
         } else if result.session.outgoing {
-            _portSIPSDK.hangUp(result.session.sessionId)
-            print("Invite call Failure on session \(result.session.sessionId)")
+            hangUpRet = Int32(_portSIPSDK.hangUp(result.session.sessionId))
+            print("Invite call Failure on session \(result.session.sessionId) with status: \(hangUpRet)")
         } else {
-            _portSIPSDK.rejectCall(result.session.sessionId, code: 486)
-            print("Rejected call on session \(result.session.sessionId)")
+            hangUpRet = Int32(_portSIPSDK.rejectCall(result.session.sessionId, code: 486))
+            print("Rejected call on session \(result.session.sessionId) with status: \(hangUpRet)")
         }
 
         delegate?.onCloseCall(sessionId: result.session.sessionId)
+        return hangUpRet
     }
 
     func holdCall(uuid: UUID, onHold: Bool) {

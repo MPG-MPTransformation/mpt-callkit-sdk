@@ -1118,13 +1118,15 @@ class MptCallKitController {
     }
   }
 
-  Future<bool> hangup() async {
+  Future<int> hangup() async {
+    // If hangup success, return 0 - failed in others case
     try {
       final result = await channel.invokeMethod("hangup");
+      print("hangup result: $result");
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'hangup' mothod: '${e.message}'.");
-      return false;
+      return -1;
     }
   }
 

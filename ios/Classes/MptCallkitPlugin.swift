@@ -1642,25 +1642,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             _ = mSoundService.stopRingTone()
             _ = mSoundService.stopRingBackTone()
 
-            // If CallKit is enabled and visible, request end via CallKit and assume success (0)
-            if _callManager.enableCallKit && !_callManager.isHideCallkit {
-                _callManager.endCall(sessionid: activeSessionid)
-                statusCode = 0
-            } else {
-                // Directly end via SDK when CallKit is hidden/disabled to get SDK status
-                if let result = _callManager.findCallBySessionID(activeSessionid) {
-                    if result.session.sessionState || result.session.outgoing {
-                        statusCode = portSIPSDK.hangUp(activeSessionid)
-                    } else {
-                        // Reject when not established; PortSIP reject may not return a code
-                        portSIPSDK.rejectCall(activeSessionid, code: 486)
-                        statusCode = 0
-                    }
-                } else {
-                    // Fallback if session lookup failed
-                    statusCode = portSIPSDK.hangUp(activeSessionid)
-                }
-            }
+            // Use CallManager.endCall which returns proper status codes
+            statusCode = _callManager.endCall(sessionid: activeSessionid)
+            NSLog("hangUpCall - endCall result: \(statusCode)")
+        } else {
+            statusCode = -2 // No active session
+            NSLog("hangUpCall - No active session")
         }
 
         return statusCode
@@ -1974,7 +1961,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         case "appKilled":
             print("appKilled called!")
             self.loginViewController.offLine()
-            _callManager.endCall(sessionid: activeSessionid)
+            let appKilledHangupResult = _callManager.endCall(sessionid: activeSessionid)
+            NSLog("appKilled hangup result: \(appKilledHangupResult)")
             result(true)
         case "requestPermission":
             AVCaptureDevice.requestAccess(for: .video) { videoGranted in
@@ -2066,8 +2054,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             self.loginViewController.offLine()
             result(true)
         case "hangup":
-            hangUpCall()
-            result(true)
+            let hangupResult = hangUpCall()
+            result(hangupResult)
         case "hold":
             holdCall()
             result(true)
@@ -2090,7 +2078,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             answerCall(isAutoAnswer: false)
             result(true)
         case "reject":
-            hangUpCall()
+            let rejectResult = hangUpCall()
+            result(rejectResult)
         case "transfer":
             if let args = call.arguments as? [String: Any],
                 let destination = args["destination"] as? String
