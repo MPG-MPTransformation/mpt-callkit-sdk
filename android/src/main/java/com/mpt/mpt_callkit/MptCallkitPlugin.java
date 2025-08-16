@@ -159,10 +159,12 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     MainActivity.activity.receiver = null;
                 }
                 MainActivity.activity.finish();
-                hangup();
+                int appKilledHangupResult = hangup();
+                System.out.println("SDK-Android: appKilled hangup result: " + appKilledHangupResult);
                 activity.finishAndRemoveTask();
             case "hangup":
-                hangup();
+                int hangupResult = hangup();
+                result.success(hangupResult);
                 break;
             case "hold":
                 holdCall();
@@ -292,6 +294,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 System.out.println("SDK-Android: reinviteSession - updateCall(): " + updateCallRes);
 
                 result.success(updateCallRes == 0);
+                break;
+            case "refreshRegister":
+                Engine.Instance().getEngine().refreshRegistration(0);
+                result.success(true);
                 break;
             default:
                 result.notImplemented();
@@ -529,10 +535,12 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         return true;
     }
 
-    static void hangup() {
+    static int hangup() {
         Session currentLine = CallManager.Instance().getCurrentSession();
         Ring.getInstance(MainActivity.activity).stop();
         MptCallkitPlugin.sendToFlutter("isRemoteVideoReceived", false);
+        
+        int statusCode = -1; // Success by default
 
         try {
             PortSipSdk engine = Engine.Instance().getEngine();
@@ -545,8 +553,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
                 switch (currentLine.state) {
                     case INCOMING:
-                        engine.rejectCall(currentLine.sessionID, 486);
-                        System.out.println("SDK-Android: lineName= " + currentLine.lineName + ": Rejected call");
+                        statusCode = engine.rejectCall(currentLine.sessionID, 486);
+                        System.out.println("SDK-Android: lineName= " + currentLine.lineName + ": Rejected call with status: " + statusCode);
 
                         if (MainActivity.activity != null) {
                             MainActivity.activity.onHangUpCall();
@@ -559,7 +567,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                         break;
                     case CONNECTED:
                     case TRYING:
-                        engine.hangUp(currentLine.sessionID);
+                        statusCode = engine.hangUp(currentLine.sessionID);
+                        System.out.println("SDK-Android: hangUp status code: " + statusCode);
 
                         if (Engine.Instance().getMethodChannel() != null) {
                             if (MainActivity.activity != null) {
@@ -571,17 +580,27 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                             System.out.println("SDK-Android: callState - " + "CLOSED");
                         }
 
-                        System.out.println("SDK-Android: lineName= " + currentLine.lineName + ": Hang up");
+                        System.out.println("SDK-Android: lineName= " + currentLine.lineName + ": Hang up with status: " + statusCode);
+                        break;
+                    default:
+                        statusCode = -1; // No active call to hang up
+                        System.out.println("SDK-Android: No active call to hang up");
                         break;
                 }
+            } else {
+                statusCode = -2; // Engine or session null
+                System.out.println("SDK-Android: Engine or current session is null");
             }
         } catch (Exception e) {
+            statusCode = -3; // Exception occurred
             System.out.println("SDK-Android: Error during hangup: " + e.getMessage());
         } finally {
             if (currentLine != null) {
                 currentLine.Reset();
             }
         }
+        
+        return statusCode;
     }
 
     void holdCall() {

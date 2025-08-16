@@ -80,6 +80,7 @@ class _CallPadState extends State<CallPad> {
   // is remote video received subscription
   StreamSubscription<bool>? _isRemoteVideoReceivedSubscription;
   bool _isRemoteVideoReceived = false;
+  var callStatusCode = -999;
 
   @override
   void initState() {
@@ -315,6 +316,21 @@ class _CallPadState extends State<CallPad> {
                           ),
                         ),
                 ),
+                Container(
+                    padding: const EdgeInsets.all(10),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: _getCallStateColor(),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Call State SIP: ${_callState.isEmpty ? "IDLE" : _callState}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    )),
                 Text(
                   'Microphone: ${_isMuted ? "OFF" : "ON"}',
                   style: const TextStyle(
@@ -461,20 +477,21 @@ class _CallPadState extends State<CallPad> {
                     );
                   },
                 ),
-                const Column(
+                Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    SizedBox(height: 16),
-                    Text("Camera"),
-                    SizedBox(
+                    Text("Call Status Code: $callStatusCode"),
+                    const SizedBox(height: 16),
+                    const Text("Camera"),
+                    const SizedBox(
                       height: 300,
                       width: 300,
                       child: LocalView(),
                     ),
-                    SizedBox(height: 16),
-                    Text("Video"),
-                    SizedBox(
+                    const SizedBox(height: 16),
+                    const Text("Video"),
+                    const SizedBox(
                       height: 300,
                       width: 300,
                       child: RemoteView(),
@@ -511,7 +528,10 @@ class _CallPadState extends State<CallPad> {
 
     switch (functionName) {
       case 'answer':
-        MptCallKitController().answerCall();
+        var answerCode = await MptCallKitController().answerCall();
+        setState(() {
+          callStatusCode = answerCode;
+        });
         break;
       case 'hangup':
         MptCallKitController().hangup();

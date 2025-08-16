@@ -179,6 +179,7 @@ class LoginViewController {
             //Not register
             break
         case .LOGIN_STATUS_LOGIN:
+            portSIPSDK.refreshRegistration(0)
             break
         case .LOGIN_STATUS_ONLINE:
             portSIPSDK.refreshRegistration(0)
@@ -193,8 +194,9 @@ class LoginViewController {
     
     func unRegister() {
         if sipRegistrationStatus == .LOGIN_STATUS_LOGIN || sipRegistrationStatus == .LOGIN_STATUS_ONLINE {
-            print("Force unregister SIP")
-            offLine()
+            portSIPSDK.unRegisterServer(90)
+            print("unRegister when background")
+            sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_FAILUE
         }
          refreshRegister()
     }

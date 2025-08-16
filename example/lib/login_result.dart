@@ -42,17 +42,40 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   var tokenExpired = false;
   String? _currentAgentStatus;
   var currCallSesssionID = "";
+  final List<String> _socketCallStateList = [];
+  DateTime startTime = DateTime.now();
 
   bool isOnCall = false;
 
   @override
   void initState() {
     super.initState();
+
+    startTime = DateTime.now();
     Future.microtask(() {
       if (mounted) {
         _initDataWhenLoginSuccess();
       }
     });
+
+    MptCallKitController().onRegisterSIP = (isOnline) {
+      if (mounted) {
+        if (isOnline) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("SIP registration: TRUE!"),
+            ),
+          );
+        } else {
+          doRegister();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("SIP registration: FALSE!"),
+            ),
+          );
+        }
+      }
+    };
 
     /* Route to CallPad if call session established */
     _callTypeSubscription = MptCallKitController().callEvent.listen((type) {
@@ -68,11 +91,14 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     _callEventSocketSubscription =
         MptSocketSocketServer.callEvent.listen((callEvent) {
       if (mounted) {
+        setState(() {
+          _socketCallStateList.add(callEvent.state ?? "NONE");
+        });
+
         if ((callEvent.state == CallEventSocketConstants.OFFER_CALL ||
                 callEvent.state == CallEventSocketConstants.ANSWER_CALL) &&
             callEvent.sessionId != currCallSesssionID) {
           currCallSesssionID = callEvent.sessionId ?? "";
-
           _navigateToCallPad();
         }
 
@@ -95,7 +121,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     print("AppLifecycleState: $state");
 
     if (state == AppLifecycleState.resumed && isOnCall == false) {
-      doRegister();
+      MptCallKitController().refreshRegister();
     }
   }
 
@@ -600,6 +626,13 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                                     ),
                                     child: const Text("Refresh Agent Status"),
                                   ),
+                                  const SizedBox(height: 10),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      MptCallKitController().refreshRegister();
+                                    },
+                                    child: const Text("Refresh Register"),
+                                  ),
                                 ],
                               ),
                             ),
@@ -676,6 +709,16 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                             ),
                           ],
                         ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        "Time: $startTime",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        "Socket call state: [${_socketCallStateList.join(", ")}]",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),

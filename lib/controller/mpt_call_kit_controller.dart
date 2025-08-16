@@ -21,6 +21,7 @@ class MptCallKitController {
   String appId = "";
   Map<String, dynamic>? currentUserInfo;
   ExtensionData? extensionData;
+  ExtensionData? lastesExtensionData;
   Map<String, dynamic>? _configuration;
   bool? _isOnline = false;
   bool? get isOnline => _isOnline;
@@ -189,7 +190,8 @@ class MptCallKitController {
   String? _sipServerUrl;
   bool _isPinging = false;
 
-  ///
+  /// callback functions
+  Function(bool)? onRegisterSIP;
 
   MptCallKitController._internal() {
     if (Platform.isAndroid) {
@@ -200,6 +202,7 @@ class MptCallKitController {
         if (call.method == 'onlineStatus') {
           _isOnline = call.arguments as bool;
           _onlineStatuslistener.add(call.arguments as bool);
+          onRegisterSIP?.call(call.arguments as bool);
           print("onlineStatus: ${call.arguments}");
 
           // Handle SIP ping based on registration status
@@ -441,6 +444,7 @@ class MptCallKitController {
       );
 
       if (extensionData != null) {
+        lastesExtensionData = extensionData;
         // Register to SIP server
         await MptCallKitController().online(
           username: extensionData?.username ?? "",
@@ -667,6 +671,7 @@ class MptCallKitController {
       if (result != null) {
         // Set extension data for guest call (needed for SIP ping)
         extensionData = result;
+        lastesExtensionData = extensionData;
 
         online(
           username: result.username ?? "",
@@ -1118,13 +1123,15 @@ class MptCallKitController {
     }
   }
 
-  Future<bool> hangup() async {
+  Future<int> hangup() async {
+    // If hangup success, return 0 - failed in others case
     try {
       final result = await channel.invokeMethod("hangup");
+      print("hangup result: $result");
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'hangup' mothod: '${e.message}'.");
-      return false;
+      return -1;
     }
   }
 
@@ -1198,13 +1205,13 @@ class MptCallKitController {
     }
   }
 
-  Future<bool> answerCall() async {
+  Future<int> answerCall() async {
     try {
       final result = await channel.invokeMethod("answer");
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'answer' mothod: '${e.message}'.");
-      return false;
+      return -10;
     }
   }
 
@@ -1531,6 +1538,7 @@ class MptCallKitController {
           case 'onlineStatus':
             _isOnline = data as bool;
             _onlineStatuslistener.add(data);
+            onRegisterSIP?.call(data);
 
             // Handle SIP ping based on registration status
             if (data) {
@@ -1942,5 +1950,9 @@ class MptCallKitController {
 
   Future<bool> getCallkitAnsweredState() async {
     return await channel.invokeMethod("getCallkitAnsweredState");
+  }
+
+  Future<void> refreshRegister() async {
+    await channel.invokeMethod("refreshRegister");
   }
 }

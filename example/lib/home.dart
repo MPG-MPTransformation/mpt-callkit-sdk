@@ -182,7 +182,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   return const LoginMethod();
                 }));
               },
-              child: const Text("Call with account"))
+              child: const Text("Call with account")),
+          OutlinedButton(
+              onPressed: () {
+                print(
+                    "Latest extension number: ${MptCallKitController().lastesExtensionData?.username.toString()}");
+              },
+              child: const Text("Get latest extension data"))
         ],
       ),
     );

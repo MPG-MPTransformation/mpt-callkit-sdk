@@ -309,8 +309,8 @@ class CallManager: NSObject {
             }
             session.videoState = existsVideo
             if session.callKitAnswered {
-                let bRet = answerCallWithUUID(uuid: session.uuid, isVideo: existsVideo)
-                session.callKitCompletionCallback?(bRet)
+               let bRet = answerCallWithUUID(uuid: session.uuid, isVideo: existsVideo)
+                session.callKitCompletionCallback?(bRet == 0)
                 reportUpdateCall(uuid: session.uuid, hasVideo: existsVideo, from: remoteParty)
             }
         } else {
@@ -323,9 +323,9 @@ class CallManager: NSObject {
         }
     }
 
-    func answerCall(sessionId: CLong, isVideo: Bool) -> (Bool) {
+    func answerCall(sessionId: CLong, isVideo: Bool) -> (Int32) {
         guard let result = findCallBySessionID(sessionId) else {
-            return false
+            return 2
         }
         if _enableCallKit {
             if isHideCallkit{
@@ -333,27 +333,31 @@ class CallManager: NSObject {
             } else {
                 result.session.videoState = isVideo
                 reportAnswerCall(uuid: result.session.uuid)
-            return true}
+                return 3
+             }
         } else {
             return answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo)
         }
     }
 
-    func endCall(sessionid: CLong) {
+    func endCall(sessionid: CLong) -> Int32{
         guard let result = findCallBySessionID(sessionid) else {
-            return
+            return 4
         }
+        var statusCode: Int32 = -1
         if _enableCallKit {
             if isHideCallkit {
-                hungUpCall(uuid: result.session.uuid)
+                statusCode = hungUpCall(uuid: result.session.uuid)
             } else {
                 let sesion = result.session as Session
                 reportEndCall(uuid: sesion.uuid)
+                statusCode = 0 // CallKit operations assume success
             }
 
         } else {
-            hungUpCall(uuid: result.session.uuid)
+            statusCode = hungUpCall(uuid: result.session.uuid)
         }
+        return statusCode
     }
 
     func holdCall(sessionid: CLong, onHold: Bool) {
@@ -559,16 +563,16 @@ class CallManager: NSObject {
         return session.sessionId
     }
 
-    func answerCallWithUUID(uuid: UUID, isVideo: Bool) -> (Bool) {
+    func answerCallWithUUID(uuid: UUID, isVideo: Bool) -> (Int32) {
         let sessionCall = findCallByUUID(uuid: uuid)
         guard sessionCall != nil else {
-            return false
+            return 2
         }
 
         if sessionCall!.session.sessionId <= INVALID_SESSION_ID {
             // Haven't received INVITE CALL
             sessionCall!.session.callKitAnswered = true
-            return true
+            return 5
         } else {
             let nRet = _portSIPSDK.answerCall(sessionCall!.session.sessionId, videoCall: isVideo)
             if nRet == 0 {
@@ -581,37 +585,42 @@ class CallManager: NSObject {
                 delegate?.onAnsweredCall(sessionId: sessionCall!.session.sessionId)
 
                 print("Answer Call on session \(sessionCall!.session.sessionId)")
-                return true
+//                return true
             } else {
                 delegate?.onCloseCall(sessionId: sessionCall!.session.sessionId)
 
                 print("Answer Call on session \(sessionCall!.session.sessionId) Failed! ret = \(nRet)")
-                return false
+//                return false
             }
+            
+            return nRet;
         }
     }
 
-    func hungUpCall(uuid: UUID) {
+    func hungUpCall(uuid: UUID) -> Int32{
         guard let result = findCallByUUID(uuid: uuid) else {
-            return
+            return -1
         }
+        
+        var hangUpRet: Int32 = -1
         if isConference {
             removeFromConference(sessionid: result.session.sessionId)
         }
 
         if result.session.sessionState {
-            _portSIPSDK.hangUp(result.session.sessionId)
+            hangUpRet = Int32(_portSIPSDK.hangUp(result.session.sessionId))
             if result.session.videoState {}
-            print("Hungup call on session \(result.session.sessionId)")
+            print("Hungup call on session \(result.session.sessionId) with status: \(hangUpRet)")
         } else if result.session.outgoing {
-            _portSIPSDK.hangUp(result.session.sessionId)
-            print("Invite call Failure on session \(result.session.sessionId)")
+            hangUpRet = Int32(_portSIPSDK.hangUp(result.session.sessionId))
+            print("Invite call Failure on session \(result.session.sessionId) with status: \(hangUpRet)")
         } else {
-            _portSIPSDK.rejectCall(result.session.sessionId, code: 486)
-            print("Rejected call on session \(result.session.sessionId)")
+            hangUpRet = Int32(_portSIPSDK.rejectCall(result.session.sessionId, code: 486))
+            print("Rejected call on session \(result.session.sessionId) with status: \(hangUpRet)")
         }
 
         delegate?.onCloseCall(sessionId: result.session.sessionId)
+        return hangUpRet
     }
 
     func holdCall(uuid: UUID, onHold: Bool) {
