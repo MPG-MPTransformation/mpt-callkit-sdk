@@ -124,8 +124,8 @@ class PortCxProvider: NSObject, CXProviderDelegate {
                 session?.session.callKitAnswered = true
                 session?.session.callKitCompletionCallback = completionHandler
             } else {
-                if callManager.answerCallWithUUID(uuid: uuid, isVideo: session?.session.videoState ?? false) {
-                    completionHandler(true)
+                if (callManager.answerCallWithUUID(uuid: uuid, isVideo: session?.session.videoState ?? false) == 0) {
+                completionHandler(true)
                 } else {
                     print("Answer Call Failed!")
                     completionHandler(false)

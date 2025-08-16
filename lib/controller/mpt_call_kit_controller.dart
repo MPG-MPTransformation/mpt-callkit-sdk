@@ -190,7 +190,8 @@ class MptCallKitController {
   String? _sipServerUrl;
   bool _isPinging = false;
 
-  ///
+  /// callback functions
+  Function(bool)? onRegisterSIP;
 
   MptCallKitController._internal() {
     if (Platform.isAndroid) {
@@ -201,6 +202,7 @@ class MptCallKitController {
         if (call.method == 'onlineStatus') {
           _isOnline = call.arguments as bool;
           _onlineStatuslistener.add(call.arguments as bool);
+          onRegisterSIP?.call(call.arguments as bool);
           print("onlineStatus: ${call.arguments}");
 
           // Handle SIP ping based on registration status
@@ -1203,13 +1205,13 @@ class MptCallKitController {
     }
   }
 
-  Future<bool> answerCall() async {
+  Future<int> answerCall() async {
     try {
       final result = await channel.invokeMethod("answer");
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'answer' mothod: '${e.message}'.");
-      return false;
+      return -10;
     }
   }
 
@@ -1536,6 +1538,7 @@ class MptCallKitController {
           case 'onlineStatus':
             _isOnline = data as bool;
             _onlineStatuslistener.add(data);
+            onRegisterSIP?.call(data);
 
             // Handle SIP ping based on registration status
             if (data) {
@@ -1947,5 +1950,9 @@ class MptCallKitController {
 
   Future<bool> getCallkitAnsweredState() async {
     return await channel.invokeMethod("getCallkitAnsweredState");
+  }
+
+  Future<void> refreshRegister() async {
+    await channel.invokeMethod("refreshRegister");
   }
 }

@@ -296,7 +296,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // change "CallKit" to true if wanna use iOS CallKit
         UserDefaults.standard.register(defaults: ["CallKit": true])
         UserDefaults.standard.register(defaults: ["PushNotification": true])
-        UserDefaults.standard.register(defaults: ["ForceBackground": false])
+        UserDefaults.standard.register(defaults: ["ForceBackground": true])
 
         let enableCallKit = UserDefaults.standard.bool(forKey: "CallKit")
         _enablePushNotification = UserDefaults.standard.bool(forKey: "PushNotification")
@@ -928,11 +928,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 
                 if UIApplication.shared.applicationState != .active {
                     _callManager.isHideCallkit = false
-                                    if #available(iOS 10.0, *) {
-                                        _callManager.reportInComingCall(
-                                            uuid: self.currentUUID!, hasVideo: true, from: self.currentRemoteName
-                                        )
-                                    }
+                    if #available(iOS 10.0, *) {
+                        _callManager.reportInComingCall(
+                            uuid: self.currentUUID!, hasVideo: true, from: self.currentRemoteName
+                        )
+                    }
                 } else {
                     mSoundService.playRingTone()
                     _callManager.isHideCallkit = true
@@ -1165,6 +1165,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             }
 
 
+        }
+        
+        if existsAudio {
+            let audioStrCallBack = portSIPSDK.enableAudioStreamCallback(
+                sessionId, enable: true, callbackMode: DIRECTION_RECV)
+            print("enableVideoStreamCallback result: \(audioStrCallBack)")
         }
 
         // 🔍 LOG: Check condition
@@ -1573,6 +1579,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
          other code which will spend long time, you should post a message to main thread(main window) or other thread,
          let the thread to call SDK API functions or other code.
          */
+        print("onAudioRawCallback")
     }
 
     public func onVideoRawCallback(
@@ -1822,6 +1829,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
         if result != nil {
             NSLog("Found call session, videoState: \(result!.session.videoState)")
+            
+            if _callManager.isHideCallkit{
+                _callManager.reportOutgoingCall(number: self.currentRemoteName, uuid: self.currentUUID!)
+            }
 
             // Send call state notification - LocalViewController will always show local video regardless of hasVideo
             let callState = PortSIPCallState(
@@ -2075,8 +2086,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             toggleCamera(false)
             result(true)
         case "answer":
-            answerCall(isAutoAnswer: false)
-            result(true)
+            let ansr = answerCall(isAutoAnswer: false)
+            result(ansr)
         case "reject":
             let rejectResult = hangUpCall()
             result(rejectResult)
@@ -2203,6 +2214,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         case "getCallkitAnsweredState":
             result(getCallkitAnsweredState())
             return
+        case "refreshRegister":
+            portSIPSDK.refreshRegistration(0)
+            result(true)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -2272,11 +2286,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
     // Thêm phương thức để trả lời cuộc gọi
-    func answerCall(isAutoAnswer: Bool) {
+    func answerCall(isAutoAnswer: Bool) ->  Int32{
         NSLog("🔍 answerCall - START")
-        if activeSessionid != CLong(INVALID_SESSION_ID) {
+//        if activeSessionid != CLong(INVALID_SESSION_ID) {
             _ = mSoundService.stopRingTone()
             _ = mSoundService.stopRingBackTone()
+        
             let result = _callManager.findCallBySessionID(activeSessionid)
             if result != nil {
                 // 🔍 LOG: Session state BEFORE answer
@@ -2290,7 +2305,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let answerRes = _callManager.answerCall(
                     sessionId: activeSessionid, isVideo: result?.session.videoState ?? false)
 
-                if answerRes == true {
+                if answerRes == 0 {
                     //Notice to remote
                     if !isAutoAnswer {
 //                        let sessionInfo = getCurrentSessionInfo()
@@ -2308,18 +2323,22 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                         "❌ answerCall - Answer call failed with error code: \(String(describing: answerRes))"
                     )
                 }
-
+                
                 NSLog(
                     "🔍 answerCall() - Waiting for onInviteAnswered() to send proper state notifications"
                 )
 
                 NSLog("🔍 answerCall - Call answered")
+                
+                return answerRes
             } else {
+                return 1
                 NSLog("❌ answerCall - Cannot find session for activeSessionid: \(activeSessionid)")
             }
-        } else {
-            NSLog("❌ answerCall - No active session - \(activeSessionid)")
-        }
+//        } else {
+//            return -1
+//            NSLog("❌ answerCall - No active session - \(activeSessionid)")
+//        }
     }
 
     // Thêm phương thức để từ chối cuộc gọi

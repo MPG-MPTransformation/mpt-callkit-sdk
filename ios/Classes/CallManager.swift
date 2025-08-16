@@ -309,8 +309,8 @@ class CallManager: NSObject {
             }
             session.videoState = existsVideo
             if session.callKitAnswered {
-                let bRet = answerCallWithUUID(uuid: session.uuid, isVideo: existsVideo)
-                session.callKitCompletionCallback?(bRet)
+               let bRet = answerCallWithUUID(uuid: session.uuid, isVideo: existsVideo)
+                session.callKitCompletionCallback?(bRet == 0)
                 reportUpdateCall(uuid: session.uuid, hasVideo: existsVideo, from: remoteParty)
             }
         } else {
@@ -323,9 +323,9 @@ class CallManager: NSObject {
         }
     }
 
-    func answerCall(sessionId: CLong, isVideo: Bool) -> (Bool) {
+    func answerCall(sessionId: CLong, isVideo: Bool) -> (Int32) {
         guard let result = findCallBySessionID(sessionId) else {
-            return false
+            return 2
         }
         if _enableCallKit {
             if isHideCallkit{
@@ -333,7 +333,8 @@ class CallManager: NSObject {
             } else {
                 result.session.videoState = isVideo
                 reportAnswerCall(uuid: result.session.uuid)
-            return true}
+                return 3
+             }
         } else {
             return answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo)
         }
@@ -341,7 +342,7 @@ class CallManager: NSObject {
 
     func endCall(sessionid: CLong) -> Int32{
         guard let result = findCallBySessionID(sessionid) else {
-            return -1
+            return 4
         }
         var statusCode: Int32 = -1
         if _enableCallKit {
@@ -562,16 +563,16 @@ class CallManager: NSObject {
         return session.sessionId
     }
 
-    func answerCallWithUUID(uuid: UUID, isVideo: Bool) -> (Bool) {
+    func answerCallWithUUID(uuid: UUID, isVideo: Bool) -> (Int32) {
         let sessionCall = findCallByUUID(uuid: uuid)
         guard sessionCall != nil else {
-            return false
+            return 2
         }
 
         if sessionCall!.session.sessionId <= INVALID_SESSION_ID {
             // Haven't received INVITE CALL
             sessionCall!.session.callKitAnswered = true
-            return true
+            return 5
         } else {
             let nRet = _portSIPSDK.answerCall(sessionCall!.session.sessionId, videoCall: isVideo)
             if nRet == 0 {
@@ -584,13 +585,15 @@ class CallManager: NSObject {
                 delegate?.onAnsweredCall(sessionId: sessionCall!.session.sessionId)
 
                 print("Answer Call on session \(sessionCall!.session.sessionId)")
-                return true
+//                return true
             } else {
                 delegate?.onCloseCall(sessionId: sessionCall!.session.sessionId)
 
                 print("Answer Call on session \(sessionCall!.session.sessionId) Failed! ret = \(nRet)")
-                return false
+//                return false
             }
+            
+            return nRet;
         }
     }
 
