@@ -359,6 +359,9 @@ class MptSocketSocketServer {
 
   /// Set up socket event listeners
   void _setupSocketListeners() {
+    // Clear existing listeners first
+    socket!.clearListeners();
+
     socket!.onConnect((_) {
       print("Socket server connected");
       isConnecting = true;
