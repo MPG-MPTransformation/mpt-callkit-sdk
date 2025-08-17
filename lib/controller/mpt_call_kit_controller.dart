@@ -395,7 +395,7 @@ class MptCallKitController {
           currentUserInfo!["tenant"] != null &&
           _configuration!["MOBILE_SIP_URL"] != null &&
           _configuration!["MOBILE_SIP_PORT"] != null) {
-        final isSocketConnected = await connectToSocketServer(accessToken);
+        final isSocketConnected = await _connectToSocketServer(accessToken);
         if (isSocketConnected) {
           // Wait until initial rooms joined before SIP registration
           final roomsJoined =
@@ -500,7 +500,7 @@ class MptCallKitController {
     }
   }
 
-  Future<bool> connectToSocketServer(String accessToken) async {
+  Future<bool> _connectToSocketServer(String accessToken) async {
     print("connectToSocketServer");
 
     if (_configuration != null) {
