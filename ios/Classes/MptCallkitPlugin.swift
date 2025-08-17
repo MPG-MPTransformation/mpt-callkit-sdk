@@ -18,6 +18,7 @@ struct PortSIPCallState {
         case trying = "TRYING"
         case connected = "CONNECTED"
         case answered = "ANSWERED"
+        case updated = "UPDATED"
         case failed = "FAILED"
         case closed = "CLOSED"
     }
@@ -99,6 +100,9 @@ class PortSIPStateManager {
         case .closed:
             NotificationCenter.default.post(
                 name: .portSIPCallClosed, object: nil, userInfo: userInfo)
+        case .updated:
+            NotificationCenter.default.post(
+                name: .portSIPCallUpdated, object: nil, userInfo: userInfo)
         }
     }
 
@@ -253,6 +257,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         case CONNECTED = "CONNECTED"
         case IN_CONFERENCE = "IN_CONFERENCE"
         case ANSWERED = "ANSWERED"
+        case UPDATED = "UPDATED"
         case FAILED = "FAILED"
         case CLOSED = "CLOSED"
     }
@@ -1217,6 +1222,21 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         )
         PortSIPStateManager.shared.updateVideoState(videoState)
 
+        // 🔥 NEW: Send call state UPDATED notification
+        let callState = PortSIPCallState(
+            sessionId: Int64(sessionId),
+            hasVideo: existsVideo,
+            hasAudio: existsAudio,
+            isIncoming: !result.session.recvCallState,
+            remoteParty: nil,
+            remoteDisplayName: nil,
+            state: .updated
+        )
+        PortSIPStateManager.shared.updateCallState(callState)
+
+        // Legacy Flutter state (keep for compatibility)
+        sendCallStateToFlutter(.UPDATED)
+
         NSLog("onInviteUpdated - COMPLETE: The call has been updated on line \(result.index)")
     }
 
@@ -1579,7 +1599,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
          other code which will spend long time, you should post a message to main thread(main window) or other thread,
          let the thread to call SDK API functions or other code.
          */
-        print("onAudioRawCallback")
+//        print("onAudioRawCallback - dataLength \(dataLength)")
     }
 
     public func onVideoRawCallback(
@@ -1597,6 +1617,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         //       // Print the first few bytes of the raw video data (hexadecimal representation)
         //       print("Raw video data (first 16 bytes):", frameData.prefix(16).map { String(format: "%02x", $0) }.joined(separator: " "))
 
+        print("Total data length: \(dataLength) bytes")
+        
         if self.isRemoteVideoReceived == false {
             // Print some additional information
             print("Total data length: \(dataLength) bytes")
@@ -2395,6 +2417,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             return .connected
         case .ANSWERED:
             return .answered
+        case .UPDATED:
+            return .updated
         case .FAILED:
             return .failed
         case .CLOSED:

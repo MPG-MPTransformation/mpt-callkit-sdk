@@ -572,7 +572,7 @@ class CallManager: NSObject {
         if sessionCall!.session.sessionId <= INVALID_SESSION_ID {
             // Haven't received INVITE CALL
             sessionCall!.session.callKitAnswered = true
-            return 5
+            return 0
         } else {
             let nRet = _portSIPSDK.answerCall(sessionCall!.session.sessionId, videoCall: isVideo)
             if nRet == 0 {

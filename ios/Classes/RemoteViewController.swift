@@ -38,6 +38,14 @@ class RemoteViewController: UIViewController {
            object: nil
        )
       
+       // 🔥 FIX: Add missing notification for UPDATED state
+       NotificationCenter.default.addObserver(
+           self,
+           selector: #selector(handleCallStateChange(_:)),
+           name: .portSIPCallUpdated,
+           object: nil
+       )
+      
        NotificationCenter.default.addObserver(
            self,
            selector: #selector(handleVideoStateChange(_:)),
@@ -73,7 +81,7 @@ class RemoteViewController: UIViewController {
            } else {
                self.updateVideoVisibility(isVisible: false)
            }
-       case "ANSWERED", "CONNECTED":
+       case "ANSWERED", "CONNECTED", "UPDATED":
            if hasVideo {
                if !self.isVideoInitialized {
                    self.initializeRemoteVideo()

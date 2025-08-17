@@ -37,6 +37,14 @@ class LocalViewController: UIViewController {
            object: nil
        )
       
+       // 🔥 FIX: Add missing notification for UPDATED state
+       NotificationCenter.default.addObserver(
+           self,
+           selector: #selector(handleCallStateChange(_:)),
+           name: .portSIPCallUpdated,
+           object: nil
+       )
+      
        NotificationCenter.default.addObserver(
            self,
            selector: #selector(handleVideoStateChange(_:)),
@@ -64,7 +72,7 @@ class LocalViewController: UIViewController {
            guard let self = self else { return }
           
            switch state {
-           case "INCOMING", "ANSWERED", "CONNECTED":
+           case "INCOMING", "ANSWERED", "CONNECTED", "UPDATED":
                // 🔥 SIMPLE: Always show local video for any active call
                NSLog("LocalViewController - Active call (\(state)), showing local video")
                if !self.isVideoInitialized {
