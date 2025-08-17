@@ -360,7 +360,7 @@ class MptSocketSocketServer {
   /// Set up socket event listeners
   void _setupSocketListeners() {
     socket!.onConnect((_) {
-      print("Socket server connected");
+      // print("Socket server connected");
       isConnecting = true;
       if (!_connectionStatusController.isClosed) {
         _connectionStatusController.add(true);
