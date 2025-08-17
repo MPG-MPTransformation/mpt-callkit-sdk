@@ -144,11 +144,14 @@ class CallManager: NSObject {
             let transaction = CXTransaction()
             transaction.addAction(answerAction)
             let callController = CXCallController()
-            callController.request(transaction) { error in
+            callController.request(transaction) { [weak self] error in
                 if let error = error {
                     print("Error requesting transaction: \(error)")
+                    result.session.callKitCompletionCallback?(false)
                 } else {
                     print("Requested transaction successfully")
+                    // We don't call the completion callback here because it will be called
+                    // after the actual answer operation is completed in answerCallWithUUID
                 }
             }
         }
@@ -299,19 +302,24 @@ class CallManager: NSObject {
         return sessionid
     }
 
-    func incomingCall(sessionid: CLong, existsVideo: Bool, remoteParty: String, callUUID: UUID, completionHandle _: () -> Void) {
+    func incomingCall(sessionid: CLong, existsVideo: Bool, remoteParty: String, callUUID: UUID, completionHandle: @escaping () -> Void) {
         var session: Session
         let result = findCallByUUID(uuid: callUUID)
         if result != nil {
             session = result!.session
-            if sessionid > 0{
+            if sessionid > 0 {
                 session.sessionId = sessionid
             }
             session.videoState = existsVideo
             if session.callKitAnswered {
-               let bRet = answerCallWithUUID(uuid: session.uuid, isVideo: existsVideo)
-                session.callKitCompletionCallback?(bRet == 0)
-                reportUpdateCall(uuid: session.uuid, hasVideo: existsVideo, from: remoteParty)
+                answerCallWithUUID(uuid: session.uuid, isVideo: existsVideo) { success in
+                    if success {
+                        self.reportUpdateCall(uuid: session.uuid, hasVideo: existsVideo, from: remoteParty)
+                    }
+                    completionHandle()
+                }
+            } else {
+                completionHandle()
             }
         } else {
             session = Session()
@@ -320,23 +328,26 @@ class CallManager: NSObject {
             session.uuid = callUUID
 
             _ = addCall(call: session)
+            completionHandle()
         }
     }
 
-    func answerCall(sessionId: CLong, isVideo: Bool) -> (Int32) {
+    func answerCall(sessionId: CLong, isVideo: Bool, completion: ((Bool) -> Void)? = nil) -> (Int32) {
         guard let result = findCallBySessionID(sessionId) else {
+            completion?(false)
             return 2
         }
         if _enableCallKit {
-            if isHideCallkit{
-                return answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo)
+            if isHideCallkit {
+                return answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo, completion: completion)
             } else {
                 result.session.videoState = isVideo
+                result.session.callKitCompletionCallback = completion
                 reportAnswerCall(uuid: result.session.uuid)
                 return 3
-             }
+            }
         } else {
-            return answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo)
+            return answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo, completion: completion)
         }
     }
 
@@ -563,37 +574,49 @@ class CallManager: NSObject {
         return session.sessionId
     }
 
-    func answerCallWithUUID(uuid: UUID, isVideo: Bool) -> (Int32) {
+    func answerCallWithUUID(uuid: UUID, isVideo: Bool, completion: ((Bool) -> Void)? = nil) -> (Int32) {
         let sessionCall = findCallByUUID(uuid: uuid)
         guard sessionCall != nil else {
+            completion?(false)
             return 2
         }
 
         if sessionCall!.session.sessionId <= INVALID_SESSION_ID {
             // Haven't received INVITE CALL
             sessionCall!.session.callKitAnswered = true
+            // Store the completion handler to be called when ready
+            sessionCall!.session.callKitCompletionCallback = completion
             return 5
         } else {
-            let nRet = _portSIPSDK.answerCall(sessionCall!.session.sessionId, videoCall: isVideo)
-            if nRet == 0 {
-                sessionCall!.session.sessionState = true
-                sessionCall!.session.videoState = isVideo
-
-                if isConference {
-                    joinToConference(sessionid: sessionCall!.session.sessionId)
+            // Here we can add any initialization logic before actually answering the call
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else {
+                    completion?(false)
+                    return
                 }
-                delegate?.onAnsweredCall(sessionId: sessionCall!.session.sessionId)
+                
+                // Perform your initialization here
+                // For example: initialize audio session, video components, etc.
+                
+                let nRet = self._portSIPSDK.answerCall(sessionCall!.session.sessionId, videoCall: isVideo)
+                if nRet == 0 {
+                    sessionCall!.session.sessionState = true
+                    sessionCall!.session.videoState = isVideo
 
-                print("Answer Call on session \(sessionCall!.session.sessionId)")
-//                return true
-            } else {
-                delegate?.onCloseCall(sessionId: sessionCall!.session.sessionId)
+                    if self.isConference {
+                        self.joinToConference(sessionid: sessionCall!.session.sessionId)
+                    }
+                    self.delegate?.onAnsweredCall(sessionId: sessionCall!.session.sessionId)
 
-                print("Answer Call on session \(sessionCall!.session.sessionId) Failed! ret = \(nRet)")
-//                return false
+                    print("Answer Call on session \(sessionCall!.session.sessionId)")
+                    completion?(true)
+                } else {
+                    self.delegate?.onCloseCall(sessionId: sessionCall!.session.sessionId)
+                    print("Answer Call on session \(sessionCall!.session.sessionId) Failed! ret = \(nRet)")
+                    completion?(false)
+                }
             }
-            
-            return nRet;
+            return 0 // Return immediately since we're handling the answer asynchronously
         }
     }
 
