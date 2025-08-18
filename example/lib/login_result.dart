@@ -450,6 +450,9 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                                 final isSocketConnected =
                                     snapshot.data ?? false;
 
+                                print(
+                                    "Socket server connection: $isSocketConnected");
+
                                 return Row(
                                   children: [
                                     Text(
@@ -479,6 +482,20 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                                   ],
                                 );
                               },
+                            ),
+                            const SizedBox(height: 10),
+                            ElevatedButton(
+                              onPressed: () async {
+                                final prefs =
+                                    await SharedPreferences.getInstance();
+                                final accessToken =
+                                    prefs.getString("saved_access_token");
+                                if (accessToken != null) {
+                                  MptCallKitController()
+                                      .connectToSocketServer(accessToken);
+                                }
+                              },
+                              child: const Text("Connect socket"),
                             ),
                             const SizedBox(height: 10),
                             const Text(

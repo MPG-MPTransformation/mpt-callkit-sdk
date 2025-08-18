@@ -1234,8 +1234,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         )
         PortSIPStateManager.shared.updateCallState(callState)
 
-        // Legacy Flutter state (keep for compatibility)
-        sendCallStateToFlutter(.UPDATED)
+        // // Legacy Flutter state (keep for compatibility)
+        // sendCallStateToFlutter(.UPDATED)
 
         NSLog("onInviteUpdated - COMPLETE: The call has been updated on line \(result.index)")
     }
@@ -1617,7 +1617,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         //       // Print the first few bytes of the raw video data (hexadecimal representation)
         //       print("Raw video data (first 16 bytes):", frameData.prefix(16).map { String(format: "%02x", $0) }.joined(separator: " "))
 
-        print("Total data length: \(dataLength) bytes")
+//        print("Total data length: \(dataLength) bytes")
         
         if self.isRemoteVideoReceived == false {
             // Print some additional information
@@ -2110,6 +2110,16 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         case "answer":
             let ansr = answerCall(isAutoAnswer: false)
             result(ansr)
+        case "socketStatus":
+            if let args = call.arguments as? [String: Any], let ready = args["ready"] as? Bool {
+                _callManager.updateSocketReady(ready)
+                result(true)
+            } else if let ready = call.arguments as? Bool {
+                _callManager.updateSocketReady(ready)
+                result(true)
+            } else {
+                result(FlutterError(code: "INVALID_ARGUMENTS", message: "Expected {ready: Bool} or Bool for socketStatus", details: nil))
+            }
         case "reject":
             let rejectResult = hangUpCall()
             result(rejectResult)
@@ -2237,8 +2247,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             result(getCallkitAnsweredState())
             return
         case "refreshRegister":
-            portSIPSDK.refreshRegistration(0)
-            result(true)
+            result(portSIPSDK.refreshRegistration(0))
         default:
             result(FlutterMethodNotImplemented)
         }
