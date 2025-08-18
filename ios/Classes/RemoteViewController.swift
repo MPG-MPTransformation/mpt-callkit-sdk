@@ -89,7 +89,7 @@ class RemoteViewController: UIViewController {
                self.onStartVideo(sessionId)
                self.updateVideoVisibility(isVisible: true)
            } else {
-               self.updateVideoVisibility(isVisible: false)
+               self.updateVideoVisibility(isVisible: true)
            }
        case "CLOSED", "FAILED":
            self.updateVideoVisibility(isVisible: false)

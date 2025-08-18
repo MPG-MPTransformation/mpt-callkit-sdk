@@ -359,10 +359,12 @@ class MptSocketSocketServer {
 
   /// Set up socket event listeners
   void _setupSocketListeners() {
+    print("Socket server - _setupSocketListeners");
     socket!.onConnect((_) {
-      // print("Socket server connected");
+      print("Socket server connected");
       isConnecting = true;
       if (!_connectionStatusController.isClosed) {
+        print("Socket server - _connectionStatusController.add(true)");
         _connectionStatusController.add(true);
       }
       // Reset initial rooms joined flag on fresh connection

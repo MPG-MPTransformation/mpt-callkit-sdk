@@ -181,6 +181,8 @@ class MptCallKitController {
 
   // Add StreamSubscription to manage the event channel subscription
   StreamSubscription<dynamic>? _eventChannelSubscription;
+  // Track socket server connection status to forward to iOS native
+  StreamSubscription<bool>? _socketConnectionSubscription;
 
   // Add Completer for guest registration
   Completer<bool>? _guestRegistrationCompleter;
@@ -443,31 +445,42 @@ class MptCallKitController {
         port: _configuration!["MOBILE_SIP_PORT"],
       );
 
-      if (extensionData != null) {
-        lastesExtensionData = extensionData;
-        // Register to SIP server
-        await MptCallKitController().online(
-          username: extensionData?.username ?? "",
-          displayName: extensionData?.username ?? "", // ??
-          srtpType: 0,
-          authName: extensionData?.username ?? "", // ??
-          password: extensionData?.password ?? "",
-          userDomain: extensionData?.domain ?? "",
-          sipServer: extensionData?.sipServer ?? "",
-          sipServerPort: extensionData?.port ?? 5063,
-          // sipServerPort: 5063,
-          transportType: 0,
-          pushToken: pushToken,
-          appId: appId,
-          onError: (p0) {
-            print("Error in register to sip server: ${p0.toString()}");
-          },
-          context: context,
-        );
-      } else {
-        _appEvent.add(AppEventConstants.ERROR);
-        _currentAppEvent = AppEventConstants.ERROR;
-      }
+      var regResult = await refreshRegister();
+
+      Future.delayed(const Duration(milliseconds: 500), () async {
+        {
+          if (regResult == 0 && _isOnline == true) {
+            print("SIP already online");
+            return;
+          }
+
+          if (extensionData != null) {
+            lastesExtensionData = extensionData;
+            // Register to SIP server
+            await MptCallKitController().online(
+              username: extensionData?.username ?? "",
+              displayName: extensionData?.username ?? "", // ??
+              srtpType: 0,
+              authName: extensionData?.username ?? "", // ??
+              password: extensionData?.password ?? "",
+              userDomain: extensionData?.domain ?? "",
+              sipServer: extensionData?.sipServer ?? "",
+              sipServerPort: extensionData?.port ?? 5063,
+              // sipServerPort: 5063,
+              transportType: 0,
+              pushToken: pushToken,
+              appId: appId,
+              onError: (p0) {
+                print("Error in register to sip server: ${p0.toString()}");
+              },
+              context: context,
+            );
+          } else {
+            _appEvent.add(AppEventConstants.ERROR);
+            _currentAppEvent = AppEventConstants.ERROR;
+          }
+        }
+      });
     } else {
       _appEvent.add(AppEventConstants.TOKEN_EXPIRED);
       _currentAppEvent = AppEventConstants.TOKEN_EXPIRED;
@@ -513,6 +526,19 @@ class MptCallKitController {
             print("Message received in callback: $p0");
           },
         );
+
+        // Forward ongoing socket connection status changes to iOS
+        _socketConnectionSubscription?.cancel();
+        _socketConnectionSubscription =
+            MptSocketSocketServer.connectionStatus.listen((isConnected) async {
+          try {
+            await channel.invokeMethod('socketStatus', {
+              'ready': isConnected,
+            });
+          } catch (e) {
+            print('Failed to notify iOS about socket status: $e');
+          }
+        });
 
         // Wait for socket connection with timeout
         final completer = Completer<bool>();
@@ -598,6 +624,14 @@ class MptCallKitController {
 
     // Ngắt kết nối socket
     await MptSocketSocketServer.disconnect();
+    // Cancel socket status forwarding and notify iOS
+    try {
+      _socketConnectionSubscription?.cancel();
+      _socketConnectionSubscription = null;
+      await channel.invokeMethod('socketStatus', {'ready': false});
+    } catch (e) {
+      print('Failed to notify iOS about socket disconnect: $e');
+    }
 
     isLogoutAccountSuccess = await offline(disablePushNoti: true);
     // if (isOnline == true) {
@@ -1606,6 +1640,7 @@ class MptCallKitController {
             break;
           case 'isRemoteVideoReceived':
             print('Received isRemoteVideoReceived from native: $data');
+            updateVideoCall(isVideo: true);
             _isRemoteVideoReceived.add(data as bool);
             break;
           // case "releaseExtension":
