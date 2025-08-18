@@ -357,6 +357,7 @@ class CallManager: NSObject {
             if isHideCallkit {
                 return answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo, completion: completion)
             } else {
+                print("isHideCallkit = false")
                 result.session.videoState = isVideo
                 result.session.callKitCompletionCallback = completion
                 reportAnswerCall(uuid: result.session.uuid)
@@ -610,7 +611,7 @@ class CallManager: NSObject {
                     completion?(false)
                     return
                 }
-                DispatchQueue.main.async {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     let nRet = strongSelf._portSIPSDK.answerCall(sessionCall!.session.sessionId, videoCall: isVideo)
                     if nRet == 0 {
                         sessionCall!.session.sessionState = true

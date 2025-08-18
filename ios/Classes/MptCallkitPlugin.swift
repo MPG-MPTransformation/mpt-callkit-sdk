@@ -2333,12 +2333,14 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 NSLog("🔍   result.session.videoMuted: \(result!.session.videoMuted)")
                 NSLog("🔍   result.session.sessionState: \(result!.session.sessionState)")
 
+                _callManager.waitSocketBeforeAnswer = !isAutoAnswer
                 let answerRes = _callManager.answerCall(
                     sessionId: activeSessionid, isVideo: result?.session.videoState ?? false)
 
                 if answerRes == 0 {
                     //Notice to remote
                     if !isAutoAnswer {
+                        
 //                        let sessionInfo = getCurrentSessionInfo()
 //                        sendCustomMessage(
 //                            callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
