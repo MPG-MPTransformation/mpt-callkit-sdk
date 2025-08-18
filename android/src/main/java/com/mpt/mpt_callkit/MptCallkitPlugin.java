@@ -185,7 +185,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 toggleCameraOn(false);
                 break;
             case "answer":
-                answerCall(false);
+                int answerResult = answerCall(false);
+                result.success(answerResult);
                 break;
             case "switchCamera":
                 boolean switchResult = switchCamera();
@@ -535,7 +536,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         return true;
     }
 
-    static int hangup() {
+    public static int hangup() {
         Session currentLine = CallManager.Instance().getCurrentSession();
         Ring.getInstance(MainActivity.activity).stop();
         MptCallkitPlugin.sendToFlutter("isRemoteVideoReceived", false);
@@ -677,7 +678,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
-    public static boolean answerCall(boolean isAutoAnswer) {
+    public static int answerCall(boolean isAutoAnswer) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         System.out.println("SDK-Android: Answer call currentLine: " + currentLine);
         System.out.println("SDK-Android: Answer call sessionID: " + currentLine.sessionID);
@@ -708,9 +709,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             } else {
                 System.out.println("SDK-Android: Answer call failed with error code: " + result);
             }
-            return result == 0;
+            return result;
         } else {
-            return false;
+            return -2;
         }
     }
 

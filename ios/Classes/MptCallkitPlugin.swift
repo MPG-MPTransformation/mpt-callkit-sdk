@@ -2237,8 +2237,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             result(getCallkitAnsweredState())
             return
         case "refreshRegister":
-            portSIPSDK.refreshRegistration(0)
-            result(true)
+            result(portSIPSDK.refreshRegistration(0))
         default:
             result(FlutterMethodNotImplemented)
         }

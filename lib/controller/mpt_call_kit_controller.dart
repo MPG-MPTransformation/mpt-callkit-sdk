@@ -1952,7 +1952,9 @@ class MptCallKitController {
     return await channel.invokeMethod("getCallkitAnsweredState");
   }
 
-  Future<void> refreshRegister() async {
-    await channel.invokeMethod("refreshRegister");
+  Future<int> refreshRegister() async {
+    final result = await channel.invokeMethod("refreshRegister");
+    print("refreshRegister result code: $result");
+    return result;
   }
 }
