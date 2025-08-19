@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:mpt_callkit/models/extension_model.dart';
@@ -30,6 +32,10 @@ class MptCallKitController {
   bool? enableDebugLog = false;
   //hard code until have correct
   String localizedCallerName = "";
+  // file logging
+  File? _logFile;
+  bool _fileLoggingEnabled = false;
+  void Function(String? message, {int? wrapWidth})? _originalDebugPrint;
 
   static const MethodChannel channel = MethodChannel('mpt_callkit');
   static const eventChannel = EventChannel('native_events');
@@ -299,6 +305,77 @@ class MptCallKitController {
     return _instance;
   }
 
+  Future<String> enableFileLogging({String? customDirectory}) async {
+    Directory baseDir;
+    if (customDirectory != null) {
+      baseDir = Directory(customDirectory);
+    } else {
+      if (Platform.isAndroid) {
+        // Prefer external app-specific dir on Android so users can access the file without root
+        final extDir = await getExternalStorageDirectory();
+        baseDir = extDir ?? await getApplicationDocumentsDirectory();
+      } else {
+        baseDir = await getApplicationDocumentsDirectory();
+      }
+    }
+    final Directory logsDir = Directory('${baseDir.path}/mpt_callkit_logs');
+    if (!logsDir.existsSync()) {
+      logsDir.createSync(recursive: true);
+    }
+
+    final String ts = DateTime.now()
+        .toIso8601String()
+        .replaceAll(':', '-')
+        .replaceAll('.', '-');
+    final String filePath = '${logsDir.path}/mpt_callkit_$ts.log';
+    _logFile = File(filePath);
+
+    print("record log to filePath: $filePath");
+
+    if (!_fileLoggingEnabled) {
+      _originalDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        try {
+          final DateTime now = DateTime.now();
+          final String ts =
+              '${now.day.toString().padLeft(2, '0')}${now.month.toString().padLeft(2, '0')}${(now.year % 100).toString().padLeft(2, '0')}-${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}.${now.millisecond.toString().padLeft(3, '0')}';
+          final String platform = Platform.isIOS
+              ? 'iOS'
+              : (Platform.isAndroid ? 'Android' : 'Other');
+          final String line = '[$ts] [flutter - $platform] ${message ?? ''}\n';
+          _logFile?.writeAsStringSync(line, mode: FileMode.append, flush: true);
+        } catch (_) {}
+        // Do NOT forward to original debugPrint to avoid duplicate entries being captured by native stdout hooks
+      };
+      _fileLoggingEnabled = true;
+    }
+
+    try {
+      await channel.invokeMethod('enableFileLogging', <String, dynamic>{
+        'enabled': true,
+        'filePath': filePath,
+      });
+    } catch (_) {}
+
+    return filePath;
+  }
+
+  Future<void> disableFileLogging() async {
+    print("disableFileLogging");
+    try {
+      await channel.invokeMethod('enableFileLogging', <String, dynamic>{
+        'enabled': false,
+      });
+    } catch (_) {}
+
+    if (_originalDebugPrint != null) {
+      debugPrint = _originalDebugPrint!;
+      _originalDebugPrint = null;
+    }
+    _fileLoggingEnabled = false;
+    _logFile = null;
+  }
+
   void initSdk({
     required String apiKey,
     String? baseUrl,
@@ -321,6 +398,8 @@ class MptCallKitController {
 
     _appEvent.add(AppEventConstants.READY);
     _currentAppEvent = AppEventConstants.READY;
+
+    final filePath = await enableFileLogging();
   }
 
   // Future<void> connectSocketByUser({
@@ -1141,6 +1220,8 @@ class MptCallKitController {
     try {
       // Stop SIP connectivity check when going offline
       stopSipPing();
+
+      await disableFileLogging();
 
       // if (isOnline == false) {
       //   onError?.call("You need register to SIP server first");

@@ -2,6 +2,8 @@ import Flutter
 import PortSIPVoIPSDK
 import PushKit
 import UIKit
+import Foundation
+import Darwin
 
 // MARK: - PortSIP Data Types
 struct PortSIPCallState {
@@ -1988,6 +1990,29 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         print("Method called: \(call.method)")
         print("Arguments: \(String(describing: call.arguments))")
         switch call.method {
+        case "enableFileLogging":
+            guard let args = call.arguments as? [String: Any], let enabled = args["enabled"] as? Bool else {
+                result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing 'enabled'", details: nil))
+                return
+            }
+            if enabled {
+                guard let filePath = args["filePath"] as? String else {
+                    result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing 'filePath' when enabling", details: nil))
+                    return
+                }
+                if redirectStdoutStderr(toFileAtPath: filePath) {
+                    result(true)
+                } else {
+                    result(FlutterError(code: "LOGGING_ERROR", message: "Failed to redirect stdout/stderr", details: nil))
+                }
+            } else {
+                if restoreStdoutStderr() {
+                    result(true)
+                } else {
+                    result(FlutterError(code: "LOGGING_ERROR", message: "Failed to restore stdout/stderr", details: nil))
+                }
+            }
+            return
         case "openAppSetting":
             openAppSettings()
             result(true)
@@ -2251,6 +2276,126 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         default:
             result(FlutterMethodNotImplemented)
         }
+    }
+
+    // MARK: - Stdout/Stderr redirection
+    private var originalStdout: Int32 = -1
+    private var originalStderr: Int32 = -1
+    private var logFileFd: Int32 = -1
+    private var stdoutReadFd: Int32 = -1
+    private var stderrReadFd: Int32 = -1
+    private var stdoutSource: DispatchSourceRead?
+    private var stderrSource: DispatchSourceRead?
+
+    private func redirectStdoutStderr(toFileAtPath path: String) -> Bool {
+        let fileManager = FileManager.default
+        let dirPath = (path as NSString).deletingLastPathComponent
+        if !fileManager.fileExists(atPath: dirPath) {
+            do {
+                try fileManager.createDirectory(atPath: dirPath, withIntermediateDirectories: true)
+            } catch {
+                return false
+            }
+        }
+
+        if originalStdout == -1 { originalStdout = dup(fileno(stdout)) }
+        if originalStderr == -1 { originalStderr = dup(fileno(stderr)) }
+
+        // Open log file for appending
+        path.withCString { cPath in
+            logFileFd = open(cPath, O_CREAT | O_APPEND | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
+        }
+        if logFileFd == -1 { return false }
+
+        // Create pipe for stdout
+        var outPipe: [Int32] = [0, 0]
+        if pipe(&outPipe) != 0 { close(logFileFd); logFileFd = -1; return false }
+        stdoutReadFd = outPipe[0]
+        let stdoutWriteFd = outPipe[1]
+        if dup2(stdoutWriteFd, fileno(stdout)) == -1 { close(stdoutReadFd); close(stdoutWriteFd); close(logFileFd); logFileFd = -1; return false }
+        close(stdoutWriteFd)
+
+        // Create pipe for stderr
+        var errPipe: [Int32] = [0, 0]
+        if pipe(&errPipe) != 0 { restoreStdoutStderr(); return false }
+        stderrReadFd = errPipe[0]
+        let stderrWriteFd = errPipe[1]
+        if dup2(stderrWriteFd, fileno(stderr)) == -1 { close(stderrReadFd); close(stderrWriteFd); restoreStdoutStderr(); return false }
+        close(stderrWriteFd)
+
+        // Start Dispatch sources to tee output to original and file
+        let queue = DispatchQueue.global(qos: .background)
+
+        stdoutSource = DispatchSource.makeReadSource(fileDescriptor: stdoutReadFd, queue: queue)
+        stdoutSource?.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            let n = read(self.stdoutReadFd, &buffer, buffer.count)
+            if n > 0 {
+                let prefix = self.timestampPrefix(platform: "iOS")
+                _ = write(self.originalStdout, buffer, n)
+                _ = write(self.logFileFd, Array(prefix.utf8), prefix.utf8.count)
+                _ = write(self.logFileFd, buffer, n)
+            }
+        }
+        stdoutSource?.setCancelHandler { [weak self] in
+            if let fd = self?.stdoutReadFd, fd != -1 { close(fd) }
+            self?.stdoutReadFd = -1
+        }
+        stdoutSource?.resume()
+
+        stderrSource = DispatchSource.makeReadSource(fileDescriptor: stderrReadFd, queue: queue)
+        stderrSource?.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            let n = read(self.stderrReadFd, &buffer, buffer.count)
+            if n > 0 {
+                let prefix = self.timestampPrefix(platform: "iOS")
+                _ = write(self.originalStderr, buffer, n)
+                _ = write(self.logFileFd, Array(prefix.utf8), prefix.utf8.count)
+                _ = write(self.logFileFd, buffer, n)
+            }
+        }
+        stderrSource?.setCancelHandler { [weak self] in
+            if let fd = self?.stderrReadFd, fd != -1 { close(fd) }
+            self?.stderrReadFd = -1
+        }
+        stderrSource?.resume()
+
+        return true
+    }
+
+    private func restoreStdoutStderr() -> Bool {
+        var ok = true
+        // Cancel sources (will close read fds via cancel handlers)
+        stdoutSource?.cancel()
+        stderrSource?.cancel()
+        stdoutSource = nil
+        stderrSource = nil
+
+        // Restore stdout/stderr
+        if originalStdout != -1 {
+            if dup2(originalStdout, fileno(stdout)) == -1 { ok = false }
+            close(originalStdout)
+            originalStdout = -1
+        }
+        if originalStderr != -1 {
+            if dup2(originalStderr, fileno(stderr)) == -1 { ok = false }
+            close(originalStderr)
+            originalStderr = -1
+        }
+
+        if logFileFd != -1 { close(logFileFd); logFileFd = -1 }
+        return ok
+    }
+
+    private func timestampPrefix(platform: String) -> String {
+        let now = Date()
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "ddMMyy-HHmmss.SSS"
+        let ts = formatter.string(from: now)
+        return "[\(ts)] [\(platform)] "
     }
 
     public func onRegisterSuccess(_ statusText: String!, statusCode: Int32, sipMessage: String!) {
