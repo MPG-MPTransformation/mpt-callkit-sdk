@@ -297,8 +297,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 result.success(updateCallRes == 0);
                 break;
             case "refreshRegister":
-                Engine.Instance().getEngine().refreshRegistration(0);
-                result.success(true);
+                result.success(Engine.Instance().getEngine().refreshRegistration(0));
                 break;
             default:
                 result.notImplemented();

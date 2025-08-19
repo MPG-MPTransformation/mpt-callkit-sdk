@@ -77,9 +77,9 @@ class RemoteViewController: UIViewController {
                    self.initializeRemoteVideo()
                }
                // Don't show remote video until call is answered/connected
-               self.updateVideoVisibility(isVisible: false)
+               self.updateVideoVisibility(isVisible: true)
            } else {
-               self.updateVideoVisibility(isVisible: false)
+               self.updateVideoVisibility(isVisible: true)
            }
        case "ANSWERED", "CONNECTED", "UPDATED":
            if hasVideo {
@@ -258,6 +258,8 @@ class RemoteViewController: UIViewController {
        } else {
            print("RemoteViewController - Error: portSIPSDK is nil or sessionId = 0")
        }
+       
+       self.updateVideoVisibility(isVisible: true)
    }
   
    func onStartVideo(_ sessionID: Int) {

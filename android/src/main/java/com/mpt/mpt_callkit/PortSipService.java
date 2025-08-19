@@ -634,7 +634,7 @@ public class PortSipService extends Service
 
     @Override
     public void onRegisterSuccess(String statusText, int statusCode, String sipMessage) {
-        logWithTimestamp("SDK-Android: onRegisterSuccess");
+        logWithTimestamp("SDK-Android: onRegisterSuccess - statusText: " + statusText + " - statusCode: "+ statusCode + " - sipMessage: "+ sipMessage);
         CallManager.Instance().online = true;
         CallManager.Instance().isRegistered = true;
         Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", CallManager.Instance().online);

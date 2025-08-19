@@ -67,7 +67,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
             ),
           );
         } else {
-          doRegister();
+          // doRegister();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("SIP registration: FALSE!"),
