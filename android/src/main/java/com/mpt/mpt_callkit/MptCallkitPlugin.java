@@ -44,6 +44,16 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Set;
 import org.json.JSONObject;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileDescriptor;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.lang.Process;
+import java.lang.ProcessBuilder;
 
 public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
 
@@ -65,6 +75,47 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private static String currentUsername; // Lưu username hiện tại
     private  String appId;
     private  String pushToken;
+    private static volatile boolean fileLoggingEnabled = false;
+    private static FileOutputStream logFileStream;
+    private static PrintStream originalOut;
+    private static PrintStream originalErr;
+    private static class LinePrefixingOutputStream extends OutputStream {
+        private final OutputStream delegate;
+        private final String platformTag;
+        private boolean startOfLine = true;
+        LinePrefixingOutputStream(OutputStream delegate, String platformTag) {
+            this.delegate = delegate;
+            this.platformTag = platformTag;
+        }
+        @Override
+        public synchronized void write(int b) throws IOException {
+            if (startOfLine) {
+                String prefix = "[" + getTimestamp() + "] [" + platformTag + "] ";
+                delegate.write(prefix.getBytes());
+                startOfLine = false;
+            }
+            delegate.write(b);
+            if (b == '\n') {
+                startOfLine = true;
+            }
+        }
+        @Override
+        public synchronized void write(byte[] b, int off, int len) throws IOException {
+            int end = off + len;
+            for (int i = off; i < end; i++) {
+                write(b[i]);
+            }
+        }
+        @Override
+        public void flush() throws IOException { delegate.flush(); }
+    }
+
+    private static String getTimestamp() {
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("ddMMyy-HHmmss.SSS");
+        return sdf.format(new java.util.Date());
+    }
+    private static Process logcatProcess;
+    private static Thread logcatThread;
 
     @Override
     public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
@@ -275,6 +326,28 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 System.out.println("SDK-Android: RegisterServer..");
 
                 result.success(true);
+                break;
+            case "enableFileLogging":
+                Boolean enabled = call.argument("enabled");
+                if (enabled == null) {
+                    result.error("INVALID_ARGUMENTS", "'enabled' is required", null);
+                    break;
+                }
+                try {
+                    if (enabled) {
+                        String path = call.argument("filePath");
+                        if (path == null || path.isEmpty()) {
+                            result.error("INVALID_ARGUMENTS", "'filePath' is required when enabling", null);
+                            break;
+                        }
+                        enableAndroidFileLogging(path);
+                    } else {
+                        disableAndroidFileLogging();
+                    }
+                    result.success(true);
+                } catch (Exception e) {
+                    result.error("LOGGING_ERROR", e.getMessage(), null);
+                }
                 break;
             case "reInvite":
                 xSessionId = call.argument("sessionId");
@@ -945,5 +1018,138 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             // enable push noti
             System.out.println("SDK-Android: Enable push noti");
         }
+    }
+
+    private static synchronized void enableAndroidFileLogging(String filePath) throws IOException {
+        if (fileLoggingEnabled) return;
+        File file = new File(filePath);
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists()) {
+            parent.mkdirs();
+        }
+        logFileStream = new FileOutputStream(file, true);
+        originalOut = System.out;
+        originalErr = System.err;
+
+        PrintStream multiOut = new PrintStream(new LinePrefixingOutputStream(new OutputStream() {
+            @Override
+            public void write(int b) throws IOException {
+                if (originalOut != null) originalOut.write(b);
+                logFileStream.write(new byte[]{(byte)b});
+            }
+
+            @Override
+            public void write(byte[] b, int off, int len) throws IOException {
+                if (originalOut != null) originalOut.write(b, off, len);
+                logFileStream.write(b, off, len);
+            }
+
+            @Override
+            public void flush() throws IOException {
+                if (originalOut != null) originalOut.flush();
+                logFileStream.flush();
+            }
+        }, "Android"), true);
+
+        PrintStream multiErr = new PrintStream(new LinePrefixingOutputStream(new OutputStream() {
+            @Override
+            public void write(int b) throws IOException {
+                if (originalErr != null) originalErr.write(b);
+                logFileStream.write(new byte[]{(byte)b});
+            }
+
+            @Override
+            public void write(byte[] b, int off, int len) throws IOException {
+                if (originalErr != null) originalErr.write(b, off, len);
+                logFileStream.write(b, off, len);
+            }
+
+            @Override
+            public void flush() throws IOException {
+                if (originalErr != null) originalErr.flush();
+                logFileStream.flush();
+            }
+        }, " ssAndroid"), true);
+
+        System.setOut(multiOut);
+        System.setErr(multiErr);
+        fileLoggingEnabled = true;
+
+        // Also capture this app's logcat output (android.util.Log) without READ_LOGS
+        startLogcatCapture();
+    }
+
+    private static synchronized void disableAndroidFileLogging() throws IOException {
+        if (!fileLoggingEnabled) return;
+        try {
+            stopLogcatCapture();
+            if (logFileStream != null) {
+                logFileStream.flush();
+                logFileStream.close();
+            }
+            if (originalOut != null) {
+                System.setOut(originalOut);
+                originalOut = null;
+            }
+            if (originalErr != null) {
+                System.setErr(originalErr);
+                originalErr = null;
+            }
+        } finally {
+            fileLoggingEnabled = false;
+            logFileStream = null;
+        }
+    }
+
+    private static void startLogcatCapture() {
+        try {
+            String pid = String.valueOf(android.os.Process.myPid());
+            ProcessBuilder pb = new ProcessBuilder("logcat", "--pid", pid, "-v", "time");
+            pb.redirectErrorStream(true);
+            logcatProcess = pb.start();
+            logcatThread = new Thread(() -> {
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(logcatProcess.getInputStream()))) {
+                    String line;
+                    while ((line = br.readLine()) != null && fileLoggingEnabled) {
+                        synchronized (MptCallkitPlugin.class) {
+                            if (logFileStream != null) {
+                                boolean flutterTagged = isFlutterLogLine(line);
+                                String sourceTag = flutterTagged ? "[flutter] " : "[Android] ";
+                                String prefixed = "[" + getTimestamp() + "] " + sourceTag + line + "\n";
+                                logFileStream.write(prefixed.getBytes());
+                                logFileStream.flush();
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+            });
+            logcatThread.setDaemon(true);
+            logcatThread.start();
+        } catch (Exception e) {
+            // ignore
+        }
+    }
+
+    // Heuristic: treat lines containing "Dart" or "/flutter" or "Flutter" tag as Flutter logs
+    private static boolean isFlutterLogLine(String line) {
+        if (line == null) return false;
+        String lower = line.toLowerCase();
+        return lower.contains(" flutter ") || lower.contains("/flutter") || lower.contains("dart ");
+    }
+
+    private static void stopLogcatCapture() {
+        try {
+            if (logcatProcess != null) {
+                logcatProcess.destroy();
+                logcatProcess = null;
+            }
+        } catch (Exception ignored) {}
+        try {
+            if (logcatThread != null) {
+                logcatThread.interrupt();
+                logcatThread = null;
+            }
+        } catch (Exception ignored) {}
     }
 }
