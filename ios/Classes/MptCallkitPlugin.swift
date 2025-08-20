@@ -303,7 +303,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // change "CallKit" to true if wanna use iOS CallKit
         UserDefaults.standard.register(defaults: ["CallKit": true])
         UserDefaults.standard.register(defaults: ["PushNotification": true])
-        UserDefaults.standard.register(defaults: ["ForceBackground": true])
+        UserDefaults.standard.register(defaults: ["ForceBackground": false])
 
         let enableCallKit = UserDefaults.standard.bool(forKey: "CallKit")
         _enablePushNotification = UserDefaults.standard.bool(forKey: "PushNotification")
@@ -601,6 +601,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 _callManager.incomingCall(
                     sessionid: -1, existsVideo: true, remoteParty: self.currentRemoteName,
                     callUUID: uuid!, completionHandle: {})
+                
+                loginViewController.refreshRegister()
+                beginBackgroundRegister()
 
                 if #available(iOS 10.0, *) {
                     // Add timeout protection for CallKit reporting
@@ -638,8 +641,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     safeCompletion()
                 }
 
-                loginViewController.refreshRegister()
-                beginBackgroundRegister()
+//                loginViewController.refreshRegister()
+//                beginBackgroundRegister()
             }
         } catch {
             print("❌ Error processing VoIP push: \(error)")
