@@ -123,6 +123,10 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     if (state == AppLifecycleState.resumed && isOnCall == false) {
       MptCallKitController().refreshRegister();
     }
+
+    if (state == AppLifecycleState.paused && isOnCall == false) {
+      MptCallKitController().offline();
+    }
   }
 
   Future<void> _initDataWhenLoginSuccess() async {
