@@ -39,9 +39,9 @@ class LoginViewController {
     
     func onLine(username: String, displayName: String, authName: String, password: String, userDomain: String, sipServer: String, sipServerPort: Int32, transportType: Int, srtpType: Int, enableDebugLog: Bool)  {
         
-//        if sipInitialized {
-//            offLine()
-//        }
+        if sipInitialized {
+            return
+        }
         
         let transport = TRANSPORT_TCP
         //        switch userData["transport"] {
@@ -90,6 +90,18 @@ class LoginViewController {
             print("Set user failure ErrorCode = \(retUser)")
             return
         }
+
+        UserDefaults.standard.set(username, forKey: "username")
+        UserDefaults.standard.set(displayName, forKey: "displayName")
+        UserDefaults.standard.set(authName, forKey: "authName")
+        UserDefaults.standard.set(password, forKey: "password")
+        UserDefaults.standard.set(userDomain, forKey: "userDomain")
+        UserDefaults.standard.set(sipServer, forKey: "sipServer")
+        UserDefaults.standard.set(sipServerPort, forKey: "sipServerPort")
+        UserDefaults.standard.set(transportType, forKey: "transportType")
+        UserDefaults.standard.set(srtpType, forKey: "srtpType")
+        UserDefaults.standard.set(localPort, forKey: "localPort")
+        UserDefaults.standard.set(enableDebugLog, forKey: "enableDebugLog")
         
         _ = portSIPSDK.setLicenseKey("PORTSIP_TEST_LICENSE")
         
@@ -155,9 +167,9 @@ class LoginViewController {
                     callManager.hungUpCall(uuid: currentCall.session.uuid)
                 }
             }
-            
             // Unregister và cleanup
             unReg = portSIPSDK.unRegisterServer(90)
+            Thread.sleep(forTimeInterval: 1.0)
             portSIPSDK.unInitialize()
             sipInitialized = false
             sipRegistrationStatus = .LOGIN_STATUS_OFFLINE
@@ -183,20 +195,42 @@ class LoginViewController {
         case .LOGIN_STATUS_ONLINE:
             portSIPSDK.refreshRegistration(0)
             print("Refresh Registration...")
+            break
         case .LOGIN_STATUS_FAILUE:
             portSIPSDK.unRegisterServer(90)
             portSIPSDK.unInitialize()
             sipInitialized = false
-            MptCallkitPlugin.shared.methodChannel?.invokeMethod("onHangOut", arguments: true)
+            MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: false)
+            autoOnline()
+            print("Registration failed, re-initiating registration...")
         }
+    }
+
+    func autoOnline() {
+        print("Auto online with saved credentials")
+        guard let username = UserDefaults.standard.string(forKey: "username"),
+              let displayName = UserDefaults.standard.string(forKey: "displayName"),
+              let authName = UserDefaults.standard.string(forKey: "authName"),
+              let password = UserDefaults.standard.string(forKey: "password"),
+              let userDomain = UserDefaults.standard.string(forKey: "userDomain"),
+              let sipServer = UserDefaults.standard.string(forKey: "sipServer"),
+              let sipServerPort = UserDefaults.standard.value(forKey: "sipServerPort") as? Int32,
+              let transportType = UserDefaults.standard.value(forKey: "transportType") as? Int,
+              let srtpType = UserDefaults.standard.value(forKey: "srtpType") as? Int,
+              let enableDebugLog = UserDefaults.standard.value(forKey: "enableDebugLog") as? Bool else {
+            print("Failed to retrieve saved credentials")
+            return
+        }
+
+        self.onLine(username: username, displayName: displayName, authName: authName, password: password, userDomain: userDomain, sipServer: sipServer, sipServerPort: sipServerPort, transportType: transportType, srtpType: srtpType, enableDebugLog: enableDebugLog)
     }
     
     func unRegister() {
         if sipRegistrationStatus == .LOGIN_STATUS_LOGIN || sipRegistrationStatus == .LOGIN_STATUS_ONLINE {
             print("Force unregister SIP")
-            offLine()
+            portSIPSDK.unRegisterServer(90)
+            sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_FAILUE
         }
-         refreshRegister()
     }
     
     func onRegisterSuccess(statusText: String) {

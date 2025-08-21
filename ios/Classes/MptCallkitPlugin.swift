@@ -806,29 +806,71 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
     // MARK: - UIApplicationDelegate
 
+    private var backtaskIdentifier: UIBackgroundTaskIdentifier = .invalid
+    private var backtaskTimer: DispatchSourceTimer?
+
     public func didEnterBackground() {
         if _callManager.getConnectCallNum() > 0 {
             return
         }
         NSLog("applicationDidEnterBackground")
-        if _enableForceBackground! {
-            // Disable to save battery, or when you don't need incoming calls while APP is in background.
-            portSIPSDK.startKeepAwake()
-        } else {
-            loginViewController.unRegister()
+        // if _enableForceBackground! {
+        //     // Disable to save battery, or when you don't need incoming calls while APP is in background.
+        //     portSIPSDK.startKeepAwake()
+        // } else {
+            beginBackgroundTaskForRegister()
+        
 
-            beginBackgroundRegister()
-        }
-        NSLog("applicationDidEnterBackground End")
+        //     beginBackgroundRegister()
+        // }
+        // NSLog("applicationDidEnterBackground End")
     }
+    
+    private func beginBackgroundTaskForRegister() {
+            endBackgroundTaskForRegister()
+
+            backtaskIdentifier = UIApplication.shared.beginBackgroundTask { [weak self] in
+                NSLog("SipEngine beginBackgroundTaskWithExpirationHandler")
+                self?.endBackgroundTaskForRegister()
+            }
+
+            startBackTaskTimer()
+        }
+
+        private func startBackTaskTimer() {
+            // Cancel old timer if exists
+            backtaskTimer?.cancel()
+            backtaskTimer = nil
+
+            let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global())
+            timer.schedule(deadline: .now() + 5)
+
+            timer.setEventHandler { [weak self] in
+                self?.loginViewController.unRegister()
+                self?.endBackgroundTaskForRegister()
+                NSLog("SipEngine finishBackgroundTaskForRegister")
+            }
+
+            backtaskTimer = timer
+            timer.resume()
+        }
+
+        private func endBackgroundTaskForRegister() {
+            if backtaskIdentifier != .invalid {
+                UIApplication.shared.endBackgroundTask(backtaskIdentifier)
+                backtaskIdentifier = .invalid
+            }
+        }
+
 
     public func willEnterForeground() {
         // Called as part of the transition from the background to the inactive state; here you can undo many of the changes made on entering the background.
-        if _enableForceBackground! {
-            portSIPSDK.stopKeepAwake()
-        } else {
+        NSLog("applicationDidEnterForeground")
+        // if _enableForceBackground! {
+        //     portSIPSDK.stopKeepAwake()
+        // } else {
             loginViewController.refreshRegister()
-        }
+        // }
     }
 
     public override func applicationWillTerminate(_: UIApplication) {
