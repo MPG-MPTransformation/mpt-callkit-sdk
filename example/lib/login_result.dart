@@ -125,7 +125,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     }
 
     if (state == AppLifecycleState.paused && isOnCall == false) {
-      MptCallKitController().offline();
+      doUnregiter();
     }
   }
 

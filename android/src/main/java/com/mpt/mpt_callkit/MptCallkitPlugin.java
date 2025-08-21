@@ -370,7 +370,15 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 result.success(updateCallRes == 0);
                 break;
             case "refreshRegister":
-                result.success(Engine.Instance().getEngine().refreshRegistration(0));
+                Context contextToUse = activity != null ? activity : context;
+                if (contextToUse == null) {
+                    result.error("NO_CONTEXT", "No valid context available", null);
+                    break;
+                }
+                Intent refreshIntent = new Intent(contextToUse, PortSipService.class);
+                refreshIntent.setAction(PortSipService.ACTION_SIP_REFRESH);
+                PortSipService.startServiceCompatibility(contextToUse, refreshIntent);
+                result.success(true);
                 break;
             default:
                 result.notImplemented();

@@ -869,7 +869,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // if _enableForceBackground! {
         //     portSIPSDK.stopKeepAwake()
         // } else {
-            loginViewController.refreshRegister()
+            endBackgroundRegister()
+            endBackgroundTaskForRegister()
         // }
     }
 
