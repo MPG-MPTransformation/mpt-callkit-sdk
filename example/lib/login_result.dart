@@ -121,7 +121,8 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     print("AppLifecycleState: $state");
 
     if (state == AppLifecycleState.resumed && isOnCall == false) {
-      MptCallKitController().refreshRegister();
+      // MptCallKitController().refreshRegister();
+      _initDataWhenLoginSuccess();
     }
   }
 

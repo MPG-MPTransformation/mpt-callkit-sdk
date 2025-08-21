@@ -815,7 +815,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             // Disable to save battery, or when you don't need incoming calls while APP is in background.
             portSIPSDK.startKeepAwake()
         } else {
-            loginViewController.unRegister()
+//            loginViewController.unRegister()
 
             beginBackgroundRegister()
         }
@@ -2406,8 +2406,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             "onRegisterSuccess Status: \(String(describing: statusText)), Message: \(String(describing: sipMessage))"
         )
         sipRegistered = true
-        methodChannel?.invokeMethod("onlineStatus", arguments: true)
-        methodChannel?.invokeMethod("registrationStateStream", arguments: true)
+        // methodChannel?.invokeMethod("onlineStatus", arguments: true)
+        // methodChannel?.invokeMethod("registrationStateStream", arguments: true)
+        loginViewController.onRegisterSuccess(statusText:  statusText ?? "")
         NSLog("onRegisterSuccess")
     }
 
@@ -2416,9 +2417,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             "onRegisterFailure Status: \(String(describing: statusText)), Message: \(String(describing: sipMessage))"
         )
         sipRegistered = false
-        methodChannel?.invokeMethod("onlineStatus", arguments: false)
-        methodChannel?.invokeMethod("registrationStateStream", arguments: false)
-        //    loginViewController.unRegister()
+//        methodChannel?.invokeMethod("onlineStatus", arguments: false)
+//        methodChannel?.invokeMethod("registrationStateStream", arguments: false)
+        loginViewController.onRegisterFailure(statusCode: statusCode, statusText: statusText)
         NSLog("onRegisterFailure")
     }
 

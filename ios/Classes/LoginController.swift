@@ -29,6 +29,19 @@ class LoginViewController {
     var srtpItems: [String] = ["NONE", "FORCE", "PREFER"]
     var transPortItems: [String] = ["UDP", "TLS", "TCP"]
     
+    private enum PersistKeys {
+        static let username = "mpt_login_username"
+        static let displayName = "mpt_login_displayName"
+        static let authName = "mpt_login_authName"
+        static let password = "mpt_login_password"
+        static let userDomain = "mpt_login_userDomain"
+        static let sipServer = "mpt_login_sipServer"
+        static let sipServerPort = "mpt_login_sipServerPort"
+        static let transportType = "mpt_login_transportType"
+        static let srtpType = "mpt_login_srtpType"
+        static let enableDebugLog = "mpt_login_enableDebugLog"
+    }
+    
     init(portSIPSDK: PortSIPSDK!) {
         self.portSIPSDK = portSIPSDK
         self.sipInitialized = false
@@ -38,6 +51,16 @@ class LoginViewController {
     
     
     func onLine(username: String, displayName: String, authName: String, password: String, userDomain: String, sipServer: String, sipServerPort: Int32, transportType: Int, srtpType: Int, enableDebugLog: Bool)  {
+        persistOnLineParameters(username: username,
+                                displayName: displayName,
+                                authName: authName,
+                                password: password,
+                                userDomain: userDomain,
+                                sipServer: sipServer,
+                                sipServerPort: sipServerPort,
+                                transportType: transportType,
+                                srtpType: srtpType,
+                                enableDebugLog: enableDebugLog)
         
 //        if sipInitialized {
 //            offLine()
@@ -143,6 +166,29 @@ class LoginViewController {
         appDelegate.sipURL = sipURL
         print("Registration initiated...")
     }
+
+    private func persistOnLineParameters(username: String,
+                                         displayName: String,
+                                         authName: String,
+                                         password: String,
+                                         userDomain: String,
+                                         sipServer: String,
+                                         sipServerPort: Int32,
+                                         transportType: Int,
+                                         srtpType: Int,
+                                         enableDebugLog: Bool) {
+        let defaults = UserDefaults.standard
+        defaults.set(username, forKey: PersistKeys.username)
+        defaults.set(displayName, forKey: PersistKeys.displayName)
+        defaults.set(authName, forKey: PersistKeys.authName)
+        defaults.set(password, forKey: PersistKeys.password)
+        defaults.set(userDomain, forKey: PersistKeys.userDomain)
+        defaults.set(sipServer, forKey: PersistKeys.sipServer)
+        defaults.set(Int(sipServerPort), forKey: PersistKeys.sipServerPort)
+        defaults.set(transportType, forKey: PersistKeys.transportType)
+        defaults.set(srtpType, forKey: PersistKeys.srtpType)
+        defaults.set(enableDebugLog, forKey: PersistKeys.enableDebugLog)
+    }
     
     func offLine() {
         var unReg : Int32 = 1
@@ -163,7 +209,6 @@ class LoginViewController {
             sipRegistrationStatus = .LOGIN_STATUS_OFFLINE
             if (unReg == 0){
                 print("Unregister success")
-                MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: false)
             }
             print("SIP Unregistered and Offline")
         }
@@ -188,21 +233,49 @@ class LoginViewController {
             portSIPSDK.unInitialize()
             sipInitialized = false
             MptCallkitPlugin.shared.methodChannel?.invokeMethod("onHangOut", arguments: true)
+            let defaults = UserDefaults.standard
+            guard let username = defaults.string(forKey: PersistKeys.username),
+                  let displayName = defaults.string(forKey: PersistKeys.displayName),
+                  let authName = defaults.string(forKey: PersistKeys.authName),
+                  let password = defaults.string(forKey: PersistKeys.password),
+                  let userDomain = defaults.string(forKey: PersistKeys.userDomain),
+                  let sipServer = defaults.string(forKey: PersistKeys.sipServer),
+                  defaults.object(forKey: PersistKeys.sipServerPort) != nil,
+                  defaults.object(forKey: PersistKeys.transportType) != nil,
+                  defaults.object(forKey: PersistKeys.srtpType) != nil else {
+                print("Missing persisted login parameters; skip auto re-login")
+                return
+            }
+            let sipServerPort = Int32(defaults.integer(forKey: PersistKeys.sipServerPort))
+            let transportType = defaults.integer(forKey: PersistKeys.transportType)
+            let srtpType = defaults.integer(forKey: PersistKeys.srtpType)
+            let enableDebugLog = defaults.object(forKey: PersistKeys.enableDebugLog) as? Bool ?? false
+            onLine(username: username,
+                   displayName: displayName,
+                   authName: authName,
+                   password: password,
+                   userDomain: userDomain,
+                   sipServer: sipServer,
+                   sipServerPort: sipServerPort,
+                   transportType: transportType,
+                   srtpType: srtpType,
+                   enableDebugLog: enableDebugLog)
         }
     }
     
     func unRegister() {
-        if sipRegistrationStatus == .LOGIN_STATUS_LOGIN || sipRegistrationStatus == .LOGIN_STATUS_ONLINE {
-            print("Force unregister SIP")
-            offLine()
+        if (sipRegistrationStatus == LOGIN_STATUS.LOGIN_STATUS_LOGIN || sipRegistrationStatus == LOGIN_STATUS.LOGIN_STATUS_ONLINE) {
+            portSIPSDK.unRegisterServer(90)
+            print("unRegister when background")
+            sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_FAILUE
         }
-         refreshRegister()
     }
     
     func onRegisterSuccess(statusText: String) {
         print("Registration success: \(statusText)")
         sipRegistrationStatus = .LOGIN_STATUS_ONLINE
         MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: true)
+        MptCallkitPlugin.shared.methodChannel?.invokeMethod("registrationStateStream", arguments: true)
         autoRegisterRetryTimes = 0
     }
     
@@ -211,6 +284,7 @@ class LoginViewController {
         
         sipRegistrationStatus = .LOGIN_STATUS_FAILUE
         MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: false)
+        MptCallkitPlugin.shared.methodChannel?.invokeMethod("registrationStateStream", arguments: false)
         
         if statusCode != 401, statusCode != 403, statusCode != 404 {
             var interval = TimeInterval(autoRegisterRetryTimes * 2 + 1)
