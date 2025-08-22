@@ -121,11 +121,11 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     print("AppLifecycleState: $state");
 
     if (state == AppLifecycleState.resumed && isOnCall == false) {
-      MptCallKitController().refreshRegister();
+      if (Platform.isAndroid) MptCallKitController().refreshRegister();
     }
 
     if (state == AppLifecycleState.paused && isOnCall == false) {
-      doUnregiter();
+      if (Platform.isAndroid) doUnregiter();
     }
   }
 
@@ -226,17 +226,8 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   }
 
   // unregister SIP
-  Future<bool> doUnregiter() async {
-    return await MptCallKitController().offline(
-      onError: (error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Lỗi: $error"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      },
-    );
+  Future<int> doUnregiter() async {
+    return await MptCallKitController().unRegister();
   }
 
   // Logout account

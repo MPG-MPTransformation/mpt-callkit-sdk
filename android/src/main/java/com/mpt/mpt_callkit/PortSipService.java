@@ -409,12 +409,8 @@ public class PortSipService extends Service
                 keepCpuRun(true);
                 return START_STICKY;
             } else if (ACTION_SIP_REFRESH.equals(intent.getAction())) {
-                if (CallManager.Instance().online) {
-                    Engine.Instance().getEngine().refreshRegistration(0);
-                } else {
-                    unregisterToServer();
-                    autoOnline();
-                }
+                unregisterToServer();
+                autoOnline();
             }
         }
         return result;

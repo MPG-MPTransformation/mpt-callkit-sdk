@@ -62,7 +62,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       const String _accessTokenKey = 'saved_access_token';
       final prefs = await SharedPreferences.getInstance();
       final accessToken = prefs.getString(_accessTokenKey);
-
+      print('Access Token: $accessToken');
       if (accessToken != null && accessToken.isNotEmpty) {
         print('Auto login with saved credentials: $accessToken');
 
@@ -94,6 +94,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
             // TODO: show screen calling in Flutter
             break;
           case Event.actionCallAccept:
+            MptCallKitController().answerCall();
             // TODO: accepted an incoming call
             // TODO: show screen calling in Flutter
             break;

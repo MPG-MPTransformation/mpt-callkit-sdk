@@ -847,7 +847,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
             timer.setEventHandler { [weak self] in
                 self?.loginViewController.unRegister()
-                self?.endBackgroundTaskForRegister()
+                self?.backtaskTimer = nil
                 NSLog("SipEngine finishBackgroundTaskForRegister")
             }
 
@@ -856,6 +856,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
 
         private func endBackgroundTaskForRegister() {
+            backtaskTimer?.cancel()
+            backtaskTimer = nil
             if backtaskIdentifier != .invalid {
                 UIApplication.shared.endBackgroundTask(backtaskIdentifier)
                 backtaskIdentifier = .invalid
@@ -871,6 +873,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // } else {
             endBackgroundRegister()
             endBackgroundTaskForRegister()
+            loginViewController.refreshRegister()
         // }
     }
 

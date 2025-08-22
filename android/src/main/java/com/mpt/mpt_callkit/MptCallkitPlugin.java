@@ -373,12 +373,21 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 Context contextToUse = activity != null ? activity : context;
                 if (contextToUse == null) {
                     result.error("NO_CONTEXT", "No valid context available", null);
+                    result.success(-1);
                     break;
                 }
-                Intent refreshIntent = new Intent(contextToUse, PortSipService.class);
-                refreshIntent.setAction(PortSipService.ACTION_SIP_REFRESH);
-                PortSipService.startServiceCompatibility(contextToUse, refreshIntent);
-                result.success(true);
+                if (!CallManager.Instance().hasActiveSession()){
+                    Intent refreshIntent = new Intent(contextToUse, PortSipService.class);
+                    refreshIntent.setAction(PortSipService.ACTION_SIP_REFRESH);
+                    PortSipService.startServiceCompatibility(contextToUse, refreshIntent);
+                }
+                result.success(0);
+                break;
+            case "unRegister":
+                if (!CallManager.Instance().hasActiveSession()){
+                    unregisterSipAndCleanup();
+                }
+                result.success(0);
                 break;
             default:
                 result.notImplemented();

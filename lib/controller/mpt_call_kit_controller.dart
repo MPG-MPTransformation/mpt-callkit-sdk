@@ -2073,4 +2073,10 @@ class MptCallKitController {
     print("refreshRegister result code: $result");
     return result;
   }
+
+  Future<int> unRegister() async {
+    final result = await channel.invokeMethod("unRegister");
+    print("unRegister result code: $result");
+    return result;
+  }
 }
