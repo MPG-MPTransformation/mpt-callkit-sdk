@@ -13,7 +13,7 @@ public class CallManager {
 	public static final int MAX_LINES = 10;
 	private static CallManager mInstance;
 	private static Object locker = new Object();
-	Session[] sessions;
+	Session[] sessions = new Session[MAX_LINES];
 	public int CurrentLine;
 	public boolean isRegistered;
 	public boolean online;

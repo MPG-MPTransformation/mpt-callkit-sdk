@@ -80,6 +80,7 @@ public class PortSipService extends Service
     public static final String EXTRA_REGISTER_STATE = "RegisterStatus";
     public static final String ACTION_PUSH_MESSAGE = "PortSip.AndroidSample.Test.PushMessageIncoming";
     public static final String ACTION_PUSH_TOKEN = "PortSip.AndroidSample.Test.PushToken";
+    public static final String ACTION_SIP_REFRESH = "PortSip.AndroidSample.Test.REFRESH";
     public static final String ACTION_SIP_REGIEST = "PortSip.AndroidSample.Test.REGIEST";
     public static final String ACTION_SIP_UNREGIEST = "PortSip.AndroidSample.Test.UNREGIEST";
     public static final String ACTION_STOP = "PortSip.AndroidSample.Test.STOP";
@@ -358,10 +359,36 @@ public class PortSipService extends Service
              * }
              * }else
              */
+            
+
             if (ACTION_SIP_REGIEST.equals(intent.getAction())) {
+                SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+                preferences.edit()
+                        .putString("username", username)
+                        .putString("password", password)
+                        .putString("domain", domain)
+                        .putString("sipServer", sipServer)
+                        .putString("port", port)
+                        .putString("displayName", displayName)
+                        .putString("appId", appId)
+                        .putString("pushToken", pushToken)
+                        .putBoolean("enableDebugLog", enableDebugLog)
+                        .commit();
+                logWithTimestamp("SDK-Android: autoOnline - "
+                    + "username: " + username
+                    + ", password: " + password
+                    + ", domain: " + domain
+                    + ", sipServer: " + sipServer
+                    + ", port: " + port
+                    + ", displayName: " + displayName
+                    + ", appId: " + appId
+                    + ", pushToken: " + pushToken
+                    + ", enableDebugLog: " + enableDebugLog);
                 // if (!CallManager.Instance().online) {
                 initialSDK(enableDebugLog);
                 registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
+
+                return START_STICKY;
                 // }
             } else if (ACTION_SIP_UNREGIEST.equals(intent.getAction())) {
                 logWithTimestamp("SDK-Android: service is doing unregisterToServer...");
@@ -383,6 +410,13 @@ public class PortSipService extends Service
                 showServiceNotifiCation();
                 keepCpuRun(true);
                 return START_STICKY;
+            } else if (ACTION_SIP_REFRESH.equals(intent.getAction())) {
+                if (CallManager.Instance().isRegistered) {
+                    Engine.Instance().getEngine().refreshRegistration(0);
+                } else {
+                    unregisterToServer();
+                    autoOnline();
+                }
             }
         }
         return result;
@@ -574,8 +608,8 @@ public class PortSipService extends Service
             CallManager.Instance().resetAll();
         } else {
             // Set high quality video settings for 1080P
-            Engine.Instance().getEngine().setVideoResolution(1920, 1080); // 1080P resolution
-            Engine.Instance().getEngine().setVideoBitrate(-1, 2048); // Higher bitrate for better quality
+            Engine.Instance().getEngine().setVideoResolution(1280, 720); // 1080P resolution
+            Engine.Instance().getEngine().setVideoBitrate(-1, 1024); // Higher bitrate for better quality
             Engine.Instance().getEngine().setVideoFrameRate(-1, 30); // Higher frame rate for smoother video
 
             // // Set video resolution to 720p
@@ -591,7 +625,7 @@ public class PortSipService extends Service
                 Log.w("Trial Version",
                         "This trial version SDK just allows short conversation, you can't hearing anything after 2-3 minutes, contact us: sales@portsip.com to buy official version.");
                 showTipMessage("This Is Trial Version");
-                Engine.Instance().getEngine().setInstanceId(getInstanceID());
+                // Engine.Instance().getEngine().setInstanceId(getInstanceID());
             }
         }
         return result;
@@ -1397,8 +1431,8 @@ public class PortSipService extends Service
 
         sdk.setReliableProvisional(0);
 
-        // String resolution = "720P";
-        String resolution = "1080P";
+        String resolution = "720P";
+        // String resolution = "1080P";
         int width = 352;
         int height = 288;
         if (resolution.equals("QCIF")) {
@@ -1466,5 +1500,30 @@ public class PortSipService extends Service
             Engine.Instance().getMethodChannel().invokeMethod("callType", state);
             MptCallkitPlugin.sendToFlutter("callType", state);
         }
+    }
+
+    private void autoOnline() {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        boolean enableDebugLog = preferences.getBoolean("enableDebugLog", false);
+        String username = preferences.getString("username", "");
+        String password = preferences.getString("password", "");
+        String domain = preferences.getString("domain", "");
+        String sipServer = preferences.getString("sipServer", "");
+        String port = preferences.getString("port", "5060");
+        String displayName = preferences.getString("displayName", username);
+        String appId = preferences.getString("appId", "");
+        String pushToken = preferences.getString("pushToken", "");
+
+        logWithTimestamp("SDK-Android: autoOnline - "
+                + "username: " + username
+                + ", password: " + password
+                + ", domain: " + domain
+                + ", sipServer: " + sipServer
+                + ", port: " + port
+                + ", displayName: " + displayName
+                + ", appId: " + appId
+                + ", pushToken: " + pushToken);
+        initialSDK(enableDebugLog);
+        registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
     }
 }

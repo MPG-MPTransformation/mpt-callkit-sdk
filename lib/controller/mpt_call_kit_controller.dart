@@ -481,7 +481,7 @@ class MptCallKitController {
           // Wait until initial rooms joined before SIP registration
           final roomsJoined =
               await MptSocketSocketServer.waitUntilInitialRoomsJoined(
-                  timeout: const Duration(seconds: 10));
+                  timeout: const Duration(seconds: 5));
           if (roomsJoined) {
             await _registerToSipServer(context: context);
           } else {
@@ -524,7 +524,7 @@ class MptCallKitController {
         port: _configuration!["MOBILE_SIP_PORT"],
       );
 
-      var regResult = await refreshRegister();
+      var regResult = await refreshRegistration();
 
       Future.delayed(const Duration(milliseconds: 500), () async {
         {
@@ -1721,7 +1721,7 @@ class MptCallKitController {
             break;
           case 'isRemoteVideoReceived':
             print('Received isRemoteVideoReceived from native: $data');
-            updateVideoCall(isVideo: true);
+            // updateVideoCall(isVideo: true);
             _isRemoteVideoReceived.add(data as bool);
             break;
           // case "releaseExtension":
@@ -2020,8 +2020,10 @@ class MptCallKitController {
           if (isAnswered) {
             // Handle call answered logic
             print('Remote party answered the call');
-            updateVideoCall(isVideo: true);
             _calleeAnsweredStream.add(true);
+            Future.delayed(const Duration(milliseconds: 2500), () {
+              updateVideoCall(isVideo: true);
+            });
           }
           break;
 
@@ -2068,9 +2070,31 @@ class MptCallKitController {
     return await channel.invokeMethod("getCallkitAnsweredState");
   }
 
+  Future<int> refreshRegistration() async {
+    final result = await channel.invokeMethod("refreshRegistration");
+    print("refreshRegistration result code: $result");
+    return result;
+  }
+
   Future<int> refreshRegister() async {
     final result = await channel.invokeMethod("refreshRegister");
     print("refreshRegister result code: $result");
     return result;
+  }
+
+  Future<int> unRegister() async {
+    final result = await channel.invokeMethod("unRegister");
+    print("unRegister result code: $result");
+    return result;
+  }
+
+  Future<void> sendSocketStatus() async {
+    try {
+      await channel.invokeMethod('socketStatus', {
+        'ready': true,
+      });
+    } catch (e) {
+      print('Failed to notify iOS about socket status: $e');
+    }
   }
 }

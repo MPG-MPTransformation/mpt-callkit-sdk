@@ -808,6 +808,7 @@ class CallManager: NSObject {
     }
 
     public func clear() {
+        isSocketReady = false
         for i in 0 ..< MAX_LINES {
             if sessionArray[i].hasAdd {
                 _portSIPSDK.hangUp(sessionArray[i].sessionId)

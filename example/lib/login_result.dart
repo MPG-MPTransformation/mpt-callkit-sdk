@@ -117,15 +117,24 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
     print("AppLifecycleState: $state");
 
     if (state == AppLifecycleState.resumed && isOnCall == false) {
-      MptCallKitController().refreshRegister();
+      final prefs = await SharedPreferences.getInstance();
+      final accessToken = prefs.getString("saved_access_token");
+      if (accessToken != null) {
+        await MptCallKitController().connectToSocketServer(accessToken);
+      }
+      if (Platform.isAndroid) {
+        await MptCallKitController().refreshRegister();
+      }
     }
 
-    if (state == AppLifecycleState.paused && isOnCall == false) {
-      MptCallKitController().offline();
+    if ((state == AppLifecycleState.paused ||
+            state == AppLifecycleState.inactive) &&
+        isOnCall == false) {
+      if (Platform.isAndroid) await doUnregiter();
     }
   }
 
@@ -226,17 +235,8 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   }
 
   // unregister SIP
-  Future<bool> doUnregiter() async {
-    return await MptCallKitController().offline(
-      onError: (error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Lỗi: $error"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      },
-    );
+  Future<int> doUnregiter() async {
+    return await MptCallKitController().unRegister();
   }
 
   // Logout account

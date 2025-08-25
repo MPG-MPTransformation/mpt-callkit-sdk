@@ -847,7 +847,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
             timer.setEventHandler { [weak self] in
                 self?.loginViewController.unRegister()
-                self?.endBackgroundTaskForRegister()
+                self?.backtaskTimer = nil
                 NSLog("SipEngine finishBackgroundTaskForRegister")
             }
 
@@ -856,6 +856,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
 
         private func endBackgroundTaskForRegister() {
+            backtaskTimer?.cancel()
+            backtaskTimer = nil
             if backtaskIdentifier != .invalid {
                 UIApplication.shared.endBackgroundTask(backtaskIdentifier)
                 backtaskIdentifier = .invalid
@@ -869,6 +871,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // if _enableForceBackground! {
         //     portSIPSDK.stopKeepAwake()
         // } else {
+            endBackgroundRegister()
+            endBackgroundTaskForRegister()
             loginViewController.refreshRegister()
         // }
     }
@@ -2287,9 +2291,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
                 // Send video from camera
                 //                setCamera(useFrontCamera: mUseFrontCamera)
-                let sendVideoRes = portSIPSDK.sendVideo(
-                    sessionResult.session.sessionId, sendState: isVideo)
-                NSLog("🔍 updateVideoCall - sendVideo(\(isVideo)): \(sendVideoRes)")
+                
+//                let sendVideoRes = portSIPSDK.sendVideo(
+//                    sessionResult.session.sessionId, sendState: isVideo)
+//                NSLog("🔍 updateVideoCall - sendVideo(\(isVideo)): \(sendVideoRes)")
 
                 // Update call to add video stream
                 let updateRes = portSIPSDK.updateCall(
@@ -2317,6 +2322,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             result(getCallkitAnsweredState())
             return
         case "refreshRegister":
+            result(portSIPSDK.refreshRegistration(0))
+        case "refreshRegistration":
             result(portSIPSDK.refreshRegistration(0))
         default:
             result(FlutterMethodNotImplemented)
@@ -2741,9 +2748,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
             // Send video from camera
             setCamera(useFrontCamera: mUseFrontCamera)
-            let sendVideoRes = portSIPSDK.sendVideo(
-                sessionResult.session.sessionId, sendState: true)
-            NSLog("reinviteSession - sendVideo(): \(sendVideoRes)")
+            // let sendVideoRes = portSIPSDK.sendVideo(
+            //     sessionResult.session.sessionId, sendState: true)
+            // NSLog("reinviteSession - sendVideo(): \(sendVideoRes)")
 
             // Update call to add video stream
             let updateRes = portSIPSDK.updateCall(

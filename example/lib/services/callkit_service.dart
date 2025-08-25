@@ -8,15 +8,16 @@ class CallKitService {
   factory CallKitService() => _instance;
 
   CallKitService._internal();
+  static String _currentUUID = Uuid().v4();
 
   static Future<void> showCallkitIncoming({
     required String callerName,
     required String callerNumber,
   }) async {
-    final uuid = Uuid().v4();
+    _currentUUID = Uuid().v4();
 
     final params = CallKitParams(
-      id: uuid,
+      id: _currentUUID,
       nameCaller: callerName,
       appName: 'OmiCX',
       avatar: 'https://i.pravatar.cc/100',
@@ -46,5 +47,12 @@ class CallKitService {
 
     // or end specific call with uuid
     // await FlutterCallkitIncoming.endCall(uuid);
+  }
+
+  static Future<void> hideCallKit() async {
+    CallKitParams params = CallKitParams(
+      id: _currentUUID,
+    );
+    await FlutterCallkitIncoming.hideCallkitIncoming(params);
   }
 }

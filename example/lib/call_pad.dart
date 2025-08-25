@@ -127,7 +127,7 @@ class _CallPadState extends State<CallPad> {
         if (state == CallStateConstants.CLOSED ||
             state == CallStateConstants.FAILED) {
           Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted && widget.isGuest == true) {
+            if (mounted) {
               _showCallEndedDialog(state);
             }
           });

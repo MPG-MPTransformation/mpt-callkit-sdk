@@ -122,7 +122,7 @@ class LoginViewController {
         portSIPSDK.addVideoCodec(VIDEO_CODEC_VP9);
         
         // portSIPSDK.setVideoBitrate(-1, bitrateKbps: 512) // Higher bitrate for better quality
-        portSIPSDK.setVideoBitrate(-1, bitrateKbps: 2048) // Higher bitrate for better quality
+        portSIPSDK.setVideoBitrate(-1, bitrateKbps: 1024) // Higher bitrate for better quality
         portSIPSDK.setVideoFrameRate(-1, frameRate: 30) // Higher frame rate for smoother video
         // portSIPSDK.setVideoResolution(1280, height: 720) // 1080P resolution
         portSIPSDK.setVideoResolution(1920, height: 1080) // 1080P resolution
@@ -136,7 +136,7 @@ class LoginViewController {
     
         // enable srtp
         portSIPSDK.setSrtpPolicy(srtp)
-        portSIPSDK.setInstanceId(UIDevice.current.identifierForVendor?.uuidString)
+//        portSIPSDK.setInstanceId(UIDevice.current.identifierForVendor?.uuidString)
         
         let portSipPlugin = MptCallkitPlugin.shared
         

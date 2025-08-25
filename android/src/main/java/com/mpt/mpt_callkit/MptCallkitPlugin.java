@@ -360,8 +360,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 Session currentLine = CallManager.Instance().getCurrentSession();
                 Boolean isVideo = call.argument("isVideo");
                 // Gửi video từ camera
-                int sendVideoResult = Engine.Instance().getEngine().sendVideo(currentLine.sessionID, isVideo);
-                System.out.println("SDK-Android: reinviteSession - sendVideo(): " + sendVideoResult);
+                // int sendVideoResult = Engine.Instance().getEngine().sendVideo(currentLine.sessionID, isVideo);
+                // System.out.println("SDK-Android: reinviteSession - sendVideo(): " + sendVideoResult);
 
                 // Cập nhật cuộc gọi để thêm video stream
                 int updateCallRes = Engine.Instance().getEngine().updateCall(currentLine.sessionID, true, isVideo);
@@ -369,8 +369,26 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
                 result.success(updateCallRes == 0);
                 break;
-            case "refreshRegister":
+            case "refreshRegistration":
                 result.success(Engine.Instance().getEngine().refreshRegistration(0));
+                break;
+            case "refreshRegister":
+                Context contextToUse = activity != null ? activity : context;
+                if (contextToUse == null) {
+                    result.error("NO_CONTEXT", "No valid context available", null);
+                    result.success(-1);
+                    break;
+                }
+                    Intent refreshIntent = new Intent(contextToUse, PortSipService.class);
+                    refreshIntent.setAction(PortSipService.ACTION_SIP_REFRESH);
+                    PortSipService.startServiceCompatibility(contextToUse, refreshIntent);
+                result.success(0);
+                break;
+            case "unRegister":
+                if (!CallManager.Instance().hasActiveSession()){
+                    unregisterSipAndCleanup();
+                }
+                result.success(0);
                 break;
             default:
                 result.notImplemented();
@@ -495,7 +513,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     CallManager.Instance().hangupAllCalls(engine);
 
                     // Wait a bit for cleanup
-                    Thread.sleep(300);
+                    Thread.sleep(100);
 
                     // Destroy conference and cleanup video resources
                     engine.destroyConference();
