@@ -387,6 +387,8 @@ public class PortSipService extends Service
                 // if (!CallManager.Instance().online) {
                 initialSDK(enableDebugLog);
                 registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
+
+                return START_STICKY;
                 // }
             } else if (ACTION_SIP_UNREGIEST.equals(intent.getAction())) {
                 logWithTimestamp("SDK-Android: service is doing unregisterToServer...");
@@ -409,8 +411,12 @@ public class PortSipService extends Service
                 keepCpuRun(true);
                 return START_STICKY;
             } else if (ACTION_SIP_REFRESH.equals(intent.getAction())) {
-                unregisterToServer();
-                autoOnline();
+                if (CallManager.Instance().isRegistered) {
+                    Engine.Instance().getEngine().refreshRegistration(0);
+                } else {
+                    unregisterToServer();
+                    autoOnline();
+                }
             }
         }
         return result;
@@ -602,8 +608,8 @@ public class PortSipService extends Service
             CallManager.Instance().resetAll();
         } else {
             // Set high quality video settings for 1080P
-            Engine.Instance().getEngine().setVideoResolution(1920, 1080); // 1080P resolution
-            Engine.Instance().getEngine().setVideoBitrate(-1, 2048); // Higher bitrate for better quality
+            Engine.Instance().getEngine().setVideoResolution(1280, 720); // 1080P resolution
+            Engine.Instance().getEngine().setVideoBitrate(-1, 1024); // Higher bitrate for better quality
             Engine.Instance().getEngine().setVideoFrameRate(-1, 30); // Higher frame rate for smoother video
 
             // // Set video resolution to 720p
@@ -619,7 +625,7 @@ public class PortSipService extends Service
                 Log.w("Trial Version",
                         "This trial version SDK just allows short conversation, you can't hearing anything after 2-3 minutes, contact us: sales@portsip.com to buy official version.");
                 showTipMessage("This Is Trial Version");
-                Engine.Instance().getEngine().setInstanceId(getInstanceID());
+                // Engine.Instance().getEngine().setInstanceId(getInstanceID());
             }
         }
         return result;
@@ -1425,8 +1431,8 @@ public class PortSipService extends Service
 
         sdk.setReliableProvisional(0);
 
-        // String resolution = "720P";
-        String resolution = "1080P";
+        String resolution = "720P";
+        // String resolution = "1080P";
         int width = 352;
         int height = 288;
         if (resolution.equals("QCIF")) {

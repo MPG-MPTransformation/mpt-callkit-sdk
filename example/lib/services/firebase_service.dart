@@ -58,10 +58,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       */
 
     if (message.data['msg_title'] == "Received a new call.") {
-      const String _tokenKey = 'fcm_token';
-      const String _accessTokenKey = 'saved_access_token';
+      const String tokenKey = 'fcm_token';
+      const String accessTokenKey = 'saved_access_token';
       final prefs = await SharedPreferences.getInstance();
-      final accessToken = prefs.getString(_accessTokenKey);
+      final accessToken = prefs.getString(accessTokenKey);
       print('Access Token: $accessToken');
       if (accessToken != null && accessToken.isNotEmpty) {
         print('Auto login with saved credentials: $accessToken');
@@ -69,7 +69,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         MptCallKitController().initSdk(
           apiKey: CallkitConstants.API_KEY,
           baseUrl: CallkitConstants.BASE_URL,
-          pushToken: Platform.isAndroid ? prefs.getString(_tokenKey) : null,
+          pushToken: Platform.isAndroid ? prefs.getString(tokenKey) : null,
           appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
           enableDebugLog: true,
         );
@@ -84,7 +84,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       //     body: message.data['msg_content'] ?? "Nhấn để xem chi tiết",
       //     payload: message.data.toString());
 
-      FlutterCallkitIncoming.onEvent.listen((CallEvent? event) {
+      FlutterCallkitIncoming.onEvent.listen((CallEvent? event) async {
         switch (event?.event ?? Event.actionCallIncoming) {
           case Event.actionCallIncoming:
             // TODO: received an incoming call
@@ -94,13 +94,16 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
             // TODO: show screen calling in Flutter
             break;
           case Event.actionCallAccept:
-            MptCallKitController().answerCall();
+            await MptCallKitController().unRegister();
             // TODO: accepted an incoming call
             // TODO: show screen calling in Flutter
             break;
           case Event.actionCallDecline:
             // TODO: declined an incoming call
             MptCallKitController().rejectCall();
+
+            await Future.delayed(const Duration(seconds: 1));
+            await MptCallKitController().unRegister();
             break;
           case Event.actionCallEnded:
             // TODO: ended an incoming/outgoing call
@@ -138,10 +141,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         }
       });
 
-      StreamSubscription<String>? _callTypeSubscription =
+      StreamSubscription<String>? callTypeSubscription =
           MptCallKitController().callEvent.listen((type) async {
         print("MptCallKitController().callEvent: $type");
-        if (type == CallStateConstants.CLOSED) {
+        if (type == CallStateConstants.CLOSED ||
+            type == CallStateConstants.FAILED) {
           await CallKitService.hideCallKit();
         }
       });

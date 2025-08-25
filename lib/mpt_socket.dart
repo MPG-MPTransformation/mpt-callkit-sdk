@@ -530,7 +530,8 @@ class MptSocketSocketServer {
                 if (extraInfo != null && extraInfo.containsKey('type')) {
                   if (extraInfo['type'].toString() ==
                       CallType.VIDEO.toString()) {
-                    MptCallKitController().updateVideoCall(isVideo: true);
+                    // MptCallKitController().updateVideoCall(isVideo: true);
+
                     // // Handle video call
                     // try {
                     //   await MptCallKitController.channel

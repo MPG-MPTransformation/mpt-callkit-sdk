@@ -117,15 +117,24 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
     print("AppLifecycleState: $state");
 
     if (state == AppLifecycleState.resumed && isOnCall == false) {
-      if (Platform.isAndroid) MptCallKitController().refreshRegister();
+      final prefs = await SharedPreferences.getInstance();
+      final accessToken = prefs.getString("saved_access_token");
+      if (accessToken != null) {
+        await MptCallKitController().connectToSocketServer(accessToken);
+      }
+      if (Platform.isAndroid) {
+        await MptCallKitController().refreshRegister();
+      }
     }
 
-    if (state == AppLifecycleState.paused && isOnCall == false) {
-      if (Platform.isAndroid) doUnregiter();
+    if ((state == AppLifecycleState.paused ||
+            state == AppLifecycleState.inactive) &&
+        isOnCall == false) {
+      if (Platform.isAndroid) await doUnregiter();
     }
   }
 
