@@ -37,7 +37,7 @@ class LoginViewController {
     }
     
     
-    func onLine(username: String, displayName: String, authName: String, password: String, userDomain: String, sipServer: String, sipServerPort: Int32, transportType: Int, srtpType: Int, enableDebugLog: Bool)  {
+    func onLine(username: String, displayName: String, authName: String, password: String, userDomain: String, sipServer: String, sipServerPort: Int32, transportType: Int, srtpType: Int, enableDebugLog: Bool, resolution: String = "720P", bitrate: Int = 1024, frameRate: Int = 30)  {
         
         if sipInitialized {
             return
@@ -102,6 +102,9 @@ class LoginViewController {
         UserDefaults.standard.set(srtpType, forKey: "srtpType")
         UserDefaults.standard.set(localPort, forKey: "localPort")
         UserDefaults.standard.set(enableDebugLog, forKey: "enableDebugLog")
+        UserDefaults.standard.set(resolution, forKey: "resolution")
+        UserDefaults.standard.set(bitrate, forKey: "bitrate")
+        UserDefaults.standard.set(frameRate, forKey: "frameRate")
         
         _ = portSIPSDK.setLicenseKey("PORTSIP_TEST_LICENSE")
         
@@ -121,12 +124,28 @@ class LoginViewController {
         portSIPSDK.addVideoCodec(VIDEO_CODEC_VP8);
         portSIPSDK.addVideoCodec(VIDEO_CODEC_VP9);
         
-        // portSIPSDK.setVideoBitrate(-1, bitrateKbps: 512) // Higher bitrate for better quality
-        portSIPSDK.setVideoBitrate(-1, bitrateKbps: 1024) // Higher bitrate for better quality
-        portSIPSDK.setVideoFrameRate(-1, frameRate: 30) // Higher frame rate for smoother video
-        // portSIPSDK.setVideoResolution(1280, height: 720) // 1080P resolution
-        portSIPSDK.setVideoResolution(1920, height: 1080) // 1080P resolution
-        portSIPSDK.setAudioSamples(20, maxPtime: 60) // ptime 20
+        // Apply video params
+        portSIPSDK.setVideoBitrate(-1, bitrateKbps: Int32(bitrate))
+        portSIPSDK.setVideoFrameRate(-1, frameRate: Int32(frameRate))
+        
+        var width = 1280
+        var height = 720
+        switch resolution.uppercased() {
+        case "QCIF":
+            width = 176; height = 144
+        case "CIF":
+            width = 352; height = 288
+        case "VGA":
+            width = 640; height = 480
+        case "720P":
+            width = 1280; height = 720
+        case "1080P":
+            width = 1920; height = 1080
+        default:
+            width = 1280; height = 720
+        }
+        portSIPSDK.setVideoResolution(Int32(width), height: Int32(height))
+        portSIPSDK.setAudioSamples(20, maxPtime: 60)
         
         // 1 - FrontCamra 0 - BackCamra
         portSIPSDK.setVideoDeviceId(1)
@@ -136,7 +155,6 @@ class LoginViewController {
     
         // enable srtp
         portSIPSDK.setSrtpPolicy(srtp)
-//        portSIPSDK.setInstanceId(UIDevice.current.identifierForVendor?.uuidString)
         
         let portSipPlugin = MptCallkitPlugin.shared
         
@@ -188,7 +206,6 @@ class LoginViewController {
         print("refreshRegister: \(sipRegistrationStatus)")
         switch sipRegistrationStatus {
         case .LOGIN_STATUS_OFFLINE:
-            //Not register
             break
         case .LOGIN_STATUS_LOGIN:
             break
@@ -221,8 +238,11 @@ class LoginViewController {
             print("Failed to retrieve saved credentials")
             return
         }
+        let resolution = UserDefaults.standard.string(forKey: "resolution") ?? "720P"
+        let bitrate = UserDefaults.standard.value(forKey: "bitrate") as? Int ?? 1024
+        let frameRate = UserDefaults.standard.value(forKey: "frameRate") as? Int ?? 30
 
-        self.onLine(username: username, displayName: displayName, authName: authName, password: password, userDomain: userDomain, sipServer: sipServer, sipServerPort: sipServerPort, transportType: transportType, srtpType: srtpType, enableDebugLog: enableDebugLog)
+        self.onLine(username: username, displayName: displayName, authName: authName, password: password, userDomain: userDomain, sipServer: sipServer, sipServerPort: sipServerPort, transportType: transportType, srtpType: srtpType, enableDebugLog: enableDebugLog, resolution: resolution, bitrate: bitrate, frameRate: frameRate)
     }
     
     func unRegister() {

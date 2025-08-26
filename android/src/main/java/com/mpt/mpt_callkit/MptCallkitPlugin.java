@@ -299,15 +299,19 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 this.pushToken = call.argument("pushToken");
                 Boolean enableDebugLog = call.argument("enableDebugLog");
 
+                // Video quality parameters
+                String resolution = call.argument("resolution");
+                Integer bitrateArg = call.argument("bitrate");
+                Integer frameRateArg = call.argument("frameRate");
+
+                if (resolution == null || resolution.isEmpty()) {
+                    resolution = "720P";
+                }
+                int bitrate = bitrateArg != null ? bitrateArg : 1024;
+                int frameRate = frameRateArg != null ? frameRateArg : 30;
+
                 // Lưu username hiện tại
                 currentUsername = username;
-
-                // if (CallManager.Instance().online) {
-                //     Intent kOffLineIntent = new Intent(activity, PortSipService.class);
-                //     kOffLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
-                //     PortSipService.startServiceCompatibility(activity, kOffLineIntent);
-                //     System.out.println("SDK-Android: UnregisterServer..");
-                // }
 
                 Intent onLineIntent = new Intent(activity, PortSipService.class);
                 onLineIntent.setAction(PortSipService.ACTION_SIP_REGIEST);
@@ -322,6 +326,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 onLineIntent.putExtra("appId", appId);
                 onLineIntent.putExtra("pushToken", pushToken);
                 onLineIntent.putExtra("enableDebugLog", enableDebugLog);
+                onLineIntent.putExtra("resolution", resolution);
+                onLineIntent.putExtra("bitrate", bitrate);
+                onLineIntent.putExtra("frameRate", frameRate);
                 PortSipService.startServiceCompatibility(context, onLineIntent);
                 System.out.println("SDK-Android: RegisterServer..");
 
@@ -529,9 +536,13 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     }
 
                     // Unregister and cleanup
-                    engine.unRegisterServer(100);
+                    int res = engine.unRegisterServer(100);
                     engine.removeUser();
                     engine.unInitialize();
+                    if (res == 0) {
+                        Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", false);
+                        MptCallkitPlugin.sendToFlutter("onlineStatus", false);
+                    }
                 }
 
                 // Reset các trạng thái

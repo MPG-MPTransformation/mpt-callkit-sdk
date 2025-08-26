@@ -44,6 +44,9 @@ class ExtensionData {
   final String? sipServer;
   final int? port;
   final int? expiresAt;
+  final String? resolution;
+  final int? bitrate;
+  final int? frameRate;
 
   ExtensionData({
     this.username,
@@ -52,6 +55,9 @@ class ExtensionData {
     this.sipServer,
     this.port,
     this.expiresAt,
+    this.resolution,
+    this.bitrate,
+    this.frameRate,
   });
 
   ExtensionData copyWith({
@@ -61,6 +67,9 @@ class ExtensionData {
     String? sipServer,
     int? port,
     int? expiresAt,
+    String? resolution,
+    int? bitrate,
+    int? frameRate,
   }) =>
       ExtensionData(
         username: username ?? this.username,
@@ -69,6 +78,9 @@ class ExtensionData {
         sipServer: sipServer ?? this.sipServer,
         port: port ?? this.port,
         expiresAt: expiresAt ?? this.expiresAt,
+        resolution: resolution ?? this.resolution,
+        bitrate: bitrate ?? this.bitrate,
+        frameRate: frameRate ?? this.frameRate,
       );
 
   factory ExtensionData.fromJson(Map<String, dynamic> json) => ExtensionData(
@@ -78,6 +90,9 @@ class ExtensionData {
         sipServer: json["sipServer"],
         port: json["port"],
         expiresAt: json["expiresAt"],
+        resolution: json["resolution"],
+        bitrate: json["bitrate"],
+        frameRate: json["frameRate"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -87,5 +102,8 @@ class ExtensionData {
         "sipServer": sipServer,
         "port": port,
         "expiresAt": expiresAt,
+        "resolution": resolution,
+        "bitrate": bitrate,
+        "frameRate": frameRate,
       };
 }

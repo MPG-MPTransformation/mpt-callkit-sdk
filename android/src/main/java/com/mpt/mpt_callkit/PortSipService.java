@@ -347,6 +347,9 @@ public class PortSipService extends Service
         pushToken = intent.getStringExtra("pushToken");
         appId = intent.getStringExtra("appId");
         boolean enableDebugLog = intent.getBooleanExtra("enableDebugLog", false);
+        String resolution = intent.getStringExtra("resolution");
+        int bitrate = intent.getIntExtra("bitrate", 1024);
+        int frameRate = intent.getIntExtra("frameRate", 30);
         int result = super.onStartCommand(intent, flags, startId);
         if (intent != null) {
             /*
@@ -373,6 +376,9 @@ public class PortSipService extends Service
                         .putString("appId", appId)
                         .putString("pushToken", pushToken)
                         .putBoolean("enableDebugLog", enableDebugLog)
+                        .putString("resolution", resolution != null && !resolution.isEmpty() ? resolution : "720P")
+                        .putInt("bitrate", bitrate)
+                        .putInt("frameRate", frameRate)
                         .commit();
                 logWithTimestamp("SDK-Android: autoOnline - "
                     + "username: " + username
@@ -383,7 +389,10 @@ public class PortSipService extends Service
                     + ", displayName: " + displayName
                     + ", appId: " + appId
                     + ", pushToken: " + pushToken
-                    + ", enableDebugLog: " + enableDebugLog);
+                    + ", enableDebugLog: " + enableDebugLog
+                    + ", resolution: " + (resolution != null ? resolution : "720P")
+                    + ", bitrate: " + bitrate
+                    + ", frameRate: " + frameRate);
                 // if (!CallManager.Instance().online) {
                 initialSDK(enableDebugLog);
                 registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
@@ -535,8 +544,8 @@ public class PortSipService extends Service
 
                 if (Engine.Instance().getMethodChannel() != null) {
                     Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", false);
+                    MptCallkitPlugin.sendToFlutter("onlineStatus", false);
                 }
-                MptCallkitPlugin.sendToFlutter("onlineStatus", false);
 
             } catch (Exception e) {
                 logWithTimestamp("SDK-Android: Error during unregisterToServer: " + e.getMessage());
@@ -607,15 +616,28 @@ public class PortSipService extends Service
             showTipMessage("initialize failure ErrorCode = " + result);
             CallManager.Instance().resetAll();
         } else {
-            // Set high quality video settings for 1080P
-            Engine.Instance().getEngine().setVideoResolution(1280, 720); // 1080P resolution
-            Engine.Instance().getEngine().setVideoBitrate(-1, 1024); // Higher bitrate for better quality
-            Engine.Instance().getEngine().setVideoFrameRate(-1, 30); // Higher frame rate for smoother video
+            // Apply video settings from preferences (preferences already initialized above)
+            String resolution = preferences.getString("resolution", "720P");
+            int bitrate = preferences.getInt("bitrate", 1024);
+            int frameRate = preferences.getInt("frameRate", 30);
 
-            // // Set video resolution to 720p
-            // Engine.Instance().getEngine().setVideoResolution(1280, 720);
-            // Engine.Instance().getEngine().setVideoBitrate(-1, 512);
-            // Engine.Instance().getEngine().setVideoFrameRate(-1, 30);
+            int width = 1280;
+            int height = 720;
+            if ("QCIF".equals(resolution)) {
+                width = 176; height = 144;
+            } else if ("CIF".equals(resolution)) {
+                width = 352; height = 288;
+            } else if ("VGA".equals(resolution)) {
+                width = 640; height = 480;
+            } else if ("720P".equals(resolution)) {
+                width = 1280; height = 720;
+            } else if ("1080P".equals(resolution)) {
+                width = 1920; height = 1080;
+            }
+
+            Engine.Instance().getEngine().setVideoResolution(width, height);
+            Engine.Instance().getEngine().setVideoBitrate(-1, bitrate);
+            Engine.Instance().getEngine().setVideoFrameRate(-1, frameRate);
 
             result = Engine.Instance().getEngine().setLicenseKey("LicenseKey");
             if (result == PortSipErrorcode.ECoreWrongLicenseKey) {
@@ -671,8 +693,8 @@ public class PortSipService extends Service
         logWithTimestamp("SDK-Android: onRegisterSuccess - statusText: " + statusText + " - statusCode: "+ statusCode + " - sipMessage: "+ sipMessage);
         CallManager.Instance().online = true;
         CallManager.Instance().isRegistered = true;
-        Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", CallManager.Instance().online);
-        MptCallkitPlugin.sendToFlutter("onlineStatus", CallManager.Instance().online);
+        Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
+        MptCallkitPlugin.sendToFlutter("onlineStatus", true);
         Intent broadIntent = new Intent(REGISTER_CHANGE_ACTION);
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);
         // sendPortSipMessage("onRegisterSuccess", broadIntent);
@@ -684,6 +706,8 @@ public class PortSipService extends Service
     @Override
     public void onRegisterFailure(String statusText, int statusCode, String sipMessage) {
         logWithTimestamp("SDK-Android: onRegisterFailure " + statusText + " - " + statusCode + " - " + sipMessage);
+        Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", false);
+        MptCallkitPlugin.sendToFlutter("onlineStatus", false);
         Intent broadIntent = new Intent(REGISTER_CHANGE_ACTION);
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);
         // sendPortSipMessage("onRegisterFailure" + statusCode, broadIntent);
@@ -1407,8 +1431,14 @@ public class PortSipService extends Service
         sdk.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_VP8);
         sdk.addVideoCodec(PortSipEnumDefine.ENUM_VIDEOCODEC_VP9);
 
-        sdk.setVideoBitrate(-1, 2048);
-        sdk.setVideoFrameRate(-1, 30);
+        // Apply video params from preferences
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        int prefBitrate = prefs.getInt("bitrate", 1024);
+        int prefFrameRate = prefs.getInt("frameRate", 30);
+        String prefResolution = prefs.getString("resolution", "720P");
+
+        sdk.setVideoBitrate(-1, prefBitrate);
+        sdk.setVideoFrameRate(-1, prefFrameRate);
         sdk.setAudioSamples(20, 60);
 
         // 1 - FrontCamra 0 - BackCamra
@@ -1431,8 +1461,7 @@ public class PortSipService extends Service
 
         sdk.setReliableProvisional(0);
 
-        String resolution = "720P";
-        // String resolution = "1080P";
+        String resolution = prefResolution != null ? prefResolution : "720P";
         int width = 352;
         int height = 288;
         if (resolution.equals("QCIF")) {

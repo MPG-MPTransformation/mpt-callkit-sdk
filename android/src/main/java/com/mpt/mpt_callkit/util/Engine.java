@@ -125,7 +125,6 @@ public class Engine {
 
 
         mEngine.setVideoBitrate(-1, 512);
-        // mEngine.setVideoBitrate(-1, 2048);
         mEngine.setVideoFrameRate(-1, 30);
         mEngine.setAudioSamples(20, 60);
 

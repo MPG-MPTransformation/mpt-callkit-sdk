@@ -2093,6 +2093,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let enableDebugLog = args["enableDebugLog"] as? Bool,
                 let sipServerPort = args["sipServerPort"] as? Int32
             {
+                // video params with defaults
+                let resolution = (args["resolution"] as? String) ?? "720P"
+                let bitrate = (args["bitrate"] as? Int) ?? 1024
+                let frameRate = (args["frameRate"] as? Int) ?? 30
 
                 // Lưu username hiện tại
                 currentUsername = username
@@ -2115,7 +2119,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     sipServerPort: sipServerPort,
                     transportType: 0,
                     srtpType: 0,
-                    enableDebugLog: enableDebugLog
+                    enableDebugLog: enableDebugLog,
+                    resolution: resolution,
+                    bitrate: bitrate,
+                    frameRate: frameRate
                 )
 
                 result(true)

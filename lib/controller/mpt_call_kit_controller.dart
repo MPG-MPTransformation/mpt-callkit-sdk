@@ -522,6 +522,9 @@ class MptCallKitController {
         domain: currentUserInfo!["tenant"]["domainContext"],
         sipServer: _configuration!["MOBILE_SIP_URL"],
         port: _configuration!["MOBILE_SIP_PORT"],
+        resolution: _configuration!["MOBILE_SIP_RESOLUTION"],
+        bitrate: _configuration!["MOBILE_SIP_BITRATE"],
+        frameRate: _configuration!["MOBILE_SIP_FRAMERATE"],
       );
 
       var regResult = await refreshRegistration();
@@ -553,6 +556,9 @@ class MptCallKitController {
                 print("Error in register to sip server: ${p0.toString()}");
               },
               context: context,
+              resolution: extensionData?.resolution,
+              bitrate: extensionData?.bitrate,
+              frameRate: extensionData?.frameRate,
             );
           } else {
             _appEvent.add(AppEventConstants.ERROR);
@@ -801,6 +807,9 @@ class MptCallKitController {
           appId: appId,
           pushToken: pushToken,
           isMakeCallByGuest: true,
+          resolution: result.resolution,
+          bitrate: result.bitrate,
+          frameRate: result.frameRate,
         );
 
         // 🔧 FIX: Ensure no previous completer is pending
@@ -1058,6 +1067,9 @@ class MptCallKitController {
     String? pushToken,
     String? appId,
     bool? isMakeCallByGuest = false,
+    String? resolution,
+    int? bitrate,
+    int? frameRate,
     // required String localizedCallerName,
   }) async {
     this.isMakeCallByGuest = isMakeCallByGuest ?? false;
@@ -1091,6 +1103,9 @@ class MptCallKitController {
           "appId": appId ?? "",
           "enableDebugLog": enableDebugLog ?? false,
           "localizedCallerName": localizedCallerName,
+          "resolution": resolution ?? "720P",
+          "bitrate": bitrate ?? 1024,
+          "frameRate": frameRate ?? 30,
         },
       );
 
@@ -1099,11 +1114,6 @@ class MptCallKitController {
       return result;
     } on PlatformException catch (e) {
       debugPrint("Login failed: ${e.message}");
-      // if (Platform.isIOS) {
-      //   Navigator.pop(context);
-      // } else {
-      //   await channel.invokeMethod("finishActivity");
-      // }
       return false;
     }
   }
@@ -1651,6 +1661,7 @@ class MptCallKitController {
 
         switch (message) {
           case 'onlineStatus':
+            print('onlineStatus from native: $data');
             _isOnline = data as bool;
             _onlineStatuslistener.add(data);
             onRegisterSIP?.call(data);
