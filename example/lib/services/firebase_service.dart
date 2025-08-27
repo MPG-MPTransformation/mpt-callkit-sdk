@@ -66,14 +66,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       if (accessToken != null && accessToken.isNotEmpty) {
         print('Auto login with saved credentials: $accessToken');
 
-        MptCallKitController().initSdk(
-          apiKey: CallkitConstants.API_KEY,
-          baseUrl: CallkitConstants.BASE_URL,
-          pushToken: Platform.isAndroid ? prefs.getString(tokenKey) : null,
-          appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
-          enableDebugLog: true,
-        );
-        MptCallKitController().refreshRegister();
+        // MptCallKitController().initSdk(
+        //   apiKey: CallkitConstants.API_KEY,
+        //   baseUrl: CallkitConstants.BASE_URL,
+        //   pushToken: Platform.isAndroid ? prefs.getString(tokenKey) : null,
+        //   appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
+        //   enableDebugLog: true,
+        // );
+        // MptCallKitController().refreshRegister();
       }
       await CallKitService.showCallkitIncoming(
         callerName: message.data['msg_title'] ?? "Thông báo mới",
@@ -267,7 +267,7 @@ class FirebaseService {
     // Listen for incoming messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('Received message: ${message.notification?.title}');
-      MptCallKitController().refreshRegister();
+      // MptCallKitController().refreshRegister();
       // Handle message
     });
 

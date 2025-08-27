@@ -40,6 +40,7 @@ class LoginViewController {
     func onLine(username: String, displayName: String, authName: String, password: String, userDomain: String, sipServer: String, sipServerPort: Int32, transportType: Int, srtpType: Int, enableDebugLog: Bool, resolution: String = "720P", bitrate: Int = 1024, frameRate: Int = 30)  {
         
         if sipInitialized {
+            print("cancel register SIP because of sipInitialized!")
             return
         }
         
@@ -248,7 +249,10 @@ class LoginViewController {
     func unRegister() {
         if sipRegistrationStatus == .LOGIN_STATUS_LOGIN || sipRegistrationStatus == .LOGIN_STATUS_ONLINE {
             print("Force unregister SIP")
-            portSIPSDK.unRegisterServer(90)
+            let res =  portSIPSDK.unRegisterServer(90)
+            if res == 0 {
+                MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: false)
+            }
             sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_FAILUE
         }
     }

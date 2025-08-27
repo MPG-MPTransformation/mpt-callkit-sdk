@@ -2164,6 +2164,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             {
                 addPushSupportWithPortPBX(!disablePushNoti)
             }
+            
+            self.loginViewController.refreshRegister()
 
             self.loginViewController.offLine()
             result(true)
@@ -2329,7 +2331,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             result(getCallkitAnsweredState())
             return
         case "refreshRegister":
-            result(portSIPSDK.refreshRegistration(0))
+            self.loginViewController.autoOnline()
+            result(0)
         case "refreshRegistration":
             result(portSIPSDK.refreshRegistration(0))
         default:
