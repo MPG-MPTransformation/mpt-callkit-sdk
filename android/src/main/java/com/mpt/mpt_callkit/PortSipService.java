@@ -80,7 +80,6 @@ public class PortSipService extends Service
     public static final String EXTRA_REGISTER_STATE = "RegisterStatus";
     public static final String ACTION_PUSH_MESSAGE = "PortSip.AndroidSample.Test.PushMessageIncoming";
     public static final String ACTION_PUSH_TOKEN = "PortSip.AndroidSample.Test.PushToken";
-    public static final String ACTION_SIP_REFRESH = "PortSip.AndroidSample.Test.REFRESH";
     public static final String ACTION_SIP_REGIEST = "PortSip.AndroidSample.Test.REGIEST";
     public static final String ACTION_SIP_UNREGIEST = "PortSip.AndroidSample.Test.UNREGIEST";
     public static final String ACTION_STOP = "PortSip.AndroidSample.Test.STOP";
@@ -365,39 +364,9 @@ public class PortSipService extends Service
             
 
             if (ACTION_SIP_REGIEST.equals(intent.getAction())) {
-                SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
-                preferences.edit()
-                        .putString("username", username)
-                        .putString("password", password)
-                        .putString("domain", domain)
-                        .putString("sipServer", sipServer)
-                        .putString("port", port)
-                        .putString("displayName", displayName)
-                        .putString("appId", appId)
-                        .putString("pushToken", pushToken)
-                        .putBoolean("enableDebugLog", enableDebugLog)
-                        .putString("resolution", resolution != null && !resolution.isEmpty() ? resolution : "720P")
-                        .putInt("bitrate", bitrate)
-                        .putInt("frameRate", frameRate)
-                        .commit();
-                logWithTimestamp("SDK-Android: autoOnline - "
-                    + "username: " + username
-                    + ", password: " + password
-                    + ", domain: " + domain
-                    + ", sipServer: " + sipServer
-                    + ", port: " + port
-                    + ", displayName: " + displayName
-                    + ", appId: " + appId
-                    + ", pushToken: " + pushToken
-                    + ", enableDebugLog: " + enableDebugLog
-                    + ", resolution: " + (resolution != null ? resolution : "720P")
-                    + ", bitrate: " + bitrate
-                    + ", frameRate: " + frameRate);
                 // if (!CallManager.Instance().online) {
                 initialSDK(enableDebugLog);
                 registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
-
-                return START_STICKY;
                 // }
             } else if (ACTION_SIP_UNREGIEST.equals(intent.getAction())) {
                 logWithTimestamp("SDK-Android: service is doing unregisterToServer...");
@@ -419,13 +388,6 @@ public class PortSipService extends Service
                 showServiceNotifiCation();
                 keepCpuRun(true);
                 return START_STICKY;
-            } else if (ACTION_SIP_REFRESH.equals(intent.getAction())) {
-                if (CallManager.Instance().isRegistered) {
-                    Engine.Instance().getEngine().refreshRegistration(0);
-                } else {
-                    unregisterToServer();
-                    autoOnline();
-                }
             }
         }
         return result;
@@ -521,7 +483,7 @@ public class PortSipService extends Service
 
     public void unregisterToServer() {
         logWithTimestamp("SDK-Android: unregisterToServer");
-        if (CallManager.Instance().online) {
+        // if (CallManager.Instance().online) {
             try {
                 PortSipSdk engine = Engine.Instance().getEngine();
                 if (engine != null) {
@@ -550,7 +512,7 @@ public class PortSipService extends Service
             } catch (Exception e) {
                 logWithTimestamp("SDK-Android: Error during unregisterToServer: " + e.getMessage());
             }
-        }
+        // }
     }
 
     private void registerReceiver() {
@@ -647,7 +609,7 @@ public class PortSipService extends Service
                 Log.w("Trial Version",
                         "This trial version SDK just allows short conversation, you can't hearing anything after 2-3 minutes, contact us: sales@portsip.com to buy official version.");
                 showTipMessage("This Is Trial Version");
-                // Engine.Instance().getEngine().setInstanceId(getInstanceID());
+                Engine.Instance().getEngine().setInstanceId(getInstanceID());
             }
         }
         return result;
@@ -1529,30 +1491,5 @@ public class PortSipService extends Service
             Engine.Instance().getMethodChannel().invokeMethod("callType", state);
             MptCallkitPlugin.sendToFlutter("callType", state);
         }
-    }
-
-    private void autoOnline() {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
-        boolean enableDebugLog = preferences.getBoolean("enableDebugLog", false);
-        String username = preferences.getString("username", "");
-        String password = preferences.getString("password", "");
-        String domain = preferences.getString("domain", "");
-        String sipServer = preferences.getString("sipServer", "");
-        String port = preferences.getString("port", "5060");
-        String displayName = preferences.getString("displayName", username);
-        String appId = preferences.getString("appId", "");
-        String pushToken = preferences.getString("pushToken", "");
-
-        logWithTimestamp("SDK-Android: autoOnline - "
-                + "username: " + username
-                + ", password: " + password
-                + ", domain: " + domain
-                + ", sipServer: " + sipServer
-                + ", port: " + port
-                + ", displayName: " + displayName
-                + ", appId: " + appId
-                + ", pushToken: " + pushToken);
-        initialSDK(enableDebugLog);
-        registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
     }
 }

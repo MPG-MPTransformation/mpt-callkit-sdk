@@ -117,24 +117,21 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) async {
+  void didChangeAppLifecycleState(AppLifecycleState state) {
     print("AppLifecycleState: $state");
 
     if (state == AppLifecycleState.resumed && isOnCall == false) {
-      final prefs = await SharedPreferences.getInstance();
-      final accessToken = prefs.getString("saved_access_token");
-      if (accessToken != null) {
-        await MptCallKitController().connectToSocketServer(accessToken);
-      }
       if (Platform.isAndroid) {
-        await MptCallKitController().refreshRegister();
+        MptCallKitController().refreshRegister();
       }
     }
 
     if ((state == AppLifecycleState.paused ||
             state == AppLifecycleState.inactive) &&
         isOnCall == false) {
-      if (Platform.isAndroid) await doUnregiter();
+      if (Platform.isAndroid) {
+        MptCallKitController().offline();
+      }
     }
   }
 
@@ -235,8 +232,17 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   }
 
   // unregister SIP
-  Future<int> doUnregiter() async {
-    return await MptCallKitController().unRegister();
+  Future<bool> doUnregiter() async {
+    return await MptCallKitController().offline(
+      onError: (error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Lỗi: $error"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      },
+    );
   }
 
   // Logout account
@@ -650,7 +656,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                                   const SizedBox(height: 10),
                                   ElevatedButton(
                                     onPressed: () {
-                                      MptCallKitController().refreshRegister();
+                                      // MptCallKitController().refreshRegister();
                                     },
                                     child: const Text("Refresh Register"),
                                   ),

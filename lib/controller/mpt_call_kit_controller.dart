@@ -2082,30 +2082,16 @@ class MptCallKitController {
   }
 
   Future<int> refreshRegistration() async {
-    final result = await channel.invokeMethod("refreshRegistration");
+    final result = await channel.invokeMethod("refreshRegister");
     print("refreshRegistration result code: $result");
     return result;
   }
 
   Future<int> refreshRegister() async {
-    final result = await channel.invokeMethod("refreshRegister");
-    print("refreshRegister result code: $result");
-    return result;
-  }
-
-  Future<int> unRegister() async {
-    final result = await channel.invokeMethod("unRegister");
-    print("unRegister result code: $result");
-    return result;
-  }
-
-  Future<void> sendSocketStatus() async {
-    try {
-      await channel.invokeMethod('socketStatus', {
-        'ready': true,
-      });
-    } catch (e) {
-      print('Failed to notify iOS about socket status: $e');
+    if (context == null) {
+      return -1;
     }
+    await _registerToSipServer(context: context!);
+    return 0;
   }
 }

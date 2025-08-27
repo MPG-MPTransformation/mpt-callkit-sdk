@@ -58,23 +58,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       */
 
     if (message.data['msg_title'] == "Received a new call.") {
-      const String tokenKey = 'fcm_token';
-      const String accessTokenKey = 'saved_access_token';
-      final prefs = await SharedPreferences.getInstance();
-      final accessToken = prefs.getString(accessTokenKey);
-      print('Access Token: $accessToken');
-      if (accessToken != null && accessToken.isNotEmpty) {
-        print('Auto login with saved credentials: $accessToken');
-
-        MptCallKitController().initSdk(
-          apiKey: CallkitConstants.API_KEY,
-          baseUrl: CallkitConstants.BASE_URL,
-          pushToken: Platform.isAndroid ? prefs.getString(tokenKey) : null,
-          appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
-          enableDebugLog: true,
-        );
-        MptCallKitController().refreshRegister();
-      }
       await CallKitService.showCallkitIncoming(
         callerName: message.data['msg_title'] ?? "Thông báo mới",
         callerNumber: message.data['msg_content'] ?? "Nhấn để xem chi tiết",
@@ -83,72 +66,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       //     title: message.data['msg_title'] ?? "Thông báo mới",
       //     body: message.data['msg_content'] ?? "Nhấn để xem chi tiết",
       //     payload: message.data.toString());
-
-      FlutterCallkitIncoming.onEvent.listen((CallEvent? event) async {
-        switch (event?.event ?? Event.actionCallIncoming) {
-          case Event.actionCallIncoming:
-            // TODO: received an incoming call
-            break;
-          case Event.actionCallStart:
-            // TODO: started an outgoing call
-            // TODO: show screen calling in Flutter
-            break;
-          case Event.actionCallAccept:
-            await MptCallKitController().unRegister();
-            // TODO: accepted an incoming call
-            // TODO: show screen calling in Flutter
-            break;
-          case Event.actionCallDecline:
-            // TODO: declined an incoming call
-            MptCallKitController().rejectCall();
-
-            await Future.delayed(const Duration(seconds: 1));
-            await MptCallKitController().unRegister();
-            break;
-          case Event.actionCallEnded:
-            // TODO: ended an incoming/outgoing call
-            break;
-          case Event.actionCallTimeout:
-            // TODO: missed an incoming call
-            break;
-          case Event.actionCallCallback:
-            // TODO: click action `Call back` from missed call notification
-            break;
-          case Event.actionCallToggleHold:
-            // TODO: only iOS
-            break;
-          case Event.actionCallToggleMute:
-            // TODO: only iOS
-            break;
-          case Event.actionCallToggleDmtf:
-            // TODO: only iOS
-            break;
-          case Event.actionCallToggleGroup:
-            // TODO: only iOS
-            break;
-          case Event.actionCallToggleAudioSession:
-            // TODO: only iOS
-            break;
-          case Event.actionDidUpdateDevicePushTokenVoip:
-            // TODO: only iOS
-            break;
-          case Event.actionCallCustom:
-            // TODO: for custom action
-            break;
-          default:
-            print('Unknown event: ${event?.event}');
-            break;
-        }
-      });
-
-      StreamSubscription<String>? callTypeSubscription =
-          MptCallKitController().callEvent.listen((type) async {
-        print("MptCallKitController().callEvent: $type");
-        if (type == CallStateConstants.CLOSED ||
-            type == CallStateConstants.FAILED) {
-          await CallKitService.hideCallKit();
-        }
-      });
     }
   } catch (e) {
     print('Error in background handler: $e');
@@ -267,7 +184,6 @@ class FirebaseService {
     // Listen for incoming messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('Received message: ${message.notification?.title}');
-      MptCallKitController().refreshRegister();
       // Handle message
     });
 
