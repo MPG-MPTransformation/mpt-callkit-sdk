@@ -130,7 +130,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
             state == AppLifecycleState.inactive) &&
         isOnCall == false) {
       if (Platform.isAndroid) {
-        MptCallKitController().offline();
+        MptCallKitController().unRegister();
       }
     }
   }

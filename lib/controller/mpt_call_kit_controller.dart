@@ -2094,4 +2094,9 @@ class MptCallKitController {
     await _registerToSipServer(context: context!);
     return 0;
   }
+
+  Future<int> unRegister() async {
+    await offline();
+    return 0;
+  }
 }
