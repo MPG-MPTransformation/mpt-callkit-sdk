@@ -39,4 +39,8 @@ class MptCallkit {
   void startActivity() {
     MptCallkitPlatform.instance.startActivity();
   }
+
+  Future<bool> enableBackgroundBlur(bool enable) {
+    return MptCallkitPlatform.instance.enableBackgroundBlur(enable);
+  }
 }

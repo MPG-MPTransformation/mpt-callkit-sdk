@@ -12,7 +12,7 @@ import 'mpt_callkit_platform_interface.dart';
 class MethodChannelMptCallkit extends MptCallkitPlatform {
   /// The method channel used to interact with the native platform.
   @visibleForTesting
-  final methodChannel = const MethodChannel('port_sip_sdk');
+  final methodChannel = const MethodChannel('mpt_callkit');
 
   @override
   Future<String?> getPlatformVersion() async {
@@ -156,6 +156,14 @@ class MethodChannelMptCallkit extends MptCallkitPlatform {
 
   @override
   void getAgentStatus() {}
+
+  @override
+  Future<bool> enableBackgroundBlur(bool enable) async {
+    final res = await methodChannel.invokeMethod('enableBackgroundBlur', {
+      'enable': enable,
+    });
+    return (res == true);
+  }
 
   ////////////////////////////////////////////////////////////////////
   String apiKey = '';

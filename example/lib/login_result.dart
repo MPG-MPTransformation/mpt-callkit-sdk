@@ -562,8 +562,8 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                                       onPressed: () async {
                                         if (snapshot.data == true) {
                                           // Nếu đang online thì chuyển sang offline
-                                          await MptCallKitController()
-                                              .unRegisterServer();
+                                          // await MptCallKitController()
+                                          //     .unRegisterServer();
                                         } else {
                                           // Nếu đang offline thì chuyển sang online
                                           if (MptCallKitController()

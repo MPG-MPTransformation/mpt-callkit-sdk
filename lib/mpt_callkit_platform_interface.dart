@@ -127,4 +127,9 @@ abstract class MptCallkitPlatform extends PlatformInterface {
     throw UnimplementedError(
         'unregisterConnection() has not been implemented.');
   }
+
+  Future<bool> enableBackgroundBlur(bool enable) {
+    throw UnimplementedError(
+        'enableBackgroundBlur() has not been implemented.');
+  }
 }

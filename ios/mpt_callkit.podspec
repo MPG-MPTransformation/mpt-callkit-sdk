@@ -13,14 +13,14 @@ A new Flutter plugin project.
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'Your Company' => 'email@example.com' }
   s.source           = { :path => '.' }
-  s.source_files = 'Classes/**/*'
+  s.source_files = 'Classes/**/*.{h,m,mm,swift}'
   s.resources    = ['Assets/**.*']
   s.dependency 'Flutter'
-  s.platform         = :ios, '9.0'
+  s.platform         = :ios, '15.0'
   s.static_framework = true
 
   # System frameworks - these are frameworks provided by Apple that you want to link with
-  s.frameworks = ['Network', 'GLKit', 'MetalKit', 'CoreAudio', 'VideoToolbox']
+  s.frameworks = ['Network', 'GLKit', 'MetalKit', 'CoreAudio', 'VideoToolbox', 'AVFoundation', 'Vision', 'CoreImage', 'Accelerate']
 
   # Libraries to link (in this case, C++ and resolv libraries)
   s.libraries = ['c++', 'resolv']

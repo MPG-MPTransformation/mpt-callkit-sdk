@@ -235,6 +235,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     var isVideoCall: Bool = false
     var isRemoteVideoReceived: Bool = false
 
+    // Background blur pipeline
+    var blurEnabled: Bool = false
+    var blurSender: BackgroundBlurSender?
+
     var _VoIPPushToken: NSString!
     var _APNsPushToken: NSString!
     var _backtaskIdentifier: UIBackgroundTaskIdentifier = UIBackgroundTaskIdentifier.invalid
@@ -2039,6 +2043,37 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         print("Method called: \(call.method)")
         print("Arguments: \(String(describing: call.arguments))")
         switch call.method {
+        case "enableBackgroundBlur":
+            if let args = call.arguments as? [String: Any], let enable = args["enable"] as? Bool {
+                blurEnabled = enable
+                if enable {
+                    guard activeSessionid != CLong(INVALID_SESSION_ID) else { result(false); return }
+                    // Stop SDK local camera preview
+                    _ = portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
+                    // Enable external video stream mode
+                    _ = portSIPSDK.enableSendVideoStream(toRemote: activeSessionid, state: true)
+                    // Set 720p resolution for consistency
+                    _ = portSIPSDK.setVideoResolution(1280, height: 720)
+                    // Start blur sender at 720p, use front camera by default (ID 1)
+                    let useFront = true
+                    blurSender = BackgroundBlurSender(portSIPSDK: portSIPSDK, sessionId: Int(activeSessionid), useFrontCamera: useFront, width: 1280, height: 720)
+                    blurSender?.start()
+                    result(true)
+                } else {
+                    // Stop external sender and revert to SDK camera
+                    blurSender?.stop()
+                    blurSender = nil
+                    if activeSessionid != CLong(INVALID_SESSION_ID) {
+                        _ = portSIPSDK.enableSendVideoStream(toRemote: activeSessionid, state: false)
+                        _ = portSIPSDK.displayLocalVideo(true, mirror: true, localVideoWindow: nil)
+                        _ = portSIPSDK.sendVideo(activeSessionid, sendState: true)
+                    }
+                    result(true)
+                }
+            } else {
+                result(FlutterError(code: "bad_args", message: "Missing enable flag", details: nil))
+            }
+            return
         case "enableFileLogging":
             guard let args = call.arguments as? [String: Any], let enabled = args["enabled"] as? Bool else {
                 result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing 'enabled'", details: nil))

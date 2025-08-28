@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:example/call_pad.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
+import 'package:mpt_callkit/mpt_callkit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '/login_method.dart';
@@ -188,7 +189,44 @@ class _HomeScreenState extends State<HomeScreen> {
                 print(
                     "Latest extension number: ${MptCallKitController().lastesExtensionData?.username.toString()}");
               },
-              child: const Text("Get latest extension data"))
+              child: const Text("Get latest extension data")),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () async {
+                  try {
+                    final ok = await MptCallkit().enableBackgroundBlur(true);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Enable blur: $ok')),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Enable blur failed: $e')),
+                    );
+                  }
+                },
+                child: const Text('Enable Blur (iOS)'),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton(
+                onPressed: () async {
+                  try {
+                    final ok = await MptCallkit().enableBackgroundBlur(false);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Disable blur: $ok')),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Disable blur failed: $e')),
+                    );
+                  }
+                },
+                child: const Text('Disable Blur'),
+              ),
+            ],
+          )
         ],
       ),
     );
