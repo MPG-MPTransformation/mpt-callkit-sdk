@@ -156,6 +156,9 @@ class LoginViewController {
         // enable srtp
         portSIPSDK.setSrtpPolicy(srtp)
         
+        // single instance extension
+        portSIPSDK.setInstanceId(UIDevice.current.identifierForVendor?.uuidString)
+        
         let portSipPlugin = MptCallkitPlugin.shared
         
         portSipPlugin.addPushSupportWithPortPBX(portSipPlugin._enablePushNotification!)

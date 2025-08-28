@@ -1301,9 +1301,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // REMOVED: mUseFrontCamera = true  // ❌ Don't force reset camera setting
         
         let sessionInfo = getCurrentSessionInfo()
-        sendCustomMessage(
-            callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
-            type: "call_state", payloadKey: "answered", payloadValue: true)
+//        sendCustomMessage(
+//            callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
+//            type: "call_state", payloadKey: "answered", payloadValue: true)
         
         self.activeSessionid = sessionId
 
@@ -2164,9 +2164,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             {
                 addPushSupportWithPortPBX(!disablePushNoti)
             }
+            
+            self.loginViewController.refreshRegister()
 
             self.loginViewController.offLine()
             result(true)
+        case "unRegister":
+            result(portSIPSDK.unRegisterServer(90))
         case "hangup":
             let hangupResult = hangUpCall()
             result(hangupResult)

@@ -293,10 +293,6 @@ public class PortSipService extends Service
                 mNotificationManager = null;
             }
 
-            // Reset state
-            CallManager.Instance().online = false;
-            CallManager.Instance().isRegistered = false;
-
         } catch (Exception e) {
             logWithTimestamp("SDK-Android: Error during PortSipService cleanup: " + e.getMessage());
         }
@@ -364,10 +360,10 @@ public class PortSipService extends Service
             
 
             if (ACTION_SIP_REGIEST.equals(intent.getAction())) {
-                // if (!CallManager.Instance().online) {
+                if (!CallManager.Instance().online) {
                 initialSDK(enableDebugLog);
                 registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
-                // }
+                }
             } else if (ACTION_SIP_UNREGIEST.equals(intent.getAction())) {
                 logWithTimestamp("SDK-Android: service is doing unregisterToServer...");
                 unregisterToServer();
@@ -555,7 +551,7 @@ public class PortSipService extends Service
 
     private int initialSDK(boolean enableDebugLog) {
         Engine.Instance().getEngine().setOnPortSIPEvent(this);
-        // CallManager.Instance().online = true;
+        CallManager.Instance().online = true;
         logWithTimestamp("SDK-Android: initialSDK - enableDebugLog: " + enableDebugLog);
 
         String dataPath = getExternalFilesDir(null).getAbsolutePath();
@@ -653,7 +649,6 @@ public class PortSipService extends Service
     @Override
     public void onRegisterSuccess(String statusText, int statusCode, String sipMessage) {
         logWithTimestamp("SDK-Android: onRegisterSuccess - statusText: " + statusText + " - statusCode: "+ statusCode + " - sipMessage: "+ sipMessage);
-        CallManager.Instance().online = true;
         CallManager.Instance().isRegistered = true;
         Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
         MptCallkitPlugin.sendToFlutter("onlineStatus", true);
@@ -673,8 +668,6 @@ public class PortSipService extends Service
         Intent broadIntent = new Intent(REGISTER_CHANGE_ACTION);
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);
         // sendPortSipMessage("onRegisterFailure" + statusCode, broadIntent);
-        CallManager.Instance().online = false;
-        CallManager.Instance().isRegistered = false;
         CallManager.Instance().resetAll();
         Engine.Instance().getMethodChannel().invokeMethod("registrationStateStream", false);
         MptCallkitPlugin.sendToFlutter("registrationStateStream", false);
