@@ -2165,12 +2165,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 addPushSupportWithPortPBX(!disablePushNoti)
             }
             
-            self.loginViewController.refreshRegister()
-
             self.loginViewController.offLine()
             result(true)
-        case "unRegister":
-            result(portSIPSDK.unRegisterServer(90))
         case "hangup":
             let hangupResult = hangUpCall()
             result(hangupResult)
