@@ -12,15 +12,12 @@ import 'package:mpt_callkit/models/release_extension_model.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
 import 'package:mpt_callkit/mpt_callkit_auth_method.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'mpt_call_kit_controller_repo.dart';
 
 class MptCallKitController {
-  String apiKey = '';
-  String baseUrl = '';
   String extension = '';
-  String pushToken = "";
-  String appId = "";
   Map<String, dynamic>? currentUserInfo;
   ExtensionData? extensionData;
   ExtensionData? lastesExtensionData;
@@ -383,23 +380,86 @@ class MptCallKitController {
     String? appId,
     bool? enableDebugLog,
     String? localizedCallerName,
+    String? deviceInfo,
   }) async {
-    this.apiKey = apiKey;
-    this.baseUrl = baseUrl != null && baseUrl.isNotEmpty
+    await enableFileLogging();
+
+    final String resolvedBaseUrl = baseUrl != null && baseUrl.isNotEmpty
         ? baseUrl
         : "https://crm-dev-v2.metechvn.com";
-    this.pushToken = pushToken ?? "";
-    this.appId = appId ?? "";
-    this.enableDebugLog = enableDebugLog ?? false;
-    this.localizedCallerName = localizedCallerName ?? "Omicx call";
-    // this.enableDebugLog = true;
-    print("init pushToken: $pushToken");
-    print("init appId: $appId");
+    final String resolvedPushToken = pushToken ?? "";
+    final String resolvedAppId = appId ?? "";
+    final bool resolvedEnableDebug = enableDebugLog ?? false;
+    final String resolvedCallerName = localizedCallerName ?? "Omicx call";
+    final String resolvedDeviceInfo = deviceInfo ?? "";
+
+    print(
+        "initSDK: apiKey: $apiKey, baseUrl: $baseUrl, pushToken: $pushToken, appId: $appId, enableDebugLog: $enableDebugLog, localizedCallerName: $localizedCallerName, deviceInfo: $deviceInfo");
+
+    this.enableDebugLog = resolvedEnableDebug;
+    this.localizedCallerName = resolvedCallerName;
+
+    // Persist initialization params to SharedPreferences
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString(SDKPrefsKeyConstants.API_KEY, apiKey);
+      await prefs.setString(SDKPrefsKeyConstants.BASE_URL, resolvedBaseUrl);
+      await prefs.setString(SDKPrefsKeyConstants.PUSH_TOKEN, resolvedPushToken);
+      await prefs.setString(SDKPrefsKeyConstants.APP_ID, resolvedAppId);
+      await prefs.setBool(
+          SDKPrefsKeyConstants.ENABLE_DEBUG_LOG, resolvedEnableDebug);
+      await prefs.setString(
+          SDKPrefsKeyConstants.LOCALIZED_CALLER_NAME, resolvedCallerName);
+      await prefs.setString(
+          SDKPrefsKeyConstants.DEVICE_INFO, resolvedDeviceInfo);
+    } catch (e) {
+      debugPrint('Failed to persist initSdk params: $e');
+    }
 
     _appEvent.add(AppEventConstants.READY);
     _currentAppEvent = AppEventConstants.READY;
+  }
 
-    final filePath = await enableFileLogging();
+  /// Restore previously saved SDK initialization params from SharedPreferences.
+  /// Useful for keeping the SDK config across app restarts.
+  Future<void> restoreInitFromPreferences() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      // Intentionally not restoring apiKey/baseUrl/pushToken/appId into fields,
+      // these are accessed via getters.
+      final bool? storedEnableDebugLog =
+          prefs.getBool(SDKPrefsKeyConstants.ENABLE_DEBUG_LOG);
+      final String? storedLocalizedCallerName =
+          prefs.getString(SDKPrefsKeyConstants.LOCALIZED_CALLER_NAME);
+
+      // Only restore runtime flags kept in memory (others read via getters)
+      if (storedEnableDebugLog != null) {
+        enableDebugLog = storedEnableDebugLog;
+      }
+      if (storedLocalizedCallerName != null &&
+          storedLocalizedCallerName.isNotEmpty) {
+        localizedCallerName = storedLocalizedCallerName;
+      }
+      // deviceInfo is stored for potential future use; no runtime field to restore
+    } catch (e) {
+      debugPrint('Failed to restore initSdk params: $e');
+    }
+  }
+
+  /// Clear stored SDK initialization params from SharedPreferences.
+  Future<void> clearInitPreferences() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.remove(SDKPrefsKeyConstants.API_KEY);
+      await prefs.remove(SDKPrefsKeyConstants.BASE_URL);
+      await prefs.remove(SDKPrefsKeyConstants.PUSH_TOKEN);
+      await prefs.remove(SDKPrefsKeyConstants.APP_ID);
+      await prefs.remove(SDKPrefsKeyConstants.ENABLE_DEBUG_LOG);
+      await prefs.remove(SDKPrefsKeyConstants.LOCALIZED_CALLER_NAME);
+      await prefs.remove(SDKPrefsKeyConstants.DEVICE_INFO);
+    } catch (e) {
+      debugPrint('Failed to clear initSdk params: $e');
+    }
   }
 
   // Future<void> connectSocketByUser({
@@ -424,7 +484,7 @@ class MptCallKitController {
       username: username,
       password: password,
       tenantId: tenantId,
-      baseUrl: baseUrl ?? this.baseUrl,
+      baseUrl: baseUrl ?? await getCurrentBaseUrl(),
       onError: onError,
       data: (e) {
         accessTokenResponse?.call(e["result"]["accessToken"]);
@@ -447,7 +507,7 @@ class MptCallKitController {
     var result = await MptCallkitAuthMethod().loginSSO(
       ssoToken: ssoToken,
       organization: organization,
-      baseUrl: baseUrl ?? this.baseUrl,
+      baseUrl: baseUrl ?? await getCurrentBaseUrl(),
       onError: onError,
       data: (e) {
         accessTokenResponse?.call(e["result"]["accessToken"]);
@@ -550,8 +610,8 @@ class MptCallKitController {
               sipServerPort: extensionData?.port ?? 5063,
               // sipServerPort: 5063,
               transportType: 0,
-              pushToken: pushToken,
-              appId: appId,
+              pushToken: await getCurrentPushToken(),
+              appId: await getCurrentAppId(),
               onError: (p0) {
                 print("Error in register to sip server: ${p0.toString()}");
               },
@@ -575,7 +635,7 @@ class MptCallKitController {
   // get current user info
   Future<void> _getCurrentUserInfo(String accessToken) async {
     currentUserInfo = await MptCallkitAuthMethod().getCurrentUserInfo(
-      baseUrl: baseUrl,
+      baseUrl: await getCurrentBaseUrl(),
       accessToken: accessToken,
       onError: (p0) {
         print("Error in get current user info: ${p0.toString()}");
@@ -674,7 +734,7 @@ class MptCallKitController {
   // get configuration
   Future<void> _getConfiguration(String accessToken) async {
     _configuration = await MptCallkitAuthMethod().getConfiguration(
-      baseUrl: baseUrl,
+      baseUrl: await getCurrentBaseUrl(),
       accessToken: accessToken,
       onError: (p0) {
         print("Error in get configuration: ${p0.toString()}");
@@ -691,7 +751,7 @@ class MptCallKitController {
     required int cloudTenantId,
   }) async {
     var result = await MptCallkitAuthMethod().logout(
-      baseUrl: baseUrl ?? this.baseUrl,
+      baseUrl: baseUrl ?? await getCurrentBaseUrl(),
       onError: onError,
       cloudAgentName: cloudAgentName,
       cloudAgentId: cloudAgentId,
@@ -728,12 +788,14 @@ class MptCallKitController {
       cloudAgentId: currentUserInfo!["user"]["id"],
       cloudAgentName: currentUserInfo!["user"]["fullName"] ?? "",
       cloudTenantId: currentUserInfo!["tenant"]["id"],
-      baseUrl: baseUrl,
+      baseUrl: await getCurrentBaseUrl(),
       onError: onError,
     );
 
     // Important: Destroy instance when logout
     await MptSocketSocketServer.destroyInstance();
+
+    await clearInitPreferences();
 
     if (isLogoutAccountSuccess && isUnregistered) {
       _appEvent.add(AppEventConstants.LOGGED_OUT);
@@ -804,8 +866,8 @@ class MptCallKitController {
           transportType: 0,
           srtpType: 0,
           context: context,
-          appId: appId,
-          pushToken: pushToken,
+          appId: await getCurrentAppId(),
+          pushToken: await getCurrentPushToken(),
           isMakeCallByGuest: true,
           resolution: result.resolution,
           bitrate: result.bitrate,
@@ -832,9 +894,9 @@ class MptCallKitController {
               phoneNumber: userPhoneNumber,
               extension: result.username ?? "",
               destination: destination,
-              authToken: apiKey,
+              authToken: await getCurrentApiKey(),
               extraInfo: jsonEncode(extraInfoResult),
-              baseUrl: baseUrl,
+              baseUrl: await getCurrentBaseUrl(),
               onError: onError,
             );
           } else {
@@ -871,14 +933,15 @@ class MptCallKitController {
     try {
       print("getExtension");
       int retryCount = retryTime;
-      final url = Uri.parse("$baseUrl/integration/extension/request");
+      final String base = await getCurrentBaseUrl();
+      final url = Uri.parse("$base/integration/extension/request");
 
       final response = await http
           .post(
             url,
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': 'Bearer $apiKey',
+              'Authorization': 'Bearer ${await getCurrentApiKey()}',
             },
             body: json.encode({
               "phone_number": phoneNumber,
@@ -937,14 +1000,15 @@ class MptCallKitController {
   }
 
   Future<bool> releaseExtension() async {
-    final url = Uri.parse('$baseUrl/integration/extension/release');
+    final String base = await getCurrentBaseUrl();
+    final url = Uri.parse('$base/integration/extension/release');
     try {
       if (extension.isEmpty) return true;
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
+          'Authorization': 'Bearer ${await getCurrentApiKey()}',
         },
         body: json.encode({
           "extension": extension,
@@ -1132,7 +1196,7 @@ class MptCallKitController {
       "extraInfo": extraInfo,
     };
     return await MptCallKitControllerRepo().makeCall(
-      baseUrl: baseUrl,
+      baseUrl: await getCurrentBaseUrl(),
       tenantId: currentUserInfo!["tenant"]["id"],
       applicationId: outboundNumber,
       senderId: destination,
@@ -1158,7 +1222,7 @@ class MptCallKitController {
     };
 
     return await MptCallKitControllerRepo().makeCallInternal(
-      baseUrl: baseUrl,
+      baseUrl: await getCurrentBaseUrl(),
       tenantId: currentUserInfo!["tenant"]["id"],
       applicationId: destination,
       senderId: senderId ?? currentUserInfo!["user"]["extension"],
@@ -1182,9 +1246,10 @@ class MptCallKitController {
         cloudAgentName: currentUserInfo!["user"]["fullName"] ?? "",
         reasonCodeId: reasonCodeId,
         statusName: statusName,
-        baseUrl: baseUrl,
+        baseUrl: await getCurrentBaseUrl(),
         accessToken: accessToken,
         onError: onError,
+        deviceInfo: await getCurrentDeviceInfo(),
       );
     } else {
       onError?.call(
@@ -1216,7 +1281,7 @@ class MptCallKitController {
       cloudAgentId: cloudAgentId,
       cloudTenantId: cloudTenantId,
       cloudAgentName: cloudAgentName,
-      baseUrl: baseUrl,
+      baseUrl: await getCurrentBaseUrl(),
       accessToken: accessToken,
       onError: onError,
     );
@@ -2061,7 +2126,7 @@ class MptCallKitController {
   }) async {
     try {
       final bool isSuccess = await MptCallKitControllerRepo().postEndCall(
-        baseUrl: baseUrl,
+        baseUrl: await getCurrentBaseUrl(),
         sessionId: sessionId,
         agentId: agentId,
         onError: onError,
@@ -2079,6 +2144,35 @@ class MptCallKitController {
 
   Future<bool> getCallkitAnsweredState() async {
     return await channel.invokeMethod("getCallkitAnsweredState");
+  }
+
+  // Accessors for SharedPreferences-backed init values
+  Future<String> getCurrentBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString(SDKPrefsKeyConstants.BASE_URL);
+    return (value != null && value.isNotEmpty)
+        ? value
+        : "https://crm-dev-v2.metechvn.com";
+  }
+
+  Future<String> getCurrentApiKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(SDKPrefsKeyConstants.API_KEY) ?? '';
+  }
+
+  Future<String> getCurrentPushToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(SDKPrefsKeyConstants.PUSH_TOKEN) ?? '';
+  }
+
+  Future<String> getCurrentAppId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(SDKPrefsKeyConstants.APP_ID) ?? '';
+  }
+
+  Future<String> getCurrentDeviceInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(SDKPrefsKeyConstants.DEVICE_INFO) ?? '';
   }
 
   Future<int> refreshRegistration() async {

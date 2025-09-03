@@ -116,6 +116,7 @@ class FirebaseService {
         pushToken: Platform.isAndroid ? prefs.getString(_tokenKey) : null,
         appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
         enableDebugLog: true,
+        deviceInfo: "deviceInfo",
       );
 
       // var result = await MptCallKitController().loginRequest(

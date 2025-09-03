@@ -231,7 +231,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
         );
       },
       context: context,
-      pushToken: MptCallKitController().pushToken,
+      pushToken: await MptCallKitController().getCurrentPushToken(),
       appId: CallkitConstants.ANDROID_APP_ID,
     );
   }
@@ -563,7 +563,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                                         if (snapshot.data == true) {
                                           // Nếu đang online thì chuyển sang offline
                                           await MptCallKitController()
-                                              .unRegisterServer();
+                                              .offline();
                                         } else {
                                           // Nếu đang offline thì chuyển sang online
                                           if (MptCallKitController()

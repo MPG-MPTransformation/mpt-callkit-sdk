@@ -116,3 +116,13 @@ class AgentStateConstants {
   static const String IDLE = "IDLE";
   static const String TALKING = "TALKING";
 }
+
+class SDKPrefsKeyConstants {
+  static const String API_KEY = "api_key";
+  static const String BASE_URL = "base_url";
+  static const String PUSH_TOKEN = "push_token";
+  static const String APP_ID = "app_id";
+  static const String ENABLE_DEBUG_LOG = "enable_debug_log";
+  static const String LOCALIZED_CALLER_NAME = "localized_caller_name";
+  static const String DEVICE_INFO = "device_info";
+}

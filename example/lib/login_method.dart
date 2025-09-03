@@ -39,6 +39,7 @@ class _LoginMethodState extends State<LoginMethod> {
       pushToken: Platform.isAndroid ? _fcmToken : null,
       appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
       enableDebugLog: true,
+      deviceInfo: "deviceInfo",
     );
   }
 

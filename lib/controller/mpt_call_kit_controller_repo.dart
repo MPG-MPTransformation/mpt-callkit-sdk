@@ -20,6 +20,7 @@ class MptCallKitControllerRepo {
     required String baseUrl,
     required String accessToken,
     Function(String?)? onError,
+    String? deviceInfo,
   }) async {
     final headers = {
       "Content-Type": "application/json",
@@ -27,17 +28,23 @@ class MptCallKitControllerRepo {
       "Authorization": "Bearer $accessToken",
     };
 
+    final body = {
+      "cloudAgentId": cloudAgentId,
+      "cloudTenantId": cloudTenantId,
+      "cloudAgentName": cloudAgentName,
+      "reasonCodeId": reasonCodeId,
+      "statusName": statusName,
+      "deviceInfo": deviceInfo,
+    };
+
+    print(
+        "MptCallKitControllerRepo - changeAgentStatus - body: ${jsonEncode(body).toString()}");
+
     try {
       final response = await http.post(
         Uri.parse("$baseUrl$_changeStatusApi"),
         headers: headers,
-        body: convert.jsonEncode({
-          "cloudAgentId": cloudAgentId,
-          "cloudTenantId": cloudTenantId,
-          "cloudAgentName": cloudAgentName,
-          "reasonCodeId": reasonCodeId,
-          "statusName": statusName
-        }),
+        body: convert.jsonEncode(body),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {

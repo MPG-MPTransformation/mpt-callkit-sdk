@@ -61,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
         pushToken: Platform.isAndroid ? prefs.getString(_tokenKey) : null,
         appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
         enableDebugLog: true,
+        deviceInfo: "deviceInfo",
       );
 
       // var result = await MptCallKitController().loginRequest(
@@ -113,6 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
             // pushToken: Platform.isAndroid ? _fcmToken : null,
             // appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
             enableDebugLog: true,
+            deviceInfo: "deviceInfo",
           );
           MptCallKitController().makeCallByGuest(
               context: context,
