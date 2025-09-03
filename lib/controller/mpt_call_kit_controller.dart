@@ -450,8 +450,8 @@ class MptCallKitController {
   Future<void> clearInitPreferences() async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.remove(SDKPrefsKeyConstants.API_KEY);
-      await prefs.remove(SDKPrefsKeyConstants.BASE_URL);
+      // await prefs.remove(SDKPrefsKeyConstants.API_KEY);
+      // await prefs.remove(SDKPrefsKeyConstants.BASE_URL);
       await prefs.remove(SDKPrefsKeyConstants.PUSH_TOKEN);
       await prefs.remove(SDKPrefsKeyConstants.APP_ID);
       await prefs.remove(SDKPrefsKeyConstants.ENABLE_DEBUG_LOG);
@@ -795,7 +795,7 @@ class MptCallKitController {
     // Important: Destroy instance when logout
     await MptSocketSocketServer.destroyInstance();
 
-    await clearInitPreferences();
+    // await clearInitPreferences();
 
     if (isLogoutAccountSuccess && isUnregistered) {
       _appEvent.add(AppEventConstants.LOGGED_OUT);
