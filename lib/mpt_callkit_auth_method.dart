@@ -30,9 +30,9 @@ class MptCallkitAuthMethod {
 
     bool status = false;
 
-    print("Login body: ${jsonEncode(body)}");
+    print("[Mpt_API_Auth] Login body: ${jsonEncode(body)}");
     print(
-        "Login API: ${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$loginAPI");
+        "[Mpt_API_Auth] Login API: ${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$loginAPI");
     try {
       final response = await http.post(
         Uri.parse("${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$loginAPI"),
@@ -44,37 +44,40 @@ class MptCallkitAuthMethod {
         final responseData = jsonDecode(response.body);
 
         data?.call(responseData);
-        print('Login Response data: $responseData');
+        print('[Mpt_API_Auth] Login Response data: $responseData');
         if (responseData != null) {
           if (responseData["success"]) {
             var result = responseData["result"];
             if (result != null) {
               status = result["status"];
-              print("Login status: $status");
+              print("[Mpt_API_Auth] Login status: $status");
               if (!status) {
                 onError?.call(
-                    "Username or password is incorrect. Message: [${result["message"]}]");
+                    "[Mpt_API_Auth] Username or password is incorrect. Message: [${result["message"]}]");
               } else {
-                print("Login successfully");
+                print("[Mpt_API_Auth] Login successfully");
               }
               return status;
             }
-            onError?.call("Login failed, result is null");
+            onError?.call("[Mpt_API_Auth] Login failed, result is null");
             return false;
           }
-          onError?.call("Login failed, cannot get data response");
+          onError
+              ?.call("[Mpt_API_Auth] Login failed, cannot get data response");
           return false;
         }
-        onError?.call("Login failed, cannot get data response");
+        onError?.call("[Mpt_API_Auth] Login failed, cannot get data response");
         return false;
       } else {
-        print('Failed to post data. Status code: ${response.statusCode}');
-        onError?.call("Login failed, please check your internet connection");
+        print(
+            '[Mpt_API_Auth] Failed to post data. Status code: ${response.statusCode}');
+        onError?.call(
+            "[Mpt_API_Auth] Login failed, please check your internet connection");
         return false;
       }
     } catch (e) {
-      print("Error in login: $e");
-      onError?.call("Login failed with error: $e");
+      print("[Mpt_API_Auth] Error in login: $e");
+      onError?.call("[Mpt_API_Auth] Login failed with error: $e");
       return false;
     }
   }
@@ -114,31 +117,34 @@ class MptCallkitAuthMethod {
             var result = responseData["result"];
             if (result != null) {
               status = result["status"];
-              print("Login SSO status: $status");
+              print("[Mpt_API_Auth] Login SSO status: $status");
               if (!status) {
                 onError?.call(
-                    "Incorrect credentials. Message: [${result["message"]}]");
+                    "[Mpt_API_Auth] Incorrect credentials. Message: [${result["message"]}]");
               } else {
-                print("Login successfully");
+                print("[Mpt_API_Auth] Login successfully");
               }
               return status;
             }
-            onError?.call("Login failed, result is null");
+            onError?.call("[Mpt_API_Auth] Login failed, result is null");
             return false;
           }
-          onError?.call("Login failed, cannot get data response");
+          onError
+              ?.call("[Mpt_API_Auth] Login failed, cannot get data response");
           return false;
         }
-        onError?.call("Login failed, cannot get data response");
+        onError?.call("[Mpt_API_Auth] Login failed, cannot get data response");
         return false;
       } else {
-        print('Failed to post data. Status code: ${response.statusCode}');
-        onError?.call("Login failed, please check your internet connection");
+        print(
+            '[Mpt_API_Auth] Failed to post data. Status code: ${response.statusCode}');
+        onError?.call(
+            "[Mpt_API_Auth] Login failed, please check your internet connection");
         return false;
       }
     } catch (e) {
-      print("Error in login SSO: $e");
-      onError?.call("Login SSO failed with error: $e");
+      print("[Mpt_API_Auth] Error in login SSO: $e");
+      onError?.call("[Mpt_API_Auth] Login SSO failed with error: $e");
       return false;
     }
   }
@@ -174,13 +180,15 @@ class MptCallkitAuthMethod {
         }
         return false;
       } else {
-        print('Failed to post data. Status code: ${response.statusCode}');
-        onError?.call("Logout failed, please check your internet connection");
+        print(
+            '[Mpt_API_Auth] Failed to post data. Status code: ${response.statusCode}');
+        onError?.call(
+            "[Mpt_API_Auth] Logout failed, please check your internet connection");
         return false;
       }
     } catch (e) {
-      print("Error in logout: $e");
-      onError?.call("Logout failed with error: $e");
+      print("[Mpt_API_Auth] Error in logout: $e");
+      onError?.call("[Mpt_API_Auth] Logout failed with error: $e");
       return false;
     }
   }
@@ -218,14 +226,15 @@ class MptCallkitAuthMethod {
         }
         return null;
       } else {
-        print('Failed to get data. Status code: ${response.statusCode}');
-        onError
-            ?.call('Failed to get data. Status code: ${response.statusCode}');
+        print(
+            '[Mpt_API] Failed to get data. Status code: ${response.statusCode}');
+        onError?.call(
+            '[Mpt_API] Failed to get data. Status code: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print("Error in get current user info: $e");
-      onError?.call("Get current user info with error: $e");
+      print("[Mpt_API] Error in get current user info: $e");
+      onError?.call("[Mpt_API] Get current user info with error: $e");
       return null;
     }
   }
@@ -252,18 +261,18 @@ class MptCallkitAuthMethod {
         final responseData = convert.jsonDecode(response.body);
         if (responseData["success"]) {
           var result = convert.jsonDecode(decryptText(responseData["result"]));
-          print("GetAll: ${result.isNotEmpty}");
+          print("[Mpt_API] GetAll: ${result.isNotEmpty}");
           return result;
         }
-        onError?.call("Failed to get data");
+        onError?.call("[Mpt_API] Failed to get data");
         return null;
       }
-      onError
-          ?.call("Failed to get data with status code: ${response.statusCode}");
+      onError?.call(
+          "[Mpt_API] Failed to get data with status code: ${response.statusCode}");
       return null;
     } catch (e) {
-      print("Error in getConfiguration: $e");
-      onError?.call("Get all conversation with error: $e");
+      print("[Mpt_API] Error in getConfiguration: $e");
+      onError?.call("[Mpt_API] Get all conversation with error: $e");
       return null;
     }
   }

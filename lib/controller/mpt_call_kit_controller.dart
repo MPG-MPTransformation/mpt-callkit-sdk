@@ -450,8 +450,8 @@ class MptCallKitController {
   Future<void> clearInitPreferences() async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      // await prefs.remove(SDKPrefsKeyConstants.API_KEY);
-      // await prefs.remove(SDKPrefsKeyConstants.BASE_URL);
+      await prefs.remove(SDKPrefsKeyConstants.API_KEY);
+      await prefs.remove(SDKPrefsKeyConstants.BASE_URL);
       await prefs.remove(SDKPrefsKeyConstants.PUSH_TOKEN);
       await prefs.remove(SDKPrefsKeyConstants.APP_ID);
       await prefs.remove(SDKPrefsKeyConstants.ENABLE_DEBUG_LOG);
@@ -779,11 +779,16 @@ class MptCallKitController {
     }
 
     isLogoutAccountSuccess = await offline(disablePushNoti: true);
-    // if (isOnline == true) {
-    // } else {
-    //   isLogoutAccountSuccess = true;
-    // }
 
+    // clear all SIP registration of agent's extension on server
+    await deleteRegistration(
+      tenantId: currentUserInfo!["tenant"]["id"] ?? 0,
+      agentId: currentUserInfo!["user"]["id"] ?? 0,
+      baseUrl: await getCurrentBaseUrl(),
+      onError: onError,
+    );
+
+    // logout account from server
     isUnregistered = await logoutRequest(
       cloudAgentId: currentUserInfo!["user"]["id"],
       cloudAgentName: currentUserInfo!["user"]["fullName"] ?? "",
@@ -1681,12 +1686,16 @@ class MptCallKitController {
     // }
 
     if (state == CallStateConstants.CONNECTED) {
-      if (Platform.isAndroid) {
-        print("showAndroidCallKit");
-        showAndroidCallKit();
-      } else {
-        //show ios callkit
-      }
+      // if (Platform.isAndroid) {
+      //   print("showAndroidCallKit");
+      //   showAndroidCallKit();
+      // } else {
+      //   //show ios callkit
+      // }
+
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        setSpeaker(state: SpeakerStatusConstants.SPEAKER_PHONE);
+      });
     }
   }
 
@@ -2192,5 +2201,19 @@ class MptCallKitController {
   Future<int> unRegister() async {
     await offline();
     return 0;
+  }
+
+  Future<bool> deleteRegistration({
+    required int tenantId,
+    required int agentId,
+    String? baseUrl,
+    Function(String?)? onError,
+  }) async {
+    return await MptCallKitControllerRepo().deleteRegistration(
+      baseUrl: baseUrl,
+      onError: onError,
+      tenantId: tenantId,
+      agentId: agentId,
+    );
   }
 }

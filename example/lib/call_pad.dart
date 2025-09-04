@@ -543,10 +543,11 @@ class _CallPadState extends State<CallPad> {
         {
           final String sessionId =
               MptCallKitController().currentSessionId ?? "";
-          final int? agentId =
-              MptCallKitController().currentUserInfo?['user']?['id'];
+          final int agentId = int.parse(widget.isGuest == true
+              ? MptCallKitController().lastesExtensionData?.username ?? '0'
+              : MptCallKitController().currentUserInfo?['user']?['id']);
 
-          if (sessionId.isEmpty || agentId == null) {
+          if (sessionId.isEmpty) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Không đủ dữ liệu: thiếu sessionId hoặc agentId'),

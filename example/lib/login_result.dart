@@ -479,8 +479,6 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                                     const SizedBox(width: 5),
                                     IconButton(
                                       onPressed: () {
-                                        // Khi cần kết nối lại thủ công
-                                        // if (!isSocketConnected) {
                                         // Khởi tạo lại kết nối nếu cần
                                         _initDataWhenLoginSuccess();
                                         // }

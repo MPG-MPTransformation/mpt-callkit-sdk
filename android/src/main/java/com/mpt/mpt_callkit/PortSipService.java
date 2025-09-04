@@ -1028,6 +1028,22 @@ public class PortSipService extends Service
 
             sendPortSipMessage(description, broadIntent);
         }
+
+        Set<PortSipEnumDefine.AudioDevice> availableDevices = Engine.Instance().getEngine().getAudioDevices();
+        logWithTimestamp("SDK-Android: onInviteIncoming - allDevices: " + availableDevices.toString());
+        if (availableDevices.contains(PortSipEnumDefine.AudioDevice.BLUETOOTH)) {
+            Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.BLUETOOTH);
+            Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice",
+                    PortSipEnumDefine.AudioDevice.BLUETOOTH.toString());
+            MptCallkitPlugin.sendToFlutter("currentAudioDevice", PortSipEnumDefine.AudioDevice.BLUETOOTH.toString());
+        } else {
+            Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
+            Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice",
+                    PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
+            MptCallkitPlugin.sendToFlutter("currentAudioDevice",
+                    PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
+        }
+        
         sendCallStateToFlutter("CONNECTED");
     }
 

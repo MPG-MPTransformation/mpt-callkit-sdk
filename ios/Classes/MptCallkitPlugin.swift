@@ -1179,7 +1179,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
         mSoundService.stopRingTone()
         mSoundService.stopRingBackTone()
-        // setLoudspeakerStatus(true)
+        setLoudspeakerStatus(true)
+        
         // REMOVED: No direct view calls in Android pattern
         // videoViewController.onClearState()
         //    loginViewController.offLine()
@@ -1306,6 +1307,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 //            type: "call_state", payloadKey: "answered", payloadValue: true)
         
         self.activeSessionid = sessionId
+        
+        setLoudspeakerStatus(true)
 
         // 🔥 ANDROID PATTERN: Send state notification instead of direct call
         if result.session.videoState {
@@ -1336,6 +1339,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
         _ = mSoundService.stopRingTone()
         _ = mSoundService.stopRingBackTone()
+        setLoudspeakerStatus(true)
 
         if activeSessionid == sessionId {
             activeSessionid = CLong(INVALID_SESSION_ID)
@@ -1793,7 +1797,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
     func setLoudspeakerStatus(_ enable: Bool) {
         do {
-            portSIPSDK.setLoudspeakerStatus(enable)
+            let setLoudRes = portSIPSDK.setLoudspeakerStatus(enable)
+            print("setLoudspeakerStatus status code: \(setLoudRes) - enable: \(enable)")
             methodChannel?.invokeMethod(
                 "currentAudioDevice", arguments: enable ? "SPEAKER_PHONE" : "EARPIECE")
             NSLog("Speaker status changed to: \(enable ? "SPEAKER_PHONE" : "EARPIECE")")
@@ -1903,6 +1908,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         if result != nil {
             NSLog("Found call session, videoState: \(result!.session.videoState)")
             
+            setLoudspeakerStatus(true)
+            
             if _callManager.isHideCallkit{
                 _callManager.reportOutgoingCall(number: self.currentRemoteName, uuid: self.currentUUID!)
             }
@@ -1969,9 +1976,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         _ = mSoundService.stopRingTone()
         _ = mSoundService.stopRingBackTone()
 
-        // if _callManager.getConnectCallNum() == 0 {
-        //     setLoudspeakerStatus(true)
-        // }
+        if _callManager.getConnectCallNum() == 0 {
+            setLoudspeakerStatus(true)
+        }
     }
 
     func onMuteCall(sessionId: CLong, muted _: Bool) {
@@ -2846,3 +2853,5 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
 }
+
+
