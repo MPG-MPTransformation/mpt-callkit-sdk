@@ -44,6 +44,8 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   var currCallSesssionID = "";
   final List<String> _socketCallStateList = [];
   DateTime startTime = DateTime.now();
+  AgentData? agentData;
+  List<QueueDataByAgent>? agentQueues;
 
   bool isOnCall = false;
 
@@ -163,6 +165,17 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     if (!tokenExpired && accessToken != null) {
       await _testGetCurrentAgentStatus(accessToken);
     }
+
+    agentData = await MptCallKitController().getCurrentAgentData(
+      accessToken ?? "",
+    );
+
+    agentQueues = await MptCallKitController().getAgentQueues(
+      agentId: agentData?.userId ?? 0,
+      tenantId: agentData?.tenantId ?? 0,
+    );
+
+    print("getCurrentAgentData result: $agentData");
   }
 
   // Test getCurrentAgentStatus API
@@ -751,6 +764,89 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                         "Socket call state: [${_socketCallStateList.join(", ")}]",
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
+                      ElevatedButton(
+                          onPressed: () async {
+                            var res = await MptCallKitController()
+                                .changeAgentStatusInQueue(
+                              agentId: agentData?.userId ?? 0,
+                              tenantId: agentData?.tenantId ?? 0,
+                              queueId: "aaacb2e9-e163-4ff9-be47-44c96ea4379f",
+                              enabled: true,
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    "changeAgentStatusInQueue result: $res"),
+                              ),
+                            );
+                          },
+                          child: Text("enable changeAgentStatusInQueue")),
+                      ElevatedButton(
+                          onPressed: () async {
+                            var res = await MptCallKitController()
+                                .changeAgentStatusInQueue(
+                              agentId: agentData?.userId ?? 0,
+                              tenantId: agentData?.tenantId ?? 0,
+                              queueId: "aaacb2e9-e163-4ff9-be47-44c96ea4379f",
+                              enabled: false,
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    "changeAgentStatusInQueue result: $res"),
+                              ),
+                            );
+                          },
+                          child: Text("disable changeAgentStatusInQueue")),
+                      ElevatedButton(
+                          onPressed: () async {
+                            var res =
+                                await MptCallKitController().getAgentQueues(
+                              agentId: agentData?.userId ?? 0,
+                              tenantId: agentData?.tenantId ?? 0,
+                            );
+                            agentQueues = res;
+                            print("getAgentQueues result: ${res?.length}");
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    "getAgentQueues length: ${res?.length}"),
+                              ),
+                            );
+                          },
+                          child: Text("getAgentQueues")),
+                      ElevatedButton(
+                          onPressed: () async {
+                            var res = await MptCallKitController().getAllQueues(
+                              agentId: agentData?.userId ?? 0,
+                              tenantId: agentData?.tenantId ?? 0,
+                            );
+                            print("getAllQueues result: ${res?.length}");
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content:
+                                    Text("getAllQueues length: ${res?.length}"),
+                              ),
+                            );
+                          },
+                          child: Text("getAllQueues")),
+                      ElevatedButton(
+                          onPressed: () async {
+                            var res = await MptCallKitController()
+                                .getAllAgentInQueueByQueueExtension(
+                              extension: "30037",
+                              tenantId: agentData?.tenantId ?? 0,
+                            );
+                            print(
+                                "getAllAgentInQueueByQueueExtension result: ${res?.length}");
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    "getAllAgentInQueueByQueueExtension length: ${res?.length}"),
+                              ),
+                            );
+                          },
+                          child: Text("getAllAgentInQueueByQueueExtension")),
                     ],
                   ),
                 ),

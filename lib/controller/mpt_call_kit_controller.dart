@@ -14,6 +14,7 @@ import 'package:mpt_callkit/mpt_callkit_auth_method.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/models.dart';
 import 'mpt_call_kit_controller_repo.dart';
 
 class MptCallKitController {
@@ -2214,6 +2215,78 @@ class MptCallKitController {
       onError: onError,
       tenantId: tenantId,
       agentId: agentId,
+    );
+  }
+
+  // Change agent status in queue
+  Future<bool> changeAgentStatusInQueue({
+    required int agentId,
+    required int tenantId,
+    required String queueId,
+    required bool enabled,
+    Function(String?)? onError,
+  }) async {
+    return await MptCallKitControllerRepo().putAgentQueues(
+      baseUrl: await getCurrentBaseUrl(),
+      agentId: agentId,
+      tenantId: tenantId,
+      queueId: queueId,
+      enabled: enabled,
+      onError: onError,
+    );
+  }
+
+  // Get all agent's queues
+  Future<List<QueueDataByAgent>?> getAgentQueues({
+    required int agentId,
+    required int tenantId,
+    Function(String?)? onError,
+  }) async {
+    return await MptCallKitControllerRepo().getAgentQueues(
+      baseUrl: await getCurrentBaseUrl(),
+      agentId: agentId,
+      tenantId: tenantId,
+      onError: onError,
+    );
+  }
+
+  // Get all queues
+  Future<List<QueueData>?> getAllQueues({
+    required int tenantId,
+    required int agentId,
+    Function(String?)? onError,
+  }) async {
+    return await MptCallKitControllerRepo().getAllQueues(
+      agentId: agentId,
+      tenantId: tenantId,
+      baseUrl: await getCurrentBaseUrl(),
+      onError: onError,
+    );
+  }
+
+  // Get all agents in queue by extension
+  Future<List<AgentDataByQueue>?> getAllAgentInQueueByQueueExtension({
+    required String extension,
+    required int tenantId,
+    Function(String?)? onError,
+  }) async {
+    return await MptCallKitControllerRepo().getAllAgentInQueueByQueueExtension(
+      extension: extension,
+      tenantId: tenantId,
+      baseUrl: await getCurrentBaseUrl(),
+      onError: onError,
+    );
+  }
+
+  Future<AgentData?> getCurrentAgentData(String accessToken) async {
+    await _getCurrentUserInfo(accessToken);
+
+    return AgentData(
+      tenantId: currentUserInfo?["tenant"]["id"] ?? 0,
+      userId: currentUserInfo?["user"]["id"] ?? 0,
+      userName: currentUserInfo?["user"]["userName"] ?? "",
+      fullName: currentUserInfo?["user"]["fullName"] ?? "",
+      extension: currentUserInfo?["user"]["extension"] ?? "",
     );
   }
 }
