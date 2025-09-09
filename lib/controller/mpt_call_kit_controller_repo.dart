@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../models/models.dart';
+
 class MptCallKitControllerRepo {
   final _changeStatusApi = "/acd-asm-chat/agent-status/change";
   final _getCurrentStatusApi = "/acd-asm-chat/agent-status/current-status";
@@ -10,6 +12,10 @@ class MptCallKitControllerRepo {
   final _makeCallOutboundAPI = "/chat-acd/conversation/start-outbound";
   final _makeCallByGuestAPI = "/integration/make-call";
   final _deleteRegistrationAPI = "/contact-center/agent/registration";
+  final _agentQueuesAPI = "/contact-center/agent/queues";
+  final _getQueuesAPI = "/contact-center/queue";
+  final _getAllAgentInQueueByExtensionAPI =
+      "/contact-center/queue/agentsByExtension";
 
   // Change agent status
   Future<bool> changeAgentStatus({
@@ -420,5 +426,192 @@ class MptCallKitControllerRepo {
       onError?.call("[Mpt_API] - deleteRegistration - Error: $e");
       return false;
     }
+  }
+
+  // Toggle change agent status in queue
+  Future<bool> putAgentQueues({
+    required int agentId,
+    required int tenantId,
+    String? baseUrl,
+    required String queueId,
+    required bool enabled,
+    Function(String?)? onError,
+  }) async {
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+      };
+
+      final body = {
+        "agent_id": agentId,
+        "tenant_id": tenantId,
+        "queue_id": queueId,
+        "enabled": enabled,
+      };
+
+      print("[Mpt_API] - putAgentQueues - body: ${jsonEncode(body)}");
+
+      final response = await http.put(
+        Uri.parse(
+            "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$_agentQueuesAPI"),
+        headers: headers,
+        body: convert.jsonEncode(body),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        print("[Mpt_API] - putAgentQueues - data: $responseData");
+        if (responseData["success"]) {
+          return true;
+        }
+        onError?.call(
+            "[Mpt_API] - putAgentQueues - failed: ${responseData["message"]}");
+        return false;
+      }
+      onError?.call(
+          "[Mpt_API] - putAgentQueues - failed with status code: ${response.statusCode}");
+      return false;
+    } catch (e) {
+      print("[Mpt_API] - putAgentQueues - Error: $e");
+      onError?.call("[Mpt_API] - putAgentQueues - Error: $e");
+      return false;
+    }
+  }
+
+  // Get all queues by agent
+  Future<List<QueueDataByAgent>?> getAgentQueues({
+    required int agentId,
+    required int tenantId,
+    String? baseUrl,
+    Function(String?)? onError,
+  }) async {
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+      };
+
+      final url = Uri.parse(
+        "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$_agentQueuesAPI",
+      ).replace(queryParameters: {
+        "tenantId": tenantId.toString(),
+        "agentId": agentId.toString(),
+      });
+
+      print("[Mpt_API] - getAgentQueues - url: $url");
+
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        if (responseData != null && responseData["success"] == true) {
+          final List<dynamic> list = responseData["data"] ?? [];
+          final result = list
+              .map((e) => QueueDataByAgent.fromJson(
+                  e is Map<String, dynamic> ? e : jsonDecode(e.toString())))
+              .toList();
+          return result;
+        }
+        onError?.call(
+            "[Mpt_API] - getAgentQueues - failed: ${responseData?["message"]}");
+        return <QueueDataByAgent>[];
+      } else {
+        onError?.call(
+            "[Mpt_API] - getAgentQueues - failed with status code: ${response.statusCode}");
+        return <QueueDataByAgent>[];
+      }
+    } catch (e) {
+      print("[Mpt_API] - getAgentQueues - Error: $e");
+      onError?.call("[Mpt_API] - getAgentQueues - Error: $e");
+    }
+    return <QueueDataByAgent>[];
+  }
+
+  // Get all queues
+  Future<List<QueueData>?> getAllQueues({
+    required int tenantId,
+    required int agentId,
+    String? baseUrl,
+    Function(String?)? onError,
+  }) async {
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+      };
+
+      final url = Uri.parse(
+        "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$_getQueuesAPI",
+      ).replace(queryParameters: {
+        "tenantId": tenantId.toString(),
+        "agentId": agentId.toString(),
+      });
+
+      print("[Mpt_API] - getAllQueues - url: $url");
+
+      final response = await http.get(url, headers: headers);
+
+      final responseData = jsonDecode(response.body);
+      print("[Mpt_API] - getAllQueues - responseData: $responseData");
+      if (responseData != null && responseData["success"] == true) {
+        final List<dynamic> list = responseData["data"] ?? [];
+        print("[Mpt_API] - getAllQueues - list: $list");
+        final result = list
+            .map((e) => QueueData.fromJson(
+                e is Map<String, dynamic> ? e : jsonDecode(e.toString())))
+            .toList();
+        return result;
+      }
+      onError?.call(
+          "[Mpt_API] - getAllQueues - failed with status code: ${response.statusCode}");
+      return <QueueData>[];
+    } catch (e) {
+      print("[Mpt_API] - getAllQueues - Error: $e");
+      onError?.call("[Mpt_API] - getAllQueues - Error: $e");
+      return <QueueData>[];
+    }
+  }
+
+  // Get all agents in queue by extension
+  Future<List<AgentDataByQueue>?> getAllAgentInQueueByQueueExtension({
+    required String extension,
+    required int tenantId,
+    String? baseUrl,
+    Function(String?)? onError,
+  }) async {
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+      };
+
+      final url = Uri.parse(
+        "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$_getAllAgentInQueueByExtensionAPI",
+      ).replace(queryParameters: {
+        "queueExtension": extension.toString(),
+        "tenantId": tenantId.toString(),
+      });
+
+      print("[Mpt_API] - getAllAgentInQueueByQueueExtension - url: $url");
+
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        if (responseData != null && responseData["success"] == true) {
+          final List<dynamic> list = responseData["data"] ?? [];
+          final result = list
+              .map((e) => AgentDataByQueue.fromJson(
+                  e is Map<String, dynamic> ? e : jsonDecode(e.toString())))
+              .toList();
+          print(
+              "[Mpt_API] - getAllAgentInQueueByQueueExtension - result: ${result.length}");
+          return result;
+        }
+      }
+    } catch (e) {
+      print("[Mpt_API] - getAllAgentInQueueByQueueExtension - Error: $e");
+      onError
+          ?.call("[Mpt_API] - getAllAgentInQueueByQueueExtension - Error: $e");
+      return <AgentDataByQueue>[];
+    }
+    return null;
   }
 }
