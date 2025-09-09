@@ -843,7 +843,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             backtaskTimer = nil
 
             let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global())
-            timer.schedule(deadline: .now() + 5)
+            timer.schedule(deadline: .now() + 1)
 
             timer.setEventHandler { [weak self] in
                 self?.loginViewController.unRegister()
