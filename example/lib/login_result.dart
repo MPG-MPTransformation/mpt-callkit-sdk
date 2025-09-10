@@ -170,10 +170,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       accessToken ?? "",
     );
 
-    agentQueues = await MptCallKitController().getAgentQueues(
-      agentId: agentData?.userId ?? 0,
-      tenantId: agentData?.tenantId ?? 0,
-    );
+    agentQueues = await MptCallKitController().getAgentQueues();
 
     print("getCurrentAgentData result: $agentData");
   }
@@ -768,8 +765,6 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                           onPressed: () async {
                             var res = await MptCallKitController()
                                 .changeAgentStatusInQueue(
-                              agentId: agentData?.userId ?? 0,
-                              tenantId: agentData?.tenantId ?? 0,
                               queueId: "aaacb2e9-e163-4ff9-be47-44c96ea4379f",
                               enabled: true,
                             );
@@ -785,8 +780,6 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                           onPressed: () async {
                             var res = await MptCallKitController()
                                 .changeAgentStatusInQueue(
-                              agentId: agentData?.userId ?? 0,
-                              tenantId: agentData?.tenantId ?? 0,
                               queueId: "aaacb2e9-e163-4ff9-be47-44c96ea4379f",
                               enabled: false,
                             );
@@ -801,10 +794,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                       ElevatedButton(
                           onPressed: () async {
                             var res =
-                                await MptCallKitController().getAgentQueues(
-                              agentId: agentData?.userId ?? 0,
-                              tenantId: agentData?.tenantId ?? 0,
-                            );
+                                await MptCallKitController().getAgentQueues();
                             agentQueues = res;
                             print("getAgentQueues result: ${res?.length}");
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -817,10 +807,8 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                           child: Text("getAgentQueues")),
                       ElevatedButton(
                           onPressed: () async {
-                            var res = await MptCallKitController().getAllQueues(
-                              agentId: agentData?.userId ?? 0,
-                              tenantId: agentData?.tenantId ?? 0,
-                            );
+                            var res =
+                                await MptCallKitController().getAllQueues();
                             print("getAllQueues result: ${res?.length}");
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -835,7 +823,6 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                             var res = await MptCallKitController()
                                 .getAllAgentInQueueByQueueExtension(
                               extension: "30037",
-                              tenantId: agentData?.tenantId ?? 0,
                             );
                             print(
                                 "getAllAgentInQueueByQueueExtension result: ${res?.length}");

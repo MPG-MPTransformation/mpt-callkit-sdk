@@ -2220,16 +2220,14 @@ class MptCallKitController {
 
   // Change agent status in queue
   Future<bool> changeAgentStatusInQueue({
-    required int agentId,
-    required int tenantId,
     required String queueId,
     required bool enabled,
     Function(String?)? onError,
   }) async {
     return await MptCallKitControllerRepo().putAgentQueues(
       baseUrl: await getCurrentBaseUrl(),
-      agentId: agentId,
-      tenantId: tenantId,
+      agentId: currentUserInfo?["user"]["id"] ?? 0,
+      tenantId: currentUserInfo?["tenant"]["id"] ?? 0,
       queueId: queueId,
       enabled: enabled,
       onError: onError,
@@ -2238,27 +2236,23 @@ class MptCallKitController {
 
   // Get all agent's queues
   Future<List<QueueDataByAgent>?> getAgentQueues({
-    required int agentId,
-    required int tenantId,
     Function(String?)? onError,
   }) async {
     return await MptCallKitControllerRepo().getAgentQueues(
       baseUrl: await getCurrentBaseUrl(),
-      agentId: agentId,
-      tenantId: tenantId,
+      agentId: currentUserInfo?["user"]["id"] ?? 0,
+      tenantId: currentUserInfo?["tenant"]["id"] ?? 0,
       onError: onError,
     );
   }
 
   // Get all queues
   Future<List<QueueData>?> getAllQueues({
-    required int tenantId,
-    required int agentId,
     Function(String?)? onError,
   }) async {
     return await MptCallKitControllerRepo().getAllQueues(
-      agentId: agentId,
-      tenantId: tenantId,
+      agentId: currentUserInfo?["user"]["id"] ?? 0,
+      tenantId: currentUserInfo?["tenant"]["id"] ?? 0,
       baseUrl: await getCurrentBaseUrl(),
       onError: onError,
     );
@@ -2267,12 +2261,11 @@ class MptCallKitController {
   // Get all agents in queue by extension
   Future<List<AgentDataByQueue>?> getAllAgentInQueueByQueueExtension({
     required String extension,
-    required int tenantId,
     Function(String?)? onError,
   }) async {
     return await MptCallKitControllerRepo().getAllAgentInQueueByQueueExtension(
       extension: extension,
-      tenantId: tenantId,
+      tenantId: currentUserInfo?["tenant"]["id"] ?? 0,
       baseUrl: await getCurrentBaseUrl(),
       onError: onError,
     );
