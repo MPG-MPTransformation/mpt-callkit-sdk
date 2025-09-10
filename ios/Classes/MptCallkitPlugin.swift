@@ -843,7 +843,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             backtaskTimer = nil
 
             let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global())
-            timer.schedule(deadline: .now() + 0.5)
+            timer.schedule(deadline: .now() + 5)
 
             timer.setEventHandler { [weak self] in
                 self?.loginViewController.unRegister()
@@ -900,6 +900,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         NSLog(
             "onInviteIncoming - sessionId: \(sessionId) - callerDisplayName: \(String(describing: callerDisplayName)) - caller: \(String(describing: caller)) - calleeDisplayName: \(String(describing: calleeDisplayName)) - callee: \(String(describing: callee)) - audioCodecs: \(String(describing: audioCodecs)) - videoCodecs: \(String(describing: videoCodecs)) - existsAudio: \(existsAudio) - existsVideo: \(existsVideo) - sipMessage: \(String(describing: sipMessage))"
         )
+        self.endBackgroundTaskForRegister()
         self.activeSessionid = sessionId
         let num = _callManager.getConnectCallNum()
         let index = findIdleLine()
