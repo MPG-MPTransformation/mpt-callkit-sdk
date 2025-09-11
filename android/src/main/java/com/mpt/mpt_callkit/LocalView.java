@@ -15,11 +15,23 @@ import com.mpt.mpt_callkit.util.Session;
 import com.portsip.PortSIPVideoRenderer;
 import com.portsip.PortSipSdk;
 
+import androidx.camera.core.Camera;
+import androidx.camera.core.CameraInfoUnavailableException;
+import androidx.camera.core.CameraSelector;
+import androidx.camera.core.ImageAnalysis;
+import androidx.camera.core.Preview;
+import androidx.camera.lifecycle.ProcessCameraProvider;
+import androidx.camera.view.PreviewView;
+
+import com.google.mlkit.vision.demo.CameraXViewModel;
+
 public class LocalView implements PlatformView {
     private final FrameLayout containerView;
     private PortSIPVideoRenderer localRenderVideoView;
     private PortMessageReceiver receiver;
     private PortMessageReceiver.BroadcastListener localViewListener;
+    @Nullable
+    private Camera camera;
 
     public LocalView(Context context, int viewId) {
         Session currentLine = CallManager.Instance().getCurrentSession();

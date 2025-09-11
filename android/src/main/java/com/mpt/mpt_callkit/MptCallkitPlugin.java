@@ -73,20 +73,23 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private static EventChannel.EventSink eventSink;
     private static String xSessionId;
     private static String currentUsername; // Lưu username hiện tại
-    private  String appId;
-    private  String pushToken;
+    private String appId;
+    private String pushToken;
     private static volatile boolean fileLoggingEnabled = false;
     private static FileOutputStream logFileStream;
     private static PrintStream originalOut;
     private static PrintStream originalErr;
+
     private static class LinePrefixingOutputStream extends OutputStream {
         private final OutputStream delegate;
         private final String platformTag;
         private boolean startOfLine = true;
+
         LinePrefixingOutputStream(OutputStream delegate, String platformTag) {
             this.delegate = delegate;
             this.platformTag = platformTag;
         }
+
         @Override
         public synchronized void write(int b) throws IOException {
             if (startOfLine) {
@@ -99,6 +102,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 startOfLine = true;
             }
         }
+
         @Override
         public synchronized void write(byte[] b, int off, int len) throws IOException {
             int end = off + len;
@@ -106,14 +110,18 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 write(b[i]);
             }
         }
+
         @Override
-        public void flush() throws IOException { delegate.flush(); }
+        public void flush() throws IOException {
+            delegate.flush();
+        }
     }
 
     private static String getTimestamp() {
         java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("ddMMyy-HHmmss.SSS");
         return sdf.format(new java.util.Date());
     }
+
     private static Process logcatProcess;
     private static Thread logcatThread;
 
@@ -367,8 +375,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 Session currentLine = CallManager.Instance().getCurrentSession();
                 Boolean isVideo = call.argument("isVideo");
                 // Gửi video từ camera
-                // int sendVideoResult = Engine.Instance().getEngine().sendVideo(currentLine.sessionID, isVideo);
-                // System.out.println("SDK-Android: reinviteSession - sendVideo(): " + sendVideoResult);
+                // int sendVideoResult =
+                // Engine.Instance().getEngine().sendVideo(currentLine.sessionID, isVideo);
+                // System.out.println("SDK-Android: reinviteSession - sendVideo(): " +
+                // sendVideoResult);
 
                 // Cập nhật cuộc gọi để thêm video stream
                 int updateCallRes = Engine.Instance().getEngine().updateCall(currentLine.sessionID, true, isVideo);
@@ -623,7 +633,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         Session currentLine = CallManager.Instance().getCurrentSession();
         Ring.getInstance(MainActivity.activity).stop();
         MptCallkitPlugin.sendToFlutter("isRemoteVideoReceived", false);
-        
+
         int statusCode = -1; // Success by default
 
         try {
@@ -638,7 +648,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 switch (currentLine.state) {
                     case INCOMING:
                         statusCode = engine.rejectCall(currentLine.sessionID, 486);
-                        System.out.println("SDK-Android: lineName= " + currentLine.lineName + ": Rejected call with status: " + statusCode);
+                        System.out.println("SDK-Android: lineName= " + currentLine.lineName
+                                + ": Rejected call with status: " + statusCode);
 
                         if (MainActivity.activity != null) {
                             MainActivity.activity.onHangUpCall();
@@ -664,7 +675,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                             System.out.println("SDK-Android: callState - " + "CLOSED");
                         }
 
-                        System.out.println("SDK-Android: lineName= " + currentLine.lineName + ": Hang up with status: " + statusCode);
+                        System.out.println("SDK-Android: lineName= " + currentLine.lineName + ": Hang up with status: "
+                                + statusCode);
                         break;
                     default:
                         statusCode = -1; // No active call to hang up
@@ -683,7 +695,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 currentLine.Reset();
             }
         }
-        
+
         return statusCode;
     }
 
@@ -1032,7 +1044,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     }
 
     private static synchronized void enableAndroidFileLogging(String filePath) throws IOException {
-        if (fileLoggingEnabled) return;
+        if (fileLoggingEnabled)
+            return;
         File file = new File(filePath);
         File parent = file.getParentFile();
         if (parent != null && !parent.exists()) {
@@ -1045,19 +1058,22 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         PrintStream multiOut = new PrintStream(new LinePrefixingOutputStream(new OutputStream() {
             @Override
             public void write(int b) throws IOException {
-                if (originalOut != null) originalOut.write(b);
-                logFileStream.write(new byte[]{(byte)b});
+                if (originalOut != null)
+                    originalOut.write(b);
+                logFileStream.write(new byte[] { (byte) b });
             }
 
             @Override
             public void write(byte[] b, int off, int len) throws IOException {
-                if (originalOut != null) originalOut.write(b, off, len);
+                if (originalOut != null)
+                    originalOut.write(b, off, len);
                 logFileStream.write(b, off, len);
             }
 
             @Override
             public void flush() throws IOException {
-                if (originalOut != null) originalOut.flush();
+                if (originalOut != null)
+                    originalOut.flush();
                 logFileStream.flush();
             }
         }, "Android"), true);
@@ -1065,19 +1081,22 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         PrintStream multiErr = new PrintStream(new LinePrefixingOutputStream(new OutputStream() {
             @Override
             public void write(int b) throws IOException {
-                if (originalErr != null) originalErr.write(b);
-                logFileStream.write(new byte[]{(byte)b});
+                if (originalErr != null)
+                    originalErr.write(b);
+                logFileStream.write(new byte[] { (byte) b });
             }
 
             @Override
             public void write(byte[] b, int off, int len) throws IOException {
-                if (originalErr != null) originalErr.write(b, off, len);
+                if (originalErr != null)
+                    originalErr.write(b, off, len);
                 logFileStream.write(b, off, len);
             }
 
             @Override
             public void flush() throws IOException {
-                if (originalErr != null) originalErr.flush();
+                if (originalErr != null)
+                    originalErr.flush();
                 logFileStream.flush();
             }
         }, " ssAndroid"), true);
@@ -1091,7 +1110,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     }
 
     private static synchronized void disableAndroidFileLogging() throws IOException {
-        if (!fileLoggingEnabled) return;
+        if (!fileLoggingEnabled)
+            return;
         try {
             stopLogcatCapture();
             if (logFileStream != null) {
@@ -1142,9 +1162,11 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
-    // Heuristic: treat lines containing "Dart" or "/flutter" or "Flutter" tag as Flutter logs
+    // Heuristic: treat lines containing "Dart" or "/flutter" or "Flutter" tag as
+    // Flutter logs
     private static boolean isFlutterLogLine(String line) {
-        if (line == null) return false;
+        if (line == null)
+            return false;
         String lower = line.toLowerCase();
         return lower.contains(" flutter ") || lower.contains("/flutter") || lower.contains("dart ");
     }
@@ -1155,12 +1177,14 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 logcatProcess.destroy();
                 logcatProcess = null;
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             if (logcatThread != null) {
                 logcatThread.interrupt();
                 logcatThread = null;
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 }
