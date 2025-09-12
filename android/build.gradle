@@ -37,6 +37,10 @@ android {
     defaultConfig {
         minSdkVersion 19
         
+        // Enable RenderScript support
+        renderscriptTargetApi 19
+        renderscriptSupportModeEnabled true
+        
         // Add this to ensure native libraries are properly included
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
@@ -96,4 +100,10 @@ dependencies {
 
     // Selfie segmentation
     implementation 'com.google.mlkit:segmentation-selfie:16.0.0-beta6'
+    
+    // Google Common libraries
+    implementation 'com.google.guava:guava:31.1-android'
+    
+    // Preferences
+    implementation 'androidx.preference:preference:1.2.0'
 }

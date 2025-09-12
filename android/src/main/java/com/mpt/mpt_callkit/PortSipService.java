@@ -1376,7 +1376,7 @@ public class PortSipService extends Service
 
     @Override
     public void onNetworkChange(int netMobile) {
-        logWithTimestamp("SDK-Android: onNetworkChange");
+        logWithTimestamp("SDK-Android: onNetworkChange: " + netMobile);
         if (netMobile == -1) {
             // invaluable
         } else {

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:example/call_pad.dart';
+import 'package:example/local_camera.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -187,10 +188,12 @@ class _HomeScreenState extends State<HomeScreen> {
               child: const Text("Call with account")),
           OutlinedButton(
               onPressed: () {
-                print(
-                    "Latest extension number: ${MptCallKitController().lastesExtensionData?.username.toString()}");
+                print("Go to callpad");
+                Navigator.push(context, MaterialPageRoute(builder: (context) {
+                  return const LocalCameraViewExample();
+                }));
               },
-              child: const Text("Get latest extension data"))
+              child: const Text("Go to callpad"))
         ],
       ),
     );
