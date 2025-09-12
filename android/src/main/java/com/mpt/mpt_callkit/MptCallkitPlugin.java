@@ -117,6 +117,13 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private static Process logcatProcess;
     private static Thread logcatThread;
 
+    public static MptCallkitPlugin shared = new MptCallkitPlugin();
+
+    public MptCallkitPlugin() {
+        System.out.println("SDK-Android: MptCallkitPlugin constructor");
+        shared = this;
+    }
+
     @Override
     public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
         System.out.println("SDK-Android: onAttachedToEngine");
@@ -149,6 +156,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                         eventSink = null;
                     }
                 });
+        shared = this;
     }
 
     public static void sendToFlutter(String message) {
@@ -164,6 +172,30 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             result.put("data", data);
             eventSink.success(result);
         }
+    }
+
+    public void onResume()   {
+        Engine.Instance().getEngine().refreshRegistration(0);
+        System.out.println("SDK-Android: MptCallkitPlugin - onResume called");
+    }
+    public void onPause()   {
+        System.out.println("SDK-Android: MptCallkitPlugin - onPause called");
+    }
+
+    public void onCreate()   {
+        System.out.println("SDK-Android: MptCallkitPlugin - onCreate called");
+    }
+
+    public void onStart()   {
+        System.out.println("SDK-Android: MptCallkitPlugin - onStart called");
+    }
+
+    public void onStop()   {
+        System.out.println("SDK-Android: MptCallkitPlugin - onStop called");
+    }
+
+    public void onDestroy()   {
+        System.out.println("SDK-Android: MptCallkitPlugin - onDestroy called");
     }
 
     @Override
