@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.mpt.mpt_callkit.segmenter;
+package com.mpt.mpt_callkit.mlkit;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;

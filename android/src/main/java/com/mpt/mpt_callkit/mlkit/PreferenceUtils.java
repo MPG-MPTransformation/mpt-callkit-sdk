@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.mpt.mpt_callkit.segmenter;
+package com.mpt.mpt_callkit.mlkit;
 
 import android.content.Context;
 import android.content.SharedPreferences;

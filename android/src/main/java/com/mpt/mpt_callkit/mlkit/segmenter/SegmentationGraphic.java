@@ -1,4 +1,4 @@
-package com.mpt.mpt_callkit.segmenter;
+package com.mpt.mpt_callkit.mlkit.segmenter;
 
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
@@ -13,8 +13,8 @@ import android.renderscript.Element;
 import android.renderscript.RenderScript;
 import android.renderscript.ScriptIntrinsicBlur;
 import androidx.annotation.ColorInt;
-import com.mpt.mpt_callkit.segmenter.GraphicOverlay;
-import com.mpt.mpt_callkit.segmenter.GraphicOverlay.Graphic;
+import com.mpt.mpt_callkit.mlkit.GraphicOverlay;
+import com.mpt.mpt_callkit.mlkit.GraphicOverlay.Graphic;
 import com.google.mlkit.vision.segmentation.SegmentationMask;
 import java.nio.ByteBuffer;
 
