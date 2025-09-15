@@ -21,9 +21,9 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import com.google.android.gms.tasks.Task;
 import com.google.mlkit.vision.common.InputImage;
-import com.mpt.mpt_callkit.segmenter.GraphicOverlay;
-import com.mpt.mpt_callkit.segmenter.VisionProcessorBase;
-import com.mpt.mpt_callkit.segmenter.PreferenceUtils;
+import com.mpt.mpt_callkit.mlkit.base.GraphicOverlay;
+import com.mpt.mpt_callkit.mlkit.VisionProcessorBase;
+import com.mpt.mpt_callkit.mlkit.preference.PreferenceUtils;
 import com.google.mlkit.vision.segmentation.Segmentation;
 import com.google.mlkit.vision.segmentation.SegmentationMask;
 import com.google.mlkit.vision.segmentation.Segmenter;
@@ -55,7 +55,7 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
     }
 
     @Override
-    public Task<SegmentationMask> detectInImage(InputImage image) {
+    protected Task<SegmentationMask> detectInImage(InputImage image) {
         return segmenter.process(image);
     }
 

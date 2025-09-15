@@ -1,17 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-             android:layout_width="match_parent"
-             android:layout_height="match_parent"
-             android:background="@color/black">
+<FrameLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black"
+    tools:ignore="MissingClass">
 
     <!-- Camera Preview -->
     <androidx.camera.view.PreviewView
         android:id="@+id/preview_view"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_width="0dp"
+        android:layout_height="0dp" />
 
     <!-- Graphic Overlay for segmentation effects -->
-    <com.mpt.mpt_callkit.segmenter.GraphicOverlay
+    <com.mpt.mpt_callkit.mlkit.base.GraphicOverlay
         android:id="@+id/graphic_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.mpt.mpt_callkit.mlkit;
+package com.mpt.mpt_callkit.mlkit.base;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -25,30 +25,35 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.util.AttributeSet;
 import android.view.View;
-
-import com.google.common.base.Preconditions;
-import com.google.common.primitives.Ints;
-
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A view which renders a series of custom graphics to be overlayed on top of an associated preview
- * (i.e., the camera preview). The creator can add graphics objects, update the objects, and remove
+ * A view which renders a series of custom graphics to be overlayed on top of an
+ * associated preview
+ * (i.e., the camera preview). The creator can add graphics objects, update the
+ * objects, and remove
  * them, triggering the appropriate drawing and invalidation within the view.
  *
- * <p>Supports scaling and mirroring of the graphics relative the camera's preview properties. The
- * idea is that detection items are expressed in terms of an image size, but need to be scaled up to
+ * <p>
+ * Supports scaling and mirroring of the graphics relative the camera's preview
+ * properties. The
+ * idea is that detection items are expressed in terms of an image size, but
+ * need to be scaled up to
  * the full view size, and also mirrored in the case of the front-facing camera.
  *
- * <p>Associated {@link Graphic} items should use the following methods to convert to view
+ * <p>
+ * Associated {@link Graphic} items should use the following methods to convert
+ * to view
  * coordinates for the graphics that are drawn:
  *
  * <ol>
- *   <li>{@link Graphic#scale(float)} adjusts the size of the supplied value from the image scale to
- *       the view scale.
- *   <li>{@link Graphic#translateX(float)} and {@link Graphic#translateY(float)} adjust the
- *       coordinate from the image's coordinate system to the view coordinate system.
+ * <li>{@link Graphic#scale(float)} adjusts the size of the supplied value from
+ * the image scale to
+ * the view scale.
+ * <li>{@link Graphic#translateX(float)} and {@link Graphic#translateY(float)}
+ * adjust the
+ * coordinate from the image's coordinate system to the view coordinate system.
  * </ol>
  */
 public class GraphicOverlay extends View {
@@ -59,21 +64,26 @@ public class GraphicOverlay extends View {
 
   private int imageWidth;
   private int imageHeight;
-  // The factor of overlay View size to image size. Anything in the image coordinates need to be
+  // The factor of overlay View size to image size. Anything in the image
+  // coordinates need to be
   // scaled by this amount to fit with the area of overlay View.
   private float scaleFactor = 1.0f;
-  // The number of horizontal pixels needed to be cropped on each side to fit the image with the
+  // The number of horizontal pixels needed to be cropped on each side to fit the
+  // image with the
   // area of overlay View after scaling.
   private float postScaleWidthOffset;
-  // The number of vertical pixels needed to be cropped on each side to fit the image with the
+  // The number of vertical pixels needed to be cropped on each side to fit the
+  // image with the
   // area of overlay View after scaling.
   private float postScaleHeightOffset;
   private boolean isImageFlipped;
   private boolean needUpdateTransformation = true;
 
   /**
-   * Base class for a custom graphics object to be rendered within the graphic overlay. Subclass
-   * this and implement the {@link Graphic#draw(Canvas)} method to define the graphics element. Add
+   * Base class for a custom graphics object to be rendered within the graphic
+   * overlay. Subclass
+   * this and implement the {@link Graphic#draw(Canvas)} method to define the
+   * graphics element. Add
    * instances to the overlay using {@link GraphicOverlay#add(Graphic)}.
    */
   public abstract static class Graphic {
@@ -84,14 +94,17 @@ public class GraphicOverlay extends View {
     }
 
     /**
-     * Draw the graphic on the supplied canvas. Drawing should use the following methods to convert
+     * Draw the graphic on the supplied canvas. Drawing should use the following
+     * methods to convert
      * to view coordinates for the graphics that are drawn:
      *
      * <ol>
-     *   <li>{@link Graphic#scale(float)} adjusts the size of the supplied value from the image
-     *       scale to the view scale.
-     *   <li>{@link Graphic#translateX(float)} and {@link Graphic#translateY(float)} adjust the
-     *       coordinate from the image's coordinate system to the view coordinate system.
+     * <li>{@link Graphic#scale(float)} adjusts the size of the supplied value from
+     * the image
+     * scale to the view scale.
+     * <li>{@link Graphic#translateX(float)} and {@link Graphic#translateY(float)}
+     * adjust the
+     * coordinate from the image's coordinate system to the view coordinate system.
      * </ol>
      *
      * @param canvas drawing canvas
@@ -122,7 +135,8 @@ public class GraphicOverlay extends View {
     }
 
     /**
-     * Adjusts the x coordinate from the image's coordinate system to the view coordinate system.
+     * Adjusts the x coordinate from the image's coordinate system to the view
+     * coordinate system.
      */
     public float translateX(float x) {
       if (overlay.isImageFlipped) {
@@ -133,14 +147,16 @@ public class GraphicOverlay extends View {
     }
 
     /**
-     * Adjusts the y coordinate from the image's coordinate system to the view coordinate system.
+     * Adjusts the y coordinate from the image's coordinate system to the view
+     * coordinate system.
      */
     public float translateY(float y) {
       return scale(y) - overlay.postScaleHeightOffset;
     }
 
     /**
-     * Returns a {@link Matrix} for transforming from image coordinates to overlay view coordinates.
+     * Returns a {@link Matrix} for transforming from image coordinates to overlay
+     * view coordinates.
      */
     public Matrix getTransformationMatrix() {
       return overlay.transformationMatrix;
@@ -151,18 +167,24 @@ public class GraphicOverlay extends View {
     }
 
     /**
-     * Given the {@code zInImagePixel}, update the color for the passed in {@code paint}. The color will be
-     * more red if the {@code zInImagePixel} is smaller, or more blue ish vice versa. This is
-     * useful to visualize the z value of landmarks via color for features like Pose and Face Mesh.
+     * Given the {@code zInImagePixel}, update the color for the passed in
+     * {@code paint}. The color will be
+     * more red if the {@code zInImagePixel} is smaller, or more blue ish vice
+     * versa. This is
+     * useful to visualize the z value of landmarks via color for features like Pose
+     * and Face Mesh.
      *
-     * @param paint the paint to update color with
-     * @param canvas the canvas used to draw with paint
-     * @param visualizeZ if true, paint color will be changed.
-     * @param rescaleZForVisualization if true, re-scale the z value with zMin and zMax to make
-     *     color more distinguishable
-     * @param zInImagePixel the z value used to update the paint color
-     * @param zMin min value of all z values going to be passed in
-     * @param zMax max value of all z values going to be passed in
+     * @param paint                    the paint to update color with
+     * @param canvas                   the canvas used to draw with paint
+     * @param visualizeZ               if true, paint color will be changed.
+     * @param rescaleZForVisualization if true, re-scale the z value with zMin and
+     *                                 zMax to make
+     *                                 color more distinguishable
+     * @param zInImagePixel            the z value used to update the paint color
+     * @param zMin                     min value of all z values going to be passed
+     *                                 in
+     * @param zMax                     max value of all z values going to be passed
+     *                                 in
      */
     public void updatePaintColorByZValue(
         Paint paint,
@@ -176,7 +198,8 @@ public class GraphicOverlay extends View {
         return;
       }
 
-      // When visualizeZ is true, sets up the paint to different colors based on z values.
+      // When visualizeZ is true, sets up the paint to different colors based on z
+      // values.
       // Gets the range of z value.
       float zLowerBoundInScreenPixel;
       float zUpperBoundInScreenPixel;
@@ -185,7 +208,8 @@ public class GraphicOverlay extends View {
         zLowerBoundInScreenPixel = min(-0.001f, scale(zMin));
         zUpperBoundInScreenPixel = max(0.001f, scale(zMax));
       } else {
-        // By default, assume the range of z value in screen pixel is [-canvasWidth, canvasWidth].
+        // By default, assume the range of z value in screen pixel is [-canvasWidth,
+        // canvasWidth].
         float defaultRangeFactor = 1f;
         zLowerBoundInScreenPixel = -defaultRangeFactor * canvas.getWidth();
         zUpperBoundInScreenPixel = defaultRangeFactor * canvas.getWidth();
@@ -195,17 +219,19 @@ public class GraphicOverlay extends View {
 
       if (zInScreenPixel < 0) {
         // Sets up the paint to be red if the item is in front of the z origin.
-        // Maps values within [zLowerBoundInScreenPixel, 0) to [255, 0) and use it to control the
+        // Maps values within [zLowerBoundInScreenPixel, 0) to [255, 0) and use it to
+        // control the
         // color. The larger the value is, the more red it will be.
         int v = (int) (zInScreenPixel / zLowerBoundInScreenPixel * 255);
-        v = Ints.constrainToRange(v, 0, 255);
+        v = Math.max(0, Math.min(255, v));
         paint.setARGB(255, 255, 255 - v, 255 - v);
       } else {
         // Sets up the paint to be blue if the item is behind the z origin.
-        // Maps values within [0, zUpperBoundInScreenPixel] to [0, 255] and use it to control the
+        // Maps values within [0, zUpperBoundInScreenPixel] to [0, 255] and use it to
+        // control the
         // color. The larger the value is, the more blue it will be.
         int v = (int) (zInScreenPixel / zUpperBoundInScreenPixel * 255);
-        v = Ints.constrainToRange(v, 0, 255);
+        v = Math.max(0, Math.min(255, v));
         paint.setARGB(255, 255 - v, 255 - v, 255);
       }
     }
@@ -214,8 +240,7 @@ public class GraphicOverlay extends View {
   public GraphicOverlay(Context context, AttributeSet attrs) {
     super(context, attrs);
     addOnLayoutChangeListener(
-        (view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) ->
-            needUpdateTransformation = true);
+        (view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> needUpdateTransformation = true);
   }
 
   /** Removes all graphics from the overlay. */
@@ -242,17 +267,24 @@ public class GraphicOverlay extends View {
   }
 
   /**
-   * Sets the source information of the image being processed by detectors, including size and
-   * whether it is flipped, which informs how to transform image coordinates later.
+   * Sets the source information of the image being processed by detectors,
+   * including size and
+   * whether it is flipped, which informs how to transform image coordinates
+   * later.
    *
-   * @param imageWidth the width of the image sent to ML Kit detectors
+   * @param imageWidth  the width of the image sent to ML Kit detectors
    * @param imageHeight the height of the image sent to ML Kit detectors
-   * @param isFlipped whether the image is flipped. Should set it to true when the image is from the
-   *     front camera.
+   * @param isFlipped   whether the image is flipped. Should set it to true when
+   *                    the image is from the
+   *                    front camera.
    */
   public void setImageSourceInfo(int imageWidth, int imageHeight, boolean isFlipped) {
-    Preconditions.checkState(imageWidth > 0, "image width must be positive");
-    Preconditions.checkState(imageHeight > 0, "image height must be positive");
+    if (imageWidth <= 0) {
+      throw new IllegalArgumentException("image width must be positive");
+    }
+    if (imageHeight <= 0) {
+      throw new IllegalArgumentException("image height must be positive");
+    }
     synchronized (lock) {
       this.imageWidth = imageWidth;
       this.imageHeight = imageHeight;

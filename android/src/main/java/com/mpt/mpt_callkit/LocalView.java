@@ -30,8 +30,8 @@ import android.util.Size;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.mlkit.vision.common.InputImage;
-import com.mpt.mpt_callkit.segmenter.GraphicOverlay;
-import com.mpt.mpt_callkit.segmenter.SegmenterProcessor;
+import com.mpt.mpt_callkit.mlkit.base.GraphicOverlay;
+import com.mpt.mpt_callkit.mlkit.segmenter.SegmenterProcessor;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -85,8 +85,8 @@ public class LocalView implements PlatformView {
 
                 ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                        .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
-                        .setTargetResolution(new Size(480, 360)) // Even lower resolution for better performance
+                        // .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+                        .setTargetResolution(new Size(320, 240)) // Even lower resolution for better performance
                         .build();
 
                 imageAnalysis.setAnalyzer(cameraExecutor, imageProxy -> {
@@ -164,25 +164,14 @@ public class LocalView implements PlatformView {
 
     private void processImageWithSegmentation(InputImage image, ImageProxy imageProxy) {
         if (segmenterProcessor != null) {
-            // Use detectInImage directly with proper callbacks
-            segmenterProcessor.detectInImage(image)
-                    .addOnSuccessListener(mask -> {
-                        try {
-                            // Add segmentation graphic to overlay
-                            graphicOverlay
-                                    .add(new com.mpt.mpt_callkit.segmenter.SegmentationGraphic(graphicOverlay, mask));
-                        } catch (Exception e) {
-                            Log.e("LocalView", "Error in segmentation success: " + e.getMessage());
-                        } finally {
-                            isProcessing = false;
-                            imageProxy.close();
-                        }
-                    })
-                    .addOnFailureListener(e -> {
-                        Log.e("LocalView", "Segmentation failed: " + e.getMessage());
-                        isProcessing = false;
-                        imageProxy.close();
-                    });
+            // Use processImageProxy method instead of detectInImage
+            try {
+                segmenterProcessor.processImageProxy(imageProxy, graphicOverlay);
+            } catch (Exception e) {
+                Log.e("LocalView", "Segmentation failed: " + e.getMessage());
+            } finally {
+                isProcessing = false;
+            }
         } else {
             isProcessing = false;
             imageProxy.close();

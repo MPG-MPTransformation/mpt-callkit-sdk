@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package com.mpt.mpt_callkit.mlkit;
+package com.mpt.mpt_callkit.mlkit.preference;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import androidx.preference.PreferenceManager;
+import android.preference.PreferenceManager;
 
 /** Utility class for handling shared preferences. */
 public class PreferenceUtils {

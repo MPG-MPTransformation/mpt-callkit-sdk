@@ -11,11 +11,6 @@ class LocalCameraViewExample extends StatefulWidget {
 class _LocalCameraViewExampleState extends State<LocalCameraViewExample> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Local Camera View Example"),
-      ),
-      body: const LocalView(),
-    );
+    return LocalView();
   }
 }
