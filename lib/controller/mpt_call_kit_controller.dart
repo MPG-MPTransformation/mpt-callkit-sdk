@@ -626,6 +626,7 @@ class MptCallKitController {
               bitrate: extensionData?.bitrate,
               frameRate: extensionData?.frameRate,
               recordLabel: await getCurrentRecordLabel(),
+              autoLogin: true,
             );
           } else {
             _appEvent.add(AppEventConstants.ERROR);
@@ -868,25 +869,25 @@ class MptCallKitController {
         lastesExtensionData = extensionData;
 
         online(
-          username: result.username ?? "",
-          displayName: userPhoneNumber,
-          authName: '',
-          password: result.password ?? "",
-          userDomain: result.domain ?? "",
-          sipServer: result.sipServer ?? "",
-          sipServerPort: result.port ?? 5063,
-          // sipServerPort: 5063,
-          transportType: 0,
-          srtpType: 0,
-          context: context,
-          appId: await getCurrentAppId(),
-          pushToken: await getCurrentPushToken(),
-          isMakeCallByGuest: true,
-          resolution: result.resolution,
-          bitrate: result.bitrate,
-          frameRate: result.frameRate,
-          recordLabel: await getCurrentRecordLabel(),
-        );
+            username: result.username ?? "",
+            displayName: userPhoneNumber,
+            authName: '',
+            password: result.password ?? "",
+            userDomain: result.domain ?? "",
+            sipServer: result.sipServer ?? "",
+            sipServerPort: result.port ?? 5063,
+            // sipServerPort: 5063,
+            transportType: 0,
+            srtpType: 0,
+            context: context,
+            appId: await getCurrentAppId(),
+            pushToken: await getCurrentPushToken(),
+            isMakeCallByGuest: true,
+            resolution: result.resolution,
+            bitrate: result.bitrate,
+            frameRate: result.frameRate,
+            recordLabel: await getCurrentRecordLabel(),
+            autoLogin: false);
 
         // 🔧 FIX: Ensure no previous completer is pending
         if (_guestRegistrationCompleter != null &&
@@ -1149,6 +1150,7 @@ class MptCallKitController {
     int? bitrate,
     int? frameRate,
     String? recordLabel,
+    bool? autoLogin,
     // required String localizedCallerName,
   }) async {
     this.isMakeCallByGuest = isMakeCallByGuest ?? false;
@@ -1186,6 +1188,7 @@ class MptCallKitController {
           "bitrate": bitrate ?? 1024,
           "frameRate": frameRate ?? 30,
           "recordLabel": recordLabel ?? "Customer",
+          "autoLogin": autoLogin ?? false,
         },
       );
 

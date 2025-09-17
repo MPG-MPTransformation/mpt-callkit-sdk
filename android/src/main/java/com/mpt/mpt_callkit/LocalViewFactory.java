@@ -8,12 +8,11 @@ import android.graphics.Bitmap;
 
 public class LocalViewFactory extends PlatformViewFactory {
     private final Context context;
-    private LocalView localView;
+    private static LocalView localView;
 
     public void setImage(Bitmap bitmap) {
-        if (localView != null) {
-            System.out.println("SDK-Android: LocalViewFactory - setImage called with bitmap: " + bitmap);
-            localView.setImage(bitmap);
+        if (LocalViewFactory.localView != null) {
+            LocalViewFactory.localView.setImage(bitmap);
         }
     }
 
@@ -30,7 +29,7 @@ public class LocalViewFactory extends PlatformViewFactory {
         if (context == null) {
             throw new IllegalArgumentException("Context cannot be null");
         }
-        localView = new LocalView(this.context, viewId);
+        LocalViewFactory.localView = new LocalView(this.context, viewId);
         return localView;
     }
 }

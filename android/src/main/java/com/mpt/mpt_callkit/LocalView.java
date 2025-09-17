@@ -54,7 +54,6 @@ public class LocalView implements PlatformView {
 
     public void setImage(Bitmap bitmap) {
         if (localImageView != null) {
-            System.out.println("SDK-Android: LocalView - setImage called with bitmap: " + bitmap);
             localImageView.setImageBitmap(bitmap);
         }
     }

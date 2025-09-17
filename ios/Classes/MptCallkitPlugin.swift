@@ -2309,6 +2309,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let bitrate = (args["bitrate"] as? Int) ?? 1024
                 let frameRate = (args["frameRate"] as? Int) ?? 30
                 let recordLabel = (args["recordLabel"] as? String) ?? "Customer"
+                let autoLogin = (args["autoLogin"] as? Bool) ?? false
 
                 // Lưu username hiện tại
                 currentUsername = username

@@ -137,7 +137,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     public MptCallkitPlugin() {
         System.out.println("SDK-Android: MptCallkitPlugin constructor");
-        MptCallkitPlugin.shared = this;
     }
 
     @Override
@@ -304,7 +303,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
 
             int result = Engine.Instance().getEngine().sendVideoStreamToRemote(currentLine.sessionID, yuvData, yuvData.length, width, height);
-            System.out.println("SDK-Android: MptCallkitPlugin - sendVideoStreamToRemote result: " + result + ", width: " + width + ", height: " + height);
+            // System.out.println("SDK-Android: MptCallkitPlugin - sendVideoStreamToRemote result: " + result + ", width: " + width + ", height: " + height);
         }
     }
 
@@ -406,8 +405,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             int bitrate = preferences.getInt("bitrate", 1024);
             int frameRate = preferences.getInt("frameRate", 30);
             recordLabel = preferences.getString("recordLabel", "Agent");
+            Boolean autoLogin = preferences.getBoolean("autoLogin", false);
 
-            if (username != null && password != null && userDomain != null && sipServer != null && sipServerPort != null) {
+            if (autoLogin && username != null && password != null && userDomain != null && sipServer != null && sipServerPort != null) {
                 Intent onLineIntent = new Intent(ctx, PortSipService.class);
                 onLineIntent.setAction(PortSipService.ACTION_SIP_REGIEST);
                 onLineIntent.putExtra("username", username);
@@ -468,7 +468,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     public void onResume(Activity activity)   {
         System.out.println("SDK-Android: MptCallkitPlugin - onResume called");
-        MptCallkitPlugin.shared = this;
         this.activity = activity;
         loginIfNeeded(activity);
         Session currentLine = CallManager.Instance().getCurrentSession();
@@ -633,6 +632,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 this.pushToken = call.argument("pushToken");
                 Boolean enableDebugLog = call.argument("enableDebugLog");
                 String recordLabel = call.argument("recordLabel");
+                Boolean autoLogin = call.argument("autoLogin");
                 if (segmenterProcessor != null) {
                     segmenterProcessor.setText(recordLabel);
                 }
@@ -670,25 +670,28 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 PortSipService.startServiceCompatibility(activity, onLineIntent);
                 System.out.println("SDK-Android: RegisterServer..");
 
-                // saved login info
-                preferences = PreferenceManager.getDefaultSharedPreferences(activity);
-                editor = preferences.edit();
-                editor.putString("username", username);
-                editor.putString("password", password);
-                editor.putString("domain", userDomain);
-                editor.putString("sipServer", sipServer);
-                editor.putString("port", sipServerPort);
-                editor.putString("displayName", displayName);
-                editor.putString("transportType", transportType);
-                editor.putString("srtpType", srtpType);
-                editor.putString("appId", appId);
-                editor.putString("pushToken", pushToken);
-                editor.putBoolean("enableDebugLog", enableDebugLog != null ? enableDebugLog : false);
-                editor.putString("resolution", resolution);
-                editor.putInt("bitrate", bitrate);
-                editor.putInt("frameRate", frameRate);
-                editor.putString("recordLabel", recordLabel);
-                editor.commit();
+                if (autoLogin != null && autoLogin) {
+                    // saved login info
+                    preferences = PreferenceManager.getDefaultSharedPreferences(activity);
+                    editor = preferences.edit();
+                    editor.putString("username", username);
+                    editor.putString("password", password);
+                    editor.putString("domain", userDomain);
+                    editor.putString("sipServer", sipServer);
+                    editor.putString("port", sipServerPort);
+                    editor.putString("displayName", displayName);
+                    editor.putString("transportType", transportType);
+                    editor.putString("srtpType", srtpType);
+                    editor.putString("appId", appId);
+                    editor.putString("pushToken", pushToken);
+                    editor.putBoolean("enableDebugLog", enableDebugLog != null ? enableDebugLog : false);
+                    editor.putString("resolution", resolution);
+                    editor.putInt("bitrate", bitrate);
+                    editor.putInt("frameRate", frameRate);
+                    editor.putString("recordLabel", recordLabel);
+                    editor.putBoolean("autoLogin", autoLogin);
+                    editor.commit();
+                }
 
                 result.success(true);
                 break;
