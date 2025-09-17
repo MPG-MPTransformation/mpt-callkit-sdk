@@ -5,11 +5,16 @@ import PortSIPVoIPSDK
 
 class LocalViewFactory: NSObject, FlutterPlatformViewFactory {
    private var messenger: FlutterBinaryMessenger
+   private var independentLocalViewController = LocalViewController()
   
    init(messenger: FlutterBinaryMessenger) {
        self.messenger = messenger
        super.init()
    }
+
+     public func setImage(image: UIImage?) {
+         self.independentLocalViewController.previewOverlayView.image = image
+     }
   
    func create(
        withFrame frame: CGRect,
@@ -17,7 +22,6 @@ class LocalViewFactory: NSObject, FlutterPlatformViewFactory {
        arguments args: Any?
    ) -> FlutterPlatformView {
        // 🔥 ANDROID PATTERN: Each view creates its own controller instance
-       let independentLocalViewController = LocalViewController()
        
        // Get shared SDK reference from plugin
        let plugin = MptCallkitPlugin.shared

@@ -62,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
         appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
         enableDebugLog: true,
         deviceInfo: "deviceInfo",
+        recordLabel: "Khách hàng",
       );
 
       // var result = await MptCallKitController().loginRequest(
@@ -115,6 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
             // appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
             enableDebugLog: true,
             deviceInfo: "deviceInfo",
+            recordLabel: "Khách hàng",
           );
           MptCallKitController().makeCallByGuest(
               context: context,

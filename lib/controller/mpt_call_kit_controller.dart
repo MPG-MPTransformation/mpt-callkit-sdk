@@ -30,6 +30,7 @@ class MptCallKitController {
   bool? enableDebugLog = false;
   //hard code until have correct
   String localizedCallerName = "";
+  String recordLabel = "";
   // file logging
   File? _logFile;
   bool _fileLoggingEnabled = false;
@@ -382,6 +383,7 @@ class MptCallKitController {
     bool? enableDebugLog,
     String? localizedCallerName,
     String? deviceInfo,
+    String? recordLabel,
   }) async {
     await enableFileLogging();
 
@@ -393,12 +395,13 @@ class MptCallKitController {
     final bool resolvedEnableDebug = enableDebugLog ?? false;
     final String resolvedCallerName = localizedCallerName ?? "Omicx call";
     final String resolvedDeviceInfo = deviceInfo ?? "";
-
+    final String resolvedRecordLabel = recordLabel ?? "Customer";
     print(
         "initSDK: apiKey: $apiKey, baseUrl: $baseUrl, pushToken: $pushToken, appId: $appId, enableDebugLog: $enableDebugLog, localizedCallerName: $localizedCallerName, deviceInfo: $deviceInfo");
 
     this.enableDebugLog = resolvedEnableDebug;
     this.localizedCallerName = resolvedCallerName;
+    this.recordLabel = resolvedRecordLabel;
 
     // Persist initialization params to SharedPreferences
     try {
@@ -413,6 +416,8 @@ class MptCallKitController {
           SDKPrefsKeyConstants.LOCALIZED_CALLER_NAME, resolvedCallerName);
       await prefs.setString(
           SDKPrefsKeyConstants.DEVICE_INFO, resolvedDeviceInfo);
+      await prefs.setString(
+          SDKPrefsKeyConstants.RECORD_LABEL, resolvedRecordLabel);
     } catch (e) {
       debugPrint('Failed to persist initSdk params: $e');
     }
@@ -620,6 +625,7 @@ class MptCallKitController {
               resolution: extensionData?.resolution,
               bitrate: extensionData?.bitrate,
               frameRate: extensionData?.frameRate,
+              recordLabel: await getCurrentRecordLabel(),
             );
           } else {
             _appEvent.add(AppEventConstants.ERROR);
@@ -768,10 +774,11 @@ class MptCallKitController {
     bool isLogoutAccountSuccess = false;
     bool isUnregistered = false;
 
-    // Ngắt kết nối socket
-    await MptSocketSocketServer.disconnect();
     // Cancel socket status forwarding and notify iOS
     try {
+      // Ngắt kết nối socket
+      await MptSocketSocketServer.disconnect();
+
       _socketConnectionSubscription?.cancel();
       _socketConnectionSubscription = null;
       await channel.invokeMethod('socketStatus', {'ready': false});
@@ -878,6 +885,7 @@ class MptCallKitController {
           resolution: result.resolution,
           bitrate: result.bitrate,
           frameRate: result.frameRate,
+          recordLabel: await getCurrentRecordLabel(),
         );
 
         // 🔧 FIX: Ensure no previous completer is pending
@@ -1140,6 +1148,7 @@ class MptCallKitController {
     String? resolution,
     int? bitrate,
     int? frameRate,
+    String? recordLabel,
     // required String localizedCallerName,
   }) async {
     this.isMakeCallByGuest = isMakeCallByGuest ?? false;
@@ -1176,6 +1185,7 @@ class MptCallKitController {
           "resolution": resolution ?? "720P",
           "bitrate": bitrate ?? 1024,
           "frameRate": frameRate ?? 30,
+          "recordLabel": recordLabel ?? "Customer",
         },
       );
 
@@ -2173,6 +2183,11 @@ class MptCallKitController {
   Future<String> getCurrentPushToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(SDKPrefsKeyConstants.PUSH_TOKEN) ?? '';
+  }
+
+  Future<String> getCurrentRecordLabel() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(SDKPrefsKeyConstants.RECORD_LABEL) ?? 'Customer';
   }
 
   Future<String> getCurrentAppId() async {

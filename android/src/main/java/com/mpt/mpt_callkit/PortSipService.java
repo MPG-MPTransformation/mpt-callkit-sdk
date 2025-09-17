@@ -405,28 +405,35 @@ public class PortSipService extends Service
         String stunPort = "3478";
 
         logWithTimestamp("SDK-Android: registerToServer called");
+        logWithTimestamp("SDK-Android: Parameters - userName: " + userName + ", sipServer: " + sipServer + ", serverPort: " + serverPort);
+        
+        // Validate and provide default values for ports
+        if (TextUtils.isEmpty(serverPort)) {
+            logWithTimestamp("SDK-Android: serverPort is null or empty, using default port 5060");
+            serverPort = "5060"; // Default SIP port
+        }
+        
         int sipServerPort = Integer.parseInt(serverPort);
         int stunServerPort = Integer.parseInt(stunPort);
 
         if (TextUtils.isEmpty(userName)) {
             showTipMessage("Please enter user name!");
+            logWithTimestamp("SDK-Android: Registration failed - userName is empty");
             return;
         }
 
         if (TextUtils.isEmpty(password)) {
             showTipMessage("Please enter password!");
+            logWithTimestamp("SDK-Android: Registration failed - password is empty");
             return;
         }
-
+        
         if (TextUtils.isEmpty(sipServer)) {
-            showTipMessage("Please enter SIP Server!");
+            showTipMessage("Please enter SIP server!");
+            logWithTimestamp("SDK-Android: Registration failed - sipServer is empty");
             return;
         }
 
-        if (TextUtils.isEmpty(serverPort)) {
-            showTipMessage("Please enter Server Port!");
-            return;
-        }
 
         Engine.Instance().getEngine().removeUser();
         int result = Engine.Instance().getEngine().setUser(userName, displayName, authName, password,
@@ -494,6 +501,7 @@ public class PortSipService extends Service
                     engine.unRegisterServer(100);
                     engine.removeUser();
                     engine.unInitialize();
+                    Thread.sleep(500);
                 }
 
                 CallManager.Instance().resetAll();
@@ -568,7 +576,7 @@ public class PortSipService extends Service
         int result = Engine.Instance().getEngine().initialize(getTransType(transType), "0.0.0.0", localPort,
                 enableDebugLog ? PortSipEnumDefine.ENUM_LOG_LEVEL_DEBUG : PortSipEnumDefine.ENUM_LOG_LEVEL_ERROR,
                 dataPath, // Changed to ERROR level to reduce logging overhead
-                maxLines, "PortSIP SDK for Android", 0, 0, certRoot, "", false, null);
+                maxLines, "PortSIP SDK for Android", 0, 1, certRoot, "", false, null);
 
         if (result != PortSipErrorcode.ECoreErrorNone) {
             showTipMessage("initialize failure ErrorCode = " + result);
@@ -972,6 +980,9 @@ public class PortSipService extends Service
                 // for receive video stream
                 Engine.Instance().getEngine().enableVideoStreamCallback(sessionId,
                         PortSipEnumDefine.ENUM_DIRECTION_RECV);
+                int result = Engine.Instance().getEngine().enableSendVideoStreamToRemote(sessionId, true);
+                System.out.println("SDK-Android: enableSendVideoStream result: " + result);
+                MptCallkitPlugin.shared.startCameraSource();
             }
 
             if (session.hasVideo && !existsVideo && videoCodecs.isEmpty()) {
@@ -1065,9 +1076,12 @@ public class PortSipService extends Service
             broadIntent.putExtra(EXTRA_CALL_DESCRIPTION, description);
 
             sendPortSipMessage(description, broadIntent);
+            MptCallkitPlugin.shared.stopCameraSource();
         }
         Ring.getInstance(this).stopRingTone();
-        mNotificationManager.cancel(PENDINGCALL_NOTIFICATION);
+        if (mNotificationManager != null) {
+            mNotificationManager.cancel(PENDINGCALL_NOTIFICATION);
+        }
         sendCallStateToFlutter("CLOSED");
         sendCallTypeToFlutter("ENDED");
         MptCallkitPlugin.sendToFlutter("isRemoteVideoReceived", false);
@@ -1347,15 +1361,16 @@ public class PortSipService extends Service
             int height,
             byte[] data,
             int dataLength) {
-        logWithTimestamp("SDK-Android: onVideoRawCallback - " +
+
+        if (!isRemoteVideoReceived) {
+             logWithTimestamp("SDK-Android: onVideoRawCallback - " +
                 "sessionId: " + sessionId +
                 "enum_direction: " + enum_direction +
                 "width: " + width +
                 "height: " + height +
                 "dataLength: " + dataLength);
-
-        if (!isRemoteVideoReceived) {
             isRemoteVideoReceived = true;
+            Engine.Instance().getEngine().enableVideoStreamCallback(sessionId, PortSipEnumDefine.ENUM_DIRECTION_NONE);
 
             // Post to main thread to avoid crash - don't call SDK API or Flutter methods
             // directly in this callback

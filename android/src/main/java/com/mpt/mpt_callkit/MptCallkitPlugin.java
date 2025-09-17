@@ -9,6 +9,12 @@ import android.content.IntentFilter;
 import android.os.Build;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
+import android.graphics.Bitmap;
+import com.mpt.mpt_callkit.segmentation.VisionImageProcessorCallback;
+import com.mpt.mpt_callkit.segmentation.CameraSource;
+import com.mpt.mpt_callkit.segmentation.SegmenterProcessor;
 
 import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
@@ -55,7 +61,7 @@ import java.io.InputStreamReader;
 import java.lang.Process;
 import java.lang.ProcessBuilder;
 
-public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
+public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware, VisionImageProcessorCallback {
 
     /// The MethodChannel that will the communication between Flutter and native
     /// Android
@@ -118,10 +124,20 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private static Thread logcatThread;
 
     public static MptCallkitPlugin shared = new MptCallkitPlugin();
+    private Boolean answeredWithCallKit = false;
+    private SharedPreferences preferences;
+    private SharedPreferences.Editor editor;
+    private boolean socketReady = false;
+    private LocalViewFactory localViewFactory;
+
+    private CameraSource cameraSource = null;
+    private boolean isStartCameraSource = false;
+    private String recordLabel = "Agent";
+    private SegmenterProcessor segmenterProcessor;
 
     public MptCallkitPlugin() {
         System.out.println("SDK-Android: MptCallkitPlugin constructor");
-        shared = this;
+        MptCallkitPlugin.shared = this;
     }
 
     @Override
@@ -130,16 +146,21 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         Engine.Instance().setMethodChannel(new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "mpt_callkit"));
         Engine.Instance().getMethodChannel().setMethodCallHandler(this);
         context = flutterPluginBinding.getApplicationContext();
+        // Activity will be set in onAttachedToActivity callback
+        System.out.println("SDK-Android: Waiting for activity attachment...");
+        activity = getCurrentActivity(flutterPluginBinding);
+        
         Engine.Instance().setEngine(new PortSipSdk(context));
         // Only create receiver if it doesn't exist
         if (Engine.Instance().getReceiver() == null) {
             Engine.Instance().setReceiver(new PortMessageReceiver());
         }
 
+        localViewFactory = new LocalViewFactory(context);
         // Đăng ký LocalViewFactory
         flutterPluginBinding
                 .getPlatformViewRegistry()
-                .registerViewFactory("LocalView", new LocalViewFactory(context));
+                .registerViewFactory("LocalView", localViewFactory);
         flutterPluginBinding
                 .getPlatformViewRegistry()
                 .registerViewFactory("RemoteView", new RemoteViewFactory());
@@ -156,7 +177,180 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                         eventSink = null;
                     }
                 });
-        shared = this;
+        MptCallkitPlugin.shared = this;
+    }
+
+    private byte[] bitmapToYUVData(Bitmap bitmap) {
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        
+        // Require even dimensions for simple 4:2:0 sampling (matching iOS validation)
+        if (width % 2 != 0 || height % 2 != 0) {
+            throw new IllegalArgumentException("Width and height must be even for I420 conversion. Got: " + width + "x" + height);
+        }
+        
+        // Get ARGB pixels from bitmap
+        int[] argbPixels = new int[width * height];
+        bitmap.getPixels(argbPixels, 0, width, 0, 0, width, height);
+        
+        // YUV420 (I420) format: Y plane + U plane + V plane
+        int ySize = width * height;
+        int uvWidth = width / 2;
+        int uvHeight = height / 2;
+        int uvSize = uvWidth * uvHeight;
+        byte[] yuvData = new byte[ySize + uvSize * 2];
+        
+        // Plane pointers
+        int yPlaneOffset = 0;
+        int uPlaneOffset = ySize;
+        int vPlaneOffset = ySize + uvSize;
+        
+        // Fill Y plane (full resolution) - BT.601 limited-range conversion
+        for (int y = 0; y < height; y++) {
+            int rowY = y * width;
+            for (int x = 0; x < width; x++) {
+                int argb = argbPixels[rowY + x];
+                
+                // Extract RGBA components with proper alpha handling
+                int r = (argb >> 16) & 0xFF;
+                int g = (argb >> 8) & 0xFF;
+                int b = argb & 0xFF;
+                int a = (argb >> 24) & 0xFF;
+                
+                // Handle premultiplied alpha (optimized like iOS)
+                int actualR, actualG, actualB;
+                if (a == 255) {
+                    actualR = r;
+                    actualG = g;
+                    actualB = b;
+                } else if (a > 0) {
+                    actualR = Math.min(255, (r * 255) / a);
+                    actualG = Math.min(255, (g * 255) / a);
+                    actualB = Math.min(255, (b * 255) / a);
+                } else {
+                    actualR = 0;
+                    actualG = 0;
+                    actualB = 0;
+                }
+                
+                // BT.601 limited-range Y conversion (matching iOS)
+                int yValue = (66 * actualR + 129 * actualG + 25 * actualB + 128) >> 8;
+                yuvData[yPlaneOffset + rowY + x] = (byte) Math.max(16, Math.min(235, yValue + 16));
+            }
+        }
+        
+        // Fill U and V planes (4:2:0, average 2x2 blocks) - optimized like iOS
+        for (int j = 0; j < uvHeight; j++) {
+            int uvRowIndex = j * uvWidth;
+            for (int i = 0; i < uvWidth; i++) {
+                int rSum = 0, gSum = 0, bSum = 0;
+                int baseX = i * 2;
+                int baseY = j * 2;
+                
+                // Average 2x2 block (unrolled for performance)
+                for (int dy = 0; dy < 2; dy++) {
+                    int rowOffset = (baseY + dy) * width;
+                    for (int dx = 0; dx < 2; dx++) {
+                        int argb = argbPixels[rowOffset + baseX + dx];
+                        
+                        int r = (argb >> 16) & 0xFF;
+                        int g = (argb >> 8) & 0xFF;
+                        int b = argb & 0xFF;
+                        int a = (argb >> 24) & 0xFF;
+                        
+                        // Optimized alpha handling
+                        if (a == 255) {
+                            rSum += r;
+                            gSum += g;
+                            bSum += b;
+                        } else if (a > 0) {
+                            rSum += Math.min(255, (r * 255) / a);
+                            gSum += Math.min(255, (g * 255) / a);
+                            bSum += Math.min(255, (b * 255) / a);
+                        }
+                    }
+                }
+                
+                // Average the 2x2 block (divide by 4 using bit shift)
+                rSum >>= 2;
+                gSum >>= 2;
+                bSum >>= 2;
+                
+                // BT.601 limited-range U and V conversion (matching iOS)
+                int uVal = ((-38 * rSum - 74 * gSum + 112 * bSum + 128) >> 8) + 128;
+                int vVal = ((112 * rSum - 94 * gSum - 18 * bSum + 128) >> 8) + 128;
+                
+                int uvIndex = uvRowIndex + i;
+                yuvData[uPlaneOffset + uvIndex] = (byte) Math.max(16, Math.min(240, uVal));
+                yuvData[vPlaneOffset + uvIndex] = (byte) Math.max(16, Math.min(240, vVal));
+            }
+        }
+        
+        return yuvData;
+    }
+
+    @Override
+    public void onDetectionSuccess(Bitmap bitmap, long frameStartMs) {
+        if (MptCallkitPlugin.shared.localViewFactory != null) {
+            MptCallkitPlugin.shared.localViewFactory.setImage(bitmap);
+        }
+
+        Session currentLine = CallManager.Instance().getCurrentSession();
+        if (currentLine != null && currentLine.sessionID > 0 && currentLine.hasVideo) {
+            // convert bitmap to yuv data
+            byte[] yuvData = bitmapToYUVData(bitmap);
+            int width = bitmap.getWidth();
+            int height = bitmap.getHeight();
+
+
+            int result = Engine.Instance().getEngine().sendVideoStreamToRemote(currentLine.sessionID, yuvData, yuvData.length, width, height);
+            System.out.println("SDK-Android: MptCallkitPlugin - sendVideoStreamToRemote result: " + result);
+        }
+    }
+
+    @Override
+    public void onDetectionFailure(Exception e) {
+        System.out.println("SDK-Android: MptCallkitPlugin - onDetectionFailure called with exception: " + e.getMessage());
+    }
+
+    private void createCameraSource() {
+        // If there's no existing cameraSource, create one.
+        if (cameraSource == null) {
+            cameraSource = new CameraSource(activity);
+        }
+        if (segmenterProcessor == null) {
+            segmenterProcessor = new SegmenterProcessor(activity, this, recordLabel);
+            cameraSource.setMachineLearningFrameProcessor(segmenterProcessor);
+        }
+    }
+
+    public void startCameraSource() {
+        createCameraSource();
+        if (cameraSource != null && !isStartCameraSource) {
+            try {
+                System.out.println("SDK-Android: startCameraSource");
+                cameraSource.start();
+                isStartCameraSource = true;
+            } catch (IOException e) {
+                System.out.println("SDK-Android: startCameraSource error: " + e.getMessage());
+            }
+        }
+    }
+
+    public void stopCameraSource() {
+        if (cameraSource != null && isStartCameraSource) {
+            cameraSource.stop();
+            isStartCameraSource = false;
+        }
+    }
+
+    public void releaseCameraSource() {
+        if (cameraSource != null) {
+            cameraSource.release();
+            cameraSource = null;
+            segmenterProcessor = null;
+            isStartCameraSource = false;
+        }
     }
 
     public static void sendToFlutter(String message) {
@@ -174,12 +368,116 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
-    public void onResume()   {
+    public void onNewToken(String token) {
+        System.out.println("SDK-Android: MptCallkitPlugin - onNewToken called with token: " + token);
+        this.pushToken = token;
+        this.setPushNoti(false);
         Engine.Instance().getEngine().refreshRegistration(0);
+    }
+
+    public void onMessageReceived(Context ctx, Map<String, String> message) {
+       System.out.println("SDK-Android: MptCallkitPlugin - onMessageReceived called with message: " + message.toString());
+
+       // Check if context is available
+       if (ctx == null) {
+           System.out.println("SDK-Android: MptCallkitPlugin - onMessageReceived - context is null, cannot proceed");
+           return;
+       }
+       MptCallkitPlugin.shared.context = ctx;
+       loginIfNeeded(ctx);
+    }
+
+    private void loginIfNeeded(Context ctx) {
+        // login if needed
+       if(ctx != null && (!CallManager.Instance().online || !CallManager.Instance().isRegistered) && context != null && context.getPackageName() != null) {
+            preferences = PreferenceManager.getDefaultSharedPreferences(ctx);
+            String username = preferences.getString("username", null);
+            String password = preferences.getString("password", null);
+            String userDomain = preferences.getString("domain", null);
+            String sipServer = preferences.getString("sipServer", null);
+            String sipServerPort = preferences.getString("port", null);
+            String displayName = preferences.getString("displayName", null);
+            String transportType = preferences.getString("transportType", null);
+            String srtpType = preferences.getString("srtpType", null);
+            String appId = preferences.getString("appId", null);
+            String pushToken = preferences.getString("pushToken", null);
+            Boolean enableDebugLog = preferences.getBoolean("enableDebugLog", false);
+            String resolution = preferences.getString("resolution", "720P");
+            int bitrate = preferences.getInt("bitrate", 1024);
+            int frameRate = preferences.getInt("frameRate", 30);
+            recordLabel = preferences.getString("recordLabel", "Agent");
+
+            if (username != null && password != null && userDomain != null && sipServer != null && sipServerPort != null) {
+                Intent onLineIntent = new Intent(ctx, PortSipService.class);
+                onLineIntent.setAction(PortSipService.ACTION_SIP_REGIEST);
+                onLineIntent.putExtra("username", username);
+                onLineIntent.putExtra("password", password);
+                onLineIntent.putExtra("domain", userDomain);
+                onLineIntent.putExtra("sipServer", sipServer);
+                onLineIntent.putExtra("port", sipServerPort);
+                onLineIntent.putExtra("displayName", displayName);
+                onLineIntent.putExtra("transportType", transportType);
+                onLineIntent.putExtra("srtpType", srtpType);
+                onLineIntent.putExtra("appId", appId);
+                onLineIntent.putExtra("pushToken", pushToken);
+                onLineIntent.putExtra("enableDebugLog", enableDebugLog);
+                onLineIntent.putExtra("resolution", resolution);
+                onLineIntent.putExtra("bitrate", bitrate);
+                onLineIntent.putExtra("frameRate", frameRate);
+                PortSipService.startServiceCompatibility(ctx, onLineIntent);
+            }
+        }
+    }
+
+    private void unregisterIfNeeded() {
+        Session currentLine = CallManager.Instance().getCurrentSession();
+        if ((currentLine != null && currentLine.sessionID > 0) || activity == null || activity.getPackageName() == null) {
+            // IN CALl
+            return;
+        }
+        Intent offLineIntent = new Intent(activity, PortSipService.class);
+        offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
+        PortSipService.startServiceCompatibility(activity, offLineIntent);
+        System.out.println("SDK-Android: UnregisterServer..");
+    }
+
+    public void onAccept()   {
+        System.out.println("SDK-Android: MptCallkitPlugin - onAccept called socketReady: " + this.socketReady + ", currentSession: " + CallManager.Instance().getCurrentSession() + ", answeredWithCallKit: " + this.answeredWithCallKit);
+        this.answeredWithCallKit = true;
+        preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        this.socketReady = preferences.getBoolean("socketReady", false);
+        editor = preferences.edit();
+        editor.putBoolean("answeredWithCallKit", true);
+        editor.commit();
+        if (this.socketReady == true && CallManager.Instance().getCurrentSession() != null && this.answeredWithCallKit) {
+            System.out.println("SDK-Android: MptCallkitPlugin - onAccept - Answering call after socket is ready");
+            answerCall(false);
+            this.answeredWithCallKit = false; // Reset flag after answering
+            editor = preferences.edit();
+            editor.putBoolean("answeredWithCallKit", false);
+            editor.apply();
+        }
+    }
+
+    public void onDecline()   {
+        System.out.println("SDK-Android: MptCallkitPlugin - onDecline called");
+
+        // decline call
+        rejectCall();
+    }
+
+    public void onResume()   {
         System.out.println("SDK-Android: MptCallkitPlugin - onResume called");
+        loginIfNeeded(activity);
+        Session currentLine = CallManager.Instance().getCurrentSession();
+        if (currentLine != null && currentLine.sessionID > 0 && currentLine.hasVideo) {
+            startCameraSource();
+        }
     }
     public void onPause()   {
         System.out.println("SDK-Android: MptCallkitPlugin - onPause called");
+        stopCameraSource();
+        unregisterIfNeeded();
     }
 
     public void onCreate()   {
@@ -196,6 +494,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     public void onDestroy()   {
         System.out.println("SDK-Android: MptCallkitPlugin - onDestroy called");
+        unregisterIfNeeded();
+        releaseCameraSource();
     }
 
     @Override
@@ -214,8 +514,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 offLineIntent = new Intent(activity, PortSipService.class);
                 offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
                 PortSipService.startServiceCompatibility(activity, offLineIntent);
-                result.success(true);
                 System.out.println("SDK-Android: UnregisterServer..");
+                result.success(true);
                 break;
             case "call":
                 String destinationNumber = call.argument("destination");
@@ -330,6 +630,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 this.appId = call.argument("appId");
                 this.pushToken = call.argument("pushToken");
                 Boolean enableDebugLog = call.argument("enableDebugLog");
+                String recordLabel = call.argument("recordLabel");
+                if (segmenterProcessor != null) {
+                    segmenterProcessor.setText(recordLabel);
+                }
 
                 // Video quality parameters
                 String resolution = call.argument("resolution");
@@ -363,6 +667,26 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 onLineIntent.putExtra("frameRate", frameRate);
                 PortSipService.startServiceCompatibility(context, onLineIntent);
                 System.out.println("SDK-Android: RegisterServer..");
+
+                // saved login info
+                preferences = PreferenceManager.getDefaultSharedPreferences(context);
+                editor = preferences.edit();
+                editor.putString("username", username);
+                editor.putString("password", password);
+                editor.putString("domain", userDomain);
+                editor.putString("sipServer", sipServer);
+                editor.putString("port", sipServerPort);
+                editor.putString("displayName", displayName);
+                editor.putString("transportType", transportType);
+                editor.putString("srtpType", srtpType);
+                editor.putString("appId", appId);
+                editor.putString("pushToken", pushToken);
+                editor.putBoolean("enableDebugLog", enableDebugLog != null ? enableDebugLog : false);
+                editor.putString("resolution", resolution);
+                editor.putInt("bitrate", bitrate);
+                editor.putInt("frameRate", frameRate);
+                editor.putString("recordLabel", recordLabel);
+                editor.commit();
 
                 result.success(true);
                 break;
@@ -411,6 +735,25 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             case "refreshRegister":
                 result.success(Engine.Instance().getEngine().refreshRegistration(0));
                 break;
+
+            case "socketStatus":
+                socketReady = call.argument("ready");
+                preferences = PreferenceManager.getDefaultSharedPreferences(context);
+                this.answeredWithCallKit = preferences.getBoolean("answeredWithCallKit", false);
+                editor = preferences.edit();
+                editor.putBoolean("socketReady", socketReady);
+                editor.apply();
+                System.out.println("SDK-Android: MptCallkitPlugin - socketStatus - ready: " + socketReady + ", currentSession: " + CallManager.Instance().getCurrentSession() + ", answeredWithCallKit: " + this.answeredWithCallKit);
+                if (socketReady == true && CallManager.Instance().getCurrentSession() != null && this.answeredWithCallKit) {
+                    System.out.println("SDK-Android: MptCallkitPlugin - socketStatus - Answering call after socket is ready");
+                    answerCall(false);
+                    this.answeredWithCallKit = false; // Reset flag after answering
+                    editor = preferences.edit();
+                    editor.putBoolean("answeredWithCallKit", false);
+                    editor.apply();
+                }
+                result.success(true);
+                break;
             default:
                 result.notImplemented();
         }
@@ -455,9 +798,13 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     @Override
     public void onAttachedToActivity(ActivityPluginBinding activityPluginBinding) {
-        // TODO: your plugin is now attached to an Activity
         System.out.println("SDK-Android: onAttachedToActivity");
         activity = activityPluginBinding.getActivity();
+        if (activity != null) {
+            System.out.println("SDK-Android: Activity successfully attached: " + activity.getClass().getSimpleName());
+        } else {
+            System.out.println("SDK-Android: Warning - Activity is null in onAttachedToActivity");
+        }
         IntentFilter filter = new IntentFilter();
         filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
         filter.addAction(PortSipService.CALL_CHANGE_ACTION);
@@ -582,6 +929,93 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 System.out.println("SDK-Android: Error during unregisterSipAndCleanup: " + e.getMessage());
             }
         }
+    }
+
+    private Activity getCurrentActivity(FlutterPluginBinding flutterPluginBinding) {
+        try {
+            // Method 1: Try to get activity from FlutterEngine
+            if (flutterPluginBinding != null && flutterPluginBinding.getFlutterEngine() != null) {
+                java.lang.reflect.Field activityField = flutterPluginBinding.getFlutterEngine().getClass().getDeclaredField("activity");
+                if (activityField != null) {
+                    activityField.setAccessible(true);
+                    Object activityObj = activityField.get(flutterPluginBinding.getFlutterEngine());
+                    if (activityObj instanceof Activity) {
+                        return (Activity) activityObj;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Method 1 failed: " + e.getMessage());
+        }
+
+        try {
+            // Method 2: Get activity using ActivityThread (more reliable)
+            Class<?> activityThreadClass = Class.forName("android.app.ActivityThread");
+            Object activityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null);
+            java.lang.reflect.Field activitiesField = activityThreadClass.getDeclaredField("mActivities");
+            activitiesField.setAccessible(true);
+            
+            @SuppressWarnings("unchecked")
+            java.util.Map<Object, Object> activities = (java.util.Map<Object, Object>) activitiesField.get(activityThread);
+            
+            if (activities != null) {
+                for (Object activityRecord : activities.values()) {
+                    Class<?> activityRecordClass = activityRecord.getClass();
+                    java.lang.reflect.Field pausedField = activityRecordClass.getDeclaredField("paused");
+                    pausedField.setAccessible(true);
+                    
+                    if (!pausedField.getBoolean(activityRecord)) {
+                        java.lang.reflect.Field activityField = activityRecordClass.getDeclaredField("activity");
+                        activityField.setAccessible(true);
+                        Activity activity = (Activity) activityField.get(activityRecord);
+                        if (activity != null) {
+                            return activity;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Method 2 failed: " + e.getMessage());
+        }
+
+        try {
+            // Method 3: Try to cast application context (last resort)
+            if (flutterPluginBinding.getApplicationContext() instanceof Activity) {
+                return (Activity) flutterPluginBinding.getApplicationContext();
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Method 3 failed: " + e.getMessage());
+        }
+
+        System.out.println("SDK-Android: All methods to get activity failed");
+        return null;
+    }
+    
+    /**
+     * Get the current activity instance.
+     * This is the recommended way to get the activity in the plugin.
+     * @return Current activity or null if not available
+     */
+    public Activity getCurrentActivity() {
+        if (activity != null) {
+            System.out.println("SDK-Android: Returning cached activity: " + activity.getClass().getSimpleName());
+            return activity;
+        }
+        
+        System.out.println("SDK-Android: No cached activity available");
+        return null;
+    }
+    
+    /**
+     * Static method to get the current activity from anywhere in the codebase.
+     * @return Current activity or null if not available
+     */
+    public static Activity getActivity() {
+        if (shared != null) {
+            return shared.getCurrentActivity();
+        }
+        System.out.println("SDK-Android: MptCallkitPlugin.shared is null");
+        return null;
     }
 
     public void requestPermissions(Activity activity, MethodChannel.Result result) {

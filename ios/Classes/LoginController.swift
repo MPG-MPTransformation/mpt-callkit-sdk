@@ -78,7 +78,7 @@ class LoginViewController {
         
         print("Initialize SDk with enableDebugLog \(enableDebugLog) - logPath \(logPath)")
         
-        let ret = portSIPSDK.initialize(transport, localIP: loaclIPaddress, localSIPPort: Int32(localPort), loglevel: enableDebugLog ? PORTSIP_LOG_DEBUG : PORTSIP_LOG_NONE, logPath: enableDebugLog ? logPath : "", maxLine: 8, agent: "PortSIP SDK for IOS", audioDeviceLayer: 0, videoDeviceLayer: 0, tlsCertificatesRootPath: "", tlsCipherList: "", verifyTLSCertificate: false, dnsServers: "")
+        let ret = portSIPSDK.initialize(transport, localIP: loaclIPaddress, localSIPPort: Int32(localPort), loglevel: enableDebugLog ? PORTSIP_LOG_DEBUG : PORTSIP_LOG_NONE, logPath: enableDebugLog ? logPath : "", maxLine: 8, agent: "PortSIP SDK for IOS", audioDeviceLayer: 0, videoDeviceLayer: 1, tlsCertificatesRootPath: "", tlsCipherList: "", verifyTLSCertificate: false, dnsServers: "")
         
         if ret != 0 {
             print("Initialize failure ErrorCode = \(ret)")

@@ -40,6 +40,7 @@ class _LoginMethodState extends State<LoginMethod> {
       appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
       enableDebugLog: true,
       deviceInfo: "deviceInfo",
+      recordLabel: "Nhân viên",
     );
   }
 

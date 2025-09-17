@@ -128,17 +128,17 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       if (accessToken != null) {
         await MptCallKitController().connectToSocketServer(accessToken);
       }
-      if (Platform.isAndroid) {
-        MptCallKitController().refreshRegister();
-      }
+      // if (Platform.isAndroid) {
+      //   MptCallKitController().refreshRegister();
+      // }
     }
 
     if ((state == AppLifecycleState.paused ||
             state == AppLifecycleState.inactive) &&
         isOnCall == false) {
-      if (Platform.isAndroid) {
-        MptCallKitController().unRegister();
-      }
+      // if (Platform.isAndroid) {
+      //   MptCallKitController().unRegister();
+      // }
     }
   }
 

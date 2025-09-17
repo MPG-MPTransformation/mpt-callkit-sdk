@@ -4,9 +4,18 @@ import android.content.Context;
 import io.flutter.plugin.common.StandardMessageCodec;
 import io.flutter.plugin.platform.PlatformView;
 import io.flutter.plugin.platform.PlatformViewFactory;
+import android.graphics.Bitmap;
 
 public class LocalViewFactory extends PlatformViewFactory {
     private final Context context;
+    private LocalView localView;
+
+    public void setImage(Bitmap bitmap) {
+        if (localView != null) {
+            System.out.println("SDK-Android: LocalViewFactory - setImage called with bitmap: " + bitmap);
+            localView.setImage(bitmap);
+        }
+    }
 
     public LocalViewFactory(Context context) {
         super(StandardMessageCodec.INSTANCE);
@@ -21,6 +30,7 @@ public class LocalViewFactory extends PlatformViewFactory {
         if (context == null) {
             throw new IllegalArgumentException("Context cannot be null");
         }
-        return new LocalView(this.context, viewId);
+        localView = new LocalView(this.context, viewId);
+        return localView;
     }
 }

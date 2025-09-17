@@ -224,8 +224,8 @@ class RemoteViewController: UIViewController {
        viewRemoteVideo = PortSIPVideoRenderView()
        viewRemoteVideo.translatesAutoresizingMaskIntoConstraints = false
        viewRemoteVideo.backgroundColor = .black
-       viewRemoteVideo.contentMode = .scaleAspectFill // Sử dụng scaleAspectFill để lấp đầy view
-       viewRemoteVideo.clipsToBounds = true // Cắt phần thừa để không bị tràn ra ngoài
+//       viewRemoteVideo.contentMode = .scaleToFill // Sử dụng scaleAspectFill để lấp đầy view
+//       viewRemoteVideo.clipsToBounds = true // Cắt phần thừa để không bị tràn ra ngoài
        self.view.addSubview(viewRemoteVideo)
       
        // Đặt constraints để lấp đầy toàn bộ màn hình (không dùng safeArea)

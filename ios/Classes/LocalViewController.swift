@@ -7,6 +7,14 @@ class LocalViewController: UIViewController {
    var viewLocalVideo: PortSIPVideoRenderView!
    var portSIPSDK: PortSIPSDK!
    var isVideoInitialized: Bool = false
+    public lazy var previewOverlayView: UIImageView = {
+
+        precondition(isViewLoaded)
+        let previewOverlayView = UIImageView(frame: .zero)
+        previewOverlayView.contentMode = UIView.ContentMode.scaleAspectFill
+        previewOverlayView.translatesAutoresizingMaskIntoConstraints = false
+        return previewOverlayView
+      }()
   
    override func viewDidLoad() {
        super.viewDidLoad()
@@ -250,17 +258,25 @@ class LocalViewController: UIViewController {
        viewLocalVideo = PortSIPVideoRenderView()
        viewLocalVideo.translatesAutoresizingMaskIntoConstraints = false
        viewLocalVideo.backgroundColor = .black
-       viewLocalVideo.contentMode = .scaleAspectFill // Sử dụng scaleAspectFill để lấp đầy view
-       viewLocalVideo.clipsToBounds = true // Cắt phần thừa để không bị tràn ra ngoài
-       self.view.addSubview(viewLocalVideo)
+//       viewLocalVideo.contentMode = .scaleToFill // Sử dụng scaleAspectFill để lấp đầy view
+//       viewLocalVideo.clipsToBounds = true // Cắt phần thừa để không bị tràn ra ngoài
+//       self.view.addSubview(viewLocalVideo)
+       self.view.addSubview(previewOverlayView)
+       NSLayoutConstraint.activate([
+         previewOverlayView.topAnchor.constraint(equalTo: view.topAnchor),
+         previewOverlayView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+         previewOverlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+         previewOverlayView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+
+       ])
       
        // Đặt constraints để lấp đầy toàn bộ view controller
-       NSLayoutConstraint.activate([
-           viewLocalVideo.topAnchor.constraint(equalTo: view.topAnchor),
-           viewLocalVideo.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-           viewLocalVideo.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-           viewLocalVideo.trailingAnchor.constraint(equalTo: view.trailingAnchor)
-       ])
+//       NSLayoutConstraint.activate([
+//           viewLocalVideo.topAnchor.constraint(equalTo: view.topAnchor),
+//           viewLocalVideo.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+//           viewLocalVideo.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+//           viewLocalVideo.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+//       ])
       
        // Set a clear background for easy debugging
        self.view.backgroundColor = .black
