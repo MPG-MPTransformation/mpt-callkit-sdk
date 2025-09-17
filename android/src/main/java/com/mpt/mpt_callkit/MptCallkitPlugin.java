@@ -515,6 +515,14 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 offLineIntent = new Intent(activity, PortSipService.class);
                 offLineIntent.setAction(PortSipService.ACTION_SIP_UNREGIEST);
                 PortSipService.startServiceCompatibility(activity, offLineIntent);
+
+                if(disablePushNoti == true){
+                    // clear all shared preferences
+                    preferences.edit().clear().apply();
+                    editor.clear().apply();
+                    System.out.println("SDK-Android: Clear all shared preferences");
+                }
+
                 System.out.println("SDK-Android: UnregisterServer..");
                 result.success(true);
                 break;
@@ -670,7 +678,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 PortSipService.startServiceCompatibility(activity, onLineIntent);
                 System.out.println("SDK-Android: RegisterServer..");
 
-                if (autoLogin != null && autoLogin) {
+                if (autoLogin == true) {
                     // saved login info
                     preferences = PreferenceManager.getDefaultSharedPreferences(activity);
                     editor = preferences.edit();

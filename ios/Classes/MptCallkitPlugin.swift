@@ -2379,6 +2379,25 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             {
                 addPushSupportWithPortPBX(!disablePushNoti)
             }
+
+            if disablePushNoti == true {
+                // clear all shared preferences
+                UserDefaults.standard.removeObject(forKey: "username")
+                UserDefaults.standard.removeObject(forKey: "displayName")
+                UserDefaults.standard.removeObject(forKey: "authName")
+                UserDefaults.standard.removeObject(forKey: "password")
+                UserDefaults.standard.removeObject(forKey: "userDomain")
+                UserDefaults.standard.removeObject(forKey: "sipServer")
+                UserDefaults.standard.removeObject(forKey: "sipServerPort")
+                UserDefaults.standard.removeObject(forKey: "transportType")
+                UserDefaults.standard.removeObject(forKey: "srtpType")
+                UserDefaults.standard.removeObject(forKey: "enableDebugLog")
+                UserDefaults.standard.removeObject(forKey: "resolution")
+                UserDefaults.standard.removeObject(forKey: "bitrate")
+                UserDefaults.standard.removeObject(forKey: "frameRate")
+                UserDefaults.standard.removeObject(forKey: "recordLabel")
+                UserDefaults.standard.removeObject(forKey: "autoLogin")
+            }
             
             self.loginViewController.offLine()
             result(true)
