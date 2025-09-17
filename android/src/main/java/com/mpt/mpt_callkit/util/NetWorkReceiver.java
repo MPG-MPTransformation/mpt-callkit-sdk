@@ -47,7 +47,7 @@ public class NetWorkReceiver extends BroadcastReceiver {
                 System.out.println("SDK-Android: getNetWorkState - " + activeNetworkInfo.getType());
                 if (activeNetworkInfo.getType() == (ConnectivityManager.TYPE_WIFI)) {
                     return ConnectivityManager.TYPE_WIFI;
-                } else {
+                } else if (activeNetworkInfo.getType() == (ConnectivityManager.TYPE_WIFI)) {
                     return ConnectivityManager.TYPE_WIFI;
                 }
             } else {

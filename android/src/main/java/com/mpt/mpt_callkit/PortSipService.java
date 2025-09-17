@@ -347,22 +347,18 @@ public class PortSipService extends Service
         int frameRate = intent.getIntExtra("frameRate", 30);
         int result = super.onStartCommand(intent, flags, startId);
         if (intent != null) {
-            /*
-             * if(ACTION_PUSH_MESSAGE.equals(intent.getAction())){
-             * if(!CallManager.Instance().online){
-             * initialSDK();
-             * }
-             * if(!CallManager.Instance().isRegistered){
-             * registerToServer();
-             * }
-             * }else
-             */
-            
 
-            if (ACTION_SIP_REGIEST.equals(intent.getAction())) {
+            if (ACTION_PUSH_MESSAGE.equals(intent.getAction())) {
                 if (!CallManager.Instance().online) {
-                initialSDK(enableDebugLog);
-                registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
+                    initialSDK(enableDebugLog);
+                }
+                if (!CallManager.Instance().isRegistered) {
+                    registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
+                }
+            } else if (ACTION_SIP_REGIEST.equals(intent.getAction())) {
+                if (!CallManager.Instance().online) {
+                    initialSDK(enableDebugLog);
+                    registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
                 }
             } else if (ACTION_SIP_UNREGIEST.equals(intent.getAction())) {
                 logWithTimestamp("SDK-Android: service is doing unregisterToServer...");
@@ -479,36 +475,36 @@ public class PortSipService extends Service
 
     public void unregisterToServer() {
         logWithTimestamp("SDK-Android: unregisterToServer");
-        // if (CallManager.Instance().online) {
-            try {
-                PortSipSdk engine = Engine.Instance().getEngine();
-                if (engine != null) {
-                    // Hang up all active calls first
-                    CallManager.Instance().hangupAllCalls(engine);
+         if (CallManager.Instance().online) {
+        try {
+            PortSipSdk engine = Engine.Instance().getEngine();
+            if (engine != null) {
+                // Hang up all active calls first
+                CallManager.Instance().hangupAllCalls(engine);
 
-                    // Wait a bit for hangup to complete
-                    Thread.sleep(500);
+                // Wait a bit for hangup to complete
+                Thread.sleep(500);
 
-                    // Then cleanup
-                    engine.destroyConference();
-                    engine.unRegisterServer(100);
-                    engine.removeUser();
-                    engine.unInitialize();
-                }
-
-                CallManager.Instance().resetAll();
-                CallManager.Instance().online = false;
-                CallManager.Instance().isRegistered = false;
-
-                if (Engine.Instance().getMethodChannel() != null) {
-                    Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", false);
-                    MptCallkitPlugin.sendToFlutter("onlineStatus", false);
-                }
-
-            } catch (Exception e) {
-                logWithTimestamp("SDK-Android: Error during unregisterToServer: " + e.getMessage());
+                // Then cleanup
+                engine.destroyConference();
+                engine.unRegisterServer(100);
+                engine.removeUser();
+                engine.unInitialize();
             }
-        // }
+
+            CallManager.Instance().resetAll();
+            CallManager.Instance().online = false;
+            CallManager.Instance().isRegistered = false;
+
+            if (Engine.Instance().getMethodChannel() != null) {
+                Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", false);
+                MptCallkitPlugin.sendToFlutter("onlineStatus", false);
+            }
+
+        } catch (Exception e) {
+            logWithTimestamp("SDK-Android: Error during unregisterToServer: " + e.getMessage());
+        }
+         }
     }
 
     private void registerReceiver() {
@@ -582,15 +578,20 @@ public class PortSipService extends Service
             int width = 1280;
             int height = 720;
             if ("QCIF".equals(resolution)) {
-                width = 176; height = 144;
+                width = 176;
+                height = 144;
             } else if ("CIF".equals(resolution)) {
-                width = 352; height = 288;
+                width = 352;
+                height = 288;
             } else if ("VGA".equals(resolution)) {
-                width = 640; height = 480;
+                width = 640;
+                height = 480;
             } else if ("720P".equals(resolution)) {
-                width = 1280; height = 720;
+                width = 1280;
+                height = 720;
             } else if ("1080P".equals(resolution)) {
-                width = 1920; height = 1080;
+                width = 1920;
+                height = 1080;
             }
 
             Engine.Instance().getEngine().setVideoResolution(width, height);
@@ -648,7 +649,8 @@ public class PortSipService extends Service
 
     @Override
     public void onRegisterSuccess(String statusText, int statusCode, String sipMessage) {
-        logWithTimestamp("SDK-Android: onRegisterSuccess - statusText: " + statusText + " - statusCode: "+ statusCode + " - sipMessage: "+ sipMessage);
+        logWithTimestamp("SDK-Android: onRegisterSuccess - statusText: " + statusText + " - statusCode: " + statusCode
+                + " - sipMessage: " + sipMessage);
         CallManager.Instance().isRegistered = true;
         Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
         MptCallkitPlugin.sendToFlutter("onlineStatus", true);
@@ -668,6 +670,7 @@ public class PortSipService extends Service
         Intent broadIntent = new Intent(REGISTER_CHANGE_ACTION);
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);
         // sendPortSipMessage("onRegisterFailure" + statusCode, broadIntent);
+        CallManager.Instance().isRegistered = false;
         CallManager.Instance().resetAll();
         Engine.Instance().getMethodChannel().invokeMethod("registrationStateStream", false);
         MptCallkitPlugin.sendToFlutter("registrationStateStream", false);
@@ -700,9 +703,9 @@ public class PortSipService extends Service
                 + ", sipMessage: " + sipMessage);
 
         // if (CallManager.Instance().findIncomingCall() != null) {
-        //     Engine.Instance().getEngine().rejectCall(sessionId, 486); // busy
-        //     logWithTimestamp("SDK-Android: Rejected call - already in a call");
-        //     return;
+        // Engine.Instance().getEngine().rejectCall(sessionId, 486); // busy
+        // logWithTimestamp("SDK-Android: Rejected call - already in a call");
+        // return;
         // }
         Session session = CallManager.Instance().findIdleSession();
         session.state = Session.CALL_STATE_FLAG.INCOMING;
@@ -1043,7 +1046,7 @@ public class PortSipService extends Service
             MptCallkitPlugin.sendToFlutter("currentAudioDevice",
                     PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
         }
-        
+
         sendCallStateToFlutter("CONNECTED");
     }
 
@@ -1376,10 +1379,11 @@ public class PortSipService extends Service
 
     @Override
     public void onNetworkChange(int netMobile) {
-        logWithTimestamp("SDK-Android: onNetworkChange");
+        logWithTimestamp("SDK-Android: onNetworkChange value = " + netMobile);
         if (netMobile == -1) {
             // invaluable
         } else {
+            logWithTimestamp("SDK-Android: onNetworkChange isOnline = " + CallManager.Instance().online);
             if (CallManager.Instance().online) {
                 Engine.Instance().getEngine().refreshRegistration(0);
             } else {
