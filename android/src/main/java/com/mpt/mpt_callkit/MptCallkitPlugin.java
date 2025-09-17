@@ -128,7 +128,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private SharedPreferences preferences;
     private SharedPreferences.Editor editor;
     private boolean socketReady = false;
-    private LocalViewFactory localViewFactory;
+    private static LocalViewFactory localViewFactory;
 
     private CameraSource cameraSource = null;
     private boolean isStartCameraSource = false;
@@ -156,11 +156,11 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             Engine.Instance().setReceiver(new PortMessageReceiver());
         }
 
-        localViewFactory = new LocalViewFactory(context);
+        MptCallkitPlugin.localViewFactory = new LocalViewFactory(context);
         // Đăng ký LocalViewFactory
         flutterPluginBinding
                 .getPlatformViewRegistry()
-                .registerViewFactory("LocalView", localViewFactory);
+                .registerViewFactory("LocalView", MptCallkitPlugin.localViewFactory);
         flutterPluginBinding
                 .getPlatformViewRegistry()
                 .registerViewFactory("RemoteView", new RemoteViewFactory());
@@ -291,8 +291,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     @Override
     public void onDetectionSuccess(Bitmap bitmap, long frameStartMs) {
-        if (MptCallkitPlugin.shared.localViewFactory != null) {
-            MptCallkitPlugin.shared.localViewFactory.setImage(bitmap);
+        if (MptCallkitPlugin.localViewFactory != null) {
+            MptCallkitPlugin.localViewFactory.setImage(bitmap);
         }
 
         Session currentLine = CallManager.Instance().getCurrentSession();
@@ -304,7 +304,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
 
             int result = Engine.Instance().getEngine().sendVideoStreamToRemote(currentLine.sessionID, yuvData, yuvData.length, width, height);
-            System.out.println("SDK-Android: MptCallkitPlugin - sendVideoStreamToRemote result: " + result);
+            System.out.println("SDK-Android: MptCallkitPlugin - sendVideoStreamToRemote result: " + result + ", width: " + width + ", height: " + height);
         }
     }
 
@@ -383,7 +383,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
            System.out.println("SDK-Android: MptCallkitPlugin - onMessageReceived - context is null, cannot proceed");
            return;
        }
-       MptCallkitPlugin.shared.context = ctx;
+       context = ctx;
        loginIfNeeded(ctx);
     }
 
@@ -466,8 +466,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         rejectCall();
     }
 
-    public void onResume()   {
+    public void onResume(Activity activity)   {
         System.out.println("SDK-Android: MptCallkitPlugin - onResume called");
+        MptCallkitPlugin.shared = this;
+        this.activity = activity;
         loginIfNeeded(activity);
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (currentLine != null && currentLine.sessionID > 0 && currentLine.hasVideo) {
@@ -665,11 +667,11 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 onLineIntent.putExtra("resolution", resolution);
                 onLineIntent.putExtra("bitrate", bitrate);
                 onLineIntent.putExtra("frameRate", frameRate);
-                PortSipService.startServiceCompatibility(context, onLineIntent);
+                PortSipService.startServiceCompatibility(activity, onLineIntent);
                 System.out.println("SDK-Android: RegisterServer..");
 
                 // saved login info
-                preferences = PreferenceManager.getDefaultSharedPreferences(context);
+                preferences = PreferenceManager.getDefaultSharedPreferences(activity);
                 editor = preferences.edit();
                 editor.putString("username", username);
                 editor.putString("password", password);

@@ -936,7 +936,7 @@ public class CameraSource {
       }
       
       // Adjust for screen size if needed
-      adjustForScreenSize(screenWidth, screenHeight);
+      // adjustForScreenSize(screenWidth, screenHeight);
       
     } catch (Exception e) {
       Log.w(TAG, "Failed to auto-select resolution, using default", e);

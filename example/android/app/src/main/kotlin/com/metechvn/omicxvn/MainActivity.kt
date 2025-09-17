@@ -50,7 +50,7 @@ class MainActivity : FlutterActivity() {
         super.onPause()
     }
     override fun onResume() {
-        MptCallkitPlugin.shared?.onResume()
+        MptCallkitPlugin.shared?.onResume(this)
         super.onResume()
     }
     override fun onDestroy() {

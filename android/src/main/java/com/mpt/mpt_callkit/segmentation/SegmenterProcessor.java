@@ -96,6 +96,9 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
     ByteBuffer mask = segmentationMask.getBuffer();
     int maskWidth = segmentationMask.getWidth();
     int maskHeight = segmentationMask.getHeight();
+
+    int originalHeight = originalCameraImage.getHeight();
+    int originalWidth = originalCameraImage.getWidth();
     
     // Create a mutable copy of the original camera image
     Bitmap resultBitmap = originalCameraImage.copy(originalCameraImage.getConfig(), true);
@@ -104,7 +107,7 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
     Bitmap maskBitmap = Bitmap.createBitmap(maskColorsFromByteBuffer(mask, maskWidth, maskHeight), maskWidth, maskHeight, Config.ARGB_8888);
     
     // Scale the mask bitmap to match the original image dimensions if needed
-    if (maskWidth != originalCameraImage.getWidth() || maskHeight != originalCameraImage.getHeight()) {
+    if (maskWidth != originalWidth || maskHeight != originalHeight) {
       maskBitmap = Bitmap.createScaledBitmap(maskBitmap, originalCameraImage.getWidth(), originalCameraImage.getHeight(), true);
     }
     

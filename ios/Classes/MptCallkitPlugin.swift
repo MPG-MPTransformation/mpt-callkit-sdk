@@ -3425,7 +3425,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         }
         
         // Adjust for screen size if needed
-        adjustForScreenSize(screenWidth: screenWidth, screenHeight: screenHeight)
+        // adjustForScreenSize(screenWidth: screenWidth, screenHeight: screenHeight)
     }
     
     /// Determines if the device is high-end based on hardware specs
