@@ -531,6 +531,7 @@ class _CallPadState extends State<CallPad> {
         var answerCode = await MptCallKitController().answerCall();
         setState(() {
           callStatusCode = answerCode;
+          print("answerCode result: $answerCode");
         });
         break;
       case 'hangup':

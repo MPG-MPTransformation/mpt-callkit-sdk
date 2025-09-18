@@ -949,15 +949,18 @@ class MptCallKitController {
       print("getExtension");
       int retryCount = retryTime;
       final String base = await getCurrentBaseUrl();
+      final String currentApiKey = await getCurrentApiKey();
       final url = Uri.parse("$base/integration/extension/request");
+
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $currentApiKey',
+      };
 
       final response = await http
           .post(
             url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ${await getCurrentApiKey()}',
-            },
+            headers: headers,
             body: json.encode({
               "phone_number": phoneNumber,
             }),
@@ -965,6 +968,7 @@ class MptCallKitController {
           .timeout(const Duration(seconds: 10));
 
       // Log response details for debugging
+      print("getExtension - Response headers: ${jsonEncode(headers)}");
       print("getExtension - Response status code: ${response.statusCode}");
       print("getExtension - Response headers: ${response.headers}");
       print("getExtension - Response body: ${response.body}");
@@ -1837,12 +1841,18 @@ class MptCallKitController {
 
   // Handle guest registration state
   void _handleGuestRegistrationState(dynamic data) async {
-    if (data == true) {
-      print('SIP Registration successful for guest');
-      _guestRegistrationCompleter?.complete(true);
+    if (_guestRegistrationCompleter != null &&
+        !_guestRegistrationCompleter!.isCompleted) {
+      if (data == true) {
+        print('SIP Registration successful for guest');
+        _guestRegistrationCompleter!.complete(true);
+      } else {
+        print('SIP Registration has failed for guest');
+        _guestRegistrationCompleter!.complete(false);
+      }
     } else {
-      print('SIP Registration has failed for guest');
-      _guestRegistrationCompleter?.complete(false);
+      print(
+          'Guest registration completer is null or already completed - ignoring state: $data');
     }
   }
 
@@ -1882,7 +1892,10 @@ class MptCallKitController {
     _cleanupGuestRegistrationState();
 
     // Legacy cleanup (keeping for safety)
-    _guestRegistrationCompleter?.complete(false);
+    if (_guestRegistrationCompleter != null &&
+        !_guestRegistrationCompleter!.isCompleted) {
+      _guestRegistrationCompleter!.complete(false);
+    }
     _guestRegistrationCompleter = null;
 
     // Stop SIP connectivity check

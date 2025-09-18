@@ -45,13 +45,13 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <service
+        <!-- <service
 			android:name=".MyFirebaseMessagingService"
 			android:exported="true">
 			<intent-filter>
 				<action android:name="com.google.firebase.MESSAGING_EVENT"/>
 			</intent-filter>
-		</service>
+		</service> -->
 		
 		<!-- Boot completed receiver to restart services -->
 		<receiver android:name=".BootReceiver"
