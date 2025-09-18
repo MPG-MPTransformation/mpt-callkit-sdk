@@ -14,9 +14,9 @@ public class CallManager {
 	private static CallManager mInstance;
 	private static Object locker = new Object();
 	Session[] sessions = new Session[MAX_LINES];
-	public int CurrentLine;
-	public boolean isRegistered;
-	public boolean online;
+	public int CurrentLine = -1;
+	public boolean isRegistered = false;
+	public boolean online = false;
 	public boolean speakerOn = false;
 	PortSipEnumDefine.AudioDevice currentAudioDevice = PortSipEnumDefine.AudioDevice.NONE;
 	List<PortSipEnumDefine.AudioDevice> audioDeviceAvailable = new ArrayList<>();

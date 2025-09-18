@@ -332,7 +332,6 @@ public class PortSipService extends Service
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        logWithTimestamp("SDK-Android: onStartCommand");
         String username = intent.getStringExtra("username");
         String password = intent.getStringExtra("password");
         String domain = intent.getStringExtra("domain");
@@ -347,6 +346,7 @@ public class PortSipService extends Service
         int frameRate = intent.getIntExtra("frameRate", 30);
         int result = super.onStartCommand(intent, flags, startId);
         if (intent != null) {
+            logWithTimestamp("SDK-Android: onStartCommand, action: " + intent.getAction());
             /*
              * if(ACTION_PUSH_MESSAGE.equals(intent.getAction())){
              * if(!CallManager.Instance().online){
@@ -360,9 +360,16 @@ public class PortSipService extends Service
             
 
             if (ACTION_SIP_REGIEST.equals(intent.getAction())) {
+                logWithTimestamp("SDK-Android: service is doing registerToServer, online: " + CallManager.Instance().online + ", isRegistered: " + CallManager.Instance().isRegistered);
                 if (!CallManager.Instance().online) {
-                initialSDK(enableDebugLog);
-                registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
+                    initialSDK(enableDebugLog);
+                }
+                if(CallManager.Instance().isRegistered){
+                    MptCallkitPlugin.sendToFlutter("onlineStatus", true);
+                    Engine.Instance().getMethodChannel().invokeMethod("registrationStateStream", true);
+                    MptCallkitPlugin.sendToFlutter("registrationStateStream", true);
+                } else {
+                    registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
                 }
             } else if (ACTION_SIP_UNREGIEST.equals(intent.getAction())) {
                 logWithTimestamp("SDK-Android: service is doing unregisterToServer...");
@@ -1065,6 +1072,7 @@ public class PortSipService extends Service
     @Override
     public void onInviteClosed(long sessionId, String sipMessage) {
         logWithTimestamp("SDK-Android: onInviteClosed");
+        MptCallkitPlugin.shared.stopCameraSource();
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
         if (session != null) {
             session.state = Session.CALL_STATE_FLAG.CLOSED;
@@ -1076,7 +1084,6 @@ public class PortSipService extends Service
             broadIntent.putExtra(EXTRA_CALL_DESCRIPTION, description);
 
             sendPortSipMessage(description, broadIntent);
-            MptCallkitPlugin.shared.stopCameraSource();
         }
         Ring.getInstance(this).stopRingTone();
         if (mNotificationManager != null) {

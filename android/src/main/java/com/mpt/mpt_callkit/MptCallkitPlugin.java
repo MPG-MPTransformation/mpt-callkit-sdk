@@ -133,6 +133,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private CameraSource cameraSource = null;
     private boolean isStartCameraSource = false;
     private String recordLabel = "Agent";
+    private boolean enableBlurBackground = false;
     private SegmenterProcessor segmenterProcessor;
 
     public MptCallkitPlugin() {
@@ -177,6 +178,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     }
                 });
         MptCallkitPlugin.shared = this;
+        System.out.println("SDK-Android: onAttachedToEngine done");
     }
 
     private byte[] bitmapToYUVData(Bitmap bitmap) {
@@ -318,7 +320,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             cameraSource = new CameraSource(activity);
         }
         if (segmenterProcessor == null) {
-            segmenterProcessor = new SegmenterProcessor(activity, this, recordLabel);
+            segmenterProcessor = new SegmenterProcessor(activity, this, recordLabel, enableBlurBackground);
             cameraSource.setMachineLearningFrameProcessor(segmenterProcessor);
         }
     }
@@ -431,8 +433,13 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     private void unregisterIfNeeded() {
         Session currentLine = CallManager.Instance().getCurrentSession();
-        if ((currentLine != null && currentLine.sessionID > 0) || activity == null || activity.getPackageName() == null) {
+        if (currentLine != null && currentLine.sessionID > 0) {
             // IN CALl
+            System.out.println("SDK-Android: OnPause - In call, cannot unregister");
+            return;
+        }
+        if (activity == null || activity.getPackageName() == null) {
+            System.out.println("SDK-Android: OnPause - Activity is null, cannot unregister");
             return;
         }
         Intent offLineIntent = new Intent(activity, PortSipService.class);
@@ -449,7 +456,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         editor = preferences.edit();
         editor.putBoolean("answeredWithCallKit", true);
         editor.commit();
-        if (this.socketReady == true && CallManager.Instance().getCurrentSession() != null && this.answeredWithCallKit) {
+        Session currentLine = CallManager.Instance().getCurrentSession();
+        if (this.socketReady == true && currentLine != null && currentLine.sessionID > 0 && this.answeredWithCallKit) {
             System.out.println("SDK-Android: MptCallkitPlugin - onAccept - Answering call after socket is ready");
             answerCall(false);
             this.answeredWithCallKit = false; // Reset flag after answering
@@ -468,7 +476,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     public void onResume(Activity activity)   {
         System.out.println("SDK-Android: MptCallkitPlugin - onResume called");
-        this.activity = activity;
+        // this.activity = activity;
         loginIfNeeded(activity);
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (currentLine != null && currentLine.sessionID > 0 && currentLine.hasVideo) {
@@ -505,6 +513,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         Intent offLineIntent = null;
         Intent myIntent = null;
         Intent stopIntent = null;
+        Session currentLine = null;
         switch (call.method) {
             case "getPlatformVersion":
                 result.success("Android " + android.os.Build.VERSION.RELEASE);
@@ -640,9 +649,17 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 this.pushToken = call.argument("pushToken");
                 Boolean enableDebugLog = call.argument("enableDebugLog");
                 String recordLabel = call.argument("recordLabel");
+                Boolean enableBlurBackground = call.argument("enableBlurBackground");
                 Boolean autoLogin = call.argument("autoLogin");
-                if (segmenterProcessor != null) {
+                
+                if (segmenterProcessor != null && recordLabel != null) {
+                    this.recordLabel = recordLabel;
                     segmenterProcessor.setText(recordLabel);
+                }
+
+                if (segmenterProcessor != null && enableBlurBackground != null) {
+                    this.enableBlurBackground = enableBlurBackground;
+                    segmenterProcessor.setEnableBlurBackground(enableBlurBackground);
                 }
 
                 // Video quality parameters
@@ -696,8 +713,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     editor.putString("resolution", resolution);
                     editor.putInt("bitrate", bitrate);
                     editor.putInt("frameRate", frameRate);
-                    editor.putString("recordLabel", recordLabel);
+                    editor.putString("recordLabel", this.recordLabel);
                     editor.putBoolean("autoLogin", autoLogin);
+                    editor.putBoolean("enableBlurBackground", this.enableBlurBackground);
                     editor.commit();
                 }
 
@@ -733,7 +751,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 result.success(reinviteResult);
                 break;
             case "updateVideoCall":
-                Session currentLine = CallManager.Instance().getCurrentSession();
+                currentLine = CallManager.Instance().getCurrentSession();
                 Boolean isVideo = call.argument("isVideo");
                 // Gửi video từ camera
                 // int sendVideoResult = Engine.Instance().getEngine().sendVideo(currentLine.sessionID, isVideo);
@@ -757,7 +775,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 editor.putBoolean("socketReady", socketReady);
                 editor.apply();
                 System.out.println("SDK-Android: MptCallkitPlugin - socketStatus - ready: " + socketReady + ", currentSession: " + CallManager.Instance().getCurrentSession() + ", answeredWithCallKit: " + this.answeredWithCallKit);
-                if (socketReady == true && CallManager.Instance().getCurrentSession() != null && this.answeredWithCallKit) {
+                currentLine = CallManager.Instance().getCurrentSession();
+                if (socketReady == true && currentLine != null && currentLine.sessionID > 0 && this.answeredWithCallKit) {
                     System.out.println("SDK-Android: MptCallkitPlugin - socketStatus - Answering call after socket is ready");
                     answerCall(false);
                     this.answeredWithCallKit = false; // Reset flag after answering
@@ -1132,6 +1151,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     case TRYING:
                         statusCode = engine.hangUp(currentLine.sessionID);
                         System.out.println("SDK-Android: hangUp status code: " + statusCode);
+                        stopCameraSource();
 
                         if (Engine.Instance().getMethodChannel() != null) {
                             if (MainActivity.activity != null) {
@@ -1248,6 +1268,14 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         Ring.getInstance(MainActivity.activity).stopRingTone();
         Ring.getInstance(MainActivity.activity).stopRingBackTone();
         if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING) {
+            if (Engine.Instance().getEngine() == null) {
+                Engine.Instance().setEngine(new PortSipSdk(MptCallkitPlugin.shared.context));
+                // Only create receiver if it doesn't exist
+                if (Engine.Instance().getReceiver() == null) {
+                    Engine.Instance().setReceiver(new PortMessageReceiver());
+                }
+            }
+
             int result = Engine.Instance().getEngine().answerCall(currentLine.sessionID, currentLine.hasVideo);
             System.out.println("SDK-Android: Answer call with video: " + currentLine.hasVideo);
             System.out.println("SDK-Android: Answer call result: " + result);

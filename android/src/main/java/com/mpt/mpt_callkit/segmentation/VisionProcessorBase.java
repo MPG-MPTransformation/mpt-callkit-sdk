@@ -325,7 +325,7 @@ public abstract class VisionProcessorBase<T> implements VisionImageProcessor {
             MlKitException.INVALID_ARGUMENT));
   }
 
-  protected abstract void onSuccess(@NonNull T results, @NonNull Bitmap originalCameraImage, long frameStartMs);
+  protected abstract void onSuccess(@Nullable T results, @NonNull Bitmap originalCameraImage, long frameStartMs);
 
   protected abstract void onFailure(@NonNull Exception e);
 

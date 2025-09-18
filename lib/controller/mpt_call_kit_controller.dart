@@ -384,6 +384,7 @@ class MptCallKitController {
     String? localizedCallerName,
     String? deviceInfo,
     String? recordLabel,
+    bool? enableBlurBackground,
   }) async {
     await enableFileLogging();
 
@@ -396,6 +397,7 @@ class MptCallKitController {
     final String resolvedCallerName = localizedCallerName ?? "Omicx call";
     final String resolvedDeviceInfo = deviceInfo ?? "";
     final String resolvedRecordLabel = recordLabel ?? "Customer";
+    final bool resolvedEnableBlurBackground = enableBlurBackground ?? false;
     print(
         "initSDK: apiKey: $apiKey, baseUrl: $baseUrl, pushToken: $pushToken, appId: $appId, enableDebugLog: $enableDebugLog, localizedCallerName: $localizedCallerName, deviceInfo: $deviceInfo");
 
@@ -418,6 +420,8 @@ class MptCallKitController {
           SDKPrefsKeyConstants.DEVICE_INFO, resolvedDeviceInfo);
       await prefs.setString(
           SDKPrefsKeyConstants.RECORD_LABEL, resolvedRecordLabel);
+      await prefs.setBool(SDKPrefsKeyConstants.ENABLE_BLUR_BACKGROUND,
+          resolvedEnableBlurBackground);
     } catch (e) {
       debugPrint('Failed to persist initSdk params: $e');
     }
@@ -627,6 +631,7 @@ class MptCallKitController {
               frameRate: extensionData?.frameRate,
               recordLabel: await getCurrentRecordLabel(),
               autoLogin: true,
+              enableBlurBackground: true,
             );
           } else {
             _appEvent.add(AppEventConstants.ERROR);
@@ -887,7 +892,8 @@ class MptCallKitController {
             bitrate: result.bitrate,
             frameRate: result.frameRate,
             recordLabel: await getCurrentRecordLabel(),
-            autoLogin: false);
+            autoLogin: false,
+            enableBlurBackground: await getCurrentEnableBlurBackground());
 
         // 🔧 FIX: Ensure no previous completer is pending
         if (_guestRegistrationCompleter != null &&
@@ -1151,6 +1157,7 @@ class MptCallKitController {
     int? frameRate,
     String? recordLabel,
     bool? autoLogin,
+    bool? enableBlurBackground,
     // required String localizedCallerName,
   }) async {
     this.isMakeCallByGuest = isMakeCallByGuest ?? false;
@@ -1189,6 +1196,7 @@ class MptCallKitController {
           "frameRate": frameRate ?? 30,
           "recordLabel": recordLabel ?? "Customer",
           "autoLogin": autoLogin ?? false,
+          "enableBlurBackground": enableBlurBackground ?? false,
         },
       );
 
@@ -2191,6 +2199,11 @@ class MptCallKitController {
   Future<String> getCurrentRecordLabel() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(SDKPrefsKeyConstants.RECORD_LABEL) ?? 'Customer';
+  }
+
+  Future<bool> getCurrentEnableBlurBackground() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(SDKPrefsKeyConstants.ENABLE_BLUR_BACKGROUND) ?? false;
   }
 
   Future<String> getCurrentAppId() async {

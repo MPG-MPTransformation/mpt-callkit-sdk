@@ -37,6 +37,7 @@ import com.google.android.gms.common.images.Size;
 import com.mpt.mpt_callkit.segmentation.PreferenceUtils;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.TimeUnit;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -74,7 +75,7 @@ public class CameraSource {
   public static final int IMAGE_FORMAT = ImageFormat.NV21;
   
   // Resolution presets for automatic selection
-  public static final int RESOLUTION_LOW = 0;      // 640x1080
+  public static final int RESOLUTION_LOW = 0;      // 480x640
   public static final int RESOLUTION_MEDIUM = 1;   // 720x1280  
   public static final int RESOLUTION_HIGH = 2;     // 1080x1920
   public static final int RESOLUTION_AUTO = 3;     // Automatic based on device
@@ -176,6 +177,22 @@ public class CameraSource {
       // Shutdown video processing executor
       if (videoProcessingExecutor != null) {
         videoProcessingExecutor.shutdown();
+        try {
+          // Wait for existing tasks to complete
+          if (!videoProcessingExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
+            // Force shutdown if tasks don't complete within timeout
+            videoProcessingExecutor.shutdownNow();
+            // Wait again for tasks to respond to being cancelled
+            if (!videoProcessingExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
+              Log.w(TAG, "Video processing executor did not terminate gracefully");
+            }
+          }
+        } catch (InterruptedException e) {
+          // Re-cancel if current thread is interrupted
+          videoProcessingExecutor.shutdownNow();
+          // Preserve interrupt status
+          Thread.currentThread().interrupt();
+        }
         videoProcessingExecutor = null;
       }
     }
@@ -499,13 +516,15 @@ public class CameraSource {
     for (SizePair sizePair : validPreviewSizes) {
       Size size = sizePair.preview;
       int diff =
-          Math.abs(size.getWidth() - desiredWidth) + Math.abs(size.getHeight() - desiredHeight);
+          Math.abs(size.getHeight() - desiredWidth) + Math.abs(size.getWidth() - desiredHeight);
       if (diff < minDiff) {
         selectedPair = sizePair;
         minDiff = diff;
       }
+      System.out.println("SDK-Android: CameraSource - selectSizePair - SizePair: " + size.getWidth() + "x" + size.getHeight());
     }
-
+    System.out.println("SDK-Android: CameraSource - selectSizePair - selectedPair picture: " + selectedPair.picture.getWidth() + "x" + selectedPair.picture.getHeight());
+    System.out.println("SDK-Android: CameraSource - selectSizePair - selectedPair preview: " + selectedPair.preview.getWidth() + "x" + selectedPair.preview.getHeight());
     return selectedPair;
   }
 
@@ -880,8 +899,8 @@ public class CameraSource {
   private void updateRequestedResolution() {
     switch (resolutionMode) {
       case RESOLUTION_LOW:
-        requestedWidth = 640;
-        requestedHeight = 1080;
+        requestedWidth = 480;
+        requestedHeight = 640;
         break;
       case RESOLUTION_MEDIUM:
         requestedWidth = 720;
@@ -930,13 +949,13 @@ public class CameraSource {
         Log.d(TAG, "Auto-selected MEDIUM resolution for mid-range device");
       } else {
         // Low-end device: use low resolution
-        requestedWidth = 640;
-        requestedHeight = 1080;
+        requestedWidth = 480;
+        requestedHeight = 640;
         Log.d(TAG, "Auto-selected LOW resolution for low-end device");
       }
       
       // Adjust for screen size if needed
-      // adjustForScreenSize(screenWidth, screenHeight);
+      adjustForScreenSize(screenWidth, screenHeight);
       
     } catch (Exception e) {
       Log.w(TAG, "Failed to auto-select resolution, using default", e);

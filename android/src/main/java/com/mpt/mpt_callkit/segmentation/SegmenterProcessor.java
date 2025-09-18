@@ -19,6 +19,7 @@ package com.mpt.mpt_callkit.segmentation;
 import android.content.Context;
 import android.util.Log;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
 import android.graphics.Canvas;
@@ -29,6 +30,7 @@ import android.graphics.Rect;
 import android.graphics.Typeface;
 import java.nio.ByteBuffer;
 import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import com.google.mlkit.vision.common.InputImage;
 import com.mpt.mpt_callkit.segmentation.VisionProcessorBase;
 import com.mpt.mpt_callkit.segmentation.PreferenceUtils;
@@ -46,19 +48,20 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
   private final Segmenter segmenter;
   private final VisionImageProcessorCallback callback;
   private String text;
+  private boolean enableBlurBackground = false;
 
-  public SegmenterProcessor(Context context, VisionImageProcessorCallback callback, String text) {
-      this(context, /* isStreamMode= */ true, callback, text);
+  public SegmenterProcessor(Context context, VisionImageProcessorCallback callback, String text, boolean enableBlurBackground) {
+      this(context, /* isStreamMode= */ true, callback, text, enableBlurBackground);
   }
 
-  public SegmenterProcessor(Context context, boolean isStreamMode, VisionImageProcessorCallback callback, String text) {
+  public SegmenterProcessor(Context context, boolean isStreamMode, VisionImageProcessorCallback callback, String text, boolean enableBlurBackground) {
     super(context);
     SelfieSegmenterOptions.Builder optionsBuilder = new SelfieSegmenterOptions.Builder();
     optionsBuilder.setDetectorMode(
       isStreamMode ? SelfieSegmenterOptions.STREAM_MODE : SelfieSegmenterOptions.SINGLE_IMAGE_MODE);
     this.callback = callback;
     this.text = text;
-
+    this.enableBlurBackground = enableBlurBackground;
 
     SelfieSegmenterOptions options = optionsBuilder.build();
     segmenter = Segmentation.getClient(options);
@@ -67,14 +70,22 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
 
   @Override
   protected Task<SegmentationMask> detectInImage(InputImage image) {
+    if (!enableBlurBackground) {
+      return Tasks.forResult(null);
+    }
     return segmenter.process(image);
   }
 
   @Override
   protected void onSuccess(
-      @NonNull SegmentationMask segmentationMask, @NonNull Bitmap originalCameraImage, long frameStartMs) {
+      @Nullable SegmentationMask segmentationMask, @NonNull Bitmap originalCameraImage, long frameStartMs) {
         // System.out.println("SDK-Android: SegmenterProcessor onSuccess, frameStartMs: " + frameStartMs);
-        callback.onDetectionSuccess(maskToBitmap(segmentationMask, originalCameraImage), frameStartMs);
+        if (segmentationMask == null) {
+          // When blur background is disabled, return the original image with text overlay
+          callback.onDetectionSuccess(createImageWithTextOverlay(originalCameraImage), frameStartMs);
+        } else {
+          callback.onDetectionSuccess(maskToBitmap(segmentationMask, originalCameraImage), frameStartMs);
+        }
   }
 
   @Override
@@ -90,6 +101,23 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
 
   public void setText(String text) {
     this.text = text;
+  }
+
+  public void setEnableBlurBackground(boolean enableBlurBackground) {
+    this.enableBlurBackground = enableBlurBackground;
+  }
+
+  @Override
+  public void stop() {
+    Log.d(TAG, "Stopping SegmenterProcessor and releasing ML Kit Segmenter");
+    
+    // Close the ML Kit Segmenter to release its resources and stop background threads
+    if (segmenter != null) {
+      segmenter.close();
+    }
+    
+    // Call parent stop method to handle executor shutdown and other cleanup
+    super.stop();
   }
 
   private Bitmap maskToBitmap(SegmentationMask segmentationMask, Bitmap originalCameraImage) {
@@ -117,22 +145,8 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
     paint.setAntiAlias(true);
     canvas.drawBitmap(maskBitmap, 0, 0, paint);
     
-    // Draw black text at top center
-    String text = this.text;
-    Paint textPaint = new Paint();
-    textPaint.setColor(Color.BLACK);
-    textPaint.setTextSize(48); // Adjust size as needed
-    textPaint.setTypeface(Typeface.DEFAULT_BOLD);
-    textPaint.setAntiAlias(true);
-    textPaint.setTextAlign(Paint.Align.CENTER);
-    
-    // Calculate text position (top center)
-    Rect textBounds = new Rect();
-    textPaint.getTextBounds(text, 0, text.length(), textBounds);
-    float x = resultBitmap.getWidth() / 2f; // Center horizontally
-    float y = textBounds.height() + 40; // Top with some margin
-    
-    canvas.drawText(text, x, y, textPaint);
+    // Draw text overlay
+    drawTextOverlay(canvas, resultBitmap.getWidth(), resultBitmap.getHeight());
     
     // Clean up the temporary mask bitmap
     if (maskBitmap != null && !maskBitmap.isRecycled()) {
@@ -140,6 +154,38 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
     }
     
     return resultBitmap;
+  }
+
+  private Bitmap createImageWithTextOverlay(Bitmap originalCameraImage) {
+    // Create a mutable copy of the original camera image
+    Bitmap resultBitmap = originalCameraImage.copy(originalCameraImage.getConfig(), true);
+    
+    // Draw text overlay
+    Canvas canvas = new Canvas(resultBitmap);
+    drawTextOverlay(canvas, resultBitmap.getWidth(), resultBitmap.getHeight());
+    
+    return resultBitmap;
+  }
+
+  private void drawTextOverlay(Canvas canvas, int bitmapWidth, int bitmapHeight) {
+    // Draw black text at top center
+    String text = this.text;
+    Paint textPaint = new Paint();
+    textPaint.setColor(Color.BLACK);
+    // Calculate text size based on screen width (responsive sizing)
+    float textSize = bitmapWidth * 0.05f; // 5% of screen width, adjust multiplier as needed
+    textPaint.setTextSize(textSize);
+    textPaint.setTypeface(Typeface.DEFAULT_BOLD);
+    textPaint.setAntiAlias(true);
+    textPaint.setTextAlign(Paint.Align.CENTER);
+    
+    // Calculate text position (top center)
+    Rect textBounds = new Rect();
+    textPaint.getTextBounds(text, 0, text.length(), textBounds);
+    float x = bitmapWidth / 2f; // Center horizontally
+    float y = textBounds.height() + bitmapHeight * 0.04f; // Top with some margin
+    
+    canvas.drawText(text, x, y, textPaint);
   }
 
   private int[] maskColorsFromByteBuffer(ByteBuffer byteBuffer, int maskWidth, int maskHeight) {

@@ -278,11 +278,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     private var _segmenter: Segmenter? = nil
     private var isUsingFrontCamera = true
     private var frameCounter: Int = 0
+    private var enableBlurBackground: Bool = false
     
     // MARK: - Camera Resolution Configuration
     
     // Resolution presets for automatic selection (matching Android CameraSource)
-    static let RESOLUTION_LOW = 0      // 640x1080
+    static let RESOLUTION_LOW = 0      // 480x640
     static let RESOLUTION_MEDIUM = 1   // 720x1280
     static let RESOLUTION_HIGH = 2     // 1080x1920
     static let RESOLUTION_AUTO = 3     // Automatic based on device capabilities
@@ -427,13 +428,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
           if result.session.videoState, let yuvData = convertUIImageToI420Data(finalImage) {
               let width = Int(finalImage.size.width)
               let height = Int(finalImage.size.height)
-              // print("I420 buffer size = \(yuvData.count) bytes, width = \(width), height = \(height), \(yuvData.count) == \(width * height * 3 / 2)")
+//               print("I420 buffer size = \(yuvData.count) bytes, width = \(width), height = \(height), \(yuvData.count) == \(width * height * 3 / 2)")
               // 🔥 Send to PortSIP
               let result = self.portSIPSDK.sendVideoStream(toRemote: self.activeSessionid,
                                                            data: yuvData,
                                                            width: Int32(width),
                                                            height: Int32(height))
-              print("sendVideoStream result: \(result)")
+//              print("sendVideoStream result: \(result)")
           }
         }
     }
@@ -2310,11 +2311,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let frameRate = (args["frameRate"] as? Int) ?? 30
                 let recordLabel = (args["recordLabel"] as? String) ?? "Customer"
                 let autoLogin = (args["autoLogin"] as? Bool) ?? false
+                let enableBlur = (args["enableBlurBackground"] as? Bool) ?? false
 
                 // Lưu username hiện tại
                 currentUsername = username
                 overlayText = recordLabel
-
+                self.enableBlurBackground = enableBlur
 
                 // Lưu localizedCallerName vào UserDefaults và biến hiện tại
                 currentLocalizedCallerName = localizedCallerName
@@ -2378,25 +2380,24 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let disablePushNoti = args["disablePushNoti"] as? Bool
             {
                 addPushSupportWithPortPBX(!disablePushNoti)
-            }
-
-            if disablePushNoti == true {
-                // clear all shared preferences
-                UserDefaults.standard.removeObject(forKey: "username")
-                UserDefaults.standard.removeObject(forKey: "displayName")
-                UserDefaults.standard.removeObject(forKey: "authName")
-                UserDefaults.standard.removeObject(forKey: "password")
-                UserDefaults.standard.removeObject(forKey: "userDomain")
-                UserDefaults.standard.removeObject(forKey: "sipServer")
-                UserDefaults.standard.removeObject(forKey: "sipServerPort")
-                UserDefaults.standard.removeObject(forKey: "transportType")
-                UserDefaults.standard.removeObject(forKey: "srtpType")
-                UserDefaults.standard.removeObject(forKey: "enableDebugLog")
-                UserDefaults.standard.removeObject(forKey: "resolution")
-                UserDefaults.standard.removeObject(forKey: "bitrate")
-                UserDefaults.standard.removeObject(forKey: "frameRate")
-                UserDefaults.standard.removeObject(forKey: "recordLabel")
-                UserDefaults.standard.removeObject(forKey: "autoLogin")
+                if disablePushNoti == true {
+                    // clear all shared preferences
+                    UserDefaults.standard.removeObject(forKey: "username")
+                    UserDefaults.standard.removeObject(forKey: "displayName")
+                    UserDefaults.standard.removeObject(forKey: "authName")
+                    UserDefaults.standard.removeObject(forKey: "password")
+                    UserDefaults.standard.removeObject(forKey: "userDomain")
+                    UserDefaults.standard.removeObject(forKey: "sipServer")
+                    UserDefaults.standard.removeObject(forKey: "sipServerPort")
+                    UserDefaults.standard.removeObject(forKey: "transportType")
+                    UserDefaults.standard.removeObject(forKey: "srtpType")
+                    UserDefaults.standard.removeObject(forKey: "enableDebugLog")
+                    UserDefaults.standard.removeObject(forKey: "resolution")
+                    UserDefaults.standard.removeObject(forKey: "bitrate")
+                    UserDefaults.standard.removeObject(forKey: "frameRate")
+                    UserDefaults.standard.removeObject(forKey: "recordLabel")
+                    UserDefaults.standard.removeObject(forKey: "autoLogin")
+                }
             }
             
             self.loginViewController.offLine()
@@ -3136,6 +3137,13 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
       print("Failed to get image buffer from sample buffer.")
       return
     }
+
+    if !enableBlurBackground {
+        DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
+            self?.updatePreviewOverlayViewWithImageBuffer(imageBuffer)
+        }
+      return
+    }
     
     frameCount += 1
     
@@ -3391,8 +3399,8 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     private func updateRequestedResolution() {
         switch resolutionMode {
         case MptCallkitPlugin.RESOLUTION_LOW:
-            requestedWidth = 640
-            requestedHeight = 1080
+            requestedWidth = 480
+            requestedHeight = 640
         case MptCallkitPlugin.RESOLUTION_MEDIUM:
             requestedWidth = 720
             requestedHeight = 1280
@@ -3439,13 +3447,13 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
             NSLog("Auto-selected MEDIUM resolution for mid-range device (\(deviceModel))")
         } else {
             // Low-end device: use low resolution
-            requestedWidth = 640    
-            requestedHeight = 1080
+            requestedWidth = 480    
+            requestedHeight = 640
             NSLog("Auto-selected LOW resolution for low-end device (\(deviceModel))")
         }
         
         // Adjust for screen size if needed
-        // adjustForScreenSize(screenWidth: screenWidth, screenHeight: screenHeight)
+        adjustForScreenSize(screenWidth: screenWidth, screenHeight: screenHeight)
     }
     
     /// Determines if the device is high-end based on hardware specs
@@ -3553,7 +3561,8 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         image.draw(in: CGRect(origin: .zero, size: imageSize))
         
         // Configure text attributes (matching Android settings)
-        let fontSize: CGFloat = 26 // Matching Android textSize
+        // Calculate font size based on screen width (responsive sizing) - matching Android logic
+        let fontSize: CGFloat = imageSize.width * 0.05 // 5% of screen width, adjust multiplier as needed
         let font = UIFont.boldSystemFont(ofSize: fontSize) // Matching Android Typeface.DEFAULT_BOLD
         let textColor = UIColor.black // Matching Android Color.BLACK
         
@@ -3572,7 +3581,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         
         // Position text at top center (matching Android logic)
         let x = (imageSize.width - textSize.width) / 2.0 // Center horizontally
-        let y = textSize.height + 20 // Top with margin (matching Android y = textBounds.height() + 100)
+        let y = textSize.height + imageSize.height * 0.01 // Top with margin (matching Android y = textBounds.height() + 100)
         let textRect = CGRect(x: x, y: y, width: textSize.width, height: textSize.height)
         
         // Draw the text
