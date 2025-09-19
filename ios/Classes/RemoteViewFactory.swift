@@ -5,6 +5,7 @@ import PortSIPVoIPSDK
 
 class RemoteViewFactory: NSObject, FlutterPlatformViewFactory {
    private var messenger: FlutterBinaryMessenger
+   public static var remoteView: RemoteView? // only keep one instance
   
    init(messenger: FlutterBinaryMessenger) {
        self.messenger = messenger
@@ -17,19 +18,20 @@ class RemoteViewFactory: NSObject, FlutterPlatformViewFactory {
        arguments args: Any?
    ) -> FlutterPlatformView {
        // 🔥 PATTERN: Each view creates its own controller instance
-       let independentRemoteViewController = RemoteViewController()
+       let viewController = RemoteViewController()
        
        // Get shared SDK reference from plugin
        let plugin = MptCallkitPlugin.shared
-       independentRemoteViewController.portSIPSDK = plugin.portSIPSDK
-       independentRemoteViewController.sessionId = 0 // Will be set later via notifications
+       viewController.portSIPSDK = plugin.portSIPSDK
+       viewController.sessionId = 0 // Will be set later via notifications
       
-       return RemoteView(
+       RemoteViewFactory.remoteView = RemoteView(
            frame: frame,
            viewIdentifier: viewId,
            arguments: args,
            binaryMessenger: messenger,
-           remoteViewController: independentRemoteViewController)
+           remoteViewController: viewController)
+        return RemoteViewFactory.remoteView!
    }
   
    public func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol {

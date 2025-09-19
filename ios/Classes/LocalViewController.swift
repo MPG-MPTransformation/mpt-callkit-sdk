@@ -16,6 +16,9 @@ class LocalViewController: UIViewController {
         previewOverlayView.translatesAutoresizingMaskIntoConstraints = false
         return previewOverlayView
       }()
+    public func setImage(image: UIImage?) {
+        self.previewOverlayView.image = image
+    }
   
    override func viewDidLoad() {
        super.viewDidLoad()
@@ -161,9 +164,7 @@ class LocalViewController: UIViewController {
        DispatchQueue.main.async {
            if isOn {
                // Bật camera - hiển thị video
-               let result = sdk.displayLocalVideo(true,
-                                                mirror: self.mCameraDeviceId == 1,
-                                                localVideoWindow: localVideo)
+               let result = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
                print("[Debug] LocalViewController - Enable camera display result: \(result)")
               
                // Đảm bảo view hiển thị và xóa placeholder
@@ -172,9 +173,7 @@ class LocalViewController: UIViewController {
                self.removeCameraOffPlaceholder()
            } else {
                // Tắt camera - dừng video nhưng vẫn hiển thị view với background
-               let result = sdk.displayLocalVideo(false,
-                                                mirror: false,
-                                                localVideoWindow: nil)
+               let result = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
                print("[Debug] LocalViewController - Disable camera display result: \(result)")
               
                // Vẫn hiển thị view nhưng với background thay vì video
@@ -293,7 +292,7 @@ class LocalViewController: UIViewController {
            print("LocalViewController - Initializing video render")
            viewLocalVideo.initVideoRender()
            // Display local video with mirror enabled for front camera
-           let result = portSIPSDK.displayLocalVideo(true, mirror: mCameraDeviceId == 1, localVideoWindow: viewLocalVideo)
+           let result = portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
            print("LocalViewController - displayLocalVideo result: \(result)")
            isVideoInitialized = true
           
@@ -343,7 +342,7 @@ class LocalViewController: UIViewController {
            let shouldMirror = mCameraDeviceId == 1
           
            // Additional safety check before calling displayLocalVideo
-           let displayResult = sdk.displayLocalVideo(true, mirror: shouldMirror, localVideoWindow: localVideo)
+           let displayResult = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
            if displayResult == 0 {
                print("LocalViewController - Switched to \(shouldMirror ? "front" : "back") camera with mirror \(shouldMirror ? "enabled" : "disabled")")
               
@@ -385,7 +384,7 @@ class LocalViewController: UIViewController {
            // Enable mirror only for front camera
            let shouldMirror = useFrontCamera
           
-           let displayResult = sdk.displayLocalVideo(true, mirror: shouldMirror, localVideoWindow: localVideo)
+           let displayResult = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
            if displayResult == 0 {
                print("LocalViewController - Set to \(shouldMirror ? "front" : "back") camera with mirror \(shouldMirror ? "enabled" : "disabled")")
               
@@ -454,15 +453,11 @@ class LocalViewController: UIViewController {
            // Process video display
            if isVisible {
                // Display video with mirror depending on the camera
-               let result = sdk.displayLocalVideo(true,
-                                                mirror: self.mCameraDeviceId == 1,
-                                                localVideoWindow: localVideo)
+               let result = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
                print("[Debug] LocalViewController - Display local video result: \(result)")
            } else {
                // Hide video but not release
-               let result = sdk.displayLocalVideo(false,
-                                                mirror: false,
-                                                localVideoWindow: nil)
+               let result = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
                print("[Debug] LocalViewController - Hide local video result: \(result)")
            }
        }

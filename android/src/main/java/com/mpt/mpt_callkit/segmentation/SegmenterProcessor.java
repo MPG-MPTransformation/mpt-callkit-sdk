@@ -65,7 +65,7 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
 
     SelfieSegmenterOptions options = optionsBuilder.build();
     segmenter = Segmentation.getClient(options);
-    Log.d(TAG, "SegmenterProcessor created with option: " + options);
+    System.out.println("SDK-Android: SegmenterProcessor created with text: " + text + ", enableBlurBackground: " + enableBlurBackground);
   }
 
   @Override
@@ -100,10 +100,12 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
   }
 
   public void setText(String text) {
+    System.out.println("SDK-Android: SegmenterProcessor setText called with text: " + text);
     this.text = text;
   }
 
   public void setEnableBlurBackground(boolean enableBlurBackground) {
+    System.out.println("SDK-Android: SegmenterProcessor setEnableBlurBackground called with enableBlurBackground: " + enableBlurBackground);
     this.enableBlurBackground = enableBlurBackground;
   }
 

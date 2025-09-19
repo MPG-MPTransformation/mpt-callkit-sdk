@@ -7,6 +7,7 @@ import io.flutter.plugin.platform.PlatformViewFactory;
 
 public class RemoteViewFactory extends PlatformViewFactory {
 //    private final Context context;
+    public static RemoteView remoteView;
 
     public RemoteViewFactory() {
         super(StandardMessageCodec.INSTANCE);
@@ -21,6 +22,7 @@ public class RemoteViewFactory extends PlatformViewFactory {
         if (context == null) {
             throw new IllegalArgumentException("Context cannot be null");
         }
-        return new RemoteView(context, viewId);
+        RemoteViewFactory.remoteView = new RemoteView(context, viewId); // only keep one instance
+        return RemoteViewFactory.remoteView;
     }
 }

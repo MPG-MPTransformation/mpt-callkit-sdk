@@ -405,17 +405,38 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         updateRequestedResolution()
         setUpCaptureSessionOutput()
         setUpCaptureSessionInput()
+        
+        // Add session error handling
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(captureSessionRuntimeError),
+            name: .AVCaptureSessionRuntimeError,
+            object: captureSession
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(captureSessionWasInterrupted),
+            name: .AVCaptureSessionWasInterrupted,
+            object: captureSession
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(captureSessionInterruptionEnded),
+            name: .AVCaptureSessionInterruptionEnded,
+            object: captureSession
+        )
     }
 
       private func updatePreviewOverlayViewWithImageBuffer(_ imageBuffer: CVImageBuffer?) {
-        guard let imageBuffer = imageBuffer else {
+        guard let buffer = imageBuffer else {
             return
         }
         let orientation: UIImage.Orientation = isUsingFrontCamera ? .leftMirrored : .right
-        guard let image = UIUtilities.createUIImage(from: imageBuffer, orientation: orientation) else {
+        guard let image = UIUtilities.createUIImage(from: buffer, orientation: orientation) else {
             return
         }
-        
         // Draw text on the segmented image (matching Android SegmenterProcessor logic)
         let finalImage = drawTextOnImage(image, text: overlayText) ?? image
         
@@ -464,11 +485,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
       output.alwaysDiscardsLateVideoFrames = true
       let outputQueue = DispatchQueue(label: "com.mpt.outputQueue")
       output.setSampleBufferDelegate(strongSelf, queue: outputQueue)
+      
       guard strongSelf.captureSession.canAddOutput(output) else {
-        print("Failed to add capture session output.")
+        print("❌ Failed to add capture session output - canAddOutput returned false")
         return
       }
+      
       strongSelf.captureSession.addOutput(output)
+      print("✅ Successfully added video output to capture session")
+      print("✅ Video output delegate set to: \(strongSelf)")
       strongSelf.captureSession.commitConfiguration()
     }
   }
@@ -494,10 +519,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
         let input = try AVCaptureDeviceInput(device: device)
         guard strongSelf.captureSession.canAddInput(input) else {
-          print("Failed to add capture session input.")
+          print("❌ Failed to add capture session input - canAddInput returned false")
           return
         }
         strongSelf.captureSession.addInput(input)
+        print("✅ Successfully added camera input: \(device.localizedName) (position: \(cameraPosition))")
         strongSelf.captureSession.commitConfiguration()
       } catch {
         print("Failed to create capture device input: \(error.localizedDescription)")
@@ -512,10 +538,73 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         print("Self is nil!")
         return
       }
-    if !strongSelf.sessionIsStarted {
-        strongSelf.captureSession.startRunning()
-        strongSelf.sessionIsStarted = true
-    }
+      
+      // Check camera permission before starting session
+      let cameraAuthStatus = AVCaptureDevice.authorizationStatus(for: .video)
+      guard cameraAuthStatus == .authorized else {
+        print("❌ startSession failed: Camera permission not granted. Status: \(cameraAuthStatus)")
+        return
+      }
+      
+      // Verify capture session has inputs and outputs
+      guard !strongSelf.captureSession.inputs.isEmpty else {
+        print("❌ startSession failed: No capture inputs configured")
+        return
+      }
+      
+      guard !strongSelf.captureSession.outputs.isEmpty else {
+        print("❌ startSession failed: No capture outputs configured")
+        return
+      }
+      
+      if !strongSelf.captureSession.isRunning {
+        print("✅ startSession: Starting capture session with \(strongSelf.captureSession.inputs.count) inputs and \(strongSelf.captureSession.outputs.count) outputs")
+        
+        // Check for camera availability before starting
+        let cameraPosition: AVCaptureDevice.Position = strongSelf.isUsingFrontCamera ? .front : .back
+        if let currentDevice = strongSelf.captureDevice(forPosition: cameraPosition) {
+          print("🔍 Camera device available: \(currentDevice.localizedName)")
+          
+          // Check if device is already in use
+          if currentDevice.isConnected && !currentDevice.isSuspended {
+            print("🔄 Starting capture session...")
+            strongSelf.captureSession.startRunning()
+          } else {
+            print("⚠️ Camera device not ready - isConnected: \(currentDevice.isConnected), isSuspended: \(currentDevice.isSuspended)")
+            // Try after a short delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+              print("🔄 Retrying capture session start...")
+              strongSelf.captureSession.startRunning()
+            }
+          }
+        } else {
+          print("❌ No camera device found for position: \(cameraPosition)")
+        }
+        
+        // Verify session started successfully (after the delay)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+          if strongSelf.captureSession.isRunning {
+            print("✅ Capture session is running successfully")
+            print("✅ Session has \(strongSelf.captureSession.inputs.count) inputs and \(strongSelf.captureSession.outputs.count) outputs")
+          } else {
+            print("❌ Capture session failed to start")
+            print("❌ Session state - inputs: \(strongSelf.captureSession.inputs.count), outputs: \(strongSelf.captureSession.outputs.count)")
+            print("❌ Session preset: \(strongSelf.captureSession.sessionPreset)")
+            
+            // Check if session was interrupted
+            if strongSelf.captureSession.isInterrupted {
+              print("❌ Session was interrupted")
+            }
+            
+            // Check for runtime errors
+            if let error = strongSelf.captureSession.outputs.first as? AVCaptureVideoDataOutput {
+              print("❌ Video output exists but session not running")
+            }
+          }
+        }
+      } else {
+        print("ℹ️ Capture session already running")
+      }
     }
   }
 
@@ -526,9 +615,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         print("Self is nil!")
         return
       }
-        if strongSelf.sessionIsStarted {
+        if strongSelf.captureSession.isRunning {
+            print("stopSession")
             strongSelf.captureSession.stopRunning()
-            strongSelf.sessionIsStarted = false
+        } else {
+            print("stopSession session is still running")
         }
       
     }
@@ -545,6 +636,65 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
       return discoverySession.devices.first { $0.position == position }
     }
     return nil
+  }
+  
+  // MARK: - Capture Session Error Handling
+  
+  @objc private func captureSessionRuntimeError(_ notification: Notification) {
+    guard let error = notification.userInfo?[AVCaptureSessionErrorKey] as? AVError else {
+      print("❌ Capture session runtime error (no error details)")
+      return
+    }
+    
+    print("❌ Capture session runtime error: \(error.localizedDescription)")
+    print("❌ Error code: \(error.code.rawValue)")
+    
+    // Try to restart session if it's a recoverable error
+    sessionQueue.async { [weak self] in
+      guard let self = self else { return }
+      
+      if !self.captureSession.isRunning {
+        print("🔄 Attempting to restart capture session after error...")
+        self.captureSession.startRunning()
+      }
+    }
+  }
+  
+  @objc private func captureSessionWasInterrupted(_ notification: Notification) {
+    guard let reasonIntegerValue = notification.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int,
+          let reason = AVCaptureSession.InterruptionReason(rawValue: reasonIntegerValue) else {
+      print("⚠️ Capture session was interrupted (unknown reason)")
+      return
+    }
+    
+    print("⚠️ Capture session interrupted: \(reason)")
+    
+    switch reason {
+    case .videoDeviceNotAvailableInBackground:
+      print("⚠️ Video device not available in background")
+    case .audioDeviceInUseByAnotherClient:
+      print("⚠️ Audio device in use by another client")
+    case .videoDeviceInUseByAnotherClient:
+      print("⚠️ Video device in use by another client - this might be PortSIP!")
+    case .videoDeviceNotAvailableWithMultipleForegroundApps:
+      print("⚠️ Video device not available with multiple foreground apps")
+    @unknown default:
+      print("⚠️ Unknown interruption reason")
+    }
+  }
+  
+  @objc private func captureSessionInterruptionEnded(_ notification: Notification) {
+    print("✅ Capture session interruption ended")
+    
+    // Try to restart the session
+    sessionQueue.async { [weak self] in
+      guard let self = self else { return }
+      
+      if !self.captureSession.isRunning {
+        print("🔄 Restarting capture session after interruption ended...")
+        self.captureSession.startRunning()
+      }
+    }
   }
 
 
@@ -1072,6 +1222,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         loginViewController.refreshRegister()
         // }
         if let result = _callManager.findCallBySessionID(self.activeSessionid), result.session.videoState {
+            let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
+            print("enableSendVideoStream result: \(sendResult)")
             startSession()
         }
     }
@@ -1908,6 +2060,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         if sessionId >= 0 {
             activeSessionid = sessionId
             print("makeCall------------------ \(String(describing: activeSessionid))")
+            if (videoCall) {
+                let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: sessionId, state: true)
+                print("enableSendVideoStream result: \(sendResult)")
+                startSession()
+            }
             return activeSessionid
         } else {
             return sessionId
@@ -1933,6 +2090,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
             // Use CallManager.endCall which returns proper status codes
             statusCode = _callManager.endCall(sessionid: activeSessionid)
+            stopSession()
             NSLog("hangUpCall - endCall result: \(statusCode)")
         } else {
             statusCode = -2 // No active session
@@ -2166,6 +2324,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     func onCloseCall(sessionId: CLong) {
         NSLog("onCloseCall")
         freeLine(sessionid: sessionId)
+        stopSession()
 
         let result = _callManager.findCallBySessionID(sessionId)
         if result != nil {
@@ -3112,6 +3271,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         return ret;
     }
     private var frameCount = 0
+    // Add debug logging to verify this method is being called
+    var frameLogCount = 0
   private var isProcessingFrame = false
   
   // FPS Control: 1 = process every frame, 2 = every 2nd frame, 3 = every 3rd frame, etc.
@@ -3133,8 +3294,14 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     didOutput sampleBuffer: CMSampleBuffer,
     from connection: AVCaptureConnection
   ) {
+    
+    frameLogCount += 1
+    if frameLogCount <= 5 || frameLogCount % 100 == 0 {
+      print("📹 captureOutput called - frame #\(frameLogCount)")
+    }
+      
     guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-      print("Failed to get image buffer from sample buffer.")
+      print("❌ Failed to get image buffer from sample buffer.")
       return
     }
 

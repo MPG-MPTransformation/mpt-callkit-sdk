@@ -396,14 +396,14 @@ class MptCallKitController {
     final bool resolvedEnableDebug = enableDebugLog ?? false;
     final String resolvedCallerName = localizedCallerName ?? "Omicx call";
     final String resolvedDeviceInfo = deviceInfo ?? "";
-    final String resolvedRecordLabel = recordLabel ?? "Customer";
-    final bool resolvedEnableBlurBackground = enableBlurBackground ?? false;
     print(
         "initSDK: apiKey: $apiKey, baseUrl: $baseUrl, pushToken: $pushToken, appId: $appId, enableDebugLog: $enableDebugLog, localizedCallerName: $localizedCallerName, deviceInfo: $deviceInfo");
 
     this.enableDebugLog = resolvedEnableDebug;
     this.localizedCallerName = resolvedCallerName;
-    this.recordLabel = resolvedRecordLabel;
+    if (recordLabel != null) {
+      this.recordLabel = recordLabel;
+    }
 
     // Persist initialization params to SharedPreferences
     try {
@@ -418,10 +418,13 @@ class MptCallKitController {
           SDKPrefsKeyConstants.LOCALIZED_CALLER_NAME, resolvedCallerName);
       await prefs.setString(
           SDKPrefsKeyConstants.DEVICE_INFO, resolvedDeviceInfo);
-      await prefs.setString(
-          SDKPrefsKeyConstants.RECORD_LABEL, resolvedRecordLabel);
-      await prefs.setBool(SDKPrefsKeyConstants.ENABLE_BLUR_BACKGROUND,
-          resolvedEnableBlurBackground);
+      if (recordLabel != null) {
+        await prefs.setString(SDKPrefsKeyConstants.RECORD_LABEL, recordLabel);
+      }
+      if (enableBlurBackground != null) {
+        await prefs.setBool(
+            SDKPrefsKeyConstants.ENABLE_BLUR_BACKGROUND, enableBlurBackground);
+      }
     } catch (e) {
       debugPrint('Failed to persist initSdk params: $e');
     }

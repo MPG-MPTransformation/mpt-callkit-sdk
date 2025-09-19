@@ -5,7 +5,7 @@ import PortSIPVoIPSDK
 
 class LocalViewFactory: NSObject, FlutterPlatformViewFactory {
    private var messenger: FlutterBinaryMessenger
-   private var independentLocalViewController = LocalViewController()
+   public static var localView: LocalView?
   
    init(messenger: FlutterBinaryMessenger) {
        self.messenger = messenger
@@ -13,7 +13,7 @@ class LocalViewFactory: NSObject, FlutterPlatformViewFactory {
    }
 
      public func setImage(image: UIImage?) {
-         self.independentLocalViewController.previewOverlayView.image = image
+         LocalViewFactory.localView?.localViewController?.setImage(image: image)
      }
   
    func create(
@@ -25,15 +25,17 @@ class LocalViewFactory: NSObject, FlutterPlatformViewFactory {
        
        // Get shared SDK reference from plugin
        let plugin = MptCallkitPlugin.shared
-       independentLocalViewController.portSIPSDK = plugin.portSIPSDK
-       independentLocalViewController.mCameraDeviceId = plugin.mUseFrontCamera ? 1 : 0
+       let viewController = LocalViewController()
+       viewController.portSIPSDK = plugin.portSIPSDK
+       viewController.mCameraDeviceId = plugin.mUseFrontCamera ? 1 : 0
       
-       return LocalView(
+       LocalViewFactory.localView = LocalView(
            frame: frame,
            viewIdentifier: viewId,
            arguments: args,
            binaryMessenger: messenger,
-           localViewController: independentLocalViewController)
+           localViewController: viewController)
+        return LocalViewFactory.localView!
    }
   
    public func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol {

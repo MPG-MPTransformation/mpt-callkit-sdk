@@ -8,7 +8,7 @@ import android.graphics.Bitmap;
 
 public class LocalViewFactory extends PlatformViewFactory {
     private final Context context;
-    private static LocalView localView;
+    public static LocalView localView;
 
     public void setImage(Bitmap bitmap) {
         if (LocalViewFactory.localView != null) {

@@ -132,8 +132,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     private CameraSource cameraSource = null;
     private boolean isStartCameraSource = false;
-    private String recordLabel = "Agent";
-    private boolean enableBlurBackground = false;
+    private static String recordLabel = "Agent";
+    private static boolean enableBlurBackground = false;
     private SegmenterProcessor segmenterProcessor;
 
     public MptCallkitPlugin() {
@@ -144,11 +144,13 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
         System.out.println("SDK-Android: onAttachedToEngine");
         Engine.Instance().setMethodChannel(new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "mpt_callkit"));
-        Engine.Instance().getMethodChannel().setMethodCallHandler(this);
+        if (Engine.Instance().getMethodChannel() != null) {
+            Engine.Instance().getMethodChannel().setMethodCallHandler(this);
+        }
         context = flutterPluginBinding.getApplicationContext();
         // Activity will be set in onAttachedToActivity callback
-        System.out.println("SDK-Android: Waiting for activity attachment...");
-        activity = getCurrentActivity(flutterPluginBinding);
+        System.out.println("SDK-Android: Engine attached, waiting for activity attachment...");
+        activity = null; // Will be set in onAttachedToActivity
         
         Engine.Instance().setEngine(new PortSipSdk(context));
         // Only create receiver if it doesn't exist
@@ -320,7 +322,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             cameraSource = new CameraSource(activity);
         }
         if (segmenterProcessor == null) {
-            segmenterProcessor = new SegmenterProcessor(activity, this, recordLabel, enableBlurBackground);
+            segmenterProcessor = new SegmenterProcessor(activity, this, MptCallkitPlugin.recordLabel, MptCallkitPlugin.enableBlurBackground);
             cameraSource.setMachineLearningFrameProcessor(segmenterProcessor);
         }
     }
@@ -406,7 +408,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             String resolution = preferences.getString("resolution", "720P");
             int bitrate = preferences.getInt("bitrate", 1024);
             int frameRate = preferences.getInt("frameRate", 30);
-            recordLabel = preferences.getString("recordLabel", "Agent");
+            MptCallkitPlugin.recordLabel = preferences.getString("recordLabel", "Agent");
+            MptCallkitPlugin.enableBlurBackground = preferences.getBoolean("enableBlurBackground", false);
             Boolean autoLogin = preferences.getBoolean("autoLogin", false);
 
             if (autoLogin && username != null && password != null && userDomain != null && sipServer != null && sipServerPort != null) {
@@ -433,9 +436,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     private void unregisterIfNeeded() {
         Session currentLine = CallManager.Instance().getCurrentSession();
-        if (currentLine != null && currentLine.sessionID > 0) {
+        if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.CONNECTED) {
             // IN CALl
-            System.out.println("SDK-Android: OnPause - In call, cannot unregister");
+            System.out.println("SDK-Android: OnPause - In call, cannot unregister " + currentLine.state);
             return;
         }
         if (activity == null || activity.getPackageName() == null) {
@@ -651,15 +654,15 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 String recordLabel = call.argument("recordLabel");
                 Boolean enableBlurBackground = call.argument("enableBlurBackground");
                 Boolean autoLogin = call.argument("autoLogin");
+
+                System.out.println("SDK-Android: Login called with enableDebugLog: " + enableDebugLog + ", recordLabel: " + recordLabel + ", enableBlurBackground: " + enableBlurBackground + ", autoLogin: " + autoLogin);
                 
-                if (segmenterProcessor != null && recordLabel != null) {
-                    this.recordLabel = recordLabel;
-                    segmenterProcessor.setText(recordLabel);
+                if (recordLabel != null) {
+                    MptCallkitPlugin.recordLabel = recordLabel;
                 }
 
-                if (segmenterProcessor != null && enableBlurBackground != null) {
-                    this.enableBlurBackground = enableBlurBackground;
-                    segmenterProcessor.setEnableBlurBackground(enableBlurBackground);
+                if (enableBlurBackground != null) {
+                    MptCallkitPlugin.enableBlurBackground = enableBlurBackground;
                 }
 
                 // Video quality parameters
@@ -713,9 +716,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     editor.putString("resolution", resolution);
                     editor.putInt("bitrate", bitrate);
                     editor.putInt("frameRate", frameRate);
-                    editor.putString("recordLabel", this.recordLabel);
+                    editor.putString("recordLabel", MptCallkitPlugin.recordLabel);
                     editor.putBoolean("autoLogin", autoLogin);
-                    editor.putBoolean("enableBlurBackground", this.enableBlurBackground);
+                    editor.putBoolean("enableBlurBackground", MptCallkitPlugin.enableBlurBackground);
                     editor.commit();
                 }
 
@@ -824,16 +827,15 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     @Override
     public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
-        Engine.Instance().setEngine(null);
-        Engine.Instance().getMethodChannel().setMethodCallHandler(null);
     }
 
     @Override
     public void onAttachedToActivity(ActivityPluginBinding activityPluginBinding) {
-        System.out.println("SDK-Android: onAttachedToActivity");
+        System.out.println("SDK-Android: onAttachedToActivity called");
         activity = activityPluginBinding.getActivity();
         if (activity != null) {
             System.out.println("SDK-Android: Activity successfully attached: " + activity.getClass().getSimpleName());
+            System.out.println("SDK-Android: Activity attachment completed successfully");
         } else {
             System.out.println("SDK-Android: Warning - Activity is null in onAttachedToActivity");
         }
@@ -877,6 +879,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             }
             return false;
         });
+        MptCallkitPlugin.shared = this;
+        MptCallkitPlugin.shared.context = activity.getApplicationContext();
+        MptCallkitPlugin.shared.activity = activity;
     }
 
     @Override
@@ -933,7 +938,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     engine.removeUser();
                     engine.unInitialize();
                     if (res == 0) {
-                        Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", false);
+                        Engine.Instance().invokeMethod("onlineStatus", false);
                         MptCallkitPlugin.sendToFlutter("onlineStatus", false);
                     }
                 }
@@ -963,65 +968,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
-    private Activity getCurrentActivity(FlutterPluginBinding flutterPluginBinding) {
-        try {
-            // Method 1: Try to get activity from FlutterEngine
-            if (flutterPluginBinding != null && flutterPluginBinding.getFlutterEngine() != null) {
-                java.lang.reflect.Field activityField = flutterPluginBinding.getFlutterEngine().getClass().getDeclaredField("activity");
-                if (activityField != null) {
-                    activityField.setAccessible(true);
-                    Object activityObj = activityField.get(flutterPluginBinding.getFlutterEngine());
-                    if (activityObj instanceof Activity) {
-                        return (Activity) activityObj;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            System.out.println("SDK-Android: Method 1 failed: " + e.getMessage());
-        }
-
-        try {
-            // Method 2: Get activity using ActivityThread (more reliable)
-            Class<?> activityThreadClass = Class.forName("android.app.ActivityThread");
-            Object activityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null);
-            java.lang.reflect.Field activitiesField = activityThreadClass.getDeclaredField("mActivities");
-            activitiesField.setAccessible(true);
-            
-            @SuppressWarnings("unchecked")
-            java.util.Map<Object, Object> activities = (java.util.Map<Object, Object>) activitiesField.get(activityThread);
-            
-            if (activities != null) {
-                for (Object activityRecord : activities.values()) {
-                    Class<?> activityRecordClass = activityRecord.getClass();
-                    java.lang.reflect.Field pausedField = activityRecordClass.getDeclaredField("paused");
-                    pausedField.setAccessible(true);
-                    
-                    if (!pausedField.getBoolean(activityRecord)) {
-                        java.lang.reflect.Field activityField = activityRecordClass.getDeclaredField("activity");
-                        activityField.setAccessible(true);
-                        Activity activity = (Activity) activityField.get(activityRecord);
-                        if (activity != null) {
-                            return activity;
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            System.out.println("SDK-Android: Method 2 failed: " + e.getMessage());
-        }
-
-        try {
-            // Method 3: Try to cast application context (last resort)
-            if (flutterPluginBinding.getApplicationContext() instanceof Activity) {
-                return (Activity) flutterPluginBinding.getApplicationContext();
-            }
-        } catch (Exception e) {
-            System.out.println("SDK-Android: Method 3 failed: " + e.getMessage());
-        }
-
-        System.out.println("SDK-Android: All methods to get activity failed");
-        return null;
-    }
     
     /**
      * Get the current activity instance.
@@ -1142,7 +1088,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                             MainActivity.activity.onHangUpCall();
                         }
 
-                        Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
+                        Engine.Instance().invokeMethod("callState", "CLOSED");
                         MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
                         System.out.println("SDK-Android: callState - " + "CLOSED");
 
@@ -1151,14 +1097,14 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     case TRYING:
                         statusCode = engine.hangUp(currentLine.sessionID);
                         System.out.println("SDK-Android: hangUp status code: " + statusCode);
-                        stopCameraSource();
+                        MptCallkitPlugin.shared.stopCameraSource();
 
-                        if (Engine.Instance().getMethodChannel() != null) {
+                        if (Engine.Instance() != null) {
                             if (MainActivity.activity != null) {
                                 MainActivity.activity.onHangUpCall();
                             }
 
-                            Engine.Instance().getMethodChannel().invokeMethod("callState", "CLOSED");
+                            Engine.Instance().invokeMethod("callState", "CLOSED");
                             MptCallkitPlugin.sendToFlutter("callState", "CLOSED");
                             System.out.println("SDK-Android: callState - " + "CLOSED");
                         }
@@ -1199,7 +1145,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             }
             currentLine.bHold = true;
             System.out.println("SDK-Android: Hold call success");
-            Engine.Instance().getMethodChannel().invokeMethod("holdCallState", currentLine.bHold);
+            Engine.Instance().invokeMethod("holdCallState", currentLine.bHold);
             MptCallkitPlugin.sendToFlutter("holdCallState", currentLine.bHold);
         }
     }
@@ -1215,7 +1161,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             }
             currentLine.bHold = false;
             System.out.println("SDK-Android: Unhold call success");
-            Engine.Instance().getMethodChannel().invokeMethod("holdCallState", currentLine.bHold);
+            Engine.Instance().invokeMethod("holdCallState", currentLine.bHold);
             MptCallkitPlugin.sendToFlutter("holdCallState", currentLine.bHold);
         }
     }
@@ -1232,7 +1178,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     false,
                     currentLine.bMuteVideo);
             System.out.println("SDK-Android: Mute call result: " + result);
-            Engine.Instance().getMethodChannel().invokeMethod("microphoneState", currentLine.bMuteAudioOutGoing);
+            Engine.Instance().invokeMethod("microphoneState", currentLine.bMuteAudioOutGoing);
             MptCallkitPlugin.sendToFlutter("microphoneState", currentLine.bMuteAudioOutGoing);
 
             // Gửi tin nhắn với format mới
@@ -1251,7 +1197,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     currentLine.bMuteAudioOutGoing,
                     false,
                     currentLine.bMuteVideo);
-            Engine.Instance().getMethodChannel().invokeMethod("cameraState", enable);
+            Engine.Instance().invokeMethod("cameraState", enable);
             MptCallkitPlugin.sendToFlutter("cameraState", enable);
 
             // Gửi tin nhắn với format mới
@@ -1269,19 +1215,32 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         Ring.getInstance(MainActivity.activity).stopRingBackTone();
         if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING) {
             if (Engine.Instance().getEngine() == null) {
+                System.out.println("SDK-Android: Answer call Engine is null, setting method channel");
+                if (Engine.Instance().getMethodChannel() == null) {
+                    Engine.Instance().getMethodChannel().setMethodCallHandler(MptCallkitPlugin.shared);
+                }
                 Engine.Instance().setEngine(new PortSipSdk(MptCallkitPlugin.shared.context));
                 // Only create receiver if it doesn't exist
                 if (Engine.Instance().getReceiver() == null) {
                     Engine.Instance().setReceiver(new PortMessageReceiver());
                 }
             }
-
-            int result = Engine.Instance().getEngine().answerCall(currentLine.sessionID, currentLine.hasVideo);
+            int result = -1;
+            try {
+                if (Engine.Instance().getEngine() != null) {
+                    result = Engine.Instance().getEngine().answerCall(currentLine.sessionID, currentLine.hasVideo);
+                }else {
+                    System.out.println("SDK-Android: Answer call Engine is null");
+                }
+            } catch (Exception e) {
+                System.out.println("SDK-Android: Answer call error: " + e.getMessage());
+                e.printStackTrace();
+            }
             System.out.println("SDK-Android: Answer call with video: " + currentLine.hasVideo);
             System.out.println("SDK-Android: Answer call result: " + result);
             if (result == 0) {
-                if (Engine.Instance().getMethodChannel() != null) {
-                    Engine.Instance().getMethodChannel().invokeMethod("callState", "ANSWERED");
+                if (Engine.Instance() != null) {
+                    Engine.Instance().invokeMethod("callState", "ANSWERED");
                     MptCallkitPlugin.sendToFlutter("callState", "ANSWERED");
                     System.out.println("SDK-Android: callState - ANSWERED");
                 }
@@ -1429,7 +1388,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 if (availableDevices.contains(audioDevice)) {
                     CallManager.Instance().setAudioDevice(Engine.Instance().getEngine(), audioDevice);
                     // Gửi thông báo về thiết bị âm thanh hiện tại cho Flutter
-                    Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice", state);
+                    Engine.Instance().invokeMethod("currentAudioDevice", state);
                     MptCallkitPlugin.sendToFlutter("currentAudioDevice", state);
                     System.out.println("SDK-Android: Audio device set to " + state);
                 } else {
@@ -1453,14 +1412,14 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
 
         System.out.println("SDK-Android: audio devices available: " + deviceNames);
-        Engine.Instance().getMethodChannel().invokeMethod("audioDevices", deviceNames);
+        Engine.Instance().invokeMethod("audioDevices", deviceNames);
         MptCallkitPlugin.sendToFlutter("audioDevices", deviceNames);
 
         // Gửi thông báo về thiết bị âm thanh hiện tại
         PortSipEnumDefine.AudioDevice currentDevice = CallManager.Instance().getCurrentAudioDevice();
         if (currentDevice != null) {
             String currentDeviceName = currentDevice.name();
-            Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice", currentDeviceName);
+            Engine.Instance().invokeMethod("currentAudioDevice", currentDeviceName);
             MptCallkitPlugin.sendToFlutter("currentAudioDevice", currentDeviceName);
         }
     }
