@@ -45,10 +45,11 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
 
   private static final String TAG = "SegmenterProcessor";
 
-  private final Segmenter segmenter;
+  private Segmenter segmenter;
   private final VisionImageProcessorCallback callback;
   private String text;
   private boolean enableBlurBackground = false;
+  private boolean isStreamMode = true;
 
   public SegmenterProcessor(Context context, VisionImageProcessorCallback callback, String text, boolean enableBlurBackground) {
       this(context, /* isStreamMode= */ true, callback, text, enableBlurBackground);
@@ -56,13 +57,16 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
 
   public SegmenterProcessor(Context context, boolean isStreamMode, VisionImageProcessorCallback callback, String text, boolean enableBlurBackground) {
     super(context);
-    SelfieSegmenterOptions.Builder optionsBuilder = new SelfieSegmenterOptions.Builder();
-    optionsBuilder.setDetectorMode(
-      isStreamMode ? SelfieSegmenterOptions.STREAM_MODE : SelfieSegmenterOptions.SINGLE_IMAGE_MODE);
     this.callback = callback;
     this.text = text;
     this.enableBlurBackground = enableBlurBackground;
+    this.isStreamMode = isStreamMode;
+  }
 
+  private void createSegmenter() {
+    SelfieSegmenterOptions.Builder optionsBuilder = new SelfieSegmenterOptions.Builder();
+    optionsBuilder.setDetectorMode(
+      isStreamMode ? SelfieSegmenterOptions.STREAM_MODE : SelfieSegmenterOptions.SINGLE_IMAGE_MODE);
     SelfieSegmenterOptions options = optionsBuilder.build();
     segmenter = Segmentation.getClient(options);
     System.out.println("SDK-Android: SegmenterProcessor created with text: " + text + ", enableBlurBackground: " + enableBlurBackground);
@@ -72,6 +76,9 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
   protected Task<SegmentationMask> detectInImage(InputImage image) {
     if (!enableBlurBackground) {
       return Tasks.forResult(null);
+    }
+    if (segmenter == null) {
+      createSegmenter();
     }
     return segmenter.process(image);
   }
@@ -116,6 +123,7 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
     // Close the ML Kit Segmenter to release its resources and stop background threads
     if (segmenter != null) {
       segmenter.close();
+      segmenter = null;
     }
     
     // Call parent stop method to handle executor shutdown and other cleanup

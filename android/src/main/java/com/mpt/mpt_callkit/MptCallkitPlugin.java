@@ -150,7 +150,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         context = flutterPluginBinding.getApplicationContext();
         // Activity will be set in onAttachedToActivity callback
         System.out.println("SDK-Android: Engine attached, waiting for activity attachment...");
-        activity = null; // Will be set in onAttachedToActivity
+        activity = getCurrentActivity(flutterPluginBinding); // Will be set in onAttachedToActivity
         
         Engine.Instance().setEngine(new PortSipSdk(context));
         // Only create receiver if it doesn't exist
@@ -344,6 +344,11 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         if (cameraSource != null && isStartCameraSource) {
             cameraSource.stop();
             isStartCameraSource = false;
+            cameraSource = null;
+            if (segmenterProcessor != null) {
+                segmenterProcessor.stop();
+                segmenterProcessor = null;
+            }
         }
     }
 
@@ -531,7 +536,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 if(disablePushNoti == true){
                     // clear all shared preferences
                     preferences.edit().clear().apply();
-                    editor.clear().apply();
                     System.out.println("SDK-Android: Clear all shared preferences");
                 }
 
@@ -661,8 +665,16 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     MptCallkitPlugin.recordLabel = recordLabel;
                 }
 
+                if (segmenterProcessor != null) {
+                    segmenterProcessor.setText(recordLabel);
+                }
+
                 if (enableBlurBackground != null) {
                     MptCallkitPlugin.enableBlurBackground = enableBlurBackground;
+                }
+
+                if (segmenterProcessor != null) {
+                    segmenterProcessor.setEnableBlurBackground(enableBlurBackground);
                 }
 
                 // Video quality parameters
@@ -879,9 +891,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             }
             return false;
         });
-        MptCallkitPlugin.shared = this;
-        MptCallkitPlugin.shared.context = activity.getApplicationContext();
-        MptCallkitPlugin.shared.activity = activity;
     }
 
     @Override
@@ -968,6 +977,65 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
+    private Activity getCurrentActivity(FlutterPluginBinding flutterPluginBinding) {
+        try {
+            // Method 1: Try to get activity from FlutterEngine
+            if (flutterPluginBinding != null && flutterPluginBinding.getFlutterEngine() != null) {
+                java.lang.reflect.Field activityField = flutterPluginBinding.getFlutterEngine().getClass().getDeclaredField("activity");
+                if (activityField != null) {
+                    activityField.setAccessible(true);
+                    Object activityObj = activityField.get(flutterPluginBinding.getFlutterEngine());
+                    if (activityObj instanceof Activity) {
+                        return (Activity) activityObj;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Method 1 failed: " + e.getMessage());
+        }
+
+        try {
+            // Method 2: Get activity using ActivityThread (more reliable)
+            Class<?> activityThreadClass = Class.forName("android.app.ActivityThread");
+            Object activityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null);
+            java.lang.reflect.Field activitiesField = activityThreadClass.getDeclaredField("mActivities");
+            activitiesField.setAccessible(true);
+            
+            @SuppressWarnings("unchecked")
+            java.util.Map<Object, Object> activities = (java.util.Map<Object, Object>) activitiesField.get(activityThread);
+            
+            if (activities != null) {
+                for (Object activityRecord : activities.values()) {
+                    Class<?> activityRecordClass = activityRecord.getClass();
+                    java.lang.reflect.Field pausedField = activityRecordClass.getDeclaredField("paused");
+                    pausedField.setAccessible(true);
+                    
+                    if (!pausedField.getBoolean(activityRecord)) {
+                        java.lang.reflect.Field activityField = activityRecordClass.getDeclaredField("activity");
+                        activityField.setAccessible(true);
+                        Activity activity = (Activity) activityField.get(activityRecord);
+                        if (activity != null) {
+                            return activity;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Method 2 failed: " + e.getMessage());
+        }
+
+        try {
+            // Method 3: Try to cast application context (last resort)
+            if (flutterPluginBinding.getApplicationContext() instanceof Activity) {
+                return (Activity) flutterPluginBinding.getApplicationContext();
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Method 3 failed: " + e.getMessage());
+        }
+
+        System.out.println("SDK-Android: All methods to get activity failed");
+        return null;
+    }
     
     /**
      * Get the current activity instance.

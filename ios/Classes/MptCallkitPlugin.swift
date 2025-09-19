@@ -278,7 +278,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     private var _segmenter: Segmenter? = nil
     private var isUsingFrontCamera = true
     private var frameCounter: Int = 0
-    private var enableBlurBackground: Bool = false
+    private static var enableBlurBackground: Bool = false
     
     // MARK: - Camera Resolution Configuration
     
@@ -294,7 +294,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     private var requestedHeight = 1280
     
     // Text overlay configuration (matching Android SegmenterProcessor)
-    private var overlayText = "Agent" // Default text matching Android
+    private static var overlayText = "Agent" // Default text matching Android
 
     enum CallState: String {
         case INCOMING = "INCOMING"
@@ -438,7 +438,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             return
         }
         // Draw text on the segmented image (matching Android SegmenterProcessor logic)
-        let finalImage = drawTextOnImage(image, text: overlayText) ?? image
+        let finalImage = drawTextOnImage(image, text: MptCallkitPlugin.overlayText) ?? image
         
         // Set image in localFactory for UI display
         MptCallkitPlugin.localFactory?.setImage(image: finalImage)
@@ -2474,8 +2474,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
                 // Lưu username hiện tại
                 currentUsername = username
-                overlayText = recordLabel
-                self.enableBlurBackground = enableBlur
+                MptCallkitPlugin.overlayText = recordLabel
+                MptCallkitPlugin.enableBlurBackground = enableBlur
+                
+                print("onMethodCall MptCallkitPlugin.overlayText: \(MptCallkitPlugin.overlayText), MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground)")
 
                 // Lưu localizedCallerName vào UserDefaults và biến hiện tại
                 currentLocalizedCallerName = localizedCallerName
@@ -3305,7 +3307,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
       return
     }
 
-    if !enableBlurBackground {
+    if !MptCallkitPlugin.enableBlurBackground {
         DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
             self?.updatePreviewOverlayViewWithImageBuffer(imageBuffer)
         }
@@ -3684,13 +3686,13 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     
     /// Sets the overlay text for segmentation (matching Android SegmenterProcessor)
     func setOverlayText(_ text: String) {
-        overlayText = text
+        MptCallkitPlugin.overlayText = text
         NSLog("Overlay text set to: \(text)")
     }
     
     /// Gets the current overlay text
     func getOverlayText() -> String {
-        return overlayText
+        return MptCallkitPlugin.overlayText
     }
     
     /// Gets the optimal AVCaptureSession preset based on requested resolution
@@ -3718,6 +3720,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     /// - Size 48 (textSize = 48)
     /// - Top center positioning (x = width/2, y = textBounds.height() + 100)
     private func drawTextOnImage(_ image: UIImage, text: String) -> UIImage? {
+        print("drawTextOnImage \(drawTextOnImage)")
         let imageSize = image.size
         
         // Create graphics context with same size as image
