@@ -334,7 +334,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private void createCameraSource() {
         // If there's no existing cameraSource, create one.
         if (cameraSource == null) {
-            cameraSource = new CameraSource(activity);
+            cameraSource = new CameraSource(activity, Engine.Instance().mUseFrontCamera);
         }
         if (segmenterProcessor == null) {
             segmenterProcessor = new SegmenterProcessor(activity, this, MptCallkitPlugin.recordLabel, MptCallkitPlugin.enableBlurBackground);
@@ -1387,6 +1387,12 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     public static void toggleCameraOn(boolean enable) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (currentLine != null && currentLine.sessionID > 0) {
+
+            if (enable) {
+                MptCallkitPlugin.shared.startCameraSource();
+            } else {
+                MptCallkitPlugin.shared.stopCameraSource();
+            }
             currentLine.bMuteVideo = !enable;
             Engine.Instance().getEngine().muteSession(
                     currentLine.sessionID,
@@ -1536,6 +1542,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         boolean value = !Engine.Instance().mUseFrontCamera;
         setCamera(Engine.Instance().getEngine(), value);
         Engine.Instance().mUseFrontCamera = value;
+        MptCallkitPlugin.shared.stopCameraSource();
+        MptCallkitPlugin.shared.startCameraSource();
 
         // Gửi broadcast để thông báo LocalView cập nhật mirror
         // Camera trước: mirror = true, Camera sau: mirror = false

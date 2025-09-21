@@ -154,7 +154,8 @@ public class CameraSource {
    */
   private final IdentityHashMap<byte[], ByteBuffer> bytesToByteBuffer = new IdentityHashMap<>();
 
-  public CameraSource(Activity activity) {
+  public CameraSource(Activity activity, boolean useFrontCamera) {
+    this.facing = useFrontCamera ? CAMERA_FACING_FRONT : CAMERA_FACING_BACK;
     this.activity = activity;
     processingRunnable = new FrameProcessingRunnable();
     videoProcessingExecutor = Executors.newSingleThreadExecutor();
@@ -907,7 +908,7 @@ public class CameraSource {
         requestedHeight = 1280;
         break;
       case RESOLUTION_HIGH:
-        requestedWidth = 1080;
+        requestedWidth = 1280;
         requestedHeight = 1920;
         break;
       case RESOLUTION_AUTO:
@@ -939,7 +940,7 @@ public class CameraSource {
       // Auto-select based on device capabilities
       if (isHighEndDevice(totalMemory, cpuCores, screenWidth, screenHeight)) {
         // High-end device: use high resolution
-        requestedWidth = 1080;
+        requestedWidth = 1280;
         requestedHeight = 1920;
         Log.d(TAG, "Auto-selected HIGH resolution for high-end device");
       } else if (isMidRangeDevice(totalMemory, cpuCores, screenWidth, screenHeight)) {

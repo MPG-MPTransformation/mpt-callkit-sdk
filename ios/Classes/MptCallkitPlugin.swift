@@ -276,7 +276,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     var mUseFrontCamera: Bool = true
 
     private var _segmenter: Segmenter? = nil
-    private var isUsingFrontCamera = true
     private var frameCounter: Int = 0
     private static var enableBlurBackground: Bool = false
     
@@ -433,7 +432,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         guard let buffer = imageBuffer else {
             return
         }
-        let orientation: UIImage.Orientation = isUsingFrontCamera ? .leftMirrored : .right
+        let orientation: UIImage.Orientation = mUseFrontCamera ? .leftMirrored : .right
         guard let image = UIUtilities.createUIImage(from: buffer, orientation: orientation) else {
             return
         }
@@ -455,7 +454,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                                                            data: yuvData,
                                                            width: Int32(width),
                                                            height: Int32(height))
-//              print("sendVideoStream result: \(result)")
+              print("sendVideoStream result: \(result)")
           }
         }
     }
@@ -505,7 +504,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         print("Self is nil!")
         return
       }
-      let cameraPosition: AVCaptureDevice.Position = strongSelf.isUsingFrontCamera ? .front : .back
+      let cameraPosition: AVCaptureDevice.Position = strongSelf.mUseFrontCamera ? .front : .back
       guard let device = strongSelf.captureDevice(forPosition: cameraPosition) else {
         print("Failed to get capture device for camera position: \(cameraPosition)")
         return
@@ -561,7 +560,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         print("✅ startSession: Starting capture session with \(strongSelf.captureSession.inputs.count) inputs and \(strongSelf.captureSession.outputs.count) outputs")
         
         // Check for camera availability before starting
-        let cameraPosition: AVCaptureDevice.Position = strongSelf.isUsingFrontCamera ? .front : .back
+        let cameraPosition: AVCaptureDevice.Position = strongSelf.mUseFrontCamera ? .front : .back
         if let currentDevice = strongSelf.captureDevice(forPosition: cameraPosition) {
           print("🔍 Camera device available: \(currentDevice.localizedName)")
           
@@ -1704,6 +1703,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         methodChannel?.invokeMethod("callType", arguments: "ENDED")
         methodChannel?.invokeMethod("isRemoteVideoReceived", arguments: false)
         self.isRemoteVideoReceived = false
+        self.mUseFrontCamera = true
         stopSession()
     }
 
@@ -2916,11 +2916,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     // Bật camera
                     portSIPSDK.sendVideo(activeSessionid, sendState: true)
                     result!.session.videoMuted = false  // Camera unmuted
+                    let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: activeSessionid, state: true)
+                    print("enableSendVideoStream result: \(sendResult)")
+                    startSession()
                     print("Camera turned on")
                 } else {
                     // Tắt camera - chỉ mute camera chứ không disable video hoàn toàn
                     portSIPSDK.sendVideo(activeSessionid, sendState: false)
                     result!.session.videoMuted = true  // Camera muted
+                    stopSession()
                     print("Camera turned off")
                 }
 
@@ -3131,6 +3135,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         let newUseFrontCamera = !mUseFrontCamera
         setCamera(useFrontCamera: newUseFrontCamera)
         mUseFrontCamera = newUseFrontCamera
+        stopSession()
+        setUpCaptureSessionInput()
+        let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: activeSessionid, state: true)
+        print("enableSendVideoStream result: \(sendResult)")
+        startSession()
 
         // Send state notification - views will handle themselves
         let videoState = PortSIPVideoState(
@@ -3328,7 +3337,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     
     let visionImage = VisionImage(buffer: sampleBuffer)
     let orientation = UIUtilities.imageOrientation(
-      fromDevicePosition: isUsingFrontCamera ? .front : .back
+      fromDevicePosition: mUseFrontCamera ? .front : .back
     )
     visionImage.orientation = orientation
     
@@ -3574,8 +3583,8 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
             requestedWidth = 720
             requestedHeight = 1280
         case MptCallkitPlugin.RESOLUTION_HIGH:
-            requestedWidth = 1080
-            requestedHeight = 1920
+            requestedWidth = 1280
+            requestedHeight = 1440
         case MptCallkitPlugin.RESOLUTION_AUTO:
             autoSelectResolution()
         default:
@@ -3605,8 +3614,8 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         if isHighEndDevice(physicalMemory: physicalMemory, processorCount: processorCount, 
                           screenWidth: screenWidth, screenHeight: screenHeight, deviceModel: deviceModel) {
             // High-end device: use high resolution
-            requestedWidth = 1080
-            requestedHeight = 1920
+            requestedWidth = 1280
+            requestedHeight = 1440
             NSLog("Auto-selected HIGH resolution for high-end device (\(deviceModel))")
         } else if isMidRangeDevice(physicalMemory: physicalMemory, processorCount: processorCount,
                                  screenWidth: screenWidth, screenHeight: screenHeight, deviceModel: deviceModel) {
@@ -3720,7 +3729,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     /// - Size 48 (textSize = 48)
     /// - Top center positioning (x = width/2, y = textBounds.height() + 100)
     private func drawTextOnImage(_ image: UIImage, text: String) -> UIImage? {
-        print("drawTextOnImage \(drawTextOnImage)")
+//        print("drawTextOnImage \(drawTextOnImage)")
         let imageSize = image.size
         
         // Create graphics context with same size as image
