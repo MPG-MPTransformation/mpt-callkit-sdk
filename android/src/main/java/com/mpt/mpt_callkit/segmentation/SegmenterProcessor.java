@@ -242,13 +242,13 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
      */
     private Bitmap createImageWithTextOverlay(@NonNull Bitmap originalCameraImage) {
         // Create a mutable copy of the original camera image
-        Bitmap resultBitmap = originalCameraImage.copy(originalCameraImage.getConfig(), true);
+        Bitmap resultBitmap = flipBitmapHorizontally(originalCameraImage.copy(originalCameraImage.getConfig(), true));
         
         // Draw text overlay
         Canvas canvas = new Canvas(resultBitmap);
         drawTextOverlay(canvas, resultBitmap.getWidth(), resultBitmap.getHeight());
         
-        return flipBitmapHorizontally(resultBitmap);
+        return resultBitmap;
     }
 
     /**

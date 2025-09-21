@@ -15,6 +15,11 @@ import android.graphics.Bitmap;
 import com.mpt.mpt_callkit.segmentation.VisionImageProcessorCallback;
 import com.mpt.mpt_callkit.segmentation.CameraSource;
 import com.mpt.mpt_callkit.segmentation.SegmenterProcessor;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.json.JSONException;
+import android.os.Handler;
+import android.os.Looper;
 
 import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
@@ -74,6 +79,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     // public String pushToken =
     // "e3TKpdmDSJqzW20HYsDe9h:APA91bFdWS9ALxW1I7Zuq7uXsYTL6-8F-A3AARhcrLMY6pB6ecUbWX7RbABnLrzCGjGBWIxJ8QaCQkwkOjrv2BOJjEGfFgIGjlIekFqKQR-dtutszyRLZy1Im6KXNIqDzicWIGKdbcWD";
     // public String APPID = "com.portsip.sipsample";
+    private final String CALLKIT_PREFERENCES_FILE_NAME = "flutter_callkit_incoming";
     private MethodChannel.Result pendingResult;
     private static final String CHANNEL = "native_events";
     private static EventChannel.EventSink eventSink;
@@ -124,11 +130,16 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private static Thread logcatThread;
 
     public static MptCallkitPlugin shared = new MptCallkitPlugin();
-    private Boolean answeredWithCallKit = false;
     private SharedPreferences preferences;
     private SharedPreferences.Editor editor;
-    private boolean socketReady = false;
     private static LocalViewFactory localViewFactory;
+    
+    // Handler and Runnable for periodic call checking
+    private Handler callCheckHandler;
+    private Runnable callCheckRunnable;
+    private static final int CALL_CHECK_INTERVAL = 200; // Check every 200ms
+    private static final int CALL_CHECK_TIMEOUT = 8000; // Stop after 8 seconds
+    private long callCheckStartTime = 0;
 
     private CameraSource cameraSource = null;
     private boolean isStartCameraSource = false;
@@ -152,12 +163,16 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         System.out.println("SDK-Android: Engine attached, waiting for activity attachment...");
         activity = getCurrentActivity(flutterPluginBinding); // Will be set in onAttachedToActivity
         
-        Engine.Instance().setEngine(new PortSipSdk(context));
-        // Only create receiver if it doesn't exist
-        if (Engine.Instance().getReceiver() == null) {
-            Engine.Instance().setReceiver(new PortMessageReceiver());
+        if (Engine.Instance().getEngine() == null) {
+            Engine.Instance().setEngine(new PortSipSdk(context));
+            if (Engine.Instance().getMethodChannel() == null) {
+                Engine.Instance().getMethodChannel().setMethodCallHandler(MptCallkitPlugin.shared);
+            }
+            // Only create receiver if it doesn't exist
+            if (Engine.Instance().getReceiver() == null) {
+                Engine.Instance().setReceiver(new PortMessageReceiver());
+            }
         }
-
         MptCallkitPlugin.localViewFactory = new LocalViewFactory(context);
         // Đăng ký LocalViewFactory
         flutterPluginBinding
@@ -457,22 +472,22 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     }
 
     public void onAccept()   {
-        System.out.println("SDK-Android: MptCallkitPlugin - onAccept called socketReady: " + this.socketReady + ", currentSession: " + CallManager.Instance().getCurrentSession() + ", answeredWithCallKit: " + this.answeredWithCallKit);
-        this.answeredWithCallKit = true;
-        preferences = PreferenceManager.getDefaultSharedPreferences(context);
-        this.socketReady = preferences.getBoolean("socketReady", false);
-        editor = preferences.edit();
-        editor.putBoolean("answeredWithCallKit", true);
-        editor.commit();
-        Session currentLine = CallManager.Instance().getCurrentSession();
-        if (this.socketReady == true && currentLine != null && currentLine.sessionID > 0 && this.answeredWithCallKit) {
-            System.out.println("SDK-Android: MptCallkitPlugin - onAccept - Answering call after socket is ready");
-            answerCall(false);
-            this.answeredWithCallKit = false; // Reset flag after answering
-            editor = preferences.edit();
-            editor.putBoolean("answeredWithCallKit", false);
-            editor.apply();
-        }
+        // this.answeredWithCallKit = this.isCallIsAcceptedFromCallkit();
+        // System.out.println("SDK-Android: MptCallkitPlugin - onAccept called socketReady: " + this.socketReady + ", currentSession: " + CallManager.Instance().getCurrentSession() + ", answeredWithCallKit: " + this.answeredWithCallKit);
+        // preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        // this.socketReady = preferences.getBoolean("socketReady", false);
+        // editor = preferences.edit();
+        // editor.putBoolean("answeredWithCallKit", true);
+        // editor.commit();
+        // Session currentLine = CallManager.Instance().getCurrentSession();
+        // if (this.socketReady == true && currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING && this.answeredWithCallKit) {
+        //     System.out.println("SDK-Android: MptCallkitPlugin - onAccept - Answering call after socket is ready");
+        //     answerCall(false);
+        //     this.answeredWithCallKit = false; // Reset flag after answering
+        //     editor = preferences.edit();
+        //     editor.putBoolean("answeredWithCallKit", false);
+        //     editor.apply();
+        // }
     }
 
     public void onDecline()   {
@@ -487,14 +502,19 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         // this.activity = activity;
         loginIfNeeded(activity);
         Session currentLine = CallManager.Instance().getCurrentSession();
-        if (currentLine != null && currentLine.sessionID > 0 && currentLine.hasVideo) {
+        if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.CONNECTED && currentLine.hasVideo) {
             startCameraSource();
         }
+        CallManager.Instance().answeredWithCallKit = this.isCallIsAcceptedFromCallkit();
+        // if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING && CallManager.Instance().answeredWithCallKit) {
+        //     startCallCheckJob();
+        // }
     }
     public void onPause()   {
         System.out.println("SDK-Android: MptCallkitPlugin - onPause called");
         stopCameraSource();
         unregisterIfNeeded();
+        stopCallCheckJob();
     }
 
     public void onCreate()   {
@@ -513,6 +533,119 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         System.out.println("SDK-Android: MptCallkitPlugin - onDestroy called");
         unregisterIfNeeded();
         releaseCameraSource();
+        stopCallCheckJob();
+    }
+
+    private boolean isCallIsAcceptedFromCallkit(){
+        SharedPreferences currentPreferences = context.getSharedPreferences(CALLKIT_PREFERENCES_FILE_NAME, Context.MODE_PRIVATE);
+        String activeCalls = currentPreferences.getString("ACTIVE_CALLS", "");
+        // [{"args":{},"accepted":true,"bot":false,"customNotification":true,"customSmallExNotification":false,"important":false,"muted":false,"onHold":false,"showCallID":false,"showCallback":true,"showCallingNotification":true,"showFullLockedScreen":true,"showHangup":true,"showLogo":false,"showMissedCallNotification":true,"actionColor":"#4CAF50","appName":"","audioRoute":1,"avatar":"https://i.pravatar.cc/100","backgroundColor":"#52c3cb","backgroundUrl":"","callingNotificationCallbackText":"","callingNotificationId":null,"callingNotificationSubtitle":"","duration":15000,"extra":{},"from":"notification","handle":"Received a new call.","headers":{},"id":"45c6fb17-6da7-4eab-ad69-47f6cb0cc57c","incomingCallNotificationChannelName":"Incoming Call","isAccepted":true,"isBot":false,"isCustomNotification":true,"isCustomSmallExNotification":false,"isImportant":false,"isMuted":false,"isOnHold":false,"isShowCallID":false,"isShowCallback":true,"isShowCallingNotification":true,"isShowFullLockedScreen":true,"isShowHangup":true,"isShowLogo":false,"isShowMissedCallNotification":true,"logoUrl":"","missedCallNotificationChannelName":"Missed Call","missedNotificationCallbackText":"","missedNotificationCount":1,"missedNotificationId":0,"missedNotificationSubtitle":"","nameCaller":"Received a new call.","ringtonePath":"system_ringtone_default","textAccept":"Trả lời","textColor":"#ffffff","textDecline":"Từ chối","type":0,"uuid":""}]
+        System.out.println("SDK-Android: MptCallkitPlugin - onResume activeCalls: " + activeCalls);
+        
+        try {
+            // convert activeCalls to json array
+            JSONArray jsonArray = new JSONArray(activeCalls);
+            
+            // Check if any call has accepted: true
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject callObject = jsonArray.getJSONObject(i);
+                boolean accepted = callObject.optBoolean("accepted", false);
+                if (accepted) {
+                    System.out.println("SDK-Android: Found accepted call at index " + i);
+                    return true;
+                }
+            }
+            
+            System.out.println("SDK-Android: No accepted calls found");
+            return false;
+            
+        } catch (JSONException e) {
+            System.out.println("SDK-Android: Error parsing activeCalls JSON: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Start periodic checking for call conditions
+     */
+    private void startCallCheckJob() {
+        System.out.println("SDK-Android: Starting call check job");
+        
+        // Initialize handler on main thread
+        if (callCheckHandler == null) {
+            callCheckHandler = new Handler(Looper.getMainLooper());
+        }
+        
+        // Stop any existing job
+        stopCallCheckJob();
+        
+        // Record start time for timeout
+        callCheckStartTime = System.currentTimeMillis();
+        
+        // Create new runnable for periodic checking
+        callCheckRunnable = new Runnable() {
+            @Override
+            public void run() {
+                checkCallConditions();
+                // Schedule next check if not timed out
+                if (callCheckHandler != null && callCheckRunnable != null) {
+                    callCheckHandler.postDelayed(callCheckRunnable, CALL_CHECK_INTERVAL);
+                }
+            }
+        };
+        
+        // Start the first check
+        callCheckHandler.post(callCheckRunnable);
+    }
+    
+    /**
+     * Stop the periodic call checking job
+     */
+    private void stopCallCheckJob() {
+        System.out.println("SDK-Android: Stopping call check job");
+        if (callCheckHandler != null && callCheckRunnable != null) {
+            callCheckHandler.removeCallbacks(callCheckRunnable);
+            callCheckRunnable = null;
+        }
+    }
+    
+    /**
+     * Check if all conditions are met to answer the call
+     */
+    private void checkCallConditions() {
+        // Check if we've exceeded the timeout
+        long currentTime = System.currentTimeMillis();
+        long elapsedTime = currentTime - callCheckStartTime;
+        
+        if (elapsedTime >= CALL_CHECK_TIMEOUT) {
+            System.out.println("SDK-Android: Call check job timed out after " + (elapsedTime / 1000) + " seconds");
+            stopCallCheckJob();
+            return;
+        }
+        
+        boolean isRegistered = CallManager.Instance().isRegistered;
+        boolean answeredWithCallKit = CallManager.Instance().answeredWithCallKit;
+        boolean socketReady = CallManager.Instance().socketReady;
+
+        System.out.println("SDK-Android: Call conditions check - answeredWithCallKit: " + answeredWithCallKit + 
+                          ", socketReady: " + socketReady + 
+                          ", isRegistered: " + isRegistered + 
+                          ", elapsedTime: " + elapsedTime + "ms");
+        
+        // Check all conditions
+        if (answeredWithCallKit && 
+            socketReady && 
+            isRegistered) {
+            
+            System.out.println("SDK-Android: All conditions met - Answering call");
+            answerCall(false);
+            
+            // Reset flag after answering
+            CallManager.Instance().answeredWithCallKit = false;
+            
+            // Stop the checking job since we've answered the call
+            stopCallCheckJob();
+        }
     }
 
     @Override
@@ -783,21 +916,17 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 break;
 
             case "socketStatus":
-                socketReady = call.argument("ready");
-                preferences = PreferenceManager.getDefaultSharedPreferences(context);
-                this.answeredWithCallKit = preferences.getBoolean("answeredWithCallKit", false);
-                editor = preferences.edit();
-                editor.putBoolean("socketReady", socketReady);
-                editor.apply();
-                System.out.println("SDK-Android: MptCallkitPlugin - socketStatus - ready: " + socketReady + ", currentSession: " + CallManager.Instance().getCurrentSession() + ", answeredWithCallKit: " + this.answeredWithCallKit);
-                currentLine = CallManager.Instance().getCurrentSession();
-                if (socketReady == true && currentLine != null && currentLine.sessionID > 0 && this.answeredWithCallKit) {
-                    System.out.println("SDK-Android: MptCallkitPlugin - socketStatus - Answering call after socket is ready");
-                    answerCall(false);
-                    this.answeredWithCallKit = false; // Reset flag after answering
-                    editor = preferences.edit();
-                    editor.putBoolean("answeredWithCallKit", false);
-                    editor.apply();
+                Boolean ready = call.argument("ready");
+                if (ready != null) {
+                    CallManager.Instance().socketReady = ready;
+                    currentLine = CallManager.Instance().getCurrentSession();
+                    if (currentLine != null) {
+                        System.out.println("SDK-Android: MptCallkitPlugin - socketStatus - ready: " + ready + ", answeredWithCallKit: " + CallManager.Instance().answeredWithCallKit + ", sessionID: " + currentLine.sessionID + ", state: " + currentLine.state);
+                        // Restart call check job when socket status changes
+                        if (currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING && ready && CallManager.Instance().answeredWithCallKit) {
+                            startCallCheckJob();
+                        }
+                    }
                 }
                 result.success(true);
                 break;
@@ -1282,7 +1411,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         Ring.getInstance(MainActivity.activity).stopRingTone();
         Ring.getInstance(MainActivity.activity).stopRingBackTone();
         if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING) {
-            if (Engine.Instance().getEngine() == null) {
+            if (Engine.Instance().getEngine() == null && MptCallkitPlugin.shared.context != null) {
                 System.out.println("SDK-Android: Answer call Engine is null, setting method channel");
                 if (Engine.Instance().getMethodChannel() == null) {
                     Engine.Instance().getMethodChannel().setMethodCallHandler(MptCallkitPlugin.shared);

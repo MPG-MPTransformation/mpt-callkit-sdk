@@ -18,6 +18,9 @@ public class CallManager {
 	public boolean isRegistered = false;
 	public boolean online = false;
 	public boolean speakerOn = false;
+	public boolean answeredWithCallKit = false;
+	public boolean socketReady = false;
+	
 	PortSipEnumDefine.AudioDevice currentAudioDevice = PortSipEnumDefine.AudioDevice.NONE;
 	List<PortSipEnumDefine.AudioDevice> audioDeviceAvailable = new ArrayList<>();
 
