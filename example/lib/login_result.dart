@@ -48,6 +48,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   List<QueueDataByAgent>? agentQueues;
 
   bool isOnCall = false;
+  bool isNavigatedToCallPad = false;
 
   @override
   void initState() {
@@ -88,6 +89,17 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       } else {
         isOnCall = false;
       }
+      if (type == CallStateConstants.CONNECTED) {
+        if (mounted && !isNavigatedToCallPad) {
+          isNavigatedToCallPad = true;
+          _navigateToCallPad();
+        }
+      }
+      if (type == CallStateConstants.CLOSED) {
+        if (mounted && isNavigatedToCallPad) {
+          isNavigatedToCallPad = false;
+        }
+      }
     });
 
     _callEventSocketSubscription =
@@ -97,11 +109,13 @@ class _LoginResultScreenState extends State<LoginResultScreen>
           _socketCallStateList.add(callEvent.state ?? "NONE");
         });
 
-        if ((callEvent.state == CallEventSocketConstants.OFFER_CALL ||
-                callEvent.state == CallEventSocketConstants.ANSWER_CALL) &&
+        if ((callEvent.state == CallEventSocketConstants.OFFER_CALL) &&
             callEvent.sessionId != currCallSesssionID) {
           currCallSesssionID = callEvent.sessionId ?? "";
-          _navigateToCallPad();
+          if (mounted && !isNavigatedToCallPad) {
+            isNavigatedToCallPad = true;
+            _navigateToCallPad();
+          }
         }
 
         if (callEvent.state == CallEventSocketConstants.REJECT_CALL ||
@@ -113,7 +127,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       }
     });
 
-    _listenCallkitEvent();
+    // _listenCallkitEvent();
 
     WidgetsBinding.instance.addObserver(this);
   }
@@ -122,23 +136,24 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     print("AppLifecycleState: $state");
 
-    if (state == AppLifecycleState.resumed && isOnCall == false) {
+    if (state == AppLifecycleState.resumed) {
+      // await _initDataWhenLoginSuccess();
       final prefs = await SharedPreferences.getInstance();
       final accessToken = prefs.getString("saved_access_token");
       if (accessToken != null) {
         await MptCallKitController().connectToSocketServer(accessToken);
       }
-      if (Platform.isAndroid) {
-        MptCallKitController().refreshRegister();
-      }
+      // if (Platform.isAndroid) {
+      //   MptCallKitController().refreshRegister();
+      // }
     }
 
     if ((state == AppLifecycleState.paused ||
             state == AppLifecycleState.inactive) &&
         isOnCall == false) {
-      if (Platform.isAndroid) {
-        MptCallKitController().unRegister();
-      }
+      // if (Platform.isAndroid) {
+      await MptSocketSocketServer.disconnect();
+      // }
     }
   }
 

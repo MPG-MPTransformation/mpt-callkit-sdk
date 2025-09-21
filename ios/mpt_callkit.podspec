@@ -16,7 +16,8 @@ A new Flutter plugin project.
   s.source_files = 'Classes/**/*'
   s.resources    = ['Assets/**.*']
   s.dependency 'Flutter'
-  s.platform         = :ios, '9.0'
+  s.dependency 'GoogleMLKit/SegmentationSelfie', '9.0.0' # For blurring background
+  s.platform         = :ios, '15.5'
   s.static_framework = true
 
   # System frameworks - these are frameworks provided by Apple that you want to link with
@@ -50,6 +51,8 @@ A new Flutter plugin project.
   s.info_plist = {
   'NSCameraUsageDescription' => 'For video call',
   'NSMicrophoneUsageDescription' => 'For audio call',
+  'NSLocalNetworkUsageDescription' => 'For VoIP call',
+  'NSUserNotificationsUsageDescription' => 'For VoIP call',
   }
 
   s.swift_version = '5.0'

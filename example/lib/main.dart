@@ -11,7 +11,7 @@ void main() async {
   PushNotifications.localNotiInit();
   // Initialize Firebase
   await Firebase.initializeApp();
-  FirebaseService firebaseService = FirebaseService();
+  FirebaseService();
 
   runApp(const MyApp());
 }

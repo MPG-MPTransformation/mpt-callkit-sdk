@@ -52,6 +52,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.mpt.mpt_callkit.MainActivity;
+import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
 
 public class PortSipService extends Service
         implements OnPortSIPEvent, NetWorkReceiver.NetWorkListener, ResourceMonitor.ResourceCleanupListener {
@@ -105,6 +106,7 @@ public class PortSipService extends Service
     public Context context;
     private String pushToken;
     private String appId;
+    private boolean enableDebugLog;
     protected PowerManager.WakeLock mCpuLock;
     MainActivity mainActivity;
     private boolean isRemoteVideoReceived = false;
@@ -247,29 +249,8 @@ public class PortSipService extends Service
     public void onDestroy() {
         super.onDestroy();
         logWithTimestamp("SDK-Android: onDestroy called!");
-
         try {
-            // Cleanup all active sessions first
-            CallManager.Instance().resetAll();
-
-            // Stop all ongoing calls
-            PortSipSdk engine = Engine.Instance().getEngine();
-            if (engine != null) {
-                engine.destroyConference();
-
-                // Hang up all active sessions before cleanup
-                for (int i = 0; i < CallManager.MAX_LINES; i++) {
-                    Session session = CallManager.Instance().findSessionByIndex(i);
-                    if (session != null && session.sessionID != Session.INVALID_SESSION_ID) {
-                        engine.hangUp(session.sessionID);
-                    }
-                }
-
-                // Cleanup engine resources
-                engine.unRegisterServer(100);
-                engine.removeUser();
-                engine.unInitialize();
-            }
+            unregisterToServer();
 
             unregisterReceiver();
 
@@ -332,47 +313,43 @@ public class PortSipService extends Service
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        logWithTimestamp("SDK-Android: onStartCommand");
-        String username = intent.getStringExtra("username");
-        String password = intent.getStringExtra("password");
-        String domain = intent.getStringExtra("domain");
-        String sipServer = intent.getStringExtra("sipServer");
-        String port = intent.getStringExtra("port");
-        String displayName = intent.getStringExtra("displayName");
-        pushToken = intent.getStringExtra("pushToken");
-        appId = intent.getStringExtra("appId");
-        boolean enableDebugLog = intent.getBooleanExtra("enableDebugLog", false);
-        String resolution = intent.getStringExtra("resolution");
-        int bitrate = intent.getIntExtra("bitrate", 1024);
-        int frameRate = intent.getIntExtra("frameRate", 30);
         int result = super.onStartCommand(intent, flags, startId);
         if (intent != null) {
-            /*
-             * if(ACTION_PUSH_MESSAGE.equals(intent.getAction())){
-             * if(!CallManager.Instance().online){
-             * initialSDK();
-             * }
-             * if(!CallManager.Instance().isRegistered){
-             * registerToServer();
-             * }
-             * }else
-             */
-            
-
+            logWithTimestamp("SDK-Android: onStartCommand, action: " + intent.getAction());
+            String username = intent.getStringExtra("username");
+            String password = intent.getStringExtra("password");
+            String domain = intent.getStringExtra("domain");
+            String sipServer = intent.getStringExtra("sipServer");
+            String port = intent.getStringExtra("port");
+            String displayName = intent.getStringExtra("displayName");
+            pushToken = intent.getStringExtra("pushToken");
+            appId = intent.getStringExtra("appId");
+            enableDebugLog = intent.getBooleanExtra("enableDebugLog", false);
+            String resolution = intent.getStringExtra("resolution");
+            int bitrate = intent.getIntExtra("bitrate", 1024);
+            int frameRate = intent.getIntExtra("frameRate", 30);
             if (ACTION_SIP_REGIEST.equals(intent.getAction())) {
-                if (!CallManager.Instance().online) {
-                initialSDK(enableDebugLog);
-                registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
+                logWithTimestamp("SDK-Android: service is doing registerToServer, online: " + CallManager.Instance().online + ", isRegistered: " + CallManager.Instance().isRegistered);
+                if(!CallManager.Instance().online){
+                    initialSDK(enableDebugLog);
+                }
+                if(!CallManager.Instance().isRegistered){
+                    registerToServer(username, password, domain, sipServer, port, displayName, appId, pushToken);
+                } else {
+                    MptCallkitPlugin.sendToFlutter("onlineStatus", true);
+                    Engine.Instance().invokeMethod("registrationStateStream", true);
+                    MptCallkitPlugin.sendToFlutter("registrationStateStream", true);
                 }
             } else if (ACTION_SIP_UNREGIEST.equals(intent.getAction())) {
                 logWithTimestamp("SDK-Android: service is doing unregisterToServer...");
                 unregisterToServer();
-                Engine.Instance().getMethodChannel().invokeMethod("releaseExtension", true);
+                Engine.Instance().invokeMethod("releaseExtension", true);
                 MptCallkitPlugin.sendToFlutter("releaseExtension", true);
-                context.stopService(new Intent(this, PortSipService.class));
-                logWithTimestamp("SDK-Android: service unregisterToServer done");
-                Engine.Instance().getMethodChannel().invokeMethod("registrationStateStream", false);
+                Engine.Instance().invokeMethod("registrationStateStream", false);
                 MptCallkitPlugin.sendToFlutter("registrationStateStream", false);
+                logWithTimestamp("SDK-Android: service unregisterToServer done");
+                stopSelf();
+                // return START_NOT_STICKY;
             } else if (ACTION_STOP.equals(intent.getAction())) {
                 return START_NOT_STICKY;
             } else if (ACTION_KEEP_ALIVE.equals(intent.getAction())) {
@@ -405,28 +382,35 @@ public class PortSipService extends Service
         String stunPort = "3478";
 
         logWithTimestamp("SDK-Android: registerToServer called");
+        logWithTimestamp("SDK-Android: Parameters - userName: " + userName + ", sipServer: " + sipServer + ", serverPort: " + serverPort);
+        
+        // Validate and provide default values for ports
+        if (TextUtils.isEmpty(serverPort)) {
+            logWithTimestamp("SDK-Android: serverPort is null or empty, using default port 5060");
+            serverPort = "5060"; // Default SIP port
+        }
+        
         int sipServerPort = Integer.parseInt(serverPort);
         int stunServerPort = Integer.parseInt(stunPort);
 
         if (TextUtils.isEmpty(userName)) {
             showTipMessage("Please enter user name!");
+            logWithTimestamp("SDK-Android: Registration failed - userName is empty");
             return;
         }
 
         if (TextUtils.isEmpty(password)) {
             showTipMessage("Please enter password!");
+            logWithTimestamp("SDK-Android: Registration failed - password is empty");
             return;
         }
-
+        
         if (TextUtils.isEmpty(sipServer)) {
-            showTipMessage("Please enter SIP Server!");
+            showTipMessage("Please enter SIP server!");
+            logWithTimestamp("SDK-Android: Registration failed - sipServer is empty");
             return;
         }
 
-        if (TextUtils.isEmpty(serverPort)) {
-            showTipMessage("Please enter Server Port!");
-            return;
-        }
 
         Engine.Instance().getEngine().removeUser();
         int result = Engine.Instance().getEngine().setUser(userName, displayName, authName, password,
@@ -439,11 +423,7 @@ public class PortSipService extends Service
         }
 
         Engine.Instance().getEngine().enableAudioManager(true);
-
         Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
-        Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice",
-                PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
-        MptCallkitPlugin.sendToFlutter("currentAudioDevice", PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
         Engine.Instance().getEngine().setVideoDeviceId(1);
 
         Engine.Instance().getEngine().setSrtpPolicy(srtpType);
@@ -484,24 +464,30 @@ public class PortSipService extends Service
                 PortSipSdk engine = Engine.Instance().getEngine();
                 if (engine != null) {
                     // Hang up all active calls first
-                    CallManager.Instance().hangupAllCalls(engine);
+                    // CallManager.Instance().hangupAllCalls(engine);
 
                     // Wait a bit for hangup to complete
-                    Thread.sleep(500);
+                    // Thread.sleep(200);
 
                     // Then cleanup
-                    engine.destroyConference();
-                    engine.unRegisterServer(100);
+                    // engine.destroyConference();
+                    int result = engine.unRegisterServer(100);
+                    logWithTimestamp("SDK-Android: unRegisterServer done: " + result);
+                    
                     engine.removeUser();
                     engine.unInitialize();
+                    Thread.sleep(200);
+                    logWithTimestamp("SDK-Android: unInitialize done");
                 }
 
                 CallManager.Instance().resetAll();
                 CallManager.Instance().online = false;
                 CallManager.Instance().isRegistered = false;
+                CallManager.Instance().answeredWithCallKit = false;
+                CallManager.Instance().socketReady = false;
 
-                if (Engine.Instance().getMethodChannel() != null) {
-                    Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", false);
+                if (Engine.Instance() != null) {
+                    Engine.Instance().invokeMethod("onlineStatus", false);
                     MptCallkitPlugin.sendToFlutter("onlineStatus", false);
                 }
 
@@ -550,6 +536,13 @@ public class PortSipService extends Service
     }
 
     private int initialSDK(boolean enableDebugLog) {
+        if (Engine.Instance().getEngine() == null && MptCallkitPlugin.shared.context != null) {
+            Engine.Instance().setEngine(new PortSipSdk(MptCallkitPlugin.shared.context));
+            // Only create receiver if it doesn't exist
+            if (Engine.Instance().getReceiver() == null) {
+                Engine.Instance().setReceiver(new PortMessageReceiver());
+            }
+        }
         Engine.Instance().getEngine().setOnPortSIPEvent(this);
         CallManager.Instance().online = true;
         logWithTimestamp("SDK-Android: initialSDK - enableDebugLog: " + enableDebugLog);
@@ -650,26 +643,26 @@ public class PortSipService extends Service
     public void onRegisterSuccess(String statusText, int statusCode, String sipMessage) {
         logWithTimestamp("SDK-Android: onRegisterSuccess - statusText: " + statusText + " - statusCode: "+ statusCode + " - sipMessage: "+ sipMessage);
         CallManager.Instance().isRegistered = true;
-        Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", true);
+        Engine.Instance().invokeMethod("onlineStatus", true);
         MptCallkitPlugin.sendToFlutter("onlineStatus", true);
         Intent broadIntent = new Intent(REGISTER_CHANGE_ACTION);
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);
-        // sendPortSipMessage("onRegisterSuccess", broadIntent);
+        sendPortSipMessage("onRegisterSuccess", broadIntent);
         keepCpuRun(true);
-        Engine.Instance().getMethodChannel().invokeMethod("registrationStateStream", true);
+        Engine.Instance().invokeMethod("registrationStateStream", true);
         MptCallkitPlugin.sendToFlutter("registrationStateStream", true);
     }
 
     @Override
     public void onRegisterFailure(String statusText, int statusCode, String sipMessage) {
         logWithTimestamp("SDK-Android: onRegisterFailure " + statusText + " - " + statusCode + " - " + sipMessage);
-        Engine.Instance().getMethodChannel().invokeMethod("onlineStatus", false);
+        Engine.Instance().invokeMethod("onlineStatus", false);
         MptCallkitPlugin.sendToFlutter("onlineStatus", false);
         Intent broadIntent = new Intent(REGISTER_CHANGE_ACTION);
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);
-        // sendPortSipMessage("onRegisterFailure" + statusCode, broadIntent);
+        sendPortSipMessage("onRegisterFailure" + statusCode, broadIntent);
         CallManager.Instance().resetAll();
-        Engine.Instance().getMethodChannel().invokeMethod("registrationStateStream", false);
+        Engine.Instance().invokeMethod("registrationStateStream", false);
         MptCallkitPlugin.sendToFlutter("registrationStateStream", false);
 
         keepCpuRun(false);
@@ -727,7 +720,7 @@ public class PortSipService extends Service
         sendCallStateToFlutter("INCOMING");
 
         // Gửi thêm thông tin chi tiết về người gọi
-        if (Engine.Instance().getMethodChannel() != null) {
+        if (Engine.Instance() != null) {
             try {
                 // Tạo đối tượng chứa thông tin cuộc gọi để gửi về Flutter
                 java.util.Map<String, Object> callInfo = new java.util.HashMap<>();
@@ -736,7 +729,7 @@ public class PortSipService extends Service
                 callInfo.put("callerNumber", caller);
                 callInfo.put("hasVideo", existsVideo);
 
-                Engine.Instance().getMethodChannel().invokeMethod("incomingCall", callInfo);
+                Engine.Instance().invokeMethod("incomingCall", callInfo);
                 MptCallkitPlugin.sendToFlutter("incomingCall", callInfo);
             } catch (Exception e) {
                 logWithTimestamp("SDK-Android: Error sending call info to Flutter: " + e.getMessage());
@@ -757,7 +750,8 @@ public class PortSipService extends Service
             logWithTimestamp("SDK-Android: onInviteIncoming - On auto answer call");
             sendCallTypeToFlutter("OUTGOING_CALL");
             if (result == 0) {
-                sendCallStateToFlutter("ANSWERED");
+                // sendCallStateToFlutter("ANSWERED");
+                logWithTimestamp("SDK-Android: onInviteIncoming - auto answer call success");
             } else {
                 logWithTimestamp("SDK-Android: auto answer call failed with code: " + result);
             }
@@ -771,7 +765,7 @@ public class PortSipService extends Service
                 .getSipMessageHeaderValue(CallManager.Instance().getCurrentSession().sipMessage, "X-Session-Id")
                 .toString();
 
-        Engine.Instance().getMethodChannel().invokeMethod("curr_sessionId", messageSesssionId);
+        Engine.Instance().invokeMethod("curr_sessionId", messageSesssionId);
 
         MptCallkitPlugin.sendToFlutter("curr_sessionId", messageSesssionId);
         MptCallkitPlugin.sendToFlutter("isRemoteVideoReceived", false);
@@ -780,20 +774,20 @@ public class PortSipService extends Service
         logWithTimestamp("SDK-Android: onInviteIncoming X-Session-Id = " + messageSesssionId);
         // sendCallStateToFlutter("IN_CONFERENCE");
 
-        Set<PortSipEnumDefine.AudioDevice> availableDevices = Engine.Instance().getEngine().getAudioDevices();
-        logWithTimestamp("SDK-Android: onInviteIncoming - allDevices: " + availableDevices.toString());
-        if (availableDevices.contains(PortSipEnumDefine.AudioDevice.BLUETOOTH)) {
-            Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.BLUETOOTH);
-            Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice",
-                    PortSipEnumDefine.AudioDevice.BLUETOOTH.toString());
-            MptCallkitPlugin.sendToFlutter("currentAudioDevice", PortSipEnumDefine.AudioDevice.BLUETOOTH.toString());
-        } else {
-            Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
-            Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice",
-                    PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
-            MptCallkitPlugin.sendToFlutter("currentAudioDevice",
-                    PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
-        }
+        // Set<PortSipEnumDefine.AudioDevice> availableDevices = Engine.Instance().getEngine().getAudioDevices();
+        // logWithTimestamp("SDK-Android: onInviteIncoming - allDevices: " + availableDevices.toString());
+        // if (availableDevices.contains(PortSipEnumDefine.AudioDevice.BLUETOOTH)) {
+        //     Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.BLUETOOTH);
+        //     Engine.Instance().invokeMethod("currentAudioDevice",
+        //             PortSipEnumDefine.AudioDevice.BLUETOOTH.toString());
+        //     MptCallkitPlugin.sendToFlutter("currentAudioDevice", PortSipEnumDefine.AudioDevice.BLUETOOTH.toString());
+        // } else {
+        //     Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
+        //     Engine.Instance().invokeMethod("currentAudioDevice",
+        //             PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
+        //     MptCallkitPlugin.sendToFlutter("currentAudioDevice",
+        //             PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
+        // }
     }
 
     public void showPendingCallNotification(Context context, String contenTitle, String contenText, Intent intent) {
@@ -972,6 +966,9 @@ public class PortSipService extends Service
                 // for receive video stream
                 Engine.Instance().getEngine().enableVideoStreamCallback(sessionId,
                         PortSipEnumDefine.ENUM_DIRECTION_RECV);
+                int result = Engine.Instance().getEngine().enableSendVideoStreamToRemote(sessionId, true);
+                System.out.println("SDK-Android: enableSendVideoStream result: " + result);
+                MptCallkitPlugin.shared.startCameraSource();
             }
 
             if (session.hasVideo && !existsVideo && videoCodecs.isEmpty()) {
@@ -1029,20 +1026,20 @@ public class PortSipService extends Service
             sendPortSipMessage(description, broadIntent);
         }
 
-        Set<PortSipEnumDefine.AudioDevice> availableDevices = Engine.Instance().getEngine().getAudioDevices();
-        logWithTimestamp("SDK-Android: onInviteIncoming - allDevices: " + availableDevices.toString());
-        if (availableDevices.contains(PortSipEnumDefine.AudioDevice.BLUETOOTH)) {
-            Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.BLUETOOTH);
-            Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice",
-                    PortSipEnumDefine.AudioDevice.BLUETOOTH.toString());
-            MptCallkitPlugin.sendToFlutter("currentAudioDevice", PortSipEnumDefine.AudioDevice.BLUETOOTH.toString());
-        } else {
-            Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
-            Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice",
-                    PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
-            MptCallkitPlugin.sendToFlutter("currentAudioDevice",
-                    PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
-        }
+        // Set<PortSipEnumDefine.AudioDevice> availableDevices = Engine.Instance().getEngine().getAudioDevices();
+        // logWithTimestamp("SDK-Android: onInviteIncoming - allDevices: " + availableDevices.toString());
+        // if (availableDevices.contains(PortSipEnumDefine.AudioDevice.BLUETOOTH)) {
+        //     Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.BLUETOOTH);
+        //     Engine.Instance().invokeMethod("currentAudioDevice",
+        //             PortSipEnumDefine.AudioDevice.BLUETOOTH.toString());
+        //     MptCallkitPlugin.sendToFlutter("currentAudioDevice", PortSipEnumDefine.AudioDevice.BLUETOOTH.toString());
+        // } else {
+        //     Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
+        //     Engine.Instance().invokeMethod("currentAudioDevice",
+        //             PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
+        //     MptCallkitPlugin.sendToFlutter("currentAudioDevice",
+        //             PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
+        // }
         
         sendCallStateToFlutter("CONNECTED");
     }
@@ -1054,6 +1051,7 @@ public class PortSipService extends Service
     @Override
     public void onInviteClosed(long sessionId, String sipMessage) {
         logWithTimestamp("SDK-Android: onInviteClosed");
+        MptCallkitPlugin.shared.stopCameraSource();
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
         if (session != null) {
             session.state = Session.CALL_STATE_FLAG.CLOSED;
@@ -1067,7 +1065,9 @@ public class PortSipService extends Service
             sendPortSipMessage(description, broadIntent);
         }
         Ring.getInstance(this).stopRingTone();
-        mNotificationManager.cancel(PENDINGCALL_NOTIFICATION);
+        if (mNotificationManager != null) {
+            mNotificationManager.cancel(PENDINGCALL_NOTIFICATION);
+        }
         sendCallStateToFlutter("CLOSED");
         sendCallTypeToFlutter("ENDED");
         MptCallkitPlugin.sendToFlutter("isRemoteVideoReceived", false);
@@ -1317,7 +1317,7 @@ public class PortSipService extends Service
         logWithTimestamp("SDK-Android: onAudioDeviceChanged - " + audioDevice);
         CallManager.Instance().setSelectableAudioDevice(audioDevice, set);
 
-        Engine.Instance().getMethodChannel().invokeMethod("currentAudioDevice", audioDevice.toString());
+        Engine.Instance().invokeMethod("currentAudioDevice", audioDevice.toString());
         MptCallkitPlugin.sendToFlutter("currentAudioDevice", audioDevice.toString());
 
         Intent intent = new Intent();
@@ -1347,15 +1347,16 @@ public class PortSipService extends Service
             int height,
             byte[] data,
             int dataLength) {
-        logWithTimestamp("SDK-Android: onVideoRawCallback - " +
+
+        if (!isRemoteVideoReceived) {
+             logWithTimestamp("SDK-Android: onVideoRawCallback - " +
                 "sessionId: " + sessionId +
                 "enum_direction: " + enum_direction +
                 "width: " + width +
                 "height: " + height +
                 "dataLength: " + dataLength);
-
-        if (!isRemoteVideoReceived) {
             isRemoteVideoReceived = true;
+            Engine.Instance().getEngine().enableVideoStreamCallback(sessionId, PortSipEnumDefine.ENUM_DIRECTION_NONE);
 
             // Post to main thread to avoid crash - don't call SDK API or Flutter methods
             // directly in this callback
@@ -1488,16 +1489,16 @@ public class PortSipService extends Service
     }
 
     private void sendCallStateToFlutter(String state) {
-        if (Engine.Instance().getMethodChannel() != null) {
-            Engine.Instance().getMethodChannel().invokeMethod("callState", state);
+        if (Engine.Instance() != null) {
+            Engine.Instance().invokeMethod("callState", state);
             MptCallkitPlugin.sendToFlutter("callState", state);
             logWithTimestamp("SDK-Android: callState - " + state);
         }
     }
 
     private void sendCallTypeToFlutter(String state) {
-        if (Engine.Instance().getMethodChannel() != null) {
-            Engine.Instance().getMethodChannel().invokeMethod("callType", state);
+        if (Engine.Instance() != null) {
+            Engine.Instance().invokeMethod("callType", state);
             MptCallkitPlugin.sendToFlutter("callType", state);
         }
     }

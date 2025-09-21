@@ -88,4 +88,24 @@ android {
 
 dependencies {
     implementation files('libs/portsipvoipsdk.jar')
+    implementation 'com.google.mlkit:segmentation-selfie:16.0.0-beta6'
+    implementation 'com.google.code.gson:gson:2.8.6'
+    implementation('com.google.guava:guava:27.1-android') {
+        exclude group: 'com.google.guava', module: 'listenablefuture'
+    }
+}
+
+
+configurations {
+    // Resolves dependency conflict caused by some dependencies use
+    // com.google.guava:guava and com.google.guava:listenablefuture together.
+    all*.exclude group: 'com.google.guava', module: 'listenablefuture'
+    
+    // Additional exclusions for MLKit dependencies
+    all {
+        exclude group: 'com.google.guava', module: 'listenablefuture'
+        resolutionStrategy {
+            force 'com.google.guava:guava:27.1-android'
+        }
+    }
 }

@@ -40,6 +40,12 @@ public class Engine {
         return channel;
     }
 
+    public void invokeMethod(String method, Object value){
+        if (channel != null) {
+            channel.invokeMethod(method, value);
+        }
+    }
+
 
     public void setReceiver(PortMessageReceiver obj) {
         receiver = obj;

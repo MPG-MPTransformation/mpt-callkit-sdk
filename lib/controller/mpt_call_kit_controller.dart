@@ -30,6 +30,7 @@ class MptCallKitController {
   bool? enableDebugLog = false;
   //hard code until have correct
   String localizedCallerName = "";
+  String recordLabel = "";
   // file logging
   File? _logFile;
   bool _fileLoggingEnabled = false;
@@ -382,6 +383,8 @@ class MptCallKitController {
     bool? enableDebugLog,
     String? localizedCallerName,
     String? deviceInfo,
+    String? recordLabel,
+    bool? enableBlurBackground,
   }) async {
     await enableFileLogging();
 
@@ -393,12 +396,14 @@ class MptCallKitController {
     final bool resolvedEnableDebug = enableDebugLog ?? false;
     final String resolvedCallerName = localizedCallerName ?? "Omicx call";
     final String resolvedDeviceInfo = deviceInfo ?? "";
-
     print(
         "initSDK: apiKey: $apiKey, baseUrl: $baseUrl, pushToken: $pushToken, appId: $appId, enableDebugLog: $enableDebugLog, localizedCallerName: $localizedCallerName, deviceInfo: $deviceInfo");
 
     this.enableDebugLog = resolvedEnableDebug;
     this.localizedCallerName = resolvedCallerName;
+    if (recordLabel != null) {
+      this.recordLabel = recordLabel;
+    }
 
     // Persist initialization params to SharedPreferences
     try {
@@ -413,6 +418,13 @@ class MptCallKitController {
           SDKPrefsKeyConstants.LOCALIZED_CALLER_NAME, resolvedCallerName);
       await prefs.setString(
           SDKPrefsKeyConstants.DEVICE_INFO, resolvedDeviceInfo);
+      if (recordLabel != null) {
+        await prefs.setString(SDKPrefsKeyConstants.RECORD_LABEL, recordLabel);
+      }
+      if (enableBlurBackground != null) {
+        await prefs.setBool(
+            SDKPrefsKeyConstants.ENABLE_BLUR_BACKGROUND, enableBlurBackground);
+      }
     } catch (e) {
       debugPrint('Failed to persist initSdk params: $e');
     }
@@ -451,13 +463,12 @@ class MptCallKitController {
   Future<void> clearInitPreferences() async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.remove(SDKPrefsKeyConstants.API_KEY);
-      await prefs.remove(SDKPrefsKeyConstants.BASE_URL);
       await prefs.remove(SDKPrefsKeyConstants.PUSH_TOKEN);
-      await prefs.remove(SDKPrefsKeyConstants.APP_ID);
       await prefs.remove(SDKPrefsKeyConstants.ENABLE_DEBUG_LOG);
       await prefs.remove(SDKPrefsKeyConstants.LOCALIZED_CALLER_NAME);
       await prefs.remove(SDKPrefsKeyConstants.DEVICE_INFO);
+      await prefs.remove(SDKPrefsKeyConstants.RECORD_LABEL);
+      await prefs.remove(SDKPrefsKeyConstants.ENABLE_BLUR_BACKGROUND);
     } catch (e) {
       debugPrint('Failed to clear initSdk params: $e');
     }
@@ -620,6 +631,9 @@ class MptCallKitController {
               resolution: extensionData?.resolution,
               bitrate: extensionData?.bitrate,
               frameRate: extensionData?.frameRate,
+              recordLabel: await getCurrentRecordLabel(),
+              autoLogin: true,
+              enableBlurBackground: true,
             );
           } else {
             _appEvent.add(AppEventConstants.ERROR);
@@ -768,10 +782,11 @@ class MptCallKitController {
     bool isLogoutAccountSuccess = false;
     bool isUnregistered = false;
 
-    // Ngắt kết nối socket
-    await MptSocketSocketServer.disconnect();
     // Cancel socket status forwarding and notify iOS
     try {
+      // Ngắt kết nối socket
+      await MptSocketSocketServer.disconnect();
+
       _socketConnectionSubscription?.cancel();
       _socketConnectionSubscription = null;
       await channel.invokeMethod('socketStatus', {'ready': false});
@@ -801,7 +816,7 @@ class MptCallKitController {
     // Important: Destroy instance when logout
     await MptSocketSocketServer.destroyInstance();
 
-    // await clearInitPreferences();
+    await clearInitPreferences();
 
     if (isLogoutAccountSuccess && isUnregistered) {
       _appEvent.add(AppEventConstants.LOGGED_OUT);
@@ -861,24 +876,26 @@ class MptCallKitController {
         lastesExtensionData = extensionData;
 
         online(
-          username: result.username ?? "",
-          displayName: userPhoneNumber,
-          authName: '',
-          password: result.password ?? "",
-          userDomain: result.domain ?? "",
-          sipServer: result.sipServer ?? "",
-          sipServerPort: result.port ?? 5063,
-          // sipServerPort: 5063,
-          transportType: 0,
-          srtpType: 0,
-          context: context,
-          appId: await getCurrentAppId(),
-          pushToken: await getCurrentPushToken(),
-          isMakeCallByGuest: true,
-          resolution: result.resolution,
-          bitrate: result.bitrate,
-          frameRate: result.frameRate,
-        );
+            username: result.username ?? "",
+            displayName: userPhoneNumber,
+            authName: '',
+            password: result.password ?? "",
+            userDomain: result.domain ?? "",
+            sipServer: result.sipServer ?? "",
+            sipServerPort: result.port ?? 5063,
+            // sipServerPort: 5063,
+            transportType: 0,
+            srtpType: 0,
+            context: context,
+            appId: await getCurrentAppId(),
+            pushToken: await getCurrentPushToken(),
+            isMakeCallByGuest: true,
+            resolution: result.resolution,
+            bitrate: result.bitrate,
+            frameRate: result.frameRate,
+            recordLabel: await getCurrentRecordLabel(),
+            autoLogin: false,
+            enableBlurBackground: await getCurrentEnableBlurBackground());
 
         // 🔧 FIX: Ensure no previous completer is pending
         if (_guestRegistrationCompleter != null &&
@@ -1140,6 +1157,9 @@ class MptCallKitController {
     String? resolution,
     int? bitrate,
     int? frameRate,
+    String? recordLabel,
+    bool? autoLogin,
+    bool? enableBlurBackground,
     // required String localizedCallerName,
   }) async {
     this.isMakeCallByGuest = isMakeCallByGuest ?? false;
@@ -1176,6 +1196,9 @@ class MptCallKitController {
           "resolution": resolution ?? "720P",
           "bitrate": bitrate ?? 1024,
           "frameRate": frameRate ?? 30,
+          "recordLabel": recordLabel ?? "Customer",
+          "autoLogin": autoLogin ?? false,
+          "enableBlurBackground": enableBlurBackground ?? false,
         },
       );
 
@@ -2173,6 +2196,16 @@ class MptCallKitController {
   Future<String> getCurrentPushToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(SDKPrefsKeyConstants.PUSH_TOKEN) ?? '';
+  }
+
+  Future<String> getCurrentRecordLabel() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(SDKPrefsKeyConstants.RECORD_LABEL) ?? 'Customer';
+  }
+
+  Future<bool> getCurrentEnableBlurBackground() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(SDKPrefsKeyConstants.ENABLE_BLUR_BACKGROUND) ?? false;
   }
 
   Future<String> getCurrentAppId() async {

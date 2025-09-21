@@ -4,6 +4,17 @@ import PushKit
 import UIKit
 import Foundation
 import Darwin
+import AVFoundation
+import CoreVideo
+import CoreImage
+import MLImage
+import MLKitSegmentationSelfie
+import MLKitSegmentationCommon
+import MLKitVision
+import MLKitCommon
+import VideoToolbox
+import Accelerate
+import Accelerate.vImage
 
 // MARK: - PortSIP Data Types
 struct PortSIPCallState {
@@ -53,6 +64,15 @@ extension Notification.Name {
     static let portSIPCameraStateChanged = Notification.Name("PortSIPCameraStateChanged")
     static let portSIPMicrophoneStateChanged = Notification.Name("PortSIPMicrophoneStateChanged")
     static let portSIPSpeakerStateChanged = Notification.Name("PortSIPSpeakerStateChanged")
+}
+
+enum CALLBACK_DIRECTION_MODE : Int
+{
+    case DIRECTION_NONE = 0      ///<    NOT EXIST.
+    case DIRECTION_SEND_RECV = 1 ///<    both received and sent.
+    case DIRECTION_SEND = 2      ///<    Only the sent.
+    case DIRECTION_RECV = 3      ///<    Only the received .
+    case DIRECTION_INACTIVE = 4  ///<    INACTIVE.
 }
 
 // MARK: - PortSIP State Manager
@@ -209,12 +229,14 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         registrar.addMethodCallDelegate(instance, channel: channel)
 
         // REMOVED: No shared view controller instances
-        let localFactory = LocalViewFactory(messenger: registrar.messenger())
-        registrar.register(localFactory, withId: "LocalView")
+        MptCallkitPlugin.localFactory = LocalViewFactory(messenger: registrar.messenger())
+        registrar.register(MptCallkitPlugin.localFactory!, withId: "LocalView")
 
         let remoteFactory = RemoteViewFactory(messenger: registrar.messenger())
         registrar.register(remoteFactory, withId: "RemoteView")
     }
+    
+    private static var localFactory: LocalViewFactory?
 
     var sipRegistered: Bool!
     var portSIPSDK: PortSIPSDK!
@@ -252,6 +274,26 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     var _enableForceBackground: Bool?
 
     var mUseFrontCamera: Bool = true
+
+    private var _segmenter: Segmenter? = nil
+    private var frameCounter: Int = 0
+    private static var enableBlurBackground: Bool = false
+    
+    // MARK: - Camera Resolution Configuration
+    
+    // Resolution presets for automatic selection (matching Android CameraSource)
+    static let RESOLUTION_LOW = 0      // 480x640
+    static let RESOLUTION_MEDIUM = 1   // 720x1280
+    static let RESOLUTION_HIGH = 2     // 1080x1920
+    static let RESOLUTION_AUTO = 3     // Automatic based on device capabilities
+    
+    // Resolution configuration
+    private var resolutionMode = RESOLUTION_AUTO
+    private var requestedWidth = 720
+    private var requestedHeight = 1280
+    
+    // Text overlay configuration (matching Android SegmenterProcessor)
+    private static var overlayText = "Agent" // Default text matching Android
 
     enum CallState: String {
         case INCOMING = "INCOMING"
@@ -353,7 +395,308 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
         setupNotificationHandling()
         // setupViewLifecycleObservers() // REMOVED - Views manage themselves
+
+        let options = SelfieSegmenterOptions()
+        options.segmenterMode = .stream
+        // options.shouldEnableRawSizeMask = true
+        self._segmenter = Segmenter.segmenter(options: options)
+        // Initialize resolution system
+        updateRequestedResolution()
+        setUpCaptureSessionOutput()
+        setUpCaptureSessionInput()
+        
+        // Add session error handling
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(captureSessionRuntimeError),
+            name: .AVCaptureSessionRuntimeError,
+            object: captureSession
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(captureSessionWasInterrupted),
+            name: .AVCaptureSessionWasInterrupted,
+            object: captureSession
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(captureSessionInterruptionEnded),
+            name: .AVCaptureSessionInterruptionEnded,
+            object: captureSession
+        )
     }
+
+      private func updatePreviewOverlayViewWithImageBuffer(_ imageBuffer: CVImageBuffer?) {
+        guard let buffer = imageBuffer else {
+            return
+        }
+        let orientation: UIImage.Orientation = mUseFrontCamera ? .leftMirrored : .right
+        guard let image = UIUtilities.createUIImage(from: buffer, orientation: orientation) else {
+            return
+        }
+        // Draw text on the segmented image (matching Android SegmenterProcessor logic)
+        let finalImage = drawTextOnImage(image, text: MptCallkitPlugin.overlayText) ?? image
+        
+        // Set image in localFactory for UI display
+        MptCallkitPlugin.localFactory?.setImage(image: finalImage)
+        
+        // Send to video stream if remote video is received and session is active
+        // Apply rotation and flip transformations for correct orientation
+      if let result = _callManager.findCallBySessionID(self.activeSessionid) {
+          if result.session.videoState, let yuvData = convertUIImageToI420Data(finalImage) {
+              let width = Int(finalImage.size.width)
+              let height = Int(finalImage.size.height)
+//               print("I420 buffer size = \(yuvData.count) bytes, width = \(width), height = \(height), \(yuvData.count) == \(width * height * 3 / 2)")
+              // 🔥 Send to PortSIP
+              let result = self.portSIPSDK.sendVideoStream(toRemote: self.activeSessionid,
+                                                           data: yuvData,
+                                                           width: Int32(width),
+                                                           height: Int32(height))
+              print("sendVideoStream result: \(result)")
+          }
+        }
+    }
+
+
+  // MARK: - Private
+
+  private func setUpCaptureSessionOutput() {
+    weak var weakSelf = self
+    sessionQueue.async {
+      guard let strongSelf = weakSelf else {
+        print("Self is nil!")
+        return
+      }
+      strongSelf.captureSession.beginConfiguration()
+        
+      // Update resolution based on current mode before setting up capture
+      strongSelf.updateRequestedResolution()
+      
+      // Set session preset based on requested resolution
+      strongSelf.captureSession.sessionPreset = strongSelf.getOptimalSessionPreset()
+
+      let output = AVCaptureVideoDataOutput()
+      output.videoSettings = [
+        (kCVPixelBufferPixelFormatTypeKey as String): kCVPixelFormatType_32BGRA
+      ]
+      output.alwaysDiscardsLateVideoFrames = true
+      let outputQueue = DispatchQueue(label: "com.mpt.outputQueue")
+      output.setSampleBufferDelegate(strongSelf, queue: outputQueue)
+      
+      guard strongSelf.captureSession.canAddOutput(output) else {
+        print("❌ Failed to add capture session output - canAddOutput returned false")
+        return
+      }
+      
+      strongSelf.captureSession.addOutput(output)
+      print("✅ Successfully added video output to capture session")
+      print("✅ Video output delegate set to: \(strongSelf)")
+      strongSelf.captureSession.commitConfiguration()
+    }
+  }
+
+  private func setUpCaptureSessionInput() {
+    weak var weakSelf = self
+    sessionQueue.async {
+      guard let strongSelf = weakSelf else {
+        print("Self is nil!")
+        return
+      }
+      let cameraPosition: AVCaptureDevice.Position = strongSelf.mUseFrontCamera ? .front : .back
+      guard let device = strongSelf.captureDevice(forPosition: cameraPosition) else {
+        print("Failed to get capture device for camera position: \(cameraPosition)")
+        return
+      }
+      do {
+        strongSelf.captureSession.beginConfiguration()
+        let currentInputs = strongSelf.captureSession.inputs
+        for input in currentInputs {
+          strongSelf.captureSession.removeInput(input)
+        }
+
+        let input = try AVCaptureDeviceInput(device: device)
+        guard strongSelf.captureSession.canAddInput(input) else {
+          print("❌ Failed to add capture session input - canAddInput returned false")
+          return
+        }
+        strongSelf.captureSession.addInput(input)
+        print("✅ Successfully added camera input: \(device.localizedName) (position: \(cameraPosition))")
+        strongSelf.captureSession.commitConfiguration()
+      } catch {
+        print("Failed to create capture device input: \(error.localizedDescription)")
+      }
+    }
+  }
+
+  private func startSession() {
+    weak var weakSelf = self
+    sessionQueue.async {
+      guard let strongSelf = weakSelf else {
+        print("Self is nil!")
+        return
+      }
+      
+      // Check camera permission before starting session
+      let cameraAuthStatus = AVCaptureDevice.authorizationStatus(for: .video)
+      guard cameraAuthStatus == .authorized else {
+        print("❌ startSession failed: Camera permission not granted. Status: \(cameraAuthStatus)")
+        return
+      }
+      
+      // Verify capture session has inputs and outputs
+      guard !strongSelf.captureSession.inputs.isEmpty else {
+        print("❌ startSession failed: No capture inputs configured")
+        return
+      }
+      
+      guard !strongSelf.captureSession.outputs.isEmpty else {
+        print("❌ startSession failed: No capture outputs configured")
+        return
+      }
+      
+      if !strongSelf.captureSession.isRunning {
+        print("✅ startSession: Starting capture session with \(strongSelf.captureSession.inputs.count) inputs and \(strongSelf.captureSession.outputs.count) outputs")
+        
+        // Check for camera availability before starting
+        let cameraPosition: AVCaptureDevice.Position = strongSelf.mUseFrontCamera ? .front : .back
+        if let currentDevice = strongSelf.captureDevice(forPosition: cameraPosition) {
+          print("🔍 Camera device available: \(currentDevice.localizedName)")
+          
+          // Check if device is already in use
+          if currentDevice.isConnected && !currentDevice.isSuspended {
+            print("🔄 Starting capture session...")
+            strongSelf.captureSession.startRunning()
+          } else {
+            print("⚠️ Camera device not ready - isConnected: \(currentDevice.isConnected), isSuspended: \(currentDevice.isSuspended)")
+            // Try after a short delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+              print("🔄 Retrying capture session start...")
+              strongSelf.captureSession.startRunning()
+            }
+          }
+        } else {
+          print("❌ No camera device found for position: \(cameraPosition)")
+        }
+        
+        // Verify session started successfully (after the delay)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+          if strongSelf.captureSession.isRunning {
+            print("✅ Capture session is running successfully")
+            print("✅ Session has \(strongSelf.captureSession.inputs.count) inputs and \(strongSelf.captureSession.outputs.count) outputs")
+          } else {
+            print("❌ Capture session failed to start")
+            print("❌ Session state - inputs: \(strongSelf.captureSession.inputs.count), outputs: \(strongSelf.captureSession.outputs.count)")
+            print("❌ Session preset: \(strongSelf.captureSession.sessionPreset)")
+            
+            // Check if session was interrupted
+            if strongSelf.captureSession.isInterrupted {
+              print("❌ Session was interrupted")
+            }
+            
+            // Check for runtime errors
+            if let error = strongSelf.captureSession.outputs.first as? AVCaptureVideoDataOutput {
+              print("❌ Video output exists but session not running")
+            }
+          }
+        }
+      } else {
+        print("ℹ️ Capture session already running")
+      }
+    }
+  }
+
+  private func stopSession() {
+    weak var weakSelf = self
+    sessionQueue.async {
+      guard let strongSelf = weakSelf else {
+        print("Self is nil!")
+        return
+      }
+        if strongSelf.captureSession.isRunning {
+            print("stopSession")
+            strongSelf.captureSession.stopRunning()
+        } else {
+            print("stopSession session is still running")
+        }
+      
+    }
+  }
+
+
+  private func captureDevice(forPosition position: AVCaptureDevice.Position) -> AVCaptureDevice? {
+    if #available(iOS 10.0, *) {
+      let discoverySession = AVCaptureDevice.DiscoverySession(
+        deviceTypes: [.builtInWideAngleCamera],
+        mediaType: .video,
+        position: .unspecified
+      )
+      return discoverySession.devices.first { $0.position == position }
+    }
+    return nil
+  }
+  
+  // MARK: - Capture Session Error Handling
+  
+  @objc private func captureSessionRuntimeError(_ notification: Notification) {
+    guard let error = notification.userInfo?[AVCaptureSessionErrorKey] as? AVError else {
+      print("❌ Capture session runtime error (no error details)")
+      return
+    }
+    
+    print("❌ Capture session runtime error: \(error.localizedDescription)")
+    print("❌ Error code: \(error.code.rawValue)")
+    
+    // Try to restart session if it's a recoverable error
+    sessionQueue.async { [weak self] in
+      guard let self = self else { return }
+      
+      if !self.captureSession.isRunning {
+        print("🔄 Attempting to restart capture session after error...")
+        self.captureSession.startRunning()
+      }
+    }
+  }
+  
+  @objc private func captureSessionWasInterrupted(_ notification: Notification) {
+    guard let reasonIntegerValue = notification.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int,
+          let reason = AVCaptureSession.InterruptionReason(rawValue: reasonIntegerValue) else {
+      print("⚠️ Capture session was interrupted (unknown reason)")
+      return
+    }
+    
+    print("⚠️ Capture session interrupted: \(reason)")
+    
+    switch reason {
+    case .videoDeviceNotAvailableInBackground:
+      print("⚠️ Video device not available in background")
+    case .audioDeviceInUseByAnotherClient:
+      print("⚠️ Audio device in use by another client")
+    case .videoDeviceInUseByAnotherClient:
+      print("⚠️ Video device in use by another client - this might be PortSIP!")
+    case .videoDeviceNotAvailableWithMultipleForegroundApps:
+      print("⚠️ Video device not available with multiple foreground apps")
+    @unknown default:
+      print("⚠️ Unknown interruption reason")
+    }
+  }
+  
+  @objc private func captureSessionInterruptionEnded(_ notification: Notification) {
+    print("✅ Capture session interruption ended")
+    
+    // Try to restart the session
+    sessionQueue.async { [weak self] in
+      guard let self = self else { return }
+      
+      if !self.captureSession.isRunning {
+        print("🔄 Restarting capture session after interruption ended...")
+        self.captureSession.startRunning()
+      }
+    }
+  }
+
+
 
     private func setupViewLifecycleObservers() {}
     
@@ -403,6 +746,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
     deinit {
+        self._segmenter = nil
         NotificationCenter.default.removeObserver(self)
         NSLog("MptCallkitPlugin - deinit")
     }
@@ -814,6 +1158,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             return
         }
         NSLog("applicationDidEnterBackground")
+        stopSession()
         // if _enableForceBackground! {
         //     // Disable to save battery, or when you don't need incoming calls while APP is in background.
         //     portSIPSDK.startKeepAwake()
@@ -871,10 +1216,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // if _enableForceBackground! {
         //     portSIPSDK.stopKeepAwake()
         // } else {
-            endBackgroundRegister()
-            endBackgroundTaskForRegister()
-            loginViewController.refreshRegister()
+        endBackgroundRegister()
+        endBackgroundTaskForRegister()
+        loginViewController.refreshRegister()
         // }
+        if let result = _callManager.findCallBySessionID(self.activeSessionid), result.session.videoState {
+            let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
+            print("enableSendVideoStream result: \(sendResult)")
+            startSession()
+        }
     }
 
     public override func applicationWillTerminate(_: UIApplication) {
@@ -1222,7 +1572,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     uuid: self.currentUUID!, hasVideo: true, from: self.currentRemoteName)
             }
 
-
+            let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: sessionId, state: true)
+            print("enableSendVideoStream result: \(sendResult)")
+            startSession()
         }
         
         if existsAudio {
@@ -1351,6 +1703,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         methodChannel?.invokeMethod("callType", arguments: "ENDED")
         methodChannel?.invokeMethod("isRemoteVideoReceived", arguments: false)
         self.isRemoteVideoReceived = false
+        self.mUseFrontCamera = true
+        stopSession()
     }
 
     public func onDialogStateUpdated(
@@ -1658,8 +2012,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 //        print("onAudioRawCallback - dataLength \(dataLength)")
     }
 
+    // Optimized video processing queue
+    private lazy var captureSession = AVCaptureSession()
+    private lazy var sessionQueue = DispatchQueue(label: "com.mpt.videoSession")
+    private var sessionIsStarted = false
+    
     public func onVideoRawCallback(
-        _: Int, videoCallbackMode _: Int32, width _: Int32, height _: Int32,
+        _: Int, videoCallbackMode : Int32, width : Int32, height : Int32,
         data: UnsafeMutablePointer<UInt8>!, dataLength: Int32
     ) -> Int32 {
         /* !!! IMPORTANT !!!
@@ -1674,11 +2033,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         //       print("Raw video data (first 16 bytes):", frameData.prefix(16).map { String(format: "%02x", $0) }.joined(separator: " "))
 
 //        print("Total data length: \(dataLength) bytes")
-        
         if self.isRemoteVideoReceived == false {
-            // Print some additional information
             print("Total data length: \(dataLength) bytes")
-
             methodChannel?.invokeMethod("isRemoteVideoReceived", arguments: true)
             self.isRemoteVideoReceived = true
         }
@@ -1704,6 +2060,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         if sessionId >= 0 {
             activeSessionid = sessionId
             print("makeCall------------------ \(String(describing: activeSessionid))")
+            if (videoCall) {
+                let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: sessionId, state: true)
+                print("enableSendVideoStream result: \(sendResult)")
+                startSession()
+            }
             return activeSessionid
         } else {
             return sessionId
@@ -1729,6 +2090,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
             // Use CallManager.endCall which returns proper status codes
             statusCode = _callManager.endCall(sessionid: activeSessionid)
+            stopSession()
             NSLog("hangUpCall - endCall result: \(statusCode)")
         } else {
             statusCode = -2 // No active session
@@ -1962,6 +2324,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     func onCloseCall(sessionId: CLong) {
         NSLog("onCloseCall")
         freeLine(sessionid: sessionId)
+        stopSession()
 
         let result = _callManager.findCallBySessionID(sessionId)
         if result != nil {
@@ -2105,9 +2468,16 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let resolution = (args["resolution"] as? String) ?? "720P"
                 let bitrate = (args["bitrate"] as? Int) ?? 1024
                 let frameRate = (args["frameRate"] as? Int) ?? 30
+                let recordLabel = (args["recordLabel"] as? String) ?? "Customer"
+                let autoLogin = (args["autoLogin"] as? Bool) ?? false
+                let enableBlur = (args["enableBlurBackground"] as? Bool) ?? false
 
                 // Lưu username hiện tại
                 currentUsername = username
+                MptCallkitPlugin.overlayText = recordLabel
+                MptCallkitPlugin.enableBlurBackground = enableBlur
+                
+                print("onMethodCall MptCallkitPlugin.overlayText: \(MptCallkitPlugin.overlayText), MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground)")
 
                 // Lưu localizedCallerName vào UserDefaults và biến hiện tại
                 currentLocalizedCallerName = localizedCallerName
@@ -2171,6 +2541,24 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let disablePushNoti = args["disablePushNoti"] as? Bool
             {
                 addPushSupportWithPortPBX(!disablePushNoti)
+                if disablePushNoti == true {
+                    // clear all shared preferences
+                    UserDefaults.standard.removeObject(forKey: "username")
+                    UserDefaults.standard.removeObject(forKey: "displayName")
+                    UserDefaults.standard.removeObject(forKey: "authName")
+                    UserDefaults.standard.removeObject(forKey: "password")
+                    UserDefaults.standard.removeObject(forKey: "userDomain")
+                    UserDefaults.standard.removeObject(forKey: "sipServer")
+                    UserDefaults.standard.removeObject(forKey: "sipServerPort")
+                    UserDefaults.standard.removeObject(forKey: "transportType")
+                    UserDefaults.standard.removeObject(forKey: "srtpType")
+                    UserDefaults.standard.removeObject(forKey: "enableDebugLog")
+                    UserDefaults.standard.removeObject(forKey: "resolution")
+                    UserDefaults.standard.removeObject(forKey: "bitrate")
+                    UserDefaults.standard.removeObject(forKey: "frameRate")
+                    UserDefaults.standard.removeObject(forKey: "recordLabel")
+                    UserDefaults.standard.removeObject(forKey: "autoLogin")
+                }
             }
             
             self.loginViewController.offLine()
@@ -2340,6 +2728,38 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             result(portSIPSDK.refreshRegistration(0))
         case "refreshRegistration":
             result(portSIPSDK.refreshRegistration(0))
+        case "setResolutionMode":
+            if let args = call.arguments as? [String: Any],
+               let mode = args["mode"] as? Int {
+                setResolutionMode(mode)
+                result(true)
+            } else {
+                result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing or invalid mode for setResolutionMode", details: nil))
+            }
+        case "setCustomResolution":
+            if let args = call.arguments as? [String: Any],
+               let width = args["width"] as? Int,
+               let height = args["height"] as? Int {
+                setCustomResolution(width: width, height: height)
+                result(true)
+            } else {
+                result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing width or height for setCustomResolution", details: nil))
+            }
+        case "getResolutionMode":
+            result(getResolutionMode())
+        case "getCurrentResolution":
+            let resolution = getCurrentResolution()
+            result(["width": resolution.width, "height": resolution.height])
+        case "setOverlayText":
+            if let args = call.arguments as? [String: Any],
+               let text = args["text"] as? String {
+                setOverlayText(text)
+                result(true)
+            } else {
+                result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing text for setOverlayText", details: nil))
+            }
+        case "getOverlayText":
+            result(getOverlayText())
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -2496,11 +2916,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     // Bật camera
                     portSIPSDK.sendVideo(activeSessionid, sendState: true)
                     result!.session.videoMuted = false  // Camera unmuted
+                    let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: activeSessionid, state: true)
+                    print("enableSendVideoStream result: \(sendResult)")
+                    startSession()
                     print("Camera turned on")
                 } else {
                     // Tắt camera - chỉ mute camera chứ không disable video hoàn toàn
                     portSIPSDK.sendVideo(activeSessionid, sendState: false)
                     result!.session.videoMuted = true  // Camera muted
+                    stopSession()
                     print("Camera turned off")
                 }
 
@@ -2711,6 +3135,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         let newUseFrontCamera = !mUseFrontCamera
         setCamera(useFrontCamera: newUseFrontCamera)
         mUseFrontCamera = newUseFrontCamera
+        stopSession()
+        setUpCaptureSessionInput()
+        let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: activeSessionid, state: true)
+        print("enableSendVideoStream result: \(sendResult)")
+        startSession()
 
         // Send state notification - views will handle themselves
         let videoState = PortSIPVideoState(
@@ -2852,7 +3281,494 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         
         return ret;
     }
+    private var frameCount = 0
+    // Add debug logging to verify this method is being called
+    var frameLogCount = 0
+  private var isProcessingFrame = false
+  
+  // FPS Control: 1 = process every frame, 2 = every 2nd frame, 3 = every 3rd frame, etc.
+  private let frameSkipInterval =  1 // Change this to adjust FPS vs Performance balance
+  
+  // Dedicated queue for video processing to avoid priority inversion
+  private let videoProcessingQueue = DispatchQueue(
+    label: "com.mpt.videoprocessing", 
+    qos: .utility,
+    attributes: [],
+    autoreleaseFrequency: .workItem
+  )
+}
 
+extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
+    
+    public func captureOutput(
+    _ output: AVCaptureOutput,
+    didOutput sampleBuffer: CMSampleBuffer,
+    from connection: AVCaptureConnection
+  ) {
+    
+    frameLogCount += 1
+    if frameLogCount <= 5 || frameLogCount % 100 == 0 {
+      print("📹 captureOutput called - frame #\(frameLogCount)")
+    }
+      
+    guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+      print("❌ Failed to get image buffer from sample buffer.")
+      return
+    }
+
+    if !MptCallkitPlugin.enableBlurBackground {
+        DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
+            self?.updatePreviewOverlayViewWithImageBuffer(imageBuffer)
+        }
+      return
+    }
+    
+    frameCount += 1
+    
+    // Skip processing if previous frame is still being processed
+    guard !isProcessingFrame else {
+      return
+    }
+    
+    // Apply frame skip interval for FPS control
+    if frameSkipInterval > 1 && frameCount % frameSkipInterval != 0 {
+      return
+    }
+    
+    let visionImage = VisionImage(buffer: sampleBuffer)
+    let orientation = UIUtilities.imageOrientation(
+      fromDevicePosition: mUseFrontCamera ? .front : .back
+    )
+    visionImage.orientation = orientation
+    
+    // Set processing flag and use async processing
+    isProcessingFrame = true
+    // Use dedicated video processing queue to avoid priority inversion
+    videoProcessingQueue.async { [weak self] in
+      self?.detectSegmentationMask(in: visionImage, sampleBuffer: sampleBuffer)
+    }
+  }
+
+  private func detectSegmentationMask(in image: VisionImage, sampleBuffer: CMSampleBuffer) {
+    // Ensure processing flag is reset even if function exits early
+    defer {
+      DispatchQueue.main.async { [weak self] in
+        self?.isProcessingFrame = false
+      }
+    }
+    
+    guard let segmenter = self._segmenter else {
+      return
+    }
+    
+    // Perform segmentation on background thread
+    var mask: SegmentationMask? = nil
+    do {
+      mask = try segmenter.results(in: image)
+    } catch let error {
+      print("Failed to perform segmentation with error: \(error.localizedDescription).")
+      return
+    }
+    
+    guard let mask = mask else {
+      print("Segmenter returned empty mask.")
+      return
+    }
+    
+    guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+      print("Failed to get image buffer from sample buffer.")
+      return
+    }
+
+    // Apply mask on background thread for better performance
+    UIUtilities.applySegmentationMask(
+      mask: mask, to: imageBuffer,
+      backgroundColor: UIColor.lightGray.withAlphaComponent(0.95),
+      foregroundColor: nil)
+    
+    // Only update UI on main thread with appropriate QoS
+    DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
+      self?.updatePreviewOverlayViewWithImageBuffer(imageBuffer)
+    }
+  }
+    
+    /// Convert UIImage -> I420 contiguous Data ([Y][U][V]).
+    /// Applies 180-degree rotation + horizontal flip for correct video orientation.
+    /// - Parameters:
+    ///   - image: The UIImage to convert
+    /// - Returns: Data length = W*H + (W/2)*(H/2)*2, or nil on error.
+    func convertUIImageToI420Data(_ image: UIImage) -> Data? {
+        let size = image.size
+        let width = Int(size.width)
+        let height = Int(size.height)
+
+        // Require even dimensions for simple 4:2:0 sampling
+        guard width % 2 == 0 && height % 2 == 0 else {
+            print("Width and height must be even for I420 conversion. Got: \(width)x\(height)")
+            return nil
+        }
+
+        let bytesPerPixel = 4
+        let bytesPerRow = width * bytesPerPixel
+        let pixelBufferSize = height * bytesPerRow
+
+        // Allocate pixel buffer for RGBA data
+        guard let pixelData = malloc(pixelBufferSize) else { return nil }
+        defer { free(pixelData) }
+
+        // Use RGBA format with proper alpha handling
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+
+        guard let ctx = CGContext(data: pixelData,
+                                width: width,
+                                height: height,
+                                bitsPerComponent: 8,
+                                bytesPerRow: bytesPerRow,
+                                space: colorSpace,
+                                bitmapInfo: bitmapInfo) else {
+            return nil
+        }
+
+        // Apply transformations for correct orientation
+        // 1. Rotate 180 degrees to fix top-bottom flip
+        ctx.translateBy(x: CGFloat(width), y: CGFloat(height))
+        ctx.rotate(by: .pi) // 180 degrees rotation
+        
+        // 2. Flip horizontally to fix left-right flip (scale x by -1)
+        ctx.scaleBy(x: -1.0, y: 1.0)
+        ctx.translateBy(x: -CGFloat(width), y: 0)
+        
+        // Draw the image with correct orientation
+        UIGraphicsPushContext(ctx)
+        image.draw(in: CGRect(x: 0, y: 0, width: width, height: height))
+        UIGraphicsPopContext()
+
+        let src = pixelData.bindMemory(to: UInt8.self, capacity: pixelBufferSize)
+
+        let ySize = width * height
+        let uvWidth = width / 2
+        let uvHeight = height / 2
+        let uvSize = uvWidth * uvHeight
+        let totalSize = ySize + uvSize * 2
+
+        var i420 = Data(count: totalSize)
+        i420.withUnsafeMutableBytes { rawPtr in
+            guard let base = rawPtr.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
+
+            let yPlane = base
+            let uPlane = base.advanced(by: ySize)
+            let vPlane = base.advanced(by: ySize + uvSize)
+
+            // --- Fill Y plane (full resolution) - Optimized
+            for yy in 0..<height {
+                let rowSrc = yy * bytesPerRow
+                let rowY = yy * width
+                for xx in 0..<width {
+                    let pixelIndex = rowSrc + xx * 4
+                    // layout: RGBA with premultipliedLast + byteOrder32Big
+                    let r = Int(src[pixelIndex])
+                    let g = Int(src[pixelIndex + 1])
+                    let b = Int(src[pixelIndex + 2])
+                    let a = Int(src[pixelIndex + 3])
+
+                    // Optimized alpha handling - avoid division when alpha is 255
+                    let actualR: Int
+                    let actualG: Int
+                    let actualB: Int
+                    
+                    if a == 255 {
+                        actualR = r
+                        actualG = g
+                        actualB = b
+                    } else if a > 0 {
+                        actualR = min(255, (r * 255) / a)
+                        actualG = min(255, (g * 255) / a)
+                        actualB = min(255, (b * 255) / a)
+                    } else {
+                        actualR = 0
+                        actualG = 0
+                        actualB = 0
+                    }
+
+                    // BT.601 limited-range conversion (video range) - Optimized
+                    let yValue = (66 * actualR + 129 * actualG + 25 * actualB + 128) >> 8
+                    yPlane[rowY + xx] = UInt8(max(16, min(235, yValue + 16)))
+                }
+            }
+
+            // --- Fill U and V planes (4:2:0, average 2x2 block) - Optimized
+            for j in 0..<uvHeight {
+                let baseY = (j * 2) * bytesPerRow
+                let uvRowIndex = j * uvWidth
+                
+                for i in 0..<uvWidth {
+                    var rSum = 0, gSum = 0, bSum = 0
+                    let baseX = i * 2
+                    
+                    // Unroll 2x2 loop for better performance
+                    for dy in 0..<2 {
+                        let rowOffset = baseY + dy * bytesPerRow
+                        for dx in 0..<2 {
+                            let pixelIndex = rowOffset + (baseX + dx) * 4
+                            let r = Int(src[pixelIndex])
+                            let g = Int(src[pixelIndex + 1])
+                            let b = Int(src[pixelIndex + 2])
+                            let a = Int(src[pixelIndex + 3])
+                            
+                            // Optimized alpha handling
+                            if a == 255 {
+                                rSum += r
+                                gSum += g
+                                bSum += b
+                            } else if a > 0 {
+                                rSum += min(255, (r * 255) / a)
+                                gSum += min(255, (g * 255) / a)
+                                bSum += min(255, (b * 255) / a)
+                            }
+                        }
+                    }
+                    
+                    // Average the 2x2 block (divide by 4)
+                    rSum >>= 2
+                    gSum >>= 2
+                    bSum >>= 2
+
+                    // BT.601 limited-range U and V conversion - Optimized
+                    let uVal = ((-38 * rSum - 74 * gSum + 112 * bSum + 128) >> 8) + 128
+                    let vVal = ((112 * rSum - 94 * gSum - 18 * bSum + 128) >> 8) + 128
+
+                    let uvIndex = uvRowIndex + i
+                    uPlane[uvIndex] = UInt8(max(16, min(240, uVal)))
+                    vPlane[uvIndex] = UInt8(max(16, min(240, vVal)))
+                }
+            }
+        }
+
+        return i420
+    }
+    
+    // MARK: - Camera Resolution Management
+    
+    /// Sets the camera resolution mode
+    func setResolutionMode(_ mode: Int) {
+        guard mode >= MptCallkitPlugin.RESOLUTION_LOW && mode <= MptCallkitPlugin.RESOLUTION_AUTO else {
+            NSLog("Invalid resolution mode: \(mode)")
+            return
+        }
+        resolutionMode = mode
+        updateRequestedResolution()
+    }
+    
+    /// Gets the current resolution mode
+    func getResolutionMode() -> Int {
+        return resolutionMode
+    }
+    
+    /// Sets custom resolution (overrides resolution mode)
+    func setCustomResolution(width: Int, height: Int) {
+        requestedWidth = width
+        requestedHeight = height
+        resolutionMode = -1 // Custom mode
+        NSLog("Custom resolution set: \(width)x\(height)")
+    }
+    
+    /// Updates the requested resolution based on the current resolution mode
+    private func updateRequestedResolution() {
+        switch resolutionMode {
+        case MptCallkitPlugin.RESOLUTION_LOW:
+            requestedWidth = 480
+            requestedHeight = 640
+        case MptCallkitPlugin.RESOLUTION_MEDIUM:
+            requestedWidth = 720
+            requestedHeight = 1280
+        case MptCallkitPlugin.RESOLUTION_HIGH:
+            requestedWidth = 1280
+            requestedHeight = 1440
+        case MptCallkitPlugin.RESOLUTION_AUTO:
+            autoSelectResolution()
+        default:
+            // Custom resolution - keep current values
+            break
+        }
+        NSLog("Resolution updated: \(requestedWidth)x\(requestedHeight) (mode: \(resolutionMode))")
+    }
+    
+    /// Automatically selects the best resolution based on device capabilities
+    private func autoSelectResolution() {
+        // Get screen dimensions
+        let screenBounds = UIScreen.main.bounds
+        let screenScale = UIScreen.main.scale
+        let screenWidth = Int(min(screenBounds.width, screenBounds.height) * screenScale)
+        let screenHeight = Int(max(screenBounds.width, screenBounds.height) * screenScale)
+        
+        // Get device performance indicators
+        let processInfo = ProcessInfo.processInfo
+        let physicalMemory = processInfo.physicalMemory
+        let processorCount = processInfo.processorCount
+        
+        // Get device model for additional detection
+        let deviceModel = getDeviceModel()
+        
+        // Auto-select based on device capabilities
+        if isHighEndDevice(physicalMemory: physicalMemory, processorCount: processorCount, 
+                          screenWidth: screenWidth, screenHeight: screenHeight, deviceModel: deviceModel) {
+            // High-end device: use high resolution
+            requestedWidth = 1280
+            requestedHeight = 1440
+            NSLog("Auto-selected HIGH resolution for high-end device (\(deviceModel))")
+        } else if isMidRangeDevice(physicalMemory: physicalMemory, processorCount: processorCount,
+                                 screenWidth: screenWidth, screenHeight: screenHeight, deviceModel: deviceModel) {
+            // Mid-range device: use medium resolution
+            requestedWidth = 720
+            requestedHeight = 1280
+            NSLog("Auto-selected MEDIUM resolution for mid-range device (\(deviceModel))")
+        } else {
+            // Low-end device: use low resolution
+            requestedWidth = 480    
+            requestedHeight = 640
+            NSLog("Auto-selected LOW resolution for low-end device (\(deviceModel))")
+        }
+        
+        // Adjust for screen size if needed
+        adjustForScreenSize(screenWidth: screenWidth, screenHeight: screenHeight)
+    }
+    
+    /// Determines if the device is high-end based on hardware specs
+    private func isHighEndDevice(physicalMemory: UInt64, processorCount: Int, 
+                                screenWidth: Int, screenHeight: Int, deviceModel: String) -> Bool {
+        // Memory check: > 3GB RAM
+        let memoryGB = physicalMemory / (1024 * 1024 * 1024)
+        
+        // Check for known high-end device models (iPhone 12 Pro and newer, iPad Pro, etc.)
+        let highEndModels = ["iPhone13", "iPhone14", "iPhone15", "iPhone16", "iPad13", "iPad14"]
+        let isHighEndModel = highEndModels.contains { deviceModel.contains($0) }
+        
+        return memoryGB > 3 &&                    // > 3GB RAM
+               processorCount >= 6 &&             // >= 6 CPU cores  
+               screenWidth >= 1080 &&             // >= 1080p screen
+               (isHighEndModel || memoryGB >= 6)  // High-end model or >= 6GB RAM
+    }
+    
+    /// Determines if the device is mid-range based on hardware specs
+    private func isMidRangeDevice(physicalMemory: UInt64, processorCount: Int,
+                                 screenWidth: Int, screenHeight: Int, deviceModel: String) -> Bool {
+        let memoryGB = physicalMemory / (1024 * 1024 * 1024)
+        
+        // Check for known mid-range device models (iPhone X and newer, regular iPads)
+        let midRangeModels = ["iPhone10", "iPhone11", "iPhone12", "iPad11", "iPad12"]
+        let isMidRangeModel = midRangeModels.contains { deviceModel.contains($0) }
+        
+        return memoryGB > 2 &&                    // > 2GB RAM
+               processorCount >= 4 &&             // >= 4 CPU cores
+               screenWidth >= 720 &&              // >= 720p screen
+               (isMidRangeModel || memoryGB >= 3) // Mid-range model or >= 3GB RAM
+    }
+    
+    /// Adjusts resolution based on screen size to avoid unnecessary upscaling
+    private func adjustForScreenSize(screenWidth: Int, screenHeight: Int) {
+        // Don't use resolution higher than screen resolution
+        if requestedWidth > screenWidth {
+            let ratio = Double(screenWidth) / Double(requestedWidth)
+            requestedWidth = screenWidth
+            requestedHeight = Int(Double(requestedHeight) * ratio)
+            NSLog("Adjusted resolution for screen size: \(requestedWidth)x\(requestedHeight)")
+        }
+    }
+    
+    /// Gets the device model string for device-specific optimizations
+    private func getDeviceModel() -> String {
+        var systemInfo = utsname()
+        uname(&systemInfo)
+        let modelCode = withUnsafePointer(to: &systemInfo.machine) {
+            $0.withMemoryRebound(to: CChar.self, capacity: 1) {
+                ptr in String.init(validatingUTF8: ptr)
+            }
+        }
+        return modelCode ?? "Unknown"
+    }
+    
+    /// Gets the current requested resolution as a tuple
+    func getCurrentResolution() -> (width: Int, height: Int) {
+        return (width: requestedWidth, height: requestedHeight)
+    }
+    
+    /// Sets the overlay text for segmentation (matching Android SegmenterProcessor)
+    func setOverlayText(_ text: String) {
+        MptCallkitPlugin.overlayText = text
+        NSLog("Overlay text set to: \(text)")
+    }
+    
+    /// Gets the current overlay text
+    func getOverlayText() -> String {
+        return MptCallkitPlugin.overlayText
+    }
+    
+    /// Gets the optimal AVCaptureSession preset based on requested resolution
+    private func getOptimalSessionPreset() -> AVCaptureSession.Preset {
+        // Map resolution to appropriate AVCaptureSession preset
+        if requestedHeight >= 1920 {
+            if #available(iOS 9.0, *) {
+                return .hd1920x1080
+            } else {
+                return .high
+            }
+        } else if requestedHeight >= 1280 {
+            return .hd1280x720
+        } else if requestedHeight >= 640 {
+            return .medium
+        } else {
+            return .low
+        }
+    }
+    
+    /// Draws black text at the top center of the image (matching Android SegmenterProcessor logic)
+    /// This method replicates the exact behavior of Android's Canvas.drawText() with:
+    /// - Black color (Color.BLACK)
+    /// - Bold font (Typeface.DEFAULT_BOLD) 
+    /// - Size 48 (textSize = 48)
+    /// - Top center positioning (x = width/2, y = textBounds.height() + 100)
+    private func drawTextOnImage(_ image: UIImage, text: String) -> UIImage? {
+//        print("drawTextOnImage \(drawTextOnImage)")
+        let imageSize = image.size
+        
+        // Create graphics context with same size as image
+        UIGraphicsBeginImageContextWithOptions(imageSize, false, image.scale)
+        defer { UIGraphicsEndImageContext() }
+        
+        // Draw the original image
+        image.draw(in: CGRect(origin: .zero, size: imageSize))
+        
+        // Configure text attributes (matching Android settings)
+        // Calculate font size based on screen width (responsive sizing) - matching Android logic
+        let fontSize: CGFloat = imageSize.width * 0.05 // 5% of screen width, adjust multiplier as needed
+        let font = UIFont.boldSystemFont(ofSize: fontSize) // Matching Android Typeface.DEFAULT_BOLD
+        let textColor = UIColor.black // Matching Android Color.BLACK
+        
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: textColor
+        ]
+        
+        // Calculate text size for positioning
+        let attributedText = NSAttributedString(string: text, attributes: attributes)
+        let textSize = attributedText.boundingRect(
+            with: CGSize(width: imageSize.width, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            context: nil
+        ).size
+        
+        // Position text at top center (matching Android logic)
+        let x = (imageSize.width - textSize.width) / 2.0 // Center horizontally
+        let y = textSize.height + imageSize.height * 0.01 // Top with margin (matching Android y = textBounds.height() + 100)
+        let textRect = CGRect(x: x, y: y, width: textSize.width, height: textSize.height)
+        
+        // Draw the text
+        attributedText.draw(in: textRect)
+        
+        // Get the final image with text
+        return UIGraphicsGetImageFromCurrentImageContext()
+    }
 }
 
 

@@ -37,7 +37,7 @@ class LoginViewController {
     }
     
     
-    func onLine(username: String, displayName: String, authName: String, password: String, userDomain: String, sipServer: String, sipServerPort: Int32, transportType: Int, srtpType: Int, enableDebugLog: Bool, resolution: String = "720P", bitrate: Int = 1024, frameRate: Int = 30)  {
+    func onLine(username: String, displayName: String, authName: String, password: String, userDomain: String, sipServer: String, sipServerPort: Int32, transportType: Int, srtpType: Int, enableDebugLog: Bool, resolution: String = "720P", bitrate: Int = 1024, frameRate: Int = 30, autoLogin: Bool = false)  {
         
         if sipInitialized {
             return
@@ -105,6 +105,7 @@ class LoginViewController {
         UserDefaults.standard.set(resolution, forKey: "resolution")
         UserDefaults.standard.set(bitrate, forKey: "bitrate")
         UserDefaults.standard.set(frameRate, forKey: "frameRate")
+        UserDefaults.standard.set(autoLogin, forKey: "autoLogin")
         
         _ = portSIPSDK.setLicenseKey("PORTSIP_TEST_LICENSE")
         
@@ -234,6 +235,7 @@ class LoginViewController {
               let password = UserDefaults.standard.string(forKey: "password"),
               let userDomain = UserDefaults.standard.string(forKey: "userDomain"),
               let sipServer = UserDefaults.standard.string(forKey: "sipServer"),
+              let autoLogin = UserDefaults.standard.value(forKey: "autoLogin") as? Bool,
               let sipServerPort = UserDefaults.standard.value(forKey: "sipServerPort") as? Int32,
               let transportType = UserDefaults.standard.value(forKey: "transportType") as? Int,
               let srtpType = UserDefaults.standard.value(forKey: "srtpType") as? Int,

@@ -143,6 +143,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         requestPermissions(this);
+        System.out.println("SDK-Android: MainActivity - onResume");
 
         // Ensure receiver is still registered
         if (receiver != null && !isReceiverRegistered) {

@@ -103,56 +103,6 @@ class FirebaseService {
 
   String? get token => _tokenFCM;
 
-  Future<bool> autoLogin(BuildContext? context) async {
-    final prefs = await SharedPreferences.getInstance();
-    final accessToken = prefs.getString(_accessTokenKey);
-
-    if (accessToken != null && accessToken.isNotEmpty) {
-      print('Auto login with saved credentials: $accessToken');
-
-      MptCallKitController().initSdk(
-        apiKey: CallkitConstants.API_KEY,
-        baseUrl: CallkitConstants.BASE_URL,
-        pushToken: Platform.isAndroid ? prefs.getString(_tokenKey) : null,
-        appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
-        enableDebugLog: true,
-        deviceInfo: "deviceInfo",
-      );
-
-      // var result = await MptCallKitController().loginRequest(
-      //   username: username,
-      //   password: password,
-      //   tenantId: CallkitConstants.TENANT_ID,
-      //   baseUrl: CallkitConstants.BASE_URL,
-      //   onError: (error) {
-      //     print('Auto login failed: $error');
-      //   },
-      // );
-
-      if (context != null) {
-        print('Auto login successful');
-
-        // Chuyển hướng đến màn hình LoginResultScreen
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const LoginResultScreen(
-              title: 'Login Successful',
-              baseUrl: CallkitConstants.BASE_URL,
-              apiKey: CallkitConstants.API_KEY,
-            ),
-          ),
-        );
-
-        return true;
-      }
-    } else {
-      print('No saved credentials found for auto login');
-    }
-
-    return false;
-  }
-
   Future<void> _initializeFCM() async {
     print("initializeFCM");
     // // Register background message handler

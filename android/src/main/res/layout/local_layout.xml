@@ -11,11 +11,15 @@
         android:layout_height="match_parent"
         android:gravity="center"
         android:orientation="vertical">
-
-        <com.portsip.PortSIPVideoRenderer
-            android:id="@+id/local_video_view"
+        <ImageView
+            android:id="@+id/local_image_view"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
+
+        <!-- <com.portsip.PortSIPVideoRenderer
+            android:id="@+id/local_video_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" /> -->
     </LinearLayout>
 
 </FrameLayout>
