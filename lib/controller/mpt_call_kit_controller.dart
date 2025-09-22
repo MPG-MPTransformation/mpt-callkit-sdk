@@ -463,7 +463,7 @@ class MptCallKitController {
   Future<void> clearInitPreferences() async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.remove(SDKPrefsKeyConstants.PUSH_TOKEN);
+      // await prefs.remove(SDKPrefsKeyConstants.PUSH_TOKEN);
       await prefs.remove(SDKPrefsKeyConstants.ENABLE_DEBUG_LOG);
       await prefs.remove(SDKPrefsKeyConstants.LOCALIZED_CALLER_NAME);
       await prefs.remove(SDKPrefsKeyConstants.DEVICE_INFO);
@@ -1847,12 +1847,18 @@ class MptCallKitController {
 
   // Handle guest registration state
   void _handleGuestRegistrationState(dynamic data) async {
-    if (data == true) {
-      print('SIP Registration successful for guest');
-      _guestRegistrationCompleter?.complete(true);
+    if (_guestRegistrationCompleter != null &&
+        !_guestRegistrationCompleter!.isCompleted) {
+      if (data == true) {
+        print('SIP Registration successful for guest');
+        _guestRegistrationCompleter!.complete(true);
+      } else {
+        print('SIP Registration has failed for guest');
+        _guestRegistrationCompleter!.complete(false);
+      }
     } else {
-      print('SIP Registration has failed for guest');
-      _guestRegistrationCompleter?.complete(false);
+      print(
+          'Guest registration completer is null or already completed - ignoring state: $data');
     }
   }
 
@@ -1892,7 +1898,10 @@ class MptCallKitController {
     _cleanupGuestRegistrationState();
 
     // Legacy cleanup (keeping for safety)
-    _guestRegistrationCompleter?.complete(false);
+    if (_guestRegistrationCompleter != null &&
+        !_guestRegistrationCompleter!.isCompleted) {
+      _guestRegistrationCompleter!.complete(false);
+    }
     _guestRegistrationCompleter = null;
 
     // Stop SIP connectivity check
