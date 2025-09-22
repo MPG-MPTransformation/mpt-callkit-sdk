@@ -323,6 +323,8 @@ public class PortSipService extends Service
             String port = intent.getStringExtra("port");
             String displayName = intent.getStringExtra("displayName");
             pushToken = intent.getStringExtra("pushToken");
+
+            logWithTimestamp("SDK-Android: onStartCommand - pushToken= " + pushToken);
             appId = intent.getStringExtra("appId");
             enableDebugLog = intent.getBooleanExtra("enableDebugLog", false);
             String resolution = intent.getStringExtra("resolution");
@@ -442,6 +444,7 @@ public class PortSipService extends Service
 
         } else {
             logWithTimestamp("SDK-Android: registerToServer - pushToken or appId is empty");
+            logWithTimestamp("SDK-Android: registerToServer - pushToke= " + pushToken + " appId= " + appId);
         }
 
         result = Engine.Instance().getEngine().registerServer(90, 0);
