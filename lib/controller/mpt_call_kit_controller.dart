@@ -781,6 +781,7 @@ class MptCallKitController {
   }) async {
     bool isLogoutAccountSuccess = false;
     bool isUnregistered = false;
+    bool isDeleteRegistrationSuccess = false;
 
     // Cancel socket status forwarding and notify iOS
     try {
@@ -797,7 +798,7 @@ class MptCallKitController {
     isLogoutAccountSuccess = await offline(disablePushNoti: true);
 
     // clear all SIP registration of agent's extension on server
-    await deleteRegistration(
+    isDeleteRegistrationSuccess = await deleteRegistration(
       tenantId: currentUserInfo!["tenant"]["id"] ?? 0,
       agentId: currentUserInfo!["user"]["id"] ?? 0,
       baseUrl: await getCurrentBaseUrl(),
@@ -818,7 +819,7 @@ class MptCallKitController {
 
     await clearInitPreferences();
 
-    if (isLogoutAccountSuccess && isUnregistered) {
+    if (isDeleteRegistrationSuccess && isUnregistered) {
       _appEvent.add(AppEventConstants.LOGGED_OUT);
       _currentAppEvent = AppEventConstants.LOGGED_OUT;
       return true;
