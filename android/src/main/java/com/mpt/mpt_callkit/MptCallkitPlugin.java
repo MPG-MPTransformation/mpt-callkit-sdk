@@ -161,7 +161,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         context = flutterPluginBinding.getApplicationContext();
         // Activity will be set in onAttachedToActivity callback
         System.out.println("SDK-Android: Engine attached, waiting for activity attachment...");
-        activity = getCurrentActivity(flutterPluginBinding); // Will be set in onAttachedToActivity
+        Activity curActivity = getCurrentActivity(flutterPluginBinding); // Will be set in onAttachedToActivity
+        if (curActivity != null) {
+            activity = curActivity;
+        }
         
         if (Engine.Instance().getEngine() == null) {
             Engine.Instance().setEngine(new PortSipSdk(context));
@@ -499,7 +502,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     public void onResume(Activity activity)   {
         System.out.println("SDK-Android: MptCallkitPlugin - onResume called");
-        // this.activity = activity;
+        this.activity = activity;
         loginIfNeeded(activity);
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.CONNECTED && currentLine.hasVideo) {
@@ -973,10 +976,11 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     @Override
     public void onAttachedToActivity(ActivityPluginBinding activityPluginBinding) {
         System.out.println("SDK-Android: onAttachedToActivity called");
-        activity = activityPluginBinding.getActivity();
-        if (activity != null) {
-            System.out.println("SDK-Android: Activity successfully attached: " + activity.getClass().getSimpleName());
+        Activity curActivity = activityPluginBinding.getActivity();
+        if (curActivity != null) {
+            System.out.println("SDK-Android: Activity successfully attached: " + curActivity.getClass().getSimpleName());
             System.out.println("SDK-Android: Activity attachment completed successfully");
+            activity = curActivity;
         } else {
             System.out.println("SDK-Android: Warning - Activity is null in onAttachedToActivity");
         }
