@@ -375,7 +375,7 @@ class MptCallKitController {
     _logFile = null;
   }
 
-  void initSdk({
+  Future<void> initSdk({
     required String apiKey,
     String? baseUrl,
     String? pushToken,

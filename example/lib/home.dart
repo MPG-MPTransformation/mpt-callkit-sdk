@@ -55,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (accessToken != null && accessToken.isNotEmpty) {
       print('Auto login with saved credentials: $accessToken');
 
-      MptCallKitController().initSdk(
+      await MptCallKitController().initSdk(
         apiKey: CallkitConstants.API_KEY,
         baseUrl: CallkitConstants.BASE_URL,
         pushToken: Platform.isAndroid ? prefs.getString(_tokenKey) : null,
@@ -104,13 +104,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
+        onPressed: () async {
           Navigator.push(context, MaterialPageRoute(builder: (context) {
             return const CallPad(
               isGuest: true,
             );
           }));
-          MptCallKitController().initSdk(
+          await MptCallKitController().initSdk(
             apiKey: _apiKey,
             baseUrl: _baseUrl,
             // pushToken: Platform.isAndroid ? _fcmToken : null,
@@ -120,7 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
             recordLabel: "Khách hàng",
             enableBlurBackground: false,
           );
-          MptCallKitController().makeCallByGuest(
+          await MptCallKitController().makeCallByGuest(
               context: context,
               userPhoneNumber: _phoneController.text,
               destination: _callTo.text,

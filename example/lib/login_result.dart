@@ -49,17 +49,12 @@ class _LoginResultScreenState extends State<LoginResultScreen>
 
   bool isOnCall = false;
   bool isNavigatedToCallPad = false;
+  String _tokenKey = 'fcm_token';
 
   @override
   void initState() {
     super.initState();
-
     startTime = DateTime.now();
-    Future.microtask(() {
-      if (mounted) {
-        _initDataWhenLoginSuccess();
-      }
-    });
 
     MptCallKitController().onRegisterSIP = (isOnline) {
       if (mounted) {
@@ -81,7 +76,8 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     };
 
     /* Route to CallPad if call session established */
-    _callTypeSubscription = MptCallKitController().callEvent.listen((type) {
+    _callTypeSubscription =
+        MptCallKitController().callEvent.listen((type) async {
       print("MptCallKitController().callEvent: $type");
       if (type == CallStateConstants.INCOMING ||
           type == CallStateConstants.CONNECTED) {
@@ -92,18 +88,18 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       if (type == CallStateConstants.CONNECTED) {
         if (mounted && !isNavigatedToCallPad) {
           isNavigatedToCallPad = true;
-          _navigateToCallPad();
+          await _navigateToCallPad();
         }
       }
       if (type == CallStateConstants.CLOSED) {
-        if (mounted && isNavigatedToCallPad) {
-          isNavigatedToCallPad = false;
-        }
+        // if (mounted && isNavigatedToCallPad) {
+        isNavigatedToCallPad = false;
+        // }
       }
     });
 
     _callEventSocketSubscription =
-        MptSocketSocketServer.callEvent.listen((callEvent) {
+        MptSocketSocketServer.callEvent.listen((callEvent) async {
       if (mounted) {
         setState(() {
           _socketCallStateList.add(callEvent.state ?? "NONE");
@@ -114,7 +110,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
           currCallSesssionID = callEvent.sessionId ?? "";
           if (mounted && !isNavigatedToCallPad) {
             isNavigatedToCallPad = true;
-            _navigateToCallPad();
+            await _navigateToCallPad();
           }
         }
 
@@ -130,36 +126,43 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     // _listenCallkitEvent();
 
     WidgetsBinding.instance.addObserver(this);
+    Future.microtask(() {
+      if (mounted) {
+        _initDataWhenLoginSuccess();
+      }
+    });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
-    print("AppLifecycleState: $state");
-
     if (state == AppLifecycleState.resumed) {
-      // await _initDataWhenLoginSuccess();
       final prefs = await SharedPreferences.getInstance();
       final accessToken = prefs.getString("saved_access_token");
       if (accessToken != null) {
         await MptCallKitController().connectToSocketServer(accessToken);
       }
-      // if (Platform.isAndroid) {
-      //   MptCallKitController().refreshRegister();
-      // }
     }
 
     if ((state == AppLifecycleState.paused ||
             state == AppLifecycleState.inactive) &&
         isOnCall == false) {
-      // if (Platform.isAndroid) {
       await MptSocketSocketServer.disconnect();
-      // }
     }
   }
 
   Future<void> _initDataWhenLoginSuccess() async {
     final prefs = await SharedPreferences.getInstance();
     final accessToken = prefs.getString("saved_access_token");
+    MptCallKitController().initSdk(
+      apiKey: CallkitConstants.API_KEY,
+      baseUrl: CallkitConstants.BASE_URL,
+      pushToken: Platform.isAndroid ? prefs.getString(_tokenKey) : null,
+      appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
+      enableDebugLog: true,
+      deviceInfo: "deviceInfo",
+      recordLabel: "Nhân viên",
+      enableBlurBackground: true,
+    );
 
     await MptCallKitController().initDataWhenLoginSuccess(
       context: context,
@@ -932,10 +935,11 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     // }
   }
 
-  void _navigateToCallPad() {
-    Navigator.push(
+  Future<void> _navigateToCallPad() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const CallPad()),
     );
+    isNavigatedToCallPad = false;
   }
 }

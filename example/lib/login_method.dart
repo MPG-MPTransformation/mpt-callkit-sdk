@@ -33,16 +33,16 @@ class _LoginMethodState extends State<LoginMethod> {
     print('FCM Token in LoginMethod: $_fcmToken');
 
     // Initialize SDK after getting FCM token
-    MptCallKitController().initSdk(
-      apiKey: CallkitConstants.API_KEY,
-      baseUrl: CallkitConstants.BASE_URL,
-      pushToken: Platform.isAndroid ? _fcmToken : null,
-      appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
-      enableDebugLog: true,
-      deviceInfo: "deviceInfo",
-      recordLabel: "Nhân viên",
-      enableBlurBackground: true,
-    );
+    // MptCallKitController().initSdk(
+    //   apiKey: CallkitConstants.API_KEY,
+    //   baseUrl: CallkitConstants.BASE_URL,
+    //   pushToken: Platform.isAndroid ? _fcmToken : null,
+    //   appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
+    //   enableDebugLog: true,
+    //   deviceInfo: "deviceInfo",
+    //   recordLabel: "Khách hàng",
+    //   enableBlurBackground: false,
+    // );
   }
 
   @override
