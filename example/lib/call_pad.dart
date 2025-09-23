@@ -485,14 +485,14 @@ class _CallPadState extends State<CallPad> {
                     const SizedBox(height: 16),
                     const Text("Camera"),
                     const SizedBox(
-                      height: 300,
+                      height: 400,
                       width: 300,
                       child: LocalView(),
                     ),
                     const SizedBox(height: 16),
                     const Text("Video"),
                     const SizedBox(
-                      height: 300,
+                      height: 400,
                       width: 300,
                       child: RemoteView(),
                     ),

@@ -727,6 +727,13 @@ class MptCallKitController {
 
         // Check if already connected
         if (MptSocketSocketServer.getCurrentConnectionState()) {
+          try {
+            await channel.invokeMethod('socketStatus', {
+              'ready': true,
+            });
+          } catch (e) {
+            print('Failed to notify iOS about socket status: $e');
+          }
           timeoutTimer.cancel();
           subscription.cancel();
           if (!completer.isCompleted) {

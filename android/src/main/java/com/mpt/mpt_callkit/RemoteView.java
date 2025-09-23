@@ -44,6 +44,7 @@ public class RemoteView implements PlatformView {
                 FrameLayout.LayoutParams.MATCH_PARENT));
 
         remoteRenderVideoView = containerView.findViewById(R.id.remote_video_view);
+        remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FILL);
 
         callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderVideoView);
 
@@ -186,6 +187,7 @@ public class RemoteView implements PlatformView {
                 if (cur.hasVideo) {
                     System.out.println("SDK-Android: application.mConference = false - cur.hasVideo = true");
                     if (remoteRenderVideoView != null) {
+                        remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FILL);
                         remoteRenderVideoView.setVisibility(View.VISIBLE);
                     }
                     callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderVideoView);
@@ -193,6 +195,7 @@ public class RemoteView implements PlatformView {
                 } else {
                     System.out.println("SDK-Android: application.mConference = false - cur.hasVideo = false");
                     if (remoteRenderVideoView != null) {
+                        remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FILL);
                         remoteRenderVideoView.setVisibility(View.VISIBLE);
                     }
                     callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, null);
