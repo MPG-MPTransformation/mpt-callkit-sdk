@@ -85,7 +85,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private static EventChannel.EventSink eventSink;
     private static String xSessionId;
     private static String currentUsername; // Lưu username hiện tại
-    private static String currentCallSessionId; // Lưu sessionId của cuộc gọi hiện tại
     private  String appId;
     private  String pushToken;
     private static volatile boolean fileLoggingEnabled = false;
@@ -395,28 +394,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
-    /**
-     * Set current call session ID
-     */
-    public static void setCurrentCallSessionId(String sessionId) {
-        currentCallSessionId = sessionId;
-        System.out.println("SDK-Android: Set currentCallSessionId: " + sessionId);
-    }
-
-    /**
-     * Get current call session ID
-     */
-    public static String getCurrentCallSessionId() {
-        return currentCallSessionId;
-    }
-
-    /**
-     * Clear current call session ID
-     */
-    public static void clearCurrentCallSessionId() {
-        currentCallSessionId = null;
-        System.out.println("SDK-Android: Cleared currentCallSessionId");
-    }
 
     public void onNewToken(String token) {
         System.out.println("SDK-Android: MptCallkitPlugin - onNewToken called with token: " + token);
@@ -958,7 +935,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 result.success(true);
                 break;
             case "getCurrentCallSessionId":
-                String currentSessionId = getCurrentCallSessionId();
+                String currentSessionId = Engine.getCurrentCallSessionId();
                 result.success(currentSessionId);
                 break;
             default:
