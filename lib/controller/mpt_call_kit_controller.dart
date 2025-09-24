@@ -1702,6 +1702,11 @@ class MptCallKitController {
           _currentSessionId!,
           AgentStateConstants.TALKING,
         );
+
+        // Update video call after 2.5 seconds in the agent side
+        Future.delayed(const Duration(milliseconds: 2500), () {
+          updateVideoCall(isVideo: true);
+        });
       }
     } else {
       print(
@@ -2147,9 +2152,12 @@ class MptCallKitController {
             // Handle call answered logic
             print('Remote party answered the call');
             _calleeAnsweredStream.add(true);
-            Future.delayed(const Duration(milliseconds: 2500), () {
-              updateVideoCall(isVideo: true);
-            });
+
+            /*--> Stop update call to video in guest side
+            // Future.delayed(const Duration(milliseconds: 2500), () {
+            //   updateVideoCall(isVideo: true);
+            // });
+            <--*/
           }
           break;
 

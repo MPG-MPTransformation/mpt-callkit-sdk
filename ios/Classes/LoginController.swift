@@ -22,7 +22,7 @@ class LoginViewController {
     
     private var portSIPSDK: PortSIPSDK!
     private var sipInitialized = false
-    var sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_OFFLINE
+    public var sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_OFFLINE
     
     var autoRegisterRetryTimes: Int = 0
     var autoRegisterTimer: Timer?
