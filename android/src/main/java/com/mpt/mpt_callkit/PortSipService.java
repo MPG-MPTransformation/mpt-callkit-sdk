@@ -767,6 +767,8 @@ public class PortSipService extends Service
         String messageSesssionId = Engine.Instance().getEngine()
                 .getSipMessageHeaderValue(CallManager.Instance().getCurrentSession().sipMessage, "X-Session-Id")
                 .toString();
+        // Lưu sessionId vào plugin
+        MptCallkitPlugin.setCurrentCallSessionId(messageSesssionId);
 
         Engine.Instance().invokeMethod("curr_sessionId", messageSesssionId);
 
@@ -1075,6 +1077,9 @@ public class PortSipService extends Service
         sendCallTypeToFlutter("ENDED");
         MptCallkitPlugin.sendToFlutter("isRemoteVideoReceived", false);
         isRemoteVideoReceived = false;
+
+        // Clear current call session ID
+        MptCallkitPlugin.clearCurrentCallSessionId();
 
         // Reset camera to front camera when call ends
         Engine.Instance().mUseFrontCamera = true;
