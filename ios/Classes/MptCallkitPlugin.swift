@@ -2311,6 +2311,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             sendCustomMessage(
                 callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
                 type: "call_state", payloadKey: "answered", payloadValue: true)
+
+            sendCallStateToFlutter(.ANSWERED)
         }
 
         _ = mSoundService.stopRingTone()
@@ -2892,6 +2894,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         sipRegistered = true
         methodChannel?.invokeMethod("onlineStatus", arguments: true)
         methodChannel?.invokeMethod("registrationStateStream", arguments: true)
+        loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_ONLINE
         NSLog("onRegisterSuccess")
     }
 
@@ -2903,6 +2906,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         methodChannel?.invokeMethod("onlineStatus", arguments: false)
         methodChannel?.invokeMethod("registrationStateStream", arguments: false)
         //    loginViewController.unRegister()
+        loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_FAILUE
         NSLog("onRegisterFailure")
     }
 

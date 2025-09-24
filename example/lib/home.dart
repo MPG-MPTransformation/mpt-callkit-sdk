@@ -125,7 +125,8 @@ class _HomeScreenState extends State<HomeScreen> {
               userPhoneNumber: _phoneController.text,
               destination: _callTo.text,
               isVideoCall: true,
-              extraInfo: _extraInfo.text,
+              // extraInfo: _extraInfo.text,
+              extraInfo: "{'requestId': 'requestId', 'name': '', 'gender': ''}",
               onError: (errorMessage) {
                 if (errorMessage == null) return;
                 var snackBar = SnackBar(
