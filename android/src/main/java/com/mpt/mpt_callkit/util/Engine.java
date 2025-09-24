@@ -22,6 +22,7 @@ public class Engine {
     public boolean mUseFrontCamera = true;
     private PortMessageReceiver receiver;
     private MethodChannel channel;
+    private static String currentCallSessionId; // Lưu sessionId của cuộc gọi hiện tại
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault());
 
     /**
@@ -44,6 +45,28 @@ public class Engine {
         if (channel != null) {
             channel.invokeMethod(method, value);
         }
+    }
+    /**
+     * Set current call session ID
+     */
+    public static void setCurrentCallSessionId(String sessionId) {
+        currentCallSessionId = sessionId;
+        System.out.println("SDK-Android: Set currentCallSessionId: " + sessionId);
+    }
+
+    /**
+     * Get current call session ID
+     */
+    public static String getCurrentCallSessionId() {
+        return currentCallSessionId;
+    }
+
+    /**
+     * Clear current call session ID
+     */
+    public static void clearCurrentCallSessionId() {
+        currentCallSessionId = null;
+        System.out.println("SDK-Android: Cleared currentCallSessionId");
     }
 
 

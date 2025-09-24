@@ -768,6 +768,7 @@ public class PortSipService extends Service
                 .getSipMessageHeaderValue(CallManager.Instance().getCurrentSession().sipMessage, "X-Session-Id")
                 .toString();
 
+        Engine.Instance().setCurrentCallSessionId(messageSesssionId);
         Engine.Instance().invokeMethod("curr_sessionId", messageSesssionId);
 
         MptCallkitPlugin.sendToFlutter("curr_sessionId", messageSesssionId);
@@ -1043,7 +1044,7 @@ public class PortSipService extends Service
         //     MptCallkitPlugin.sendToFlutter("currentAudioDevice",
         //             PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
         // }
-        
+
         sendCallStateToFlutter("CONNECTED");
     }
 

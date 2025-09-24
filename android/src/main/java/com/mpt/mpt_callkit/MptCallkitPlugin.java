@@ -394,6 +394,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
+
     public void onNewToken(String token) {
         System.out.println("SDK-Android: MptCallkitPlugin - onNewToken called with token: " + token);
         this.pushToken = token;
@@ -932,6 +933,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     }
                 }
                 result.success(true);
+                break;
+            case "getCurrentCallSessionId":
+                String currentSessionId = Engine.getCurrentCallSessionId();
+                result.success(currentSessionId);
                 break;
             default:
                 result.notImplemented();

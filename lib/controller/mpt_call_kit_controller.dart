@@ -2340,4 +2340,15 @@ class MptCallKitController {
       extension: currentUserInfo?["user"]["extension"] ?? "",
     );
   }
+
+  Future<String?> getCurrentCallSessionId() async {
+    try {
+      final result = await channel.invokeMethod("getCurrentCallSessionId");
+      print("getCurrentCallSessionId result: $result");
+      return result;
+    } on PlatformException catch (e) {
+      debugPrint("Failed in 'getCurrentCallSessionId' mothod: '${e.message}'.");
+      return null;
+    }
+  }
 }

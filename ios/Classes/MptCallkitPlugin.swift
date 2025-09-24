@@ -2762,6 +2762,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             }
         case "getOverlayText":
             result(getOverlayText())
+        case "getCurrentCallSessionId":
+            result(self.currentSessionid)
         default:
             result(FlutterMethodNotImplemented)
         }
