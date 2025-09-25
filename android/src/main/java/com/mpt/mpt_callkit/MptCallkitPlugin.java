@@ -394,7 +394,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
-
     public void onNewToken(String token) {
         System.out.println("SDK-Android: MptCallkitPlugin - onNewToken called with token: " + token);
         this.pushToken = token;
@@ -433,7 +432,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             int bitrate = preferences.getInt("bitrate", 1024);
             int frameRate = preferences.getInt("frameRate", 30);
             MptCallkitPlugin.recordLabel = preferences.getString("recordLabel", "Agent");
-            MptCallkitPlugin.enableBlurBackground = preferences.getBoolean("enableBlurBackground", false);
             Boolean autoLogin = preferences.getBoolean("autoLogin", false);
 
             if (autoLogin && username != null && password != null && userDomain != null && sipServer != null && sipServerPort != null) {
@@ -793,10 +791,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 this.pushToken = call.argument("pushToken");
                 Boolean enableDebugLog = call.argument("enableDebugLog");
                 String recordLabel = call.argument("recordLabel");
-                Boolean enableBlurBackground = call.argument("enableBlurBackground");
                 Boolean autoLogin = call.argument("autoLogin");
 
-                System.out.println("SDK-Android: Login called with enableDebugLog: " + enableDebugLog + ", recordLabel: " + recordLabel + ", enableBlurBackground: " + enableBlurBackground + ", autoLogin: " + autoLogin);
+                System.out.println("SDK-Android: Login called with enableDebugLog: " + enableDebugLog + ", recordLabel: " + recordLabel + ", autoLogin: " + autoLogin);
                 
                 if (recordLabel != null) {
                     MptCallkitPlugin.recordLabel = recordLabel;
@@ -804,14 +801,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
                 if (segmenterProcessor != null) {
                     segmenterProcessor.setText(recordLabel);
-                }
-
-                if (enableBlurBackground != null) {
-                    MptCallkitPlugin.enableBlurBackground = enableBlurBackground;
-                }
-
-                if (segmenterProcessor != null) {
-                    segmenterProcessor.setEnableBlurBackground(enableBlurBackground);
                 }
 
                 // Video quality parameters
@@ -867,7 +856,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     editor.putInt("frameRate", frameRate);
                     editor.putString("recordLabel", MptCallkitPlugin.recordLabel);
                     editor.putBoolean("autoLogin", autoLogin);
-                    editor.putBoolean("enableBlurBackground", MptCallkitPlugin.enableBlurBackground);
                     editor.commit();
                 }
 
@@ -933,10 +921,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     }
                 }
                 result.success(true);
-                break;
-            case "getCurrentCallSessionId":
-                String currentSessionId = Engine.getCurrentCallSessionId();
-                result.success(currentSessionId);
                 break;
             default:
                 result.notImplemented();

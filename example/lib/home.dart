@@ -63,7 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
         enableDebugLog: true,
         deviceInfo: "deviceInfo",
         recordLabel: "Nhân viên",
-        enableBlurBackground: true,
       );
 
       // var result = await MptCallKitController().loginRequest(
@@ -118,7 +117,6 @@ class _HomeScreenState extends State<HomeScreen> {
             enableDebugLog: true,
             deviceInfo: "deviceInfo",
             recordLabel: "Khách hàng",
-            enableBlurBackground: false,
           );
           await MptCallKitController().makeCallByGuest(
               context: context,

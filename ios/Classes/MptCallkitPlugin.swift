@@ -7,11 +7,6 @@ import Darwin
 import AVFoundation
 import CoreVideo
 import CoreImage
-import MLImage
-import MLKitSegmentationSelfie
-import MLKitSegmentationCommon
-import MLKitVision
-import MLKitCommon
 import VideoToolbox
 import Accelerate
 import Accelerate.vImage
@@ -274,10 +269,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     var _enableForceBackground: Bool?
 
     var mUseFrontCamera: Bool = true
-
-    private var _segmenter: Segmenter? = nil
     private var frameCounter: Int = 0
-    private static var enableBlurBackground: Bool = false
     
     // MARK: - Camera Resolution Configuration
     
@@ -395,11 +387,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
         setupNotificationHandling()
         // setupViewLifecycleObservers() // REMOVED - Views manage themselves
-
-        let options = SelfieSegmenterOptions()
-        options.segmenterMode = .stream
-        // options.shouldEnableRawSizeMask = true
-        self._segmenter = Segmenter.segmenter(options: options)
         // Initialize resolution system
         updateRequestedResolution()
         setUpCaptureSessionOutput()
@@ -746,7 +733,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
     deinit {
-        self._segmenter = nil
         NotificationCenter.default.removeObserver(self)
         NSLog("MptCallkitPlugin - deinit")
     }
@@ -2472,14 +2458,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let frameRate = (args["frameRate"] as? Int) ?? 30
                 let recordLabel = (args["recordLabel"] as? String) ?? "Customer"
                 let autoLogin = (args["autoLogin"] as? Bool) ?? false
-                let enableBlur = (args["enableBlurBackground"] as? Bool) ?? false
 
                 // Lưu username hiện tại
                 currentUsername = username
                 MptCallkitPlugin.overlayText = recordLabel
-                MptCallkitPlugin.enableBlurBackground = enableBlur
                 
-                print("onMethodCall MptCallkitPlugin.overlayText: \(MptCallkitPlugin.overlayText), MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground)")
+                print("onMethodCall MptCallkitPlugin.overlayText: \(MptCallkitPlugin.overlayText)")
 
                 // Lưu localizedCallerName vào UserDefaults và biến hiện tại
                 currentLocalizedCallerName = localizedCallerName
@@ -3322,79 +3306,8 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
       return
     }
 
-    if !MptCallkitPlugin.enableBlurBackground {
-        DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
-            self?.updatePreviewOverlayViewWithImageBuffer(imageBuffer)
-        }
-      return
-    }
-    
-    frameCount += 1
-    
-    // Skip processing if previous frame is still being processed
-    guard !isProcessingFrame else {
-      return
-    }
-    
-    // Apply frame skip interval for FPS control
-    if frameSkipInterval > 1 && frameCount % frameSkipInterval != 0 {
-      return
-    }
-    
-    let visionImage = VisionImage(buffer: sampleBuffer)
-    let orientation = UIUtilities.imageOrientation(
-      fromDevicePosition: mUseFrontCamera ? .front : .back
-    )
-    visionImage.orientation = orientation
-    
-    // Set processing flag and use async processing
-    isProcessingFrame = true
-    // Use dedicated video processing queue to avoid priority inversion
-    videoProcessingQueue.async { [weak self] in
-      self?.detectSegmentationMask(in: visionImage, sampleBuffer: sampleBuffer)
-    }
-  }
-
-  private func detectSegmentationMask(in image: VisionImage, sampleBuffer: CMSampleBuffer) {
-    // Ensure processing flag is reset even if function exits early
-    defer {
-      DispatchQueue.main.async { [weak self] in
-        self?.isProcessingFrame = false
-      }
-    }
-    
-    guard let segmenter = self._segmenter else {
-      return
-    }
-    
-    // Perform segmentation on background thread
-    var mask: SegmentationMask? = nil
-    do {
-      mask = try segmenter.results(in: image)
-    } catch let error {
-      print("Failed to perform segmentation with error: \(error.localizedDescription).")
-      return
-    }
-    
-    guard let mask = mask else {
-      print("Segmenter returned empty mask.")
-      return
-    }
-    
-    guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-      print("Failed to get image buffer from sample buffer.")
-      return
-    }
-
-    // Apply mask on background thread for better performance
-    UIUtilities.applySegmentationMask(
-      mask: mask, to: imageBuffer,
-      backgroundColor: UIColor.lightGray.withAlphaComponent(0.95),
-      foregroundColor: nil)
-    
-    // Only update UI on main thread with appropriate QoS
     DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
-      self?.updatePreviewOverlayViewWithImageBuffer(imageBuffer)
+        self?.updatePreviewOverlayViewWithImageBuffer(imageBuffer)
     }
   }
     

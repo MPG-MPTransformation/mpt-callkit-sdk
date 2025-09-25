@@ -161,7 +161,6 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       enableDebugLog: true,
       deviceInfo: "deviceInfo",
       recordLabel: "Nhân viên",
-      enableBlurBackground: true,
     );
 
     await MptCallKitController().initDataWhenLoginSuccess(

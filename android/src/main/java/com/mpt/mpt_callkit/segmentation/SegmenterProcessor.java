@@ -63,7 +63,7 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
     private Segmenter segmenter;
     private final VisionImageProcessorCallback callback;
     private String text;
-    private boolean enableBlurBackground;
+    private boolean enableBlurBackground = false;
     private final boolean isStreamMode;
 
     /**
