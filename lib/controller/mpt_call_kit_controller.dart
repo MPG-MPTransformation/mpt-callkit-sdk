@@ -1860,8 +1860,9 @@ class MptCallKitController {
 
   // Handle guest registration state
   void _handleGuestRegistrationState(dynamic data) async {
-    if (_guestRegistrationCompleter != null &&
-        !_guestRegistrationCompleter!.isCompleted) {
+    _guestRegistrationCompleter ??= Completer<bool>();
+
+    if (!_guestRegistrationCompleter!.isCompleted) {
       if (data == true) {
         print('SIP Registration successful for guest');
         _guestRegistrationCompleter!.complete(true);
