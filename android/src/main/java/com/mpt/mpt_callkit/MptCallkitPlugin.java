@@ -514,9 +514,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     }
     public void onPause()   {
         System.out.println("SDK-Android: MptCallkitPlugin - onPause called");
-        stopCameraSource();
-        unregisterIfNeeded();
-        stopCallCheckJob();
     }
 
     public void onCreate()   {
@@ -529,6 +526,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     public void onStop()   {
         System.out.println("SDK-Android: MptCallkitPlugin - onStop called");
+        stopCameraSource();
+        unregisterIfNeeded();
+        stopCallCheckJob();
     }
 
     public void onDestroy()   {
