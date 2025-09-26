@@ -2880,7 +2880,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         sipRegistered = true
         methodChannel?.invokeMethod("onlineStatus", arguments: true)
         methodChannel?.invokeMethod("registrationStateStream", arguments: true)
-        loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_ONLINE
+        // loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_ONLINE
+        loginViewController.onRegisterSuccess(statusText: statusText)
         NSLog("onRegisterSuccess")
     }
 
@@ -2892,7 +2893,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         methodChannel?.invokeMethod("onlineStatus", arguments: false)
         methodChannel?.invokeMethod("registrationStateStream", arguments: false)
         //    loginViewController.unRegister()
-        loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_FAILUE
+        // loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_FAILUE
+        loginViewController.onRegisterFailure(statusCode: statusCode, statusText: statusText)
         NSLog("onRegisterFailure")
     }
 
