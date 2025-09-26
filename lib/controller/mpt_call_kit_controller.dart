@@ -599,48 +599,48 @@ class MptCallKitController {
         frameRate: _configuration!["MOBILE_SIP_FRAMERATE"],
       );
 
-      var regResult = await refreshRegistration();
+      // var regResult = await refreshRegistration();
 
-      Future.delayed(const Duration(milliseconds: 500), () async {
-        {
-          if (regResult == 0 && _isOnline == true) {
-            print("SIP already online");
-            return;
-          }
+      // Future.delayed(const Duration(milliseconds: 500), () async {
+      //   {
+      //     if (regResult == 0 && _isOnline == true) {
+      //       print("SIP already online");
+      //       return;
+      //     }
 
-          if (extensionData != null) {
-            lastesExtensionData = extensionData;
-            // Register to SIP server
-            await MptCallKitController().online(
-              username: extensionData?.username ?? "",
-              displayName: extensionData?.username ?? "", // ??
-              srtpType: 0,
-              authName: extensionData?.username ?? "", // ??
-              password: extensionData?.password ?? "",
-              userDomain: extensionData?.domain ?? "",
-              sipServer: extensionData?.sipServer ?? "",
-              sipServerPort: extensionData?.port ?? 5063,
-              // sipServerPort: 5063,
-              transportType: 0,
-              pushToken: await getCurrentPushToken(),
-              appId: await getCurrentAppId(),
-              onError: (p0) {
-                print("Error in register to sip server: ${p0.toString()}");
-              },
-              context: context,
-              resolution: extensionData?.resolution,
-              bitrate: extensionData?.bitrate,
-              frameRate: extensionData?.frameRate,
-              recordLabel: await getCurrentRecordLabel(),
-              autoLogin: true,
-              enableBlurBackground: true,
-            );
-          } else {
-            _appEvent.add(AppEventConstants.ERROR);
-            _currentAppEvent = AppEventConstants.ERROR;
-          }
-        }
-      });
+      if (extensionData != null) {
+        lastesExtensionData = extensionData;
+        // Register to SIP server
+        await MptCallKitController().online(
+          username: extensionData?.username ?? "",
+          displayName: extensionData?.username ?? "", // ??
+          srtpType: 0,
+          authName: extensionData?.username ?? "", // ??
+          password: extensionData?.password ?? "",
+          userDomain: extensionData?.domain ?? "",
+          sipServer: extensionData?.sipServer ?? "",
+          sipServerPort: extensionData?.port ?? 5063,
+          // sipServerPort: 5063,
+          transportType: 0,
+          pushToken: await getCurrentPushToken(),
+          appId: await getCurrentAppId(),
+          onError: (p0) {
+            print("Error in register to sip server: ${p0.toString()}");
+          },
+          context: context,
+          resolution: extensionData?.resolution,
+          bitrate: extensionData?.bitrate,
+          frameRate: extensionData?.frameRate,
+          recordLabel: await getCurrentRecordLabel(),
+          autoLogin: true,
+          enableBlurBackground: true,
+        );
+      } else {
+        _appEvent.add(AppEventConstants.ERROR);
+        _currentAppEvent = AppEventConstants.ERROR;
+      }
+      // }
+      // });
     } else {
       _appEvent.add(AppEventConstants.TOKEN_EXPIRED);
       _currentAppEvent = AppEventConstants.TOKEN_EXPIRED;
