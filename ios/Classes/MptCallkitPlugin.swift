@@ -580,9 +580,37 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
        case ReachableViaWWAN:
            loginViewController.refreshRegister()
            NSLog("reachabilityChanged:kReachableViaWWAN")
+           // Renegotiate media on active session after network change
+           DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+               guard let self = self else { return }
+               if self.activeSessionid != CLong(INVALID_SESSION_ID),
+                  let result = self._callManager.findCallBySessionID(self.activeSessionid) {
+                   let enableVideo = result.session.videoState
+                   let sendState = enableVideo && !result.session.videoMuted
+                   NSLog("reachabilityChanged - renegotiate media (WWAN). sessionId: \(result.session.sessionId), enableVideo: \(enableVideo), sendState: \(sendState)")
+                   let sendRes = self.portSIPSDK.sendVideo(result.session.sessionId, sendState: sendState)
+                   NSLog("reachabilityChanged - sendVideo: \(sendRes)")
+                   let updateRes = self.portSIPSDK.updateCall(result.session.sessionId, enableAudio: true, enableVideo: enableVideo)
+                   NSLog("reachabilityChanged - updateCall: \(updateRes)")
+               }
+           }
        case ReachableViaWiFi:
            loginViewController.refreshRegister()
            NSLog("reachabilityChanged:kReachableViaWiFi")
+           // Renegotiate media on active session after network change
+           DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+               guard let self = self else { return }
+               if self.activeSessionid != CLong(INVALID_SESSION_ID),
+                  let result = self._callManager.findCallBySessionID(self.activeSessionid) {
+                   let enableVideo = result.session.videoState
+                   let sendState = enableVideo && !result.session.videoMuted
+                   NSLog("reachabilityChanged - renegotiate media (WiFi). sessionId: \(result.session.sessionId), enableVideo: \(enableVideo), sendState: \(sendState)")
+                   let sendRes = self.portSIPSDK.sendVideo(result.session.sessionId, sendState: sendState)
+                   NSLog("reachabilityChanged - sendVideo: \(sendRes)")
+                   let updateRes = self.portSIPSDK.updateCall(result.session.sessionId, enableAudio: true, enableVideo: enableVideo)
+                   NSLog("reachabilityChanged - updateCall: \(updateRes)")
+               }
+           }
        default:
            break
        }

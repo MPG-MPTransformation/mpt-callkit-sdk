@@ -1503,7 +1503,36 @@ public class PortSipService extends Service
             // invaluable
         } else {
             if (CallManager.Instance().online) {
-                Engine.Instance().getEngine().refreshRegistration(0);
+                try {
+                    PortSipSdk engine = Engine.Instance().getEngine();
+                    if (engine != null) {
+                        // Refresh SIP registration
+                        engine.refreshRegistration(0);
+
+                        // Renegotiate media for active connected session after network change
+                        Session current = CallManager.Instance().getCurrentSession();
+                        if (current != null
+                                && current.sessionID > Session.INVALID_SESSION_ID
+                                && current.state == Session.CALL_STATE_FLAG.CONNECTED) {
+                            System.out.println(
+                                    "SDK-Android: onNetworkChange - renegotiating media for session " + current.sessionID);
+                            try {
+                                engine.sendVideo(current.sessionID, current.hasVideo);
+                            } catch (Exception e) {
+                                System.out.println(
+                                        "SDK-Android: onNetworkChange - sendVideo error: " + e.getMessage());
+                            }
+                            try {
+                                engine.updateCall(current.sessionID, true, current.hasVideo);
+                            } catch (Exception e) {
+                                System.out.println(
+                                        "SDK-Android: onNetworkChange - updateCall error: " + e.getMessage());
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    System.out.println("SDK-Android: onNetworkChange error: " + e.getMessage());
+                }
             } else {
                 //
             }
