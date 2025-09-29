@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:example/call_pad.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 import '/login_method.dart';
 import 'components/callkit_constants.dart';
@@ -117,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
             // appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
             enableDebugLog: true,
             deviceInfo: "deviceInfo",
-            recordLabel: "Khách hàng",
+            recordLabel: "",
             enableBlurBackground: false,
           );
           await MptCallKitController().makeCallByGuest(
@@ -126,7 +128,8 @@ class _HomeScreenState extends State<HomeScreen> {
               destination: _callTo.text,
               isVideoCall: true,
               // extraInfo: _extraInfo.text,
-              extraInfo: "{'requestId': 'requestId', 'name': '', 'gender': ''}",
+              extraInfo: jsonEncode(
+                  {'requestId': Uuid().v4(), 'name': '', 'gender': ''}),
               onError: (errorMessage) {
                 if (errorMessage == null) return;
                 var snackBar = SnackBar(

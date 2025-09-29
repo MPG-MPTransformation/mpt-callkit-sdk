@@ -1997,7 +1997,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
          other code which will spend long time, you should post a message to main thread(main window) or other thread,
          let the thread to call SDK API functions or other code.
          */
-//        print("onAudioRawCallback - dataLength \(dataLength)")
+        // print("onAudioRawCallback - dataLength")
+
+        
     }
 
     // Optimized video processing queue
@@ -2021,6 +2023,21 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         //       print("Raw video data (first 16 bytes):", frameData.prefix(16).map { String(format: "%02x", $0) }.joined(separator: " "))
 
 //        print("Total data length: \(dataLength) bytes")
+
+        // Chuyển buffer sang Data
+        let buffer = Data(bytes: data, count: Int(dataLength))
+
+        // Convert sang FlutterStandardTypedData
+        let typedData = FlutterStandardTypedData(bytes: buffer)
+
+        // Gửi về Flutter qua MethodChannel (hoặc EventChannel)
+        methodChannel?.invokeMethod("onVideoRawCallback", arguments: [
+            "mode": videoCallbackMode,
+            "width": width,
+            "height": height,
+            "data": typedData
+        ])
+
         if self.isRemoteVideoReceived == false {
             print("Total data length: \(dataLength) bytes")
             methodChannel?.invokeMethod("isRemoteVideoReceived", arguments: true)
@@ -2458,7 +2475,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let resolution = (args["resolution"] as? String) ?? "720P"
                 let bitrate = (args["bitrate"] as? Int) ?? 1024
                 let frameRate = (args["frameRate"] as? Int) ?? 30
-                let recordLabel = (args["recordLabel"] as? String) ?? "Customer"
+                let recordLabel = (args["recordLabel"] as? String) ?? ""
                 let autoLogin = (args["autoLogin"] as? Bool) ?? false
                 let enableBlur = (args["enableBlurBackground"] as? Bool) ?? false
 

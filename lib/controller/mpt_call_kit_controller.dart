@@ -30,7 +30,7 @@ class MptCallKitController {
   bool? enableDebugLog = false;
   //hard code until have correct
   String localizedCallerName = "";
-  String recordLabel = "";
+  String? recordLabel;
   // file logging
   File? _logFile;
   bool _fileLoggingEnabled = false;
@@ -401,9 +401,7 @@ class MptCallKitController {
 
     this.enableDebugLog = resolvedEnableDebug;
     this.localizedCallerName = resolvedCallerName;
-    if (recordLabel != null) {
-      this.recordLabel = recordLabel;
-    }
+    this.recordLabel = recordLabel;
 
     // Persist initialization params to SharedPreferences
     try {
@@ -418,9 +416,8 @@ class MptCallKitController {
           SDKPrefsKeyConstants.LOCALIZED_CALLER_NAME, resolvedCallerName);
       await prefs.setString(
           SDKPrefsKeyConstants.DEVICE_INFO, resolvedDeviceInfo);
-      if (recordLabel != null) {
-        await prefs.setString(SDKPrefsKeyConstants.RECORD_LABEL, recordLabel);
-      }
+      await prefs.setString(
+          SDKPrefsKeyConstants.RECORD_LABEL, recordLabel ?? "");
       if (enableBlurBackground != null) {
         await prefs.setBool(
             SDKPrefsKeyConstants.ENABLE_BLUR_BACKGROUND, enableBlurBackground);
@@ -1204,7 +1201,7 @@ class MptCallKitController {
           "resolution": resolution ?? "720P",
           "bitrate": bitrate ?? 1024,
           "frameRate": frameRate ?? 30,
-          "recordLabel": recordLabel ?? "Customer",
+          "recordLabel": recordLabel,
           "autoLogin": autoLogin ?? false,
           "enableBlurBackground": enableBlurBackground ?? false,
         },
@@ -2226,7 +2223,7 @@ class MptCallKitController {
 
   Future<String> getCurrentRecordLabel() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(SDKPrefsKeyConstants.RECORD_LABEL) ?? 'Customer';
+    return prefs.getString(SDKPrefsKeyConstants.RECORD_LABEL) ?? '';
   }
 
   Future<bool> getCurrentEnableBlurBackground() async {
