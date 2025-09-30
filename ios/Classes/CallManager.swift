@@ -50,6 +50,7 @@ class CallManager: NSObject {
     // If true, answering a call will wait until the socket is ready (connected/connecting)
     var waitSocketBeforeAnswer: Bool = true
     private var isSocketReady: Bool = false
+    private var isRegisterSuccess: Bool = false
     private var pendingAnswerBlocks: [() -> Void] = []
 
     init(portsipSdk: PortSIPSDK) {
@@ -72,7 +73,16 @@ class CallManager: NSObject {
     // Update socket readiness status from Flutter side
     func updateSocketReady(_ ready: Bool) {
         isSocketReady = ready
-        if ready && !pendingAnswerBlocks.isEmpty {
+        if ready && isRegisterSuccess && !pendingAnswerBlocks.isEmpty {
+            let tasks = pendingAnswerBlocks
+            pendingAnswerBlocks.removeAll()
+            tasks.forEach { $0() }
+        }
+    }
+
+    func updateRegisterSuccess(_ success: Bool) {
+        isRegisterSuccess = success
+        if success && isSocketReady && !pendingAnswerBlocks.isEmpty {
             let tasks = pendingAnswerBlocks
             pendingAnswerBlocks.removeAll()
             tasks.forEach { $0() }
@@ -631,7 +641,7 @@ class CallManager: NSObject {
             }
 
             // If configured to wait for socket readiness and not yet ready, queue the answer
-            if waitSocketBeforeAnswer && !isSocketReady {
+            if waitSocketBeforeAnswer && (!isSocketReady || !isRegisterSuccess) && pendingAnswerBlocks.isEmpty{
                 pendingAnswerBlocks.append(performAnswer)
                 print("Queued answer until socket is ready for session \(sessionCall!.session.sessionId)")
             } else {
@@ -825,6 +835,11 @@ class CallManager: NSObject {
             }
         }
         return num
+    }
+    
+    func configureAudioSession() {
+        _portSIPSDK.configureAudioSession()
+        print("_portSIPSDK configureAudioSession")
     }
 
     func startAudio(audioSession: AVAudioSession) {

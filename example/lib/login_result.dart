@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:example/components/callkit_constants.dart';
 import 'package:example/services/callkit_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_callkit_incoming/entities/entities.dart';
-import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
+// import 'package:flutter_callkit_incoming/entities/entities.dart';
+// import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:mpt_callkit/models/models.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
@@ -166,7 +166,8 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       deviceInfo: "deviceInfo",
       recordLabel: "",
       enableBlurBackground: true,
-      bgPath: "https://iili.io/KGc1F5J.jpg",
+      bgPath:
+          "https://i0.wp.com/picjumbo.com/wp-content/uploads/orange-slices-summer-backgrounds-free-image.jpeg?w=2210&quality=70",
     );
 
     await MptCallKitController().initDataWhenLoginSuccess(
@@ -350,65 +351,65 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     );
   }
 
-  Future<void> _listenCallkitEvent() async {
-    try {
-      FlutterCallkitIncoming.onEvent.listen((event) {
-        print("Listener event: ${event?.event.toString()}");
-        switch (event!.event) {
-          case Event.actionCallIncoming:
-            // TODO: received an incoming call
-            break;
-          case Event.actionCallStart:
-            // TODO: started an outgoing call
-            // TODO: show screen calling in Flutter
-            break;
-          case Event.actionCallAccept:
-            print("actionCallAccept");
-            break;
-          case Event.actionCallDecline:
-            // TODO: declined an incoming call
-            print("actionCallDecline");
-            break;
-          case Event.actionCallEnded:
-            // TODO: ended an incoming/outgoing call
-            print("actionCallEnded");
-            break;
-          case Event.actionCallTimeout:
-            // TODO: missed an incoming call
-            break;
-          case Event.actionCallCallback:
-            // TODO: only Android - click action `Call back` from missed call notification
-            break;
-          case Event.actionCallCustom:
-            break;
-          case Event.actionCallConnected:
-            // TODO: Handle this case.
-            throw UnimplementedError();
-          case Event.actionDidUpdateDevicePushTokenVoip:
-            // TODO: Handle this case.
-            throw UnimplementedError();
-          case Event.actionCallToggleHold:
-            // TODO: Handle this case.
-            throw UnimplementedError();
-          case Event.actionCallToggleMute:
-            // TODO: Handle this case.
-            throw UnimplementedError();
-          case Event.actionCallToggleDmtf:
-            // TODO: Handle this case.
-            throw UnimplementedError();
-          case Event.actionCallToggleGroup:
-            // TODO: Handle this case.
-            throw UnimplementedError();
-          case Event.actionCallToggleAudioSession:
-            // TODO: Handle this case.
-            throw UnimplementedError();
-        }
-        // callback(event);
-      });
-    } on Exception catch (e) {
-      print("Listener event Exception: $e");
-    }
-  }
+  // Future<void> _listenCallkitEvent() async {
+  //   try {
+  //     FlutterCallkitIncoming.onEvent.listen((event) {
+  //       print("Listener event: ${event?.event.toString()}");
+  //       switch (event!.event) {
+  //         case Event.actionCallIncoming:
+  //           // TODO: received an incoming call
+  //           break;
+  //         case Event.actionCallStart:
+  //           // TODO: started an outgoing call
+  //           // TODO: show screen calling in Flutter
+  //           break;
+  //         case Event.actionCallAccept:
+  //           print("actionCallAccept");
+  //           break;
+  //         case Event.actionCallDecline:
+  //           // TODO: declined an incoming call
+  //           print("actionCallDecline");
+  //           break;
+  //         case Event.actionCallEnded:
+  //           // TODO: ended an incoming/outgoing call
+  //           print("actionCallEnded");
+  //           break;
+  //         case Event.actionCallTimeout:
+  //           // TODO: missed an incoming call
+  //           break;
+  //         case Event.actionCallCallback:
+  //           // TODO: only Android - click action `Call back` from missed call notification
+  //           break;
+  //         case Event.actionCallCustom:
+  //           break;
+  //         case Event.actionCallConnected:
+  //           // TODO: Handle this case.
+  //           throw UnimplementedError();
+  //         case Event.actionDidUpdateDevicePushTokenVoip:
+  //           // TODO: Handle this case.
+  //           throw UnimplementedError();
+  //         case Event.actionCallToggleHold:
+  //           // TODO: Handle this case.
+  //           throw UnimplementedError();
+  //         case Event.actionCallToggleMute:
+  //           // TODO: Handle this case.
+  //           throw UnimplementedError();
+  //         case Event.actionCallToggleDmtf:
+  //           // TODO: Handle this case.
+  //           throw UnimplementedError();
+  //         case Event.actionCallToggleGroup:
+  //           // TODO: Handle this case.
+  //           throw UnimplementedError();
+  //         case Event.actionCallToggleAudioSession:
+  //           // TODO: Handle this case.
+  //           throw UnimplementedError();
+  //       }
+  //       // callback(event);
+  //     });
+  //   } on Exception catch (e) {
+  //     print("Listener event Exception: $e");
+  //   }
+  // }
 
   // change status method
   Future<bool> changeStatus({

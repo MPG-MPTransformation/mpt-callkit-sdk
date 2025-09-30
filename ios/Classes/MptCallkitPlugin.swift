@@ -861,7 +861,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // if you want work with other PBX, please contact your PBX Provider
 
         addPushSupportWithPortPBX(_enablePushNotification!)
-        loginViewController.refreshRegister()
+//        loginViewController.refreshRegister()
+        portSIPSDK.refreshRegistration(0)
     }
 
     func processPushMessageFromPortPBX(
@@ -1124,10 +1125,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         case NotReachable:
             NSLog("reachabilityChanged:kNotReachable")
         case ReachableViaWWAN:
-            loginViewController.refreshRegister()
+            portSIPSDK.refreshRegistration(0)
             NSLog("reachabilityChanged:kReachableViaWWAN")
         case ReachableViaWiFi:
-            loginViewController.refreshRegister()
+            portSIPSDK.refreshRegistration(0)
             NSLog("reachabilityChanged:kReachableViaWiFi")
         default:
             break
@@ -1193,9 +1194,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             timer.schedule(deadline: .now() + 5)
 
             timer.setEventHandler { [weak self] in
-                self?.loginViewController.unRegister()
                 self?.backtaskTimer = nil
                 NSLog("SipEngine finishBackgroundTaskForRegister")
+                guard let strongSelf = self else {
+                    return
+                }
+                let result = strongSelf._callManager.findCallBySessionID(strongSelf.activeSessionid)
+                if result == nil || !result!.session.sessionState {
+                    strongSelf.loginViewController.unRegister()
+                }
             }
 
             backtaskTimer = timer
@@ -1226,6 +1233,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
             print("enableSendVideoStream result: \(sendResult)")
             startSession()
+            _callManager.configureAudioSession()
         }
     }
 
@@ -1653,7 +1661,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 //            type: "call_state", payloadKey: "answered", payloadValue: true)
         
         self.activeSessionid = sessionId
-        
         setLoudspeakerStatus(true)
 
         // 🔥 ANDROID PATTERN: Send state notification instead of direct call
@@ -2263,7 +2270,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
         if result != nil {
             NSLog("Found call session, videoState: \(result!.session.videoState)")
-            
+            _callManager.configureAudioSession()
             setLoudspeakerStatus(true)
             
             if _callManager.isHideCallkit{
@@ -2902,6 +2909,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         methodChannel?.invokeMethod("registrationStateStream", arguments: true)
         loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_ONLINE
         loginViewController.onRegisterSuccess(statusText: statusText)
+        _callManager.updateRegisterSuccess(true)
         NSLog("onRegisterSuccess")
     }
 
@@ -2914,6 +2922,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         methodChannel?.invokeMethod("registrationStateStream", arguments: false)
         loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_FAILUE
         loginViewController.onRegisterFailure(statusCode: statusCode, statusText: statusText)
+        _callManager.updateRegisterSuccess(false)
         NSLog("onRegisterFailure")
     }
 

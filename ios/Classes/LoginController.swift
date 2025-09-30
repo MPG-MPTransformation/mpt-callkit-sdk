@@ -214,7 +214,7 @@ class LoginViewController {
         case .LOGIN_STATUS_LOGIN:
             break
         case .LOGIN_STATUS_ONLINE:
-            portSIPSDK.refreshRegistration(0)
+//            portSIPSDK.refreshRegistration(0)
             print("Refresh Registration...")
             break
         case .LOGIN_STATUS_FAILUE:
