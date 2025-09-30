@@ -385,6 +385,7 @@ class MptCallKitController {
     String? deviceInfo,
     String? recordLabel,
     bool? enableBlurBackground,
+    String? bgPath,
   }) async {
     await enableFileLogging();
 
@@ -424,6 +425,9 @@ class MptCallKitController {
       if (enableBlurBackground != null) {
         await prefs.setBool(
             SDKPrefsKeyConstants.ENABLE_BLUR_BACKGROUND, enableBlurBackground);
+      }
+      if (bgPath != null) {
+        await prefs.setString(SDKPrefsKeyConstants.BG_PATH, bgPath);
       }
     } catch (e) {
       debugPrint('Failed to persist initSdk params: $e');
@@ -608,39 +612,40 @@ class MptCallKitController {
       //       return;
       //     }
 
-      if (extensionData != null) {
-        lastesExtensionData = extensionData;
-        // Register to SIP server
-        await MptCallKitController().online(
-          username: extensionData?.username ?? "",
-          displayName: extensionData?.username ?? "", // ??
-          srtpType: 0,
-          authName: extensionData?.username ?? "", // ??
-          password: extensionData?.password ?? "",
-          userDomain: extensionData?.domain ?? "",
-          sipServer: extensionData?.sipServer ?? "",
-          sipServerPort: extensionData?.port ?? 5063,
-          // sipServerPort: 5063,
-          transportType: 0,
-          pushToken: await getCurrentPushToken(),
-          appId: await getCurrentAppId(),
-          onError: (p0) {
-            print("Error in register to sip server: ${p0.toString()}");
-          },
-          context: context,
-          resolution: extensionData?.resolution,
-          bitrate: extensionData?.bitrate,
-          frameRate: extensionData?.frameRate,
-          recordLabel: await getCurrentRecordLabel(),
-          autoLogin: true,
-          enableBlurBackground: true,
-        );
-      } else {
-        _appEvent.add(AppEventConstants.ERROR);
-        _currentAppEvent = AppEventConstants.ERROR;
-      }
-      // }
-      // });
+          if (extensionData != null) {
+            lastesExtensionData = extensionData;
+            // Register to SIP server
+            await MptCallKitController().online(
+              username: extensionData?.username ?? "",
+              displayName: extensionData?.username ?? "", // ??
+              srtpType: 0,
+              authName: extensionData?.username ?? "", // ??
+              password: extensionData?.password ?? "",
+              userDomain: extensionData?.domain ?? "",
+              sipServer: extensionData?.sipServer ?? "",
+              sipServerPort: extensionData?.port ?? 5063,
+              // sipServerPort: 5063,
+              transportType: 0,
+              pushToken: await getCurrentPushToken(),
+              appId: await getCurrentAppId(),
+              onError: (p0) {
+                print("Error in register to sip server: ${p0.toString()}");
+              },
+              context: context,
+              resolution: extensionData?.resolution,
+              bitrate: extensionData?.bitrate,
+              frameRate: extensionData?.frameRate,
+              recordLabel: await getCurrentRecordLabel(),
+              autoLogin: true,
+              enableBlurBackground: true,
+              bgPath: await getCurrentBgPath(),
+            );
+          } else {
+            _appEvent.add(AppEventConstants.ERROR);
+            _currentAppEvent = AppEventConstants.ERROR;
+          }
+        }
+      });
     } else {
       _appEvent.add(AppEventConstants.TOKEN_EXPIRED);
       _currentAppEvent = AppEventConstants.TOKEN_EXPIRED;
@@ -903,7 +908,8 @@ class MptCallKitController {
             frameRate: result.frameRate,
             recordLabel: await getCurrentRecordLabel(),
             autoLogin: false,
-            enableBlurBackground: await getCurrentEnableBlurBackground());
+            enableBlurBackground: await getCurrentEnableBlurBackground(),
+            bgPath: await getCurrentBgPath());
 
         // 🔧 FIX: Ensure no previous completer is pending
         if (_guestRegistrationCompleter != null &&
@@ -1168,6 +1174,7 @@ class MptCallKitController {
     String? recordLabel,
     bool? autoLogin,
     bool? enableBlurBackground,
+    String? bgPath,
     // required String localizedCallerName,
   }) async {
     this.isMakeCallByGuest = isMakeCallByGuest ?? false;
@@ -1207,6 +1214,7 @@ class MptCallKitController {
           "recordLabel": recordLabel ?? "Customer",
           "autoLogin": autoLogin ?? false,
           "enableBlurBackground": enableBlurBackground ?? false,
+          "bgPath": bgPath ?? null,
         },
       );
 
@@ -2232,6 +2240,11 @@ class MptCallKitController {
   Future<bool> getCurrentEnableBlurBackground() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(SDKPrefsKeyConstants.ENABLE_BLUR_BACKGROUND) ?? false;
+  }
+
+  Future<String?> getCurrentBgPath() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(SDKPrefsKeyConstants.BG_PATH) ?? null;
   }
 
   Future<String> getCurrentAppId() async {

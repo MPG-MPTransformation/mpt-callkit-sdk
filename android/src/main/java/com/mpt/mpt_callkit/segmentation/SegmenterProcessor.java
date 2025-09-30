@@ -19,13 +19,25 @@ package com.mpt.mpt_callkit.segmentation;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
+
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -50,7 +62,7 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
     
     // Constants for background masking
     private static final float BACKGROUND_THRESHOLD_HIGH = 0.9f;
-    private static final float BACKGROUND_THRESHOLD_LOW = 0.2f;
+    private static final float BACKGROUND_THRESHOLD_LOW = 0.5f;
     private static final int BACKGROUND_ALPHA = 230;
     private static final int BACKGROUND_RGB = 211; // Light gray color
     
@@ -62,9 +74,18 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
 
     private Segmenter segmenter;
     private final VisionImageProcessorCallback callback;
+    private final boolean isStreamMode;
+    
+    // Overlay and background settings
     private String text;
     private boolean enableBlurBackground;
-    private final boolean isStreamMode;
+    private String bgPath;
+    private Bitmap bgBitmap;
+    
+    // Background image loading
+    private final ExecutorService imageLoadExecutor;
+    private final Handler mainHandler;
+    private Future<?> imageLoadTask;
 
     /**
      * Creates a SegmenterProcessor with default stream mode enabled.
@@ -78,7 +99,24 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
                             @NonNull VisionImageProcessorCallback callback, 
                             @Nullable String text, 
                             boolean enableBlurBackground) {
-        this(context, true, callback, text, enableBlurBackground);
+        this(context, true, callback, text, enableBlurBackground, null);
+    }
+
+    /**
+     * Creates a SegmenterProcessor with default stream mode enabled.
+     *
+     * @param context The Android context
+     * @param callback Callback for processing results
+     * @param text Text to overlay on the image
+     * @param enableBlurBackground Whether to enable background blur
+     * @param bgPath Path to background image file
+     */
+    public SegmenterProcessor(@NonNull Context context, 
+                            @NonNull VisionImageProcessorCallback callback, 
+                            @Nullable String text, 
+                            boolean enableBlurBackground,
+                            @Nullable String bgPath) {
+        this(context, true, callback, text, enableBlurBackground, bgPath);
     }
 
     /**
@@ -89,17 +127,29 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
      * @param callback Callback for processing results
      * @param text Text to overlay on the image
      * @param enableBlurBackground Whether to enable background blur
+     * @param bgPath Path to background image file
      */
     public SegmenterProcessor(@NonNull Context context, 
                             boolean isStreamMode,
                             @NonNull VisionImageProcessorCallback callback, 
                             @Nullable String text, 
-                            boolean enableBlurBackground) {
+                            boolean enableBlurBackground,
+                            @Nullable String bgPath) {
         super(context);
         this.callback = callback;
         this.text = text;
         this.enableBlurBackground = enableBlurBackground;
         this.isStreamMode = isStreamMode;
+        this.bgPath = bgPath;
+        this.bgBitmap = null;
+        
+        // Initialize background image loading infrastructure
+        this.imageLoadExecutor = Executors.newSingleThreadExecutor();
+        this.mainHandler = new Handler(Looper.getMainLooper());
+        
+        if (bgPath != null) {
+            loadBackgroundImage();
+        }
     }
 
     /**
@@ -121,6 +171,9 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
         }
         if (segmenter == null) {
             createSegmenter();
+        }
+        if (bgPath != null && bgBitmap == null) {
+            loadBackgroundImage();
         }
         return segmenter.process(image);
     }
@@ -177,9 +230,179 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
         this.enableBlurBackground = enableBlurBackground;
     }
 
+    /**
+     * Sets the background image path and loads the image.
+     *
+     * @param bgPath Path to the background image file or URL
+     */
+    public void setBgPath(@Nullable String bgPath) {
+        Log.d(TAG, "Setting background path: " + bgPath);
+        this.bgPath = bgPath;
+        if (bgPath != null) {
+            loadBackgroundImage();
+        } else {
+            // Clear background if path is null
+            safeRecycleBitmap(bgBitmap);
+            bgBitmap = null;
+        }
+    }
+
+    /**
+     * Validates if the given string is a valid URL.
+     *
+     * @param urlString The string to validate
+     * @return True if it's a valid URL, false otherwise
+     */
+    private boolean isValidUrl(String urlString) {
+        try {
+            new URL(urlString);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Loads the background image from the specified path into bgBitmap.
+     * Supports both local file paths and internet URLs.
+     */
+    private void loadBackgroundImage() {
+        if (bgPath == null || bgPath.trim().isEmpty()) {
+            Log.d(TAG, "No background path specified, clearing bgBitmap");
+            safeRecycleBitmap(bgBitmap);
+            bgBitmap = null;
+            return;
+        }
+
+        // Cancel any existing image loading task
+        cancelImageLoadTask();
+
+        // Check if it's a valid URL
+        if (isValidUrl(bgPath)) {
+            loadBackgroundImageFromUrl(bgPath);
+        } else {
+            loadBackgroundImageFromFile(bgPath);
+        }
+    }
+
+    /**
+     * Loads background image from a local file path.
+     *
+     * @param filePath Local file path
+     */
+    private void loadBackgroundImageFromFile(@NonNull String filePath) {
+        try {
+            // Recycle existing bitmap if any
+            safeRecycleBitmap(bgBitmap);
+            
+            // Load the background image from local file
+            bgBitmap = BitmapFactory.decodeFile(filePath);
+            if (bgBitmap == null) {
+                Log.e(TAG, "Failed to load background image from path: " + filePath);
+            } else {
+                Log.d(TAG, "Successfully loaded background image: " + filePath + 
+                      " (size: " + bgBitmap.getWidth() + "x" + bgBitmap.getHeight() + ")");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading background image from path: " + filePath, e);
+            safeRecycleBitmap(bgBitmap);
+            bgBitmap = null;
+        }
+    }
+
+    /**
+     * Loads background image from a URL in background thread.
+     *
+     * @param urlString URL to load from
+     */
+    private void loadBackgroundImageFromUrl(@NonNull String urlString) {
+        Log.d(TAG, "Loading background image from URL: " + urlString);
+        
+        imageLoadTask = imageLoadExecutor.submit(() -> {
+            Bitmap loadedBitmap = downloadImageFromUrl(urlString);
+            
+            // Update UI on main thread
+            mainHandler.post(() -> {
+                // Recycle existing bitmap if any
+                safeRecycleBitmap(bgBitmap);
+                
+                if (loadedBitmap != null) {
+                    bgBitmap = loadedBitmap;
+                    Log.d(TAG, "Successfully loaded background image from URL: " + urlString + 
+                          " (size: " + bgBitmap.getWidth() + "x" + bgBitmap.getHeight() + ")");
+                } else {
+                    Log.e(TAG, "Failed to load background image from URL: " + urlString);
+                    bgBitmap = null;
+                }
+            });
+        });
+    }
+
+    /**
+     * Downloads an image from a URL (runs on background thread).
+     *
+     * @param urlString URL to download from
+     * @return Downloaded bitmap or null if failed
+     */
+    @Nullable
+    private Bitmap downloadImageFromUrl(@NonNull String urlString) {
+        HttpURLConnection connection = null;
+        InputStream inputStream = null;
+        
+        try {
+            URL url = new URL(urlString);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setDoInput(true);
+            connection.setConnectTimeout(10000); // 10 seconds timeout
+            connection.setReadTimeout(10000); // 10 seconds timeout
+            connection.connect();
+            
+            int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                inputStream = connection.getInputStream();
+                return BitmapFactory.decodeStream(inputStream);
+            } else {
+                Log.e(TAG, "HTTP error loading image: " + responseCode);
+                return null;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error downloading image from URL: " + urlString, e);
+            return null;
+        } finally {
+            try {
+                if (inputStream != null) {
+                    inputStream.close();
+                }
+                if (connection != null) {
+                    connection.disconnect();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error closing connection", e);
+            }
+        }
+    }
+
+    /**
+     * Cancels any ongoing image loading task.
+     */
+    private void cancelImageLoadTask() {
+        if (imageLoadTask != null && !imageLoadTask.isDone()) {
+            imageLoadTask.cancel(true);
+            imageLoadTask = null;
+        }
+    }
+
     @Override
     public void stop() {
         Log.d(TAG, "Stopping SegmenterProcessor and releasing resources");
+        
+        // Cancel any running image loading task
+        cancelImageLoadTask();
+        
+        // Shutdown image loading executor
+        if (imageLoadExecutor != null && !imageLoadExecutor.isShutdown()) {
+            imageLoadExecutor.shutdown();
+        }
         
         // Close the ML Kit Segmenter to release its resources and stop background threads
         if (segmenter != null) {
@@ -187,49 +410,168 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
             segmenter = null;
         }
         
+        // Recycle background bitmap
+        safeRecycleBitmap(bgBitmap);
+        bgBitmap = null;
+        
         // Call parent stop method to handle executor shutdown and other cleanup
         super.stop();
     }
 
     /**
-     * Applies segmentation mask to the original image with background blur effect.
+     * Applies segmentation mask to the original image with background image effect.
      *
      * @param segmentationMask The ML Kit segmentation mask
      * @param originalCameraImage The original camera image
-     * @return Processed bitmap with background blur and text overlay
+     * @return Processed bitmap with background image and text overlay
      */
     private Bitmap applySegmentationMask(@NonNull SegmentationMask segmentationMask, 
                                        @NonNull Bitmap originalCameraImage) {
-        ByteBuffer mask = segmentationMask.getBuffer();
-        int maskWidth = segmentationMask.getWidth();
-        int maskHeight = segmentationMask.getHeight();
         int originalWidth = originalCameraImage.getWidth();
         int originalHeight = originalCameraImage.getHeight();
         
-        // Create a mutable copy of the original camera image
-        Bitmap resultBitmap = originalCameraImage.copy(originalCameraImage.getConfig(), true);
+        // Prepare mask and camera image
+        Bitmap maskBitmap = prepareScaledMask(segmentationMask, originalWidth, originalHeight);
+        Bitmap flippedCameraImage = flipBitmapHorizontally(originalCameraImage);
         
-        // Create and scale the mask bitmap
-        Bitmap maskBitmap = createMaskBitmap(mask, maskWidth, maskHeight);
-        if (maskWidth != originalWidth || maskHeight != originalHeight) {
-            Bitmap scaledMask = Bitmap.createScaledBitmap(maskBitmap, originalWidth, originalHeight, true);
-            maskBitmap.recycle();
-            maskBitmap = scaledMask;
+        // Create result based on background availability
+        Bitmap resultBitmap = (bgBitmap != null) 
+            ? compositePersonOnBackground(flippedCameraImage, maskBitmap, originalWidth, originalHeight)
+            : applyMaskToCamera(flippedCameraImage, maskBitmap);
+        
+        // Add text overlay if needed
+        if (this.text != null && !this.text.trim().isEmpty()) {
+            Canvas canvas = new Canvas(resultBitmap);
+            drawTextOverlay(canvas, resultBitmap.getWidth(), resultBitmap.getHeight());
         }
-
-        // Apply horizontal flip to both images
-        resultBitmap = flipBitmapHorizontally(resultBitmap);
-        maskBitmap = flipBitmapHorizontally(maskBitmap);
-        
-        // Apply the mask and text overlay
-        Canvas canvas = new Canvas(resultBitmap);
-        Paint paint = new Paint();
-        paint.setAntiAlias(true);
-        canvas.drawBitmap(maskBitmap, 0, 0, paint);
-        drawTextOverlay(canvas, resultBitmap.getWidth(), resultBitmap.getHeight());
         
         // Clean up resources
         safeRecycleBitmap(maskBitmap);
+        safeRecycleBitmap(flippedCameraImage);
+        
+        return resultBitmap;
+    }
+
+    /**
+     * Prepares and scales the segmentation mask to match camera dimensions.
+     *
+     * @param segmentationMask The ML Kit segmentation mask
+     * @param targetWidth Target width
+     * @param targetHeight Target height
+     * @return Scaled and flipped mask bitmap
+     */
+    private Bitmap prepareScaledMask(@NonNull SegmentationMask segmentationMask, 
+                                     int targetWidth, int targetHeight) {
+        ByteBuffer mask = segmentationMask.getBuffer();
+        int maskWidth = segmentationMask.getWidth();
+        int maskHeight = segmentationMask.getHeight();
+        
+        // Create mask bitmap
+        Bitmap maskBitmap = createMaskBitmap(mask, maskWidth, maskHeight);
+        
+        // Scale if dimensions don't match
+        if (maskWidth != targetWidth || maskHeight != targetHeight) {
+            Bitmap scaledMask = Bitmap.createScaledBitmap(maskBitmap, targetWidth, targetHeight, true);
+            safeRecycleBitmap(maskBitmap);
+            maskBitmap = scaledMask;
+        }
+        
+        // Flip mask to match camera orientation
+        Bitmap flippedMask = flipBitmapHorizontally(maskBitmap);
+        safeRecycleBitmap(maskBitmap);
+        
+        return flippedMask;
+    }
+
+    /**
+     * Composites person from camera image onto background image using mask.
+     *
+     * @param flippedCameraImage Camera image (already flipped)
+     * @param maskBitmap Mask bitmap (person = white, background = transparent)
+     * @param width Image width
+     * @param height Image height
+     * @return Composited result bitmap
+     */
+    private Bitmap compositePersonOnBackground(@NonNull Bitmap flippedCameraImage, 
+                                               @NonNull Bitmap maskBitmap,
+                                               int width, int height) {
+        // Scale background to match camera dimensions (DO NOT flip)
+        Bitmap scaledBackground = Bitmap.createScaledBitmap(bgBitmap, width, height, true);
+        Bitmap resultBitmap = scaledBackground.copy(scaledBackground.getConfig(), true);
+        safeRecycleBitmap(scaledBackground);
+        
+        // Create masked person bitmap
+        Bitmap maskedPerson = createMaskedPerson(flippedCameraImage, maskBitmap, width, height);
+        
+        // Draw masked person onto background
+        Canvas canvas = new Canvas(resultBitmap);
+        Paint paint = new Paint();
+        paint.setAntiAlias(true);
+        canvas.drawBitmap(maskedPerson, 0, 0, paint);
+        
+        safeRecycleBitmap(maskedPerson);
+        
+        return resultBitmap;
+    }
+
+    /**
+     * Creates a bitmap containing only the person (masked from camera image).
+     *
+     * @param cameraImage Camera image
+     * @param maskBitmap Mask bitmap
+     * @param width Image width
+     * @param height Image height
+     * @return Masked person bitmap
+     */
+    private Bitmap createMaskedPerson(@NonNull Bitmap cameraImage, 
+                                      @NonNull Bitmap maskBitmap,
+                                      int width, int height) {
+        Bitmap maskedPerson = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(maskedPerson);
+        
+        Paint paint = new Paint();
+        paint.setAntiAlias(true);
+        canvas.drawBitmap(cameraImage, 0, 0, paint);
+        
+        // Apply mask using DST_IN mode (keep only where mask is opaque)
+        Paint maskPaint = new Paint();
+        maskPaint.setAntiAlias(true);
+        maskPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
+        canvas.drawBitmap(maskBitmap, 0, 0, maskPaint);
+        
+        return maskedPerson;
+    }
+
+    /**
+     * Applies mask to camera image with light gray background (used when no background image is available).
+     * Returns the masked person composited onto a light gray background.
+     *
+     * @param cameraImage Camera image
+     * @param maskBitmap Mask bitmap
+     * @return Masked camera image on light gray background
+     */
+    private Bitmap applyMaskToCamera(@NonNull Bitmap cameraImage, @NonNull Bitmap maskBitmap) {
+        int width = cameraImage.getWidth();
+        int height = cameraImage.getHeight();
+        
+        // Create light gray background (matching constant BACKGROUND_RGB = 211)
+        Bitmap resultBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(resultBitmap);
+        
+        // Fill with light gray color
+        Paint bgPaint = new Paint();
+        bgPaint.setColor(Color.rgb(BACKGROUND_RGB, BACKGROUND_RGB, BACKGROUND_RGB));
+        canvas.drawRect(0, 0, width, height, bgPaint);
+        
+        // Create masked person bitmap
+        Bitmap maskedPerson = createMaskedPerson(cameraImage, maskBitmap, width, height);
+        
+        // Draw masked person onto gray background
+        Paint paint = new Paint();
+        paint.setAntiAlias(true);
+        canvas.drawBitmap(maskedPerson, 0, 0, paint);
+        
+        safeRecycleBitmap(maskedPerson);
         
         return resultBitmap;
     }
@@ -243,11 +585,11 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
     private Bitmap createImageWithTextOverlay(@NonNull Bitmap originalCameraImage) {
         // Create a mutable copy of the original camera image
         Bitmap resultBitmap = flipBitmapHorizontally(originalCameraImage.copy(originalCameraImage.getConfig(), true));
-        
-        // Draw text overlay
-        Canvas canvas = new Canvas(resultBitmap);
-        drawTextOverlay(canvas, resultBitmap.getWidth(), resultBitmap.getHeight());
-        
+        if (this.text != null && !this.text.trim().isEmpty()) {
+            // Draw text overlay
+            Canvas canvas = new Canvas(resultBitmap);
+            drawTextOverlay(canvas, resultBitmap.getWidth(), resultBitmap.getHeight());
+        }
         return resultBitmap;
     }
 
@@ -271,12 +613,7 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
      * @param bitmapHeight Height of the bitmap
      */
     private void drawTextOverlay(@NonNull Canvas canvas, int bitmapWidth, int bitmapHeight) {
-        if (text == null || text.trim().isEmpty()) {
-            return; // Skip drawing if no text
-        }
-        
         Paint textPaint = createTextPaint(bitmapWidth);
-        
         // Calculate text position (top center)
         Rect textBounds = new Rect();
         textPaint.getTextBounds(text, 0, text.length(), textBounds);
@@ -317,6 +654,7 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
 
     /**
      * Converts segmentation mask buffer to color array for bitmap creation.
+     * Creates a mask where person areas are opaque (white) and background areas are transparent.
      *
      * @param byteBuffer The segmentation mask buffer
      * @param maskWidth Width of the mask
@@ -329,14 +667,16 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
             float backgroundLikelihood = 1 - byteBuffer.getFloat();
             
             if (backgroundLikelihood > BACKGROUND_THRESHOLD_HIGH) {
-                // Background area: light gray with high opacity
-                colors[i] = Color.argb(BACKGROUND_ALPHA, BACKGROUND_RGB, BACKGROUND_RGB, BACKGROUND_RGB);
+                // Background area: transparent (will show background image)
+                colors[i] = Color.TRANSPARENT;
             } else if (backgroundLikelihood > BACKGROUND_THRESHOLD_LOW) {
-                // Transition area: interpolate between transparent and light gray
+                // Transition area: interpolate between transparent and opaque
                 int alpha = calculateInterpolatedAlpha(backgroundLikelihood);
-                colors[i] = Color.argb(alpha, BACKGROUND_RGB, BACKGROUND_RGB, BACKGROUND_RGB);
+                colors[i] = Color.argb(255 - alpha, 255, 255, 255); // Invert alpha for person mask
+            } else {
+                // Person area: opaque white (will show camera image)
+                colors[i] = Color.WHITE;
             }
-            // Areas with backgroundLikelihood <= BACKGROUND_THRESHOLD_LOW remain transparent (person area)
         }
         return colors;
     }

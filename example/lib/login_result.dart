@@ -50,6 +50,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   bool isOnCall = false;
   bool isNavigatedToCallPad = false;
   String _tokenKey = 'fcm_token';
+  bool isFirstTime = true;
 
   @override
   void initState() {
@@ -126,19 +127,22 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     // _listenCallkitEvent();
 
     WidgetsBinding.instance.addObserver(this);
-    Future.microtask(() {
+    Future.microtask(() async {
       if (mounted) {
-        _initDataWhenLoginSuccess();
+        await Future.delayed(const Duration(seconds: 1));
+        await _initDataWhenLoginSuccess();
+        isFirstTime = false;
       }
     });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed && !isFirstTime) {
       final prefs = await SharedPreferences.getInstance();
       final accessToken = prefs.getString("saved_access_token");
       if (accessToken != null) {
+        await Future.delayed(const Duration(seconds: 1));
         await MptCallKitController().connectToSocketServer(accessToken);
       }
     }
@@ -160,8 +164,9 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
       enableDebugLog: true,
       deviceInfo: "deviceInfo",
-      recordLabel: "Nhân viên",
+      recordLabel: "",
       enableBlurBackground: true,
+      bgPath: "https://iili.io/KGc1F5J.jpg",
     );
 
     await MptCallKitController().initDataWhenLoginSuccess(

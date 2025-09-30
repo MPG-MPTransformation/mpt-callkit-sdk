@@ -62,8 +62,9 @@ class _HomeScreenState extends State<HomeScreen> {
         appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
         enableDebugLog: true,
         deviceInfo: "deviceInfo",
-        recordLabel: "Nhân viên",
+        recordLabel: "",
         enableBlurBackground: true,
+        bgPath: "https://iili.io/KGc1F5J.jpg",
       );
 
       // var result = await MptCallKitController().loginRequest(
@@ -117,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
             // appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
             enableDebugLog: true,
             deviceInfo: "deviceInfo",
-            recordLabel: "Khách hàng",
+            recordLabel: "",
             enableBlurBackground: false,
           );
           await MptCallKitController().makeCallByGuest(

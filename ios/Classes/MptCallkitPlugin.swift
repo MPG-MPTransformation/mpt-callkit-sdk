@@ -279,6 +279,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     private var frameCounter: Int = 0
     private static var enableBlurBackground: Bool = false
     
+    // Background image variables
+    private var bgPath: String? = nil
+    private var bgBitmap: UIImage? = nil
+    
     // MARK: - Camera Resolution Configuration
     
     // Resolution presets for automatic selection (matching Android CameraSource)
@@ -432,6 +436,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         guard let buffer = imageBuffer else {
             return
         }
+
         let orientation: UIImage.Orientation = mUseFrontCamera ? .leftMirrored : .right
         guard let image = UIUtilities.createUIImage(from: buffer, orientation: orientation) else {
             return
@@ -454,7 +459,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                                                            data: yuvData,
                                                            width: Int32(width),
                                                            height: Int32(height))
-              print("sendVideoStream result: \(result)")
+//              print("sendVideoStream result: \(result)")
           }
         }
     }
@@ -2461,13 +2466,20 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let recordLabel = (args["recordLabel"] as? String) ?? "Customer"
                 let autoLogin = (args["autoLogin"] as? Bool) ?? false
                 let enableBlur = (args["enableBlurBackground"] as? Bool) ?? false
+                let backgroundPath = (args["bgPath"] as? String) ?? nil
 
                 // Lưu username hiện tại
                 currentUsername = username
                 MptCallkitPlugin.overlayText = recordLabel
                 MptCallkitPlugin.enableBlurBackground = enableBlur
                 
-                print("onMethodCall MptCallkitPlugin.overlayText: \(MptCallkitPlugin.overlayText), MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground)")
+                if (backgroundPath != nil) {
+                    // Set background path and load background image
+                    bgPath = backgroundPath
+                    loadBackgroundImage()
+                }
+                
+                print("onMethodCall MptCallkitPlugin.overlayText: \(MptCallkitPlugin.overlayText), MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground), bgPath: \(String(describing: bgPath))")
 
                 // Lưu localizedCallerName vào UserDefaults và biến hiện tại
                 currentLocalizedCallerName = localizedCallerName
@@ -2715,8 +2727,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             result(getCallkitAnsweredState())
             return
         case "refreshRegister":
+            print("refreshRegister called")
+            // loginViewController.refreshRegister()
             result(portSIPSDK.refreshRegistration(0))
         case "refreshRegistration":
+            print("refreshRegistration called")
+            // loginViewController.refreshRegister()
             result(portSIPSDK.refreshRegistration(0))
         case "setResolutionMode":
             if let args = call.arguments as? [String: Any],
@@ -2884,7 +2900,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         sipRegistered = true
         methodChannel?.invokeMethod("onlineStatus", arguments: true)
         methodChannel?.invokeMethod("registrationStateStream", arguments: true)
-//        loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_ONLINE
+        loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_ONLINE
         loginViewController.onRegisterSuccess(statusText: statusText)
         NSLog("onRegisterSuccess")
     }
@@ -2896,7 +2912,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         sipRegistered = false
         methodChannel?.invokeMethod("onlineStatus", arguments: false)
         methodChannel?.invokeMethod("registrationStateStream", arguments: false)
-//        loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_FAILUE
+        loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_FAILUE
         loginViewController.onRegisterFailure(statusCode: statusCode, statusText: statusText)
         NSLog("onRegisterFailure")
     }
@@ -3344,6 +3360,195 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     }
   }
 
+  /// Loads the background image from the specified path into bgBitmap.
+  /// Supports both local file paths and internet URLs.
+  private func loadBackgroundImage() {
+    guard let path = bgPath, !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      print("No background path specified, clearing bgBitmap")
+      bgBitmap = nil
+      return
+    }
+    
+    // Check if it's a valid URL
+    if isValidUrl(path) {
+      print("Loading background image from URL: \(path)")
+      loadImageFromUrl(path)
+    } else {
+      // Local file path
+      do {
+        // Load the background image from local file
+        if let image = UIImage(contentsOfFile: path) {
+          bgBitmap = image
+          print("Successfully loaded background image: \(path) (size: \(image.size.width)x\(image.size.height))")
+        } else {
+          print("Failed to load background image from path: \(path)")
+          bgBitmap = nil
+        }
+      } catch {
+        print("Error loading background image from path: \(path), error: \(error)")
+        bgBitmap = nil
+      }
+    }
+  }
+  
+  /// Checks if the given string is a valid URL
+  private func isValidUrl(_ string: String) -> Bool {
+    guard let url = URL(string: string) else { return false }
+    return url.scheme != nil && (url.scheme == "http" || url.scheme == "https")
+  }
+  
+  /// Loads image from URL asynchronously
+  private func loadImageFromUrl(_ urlString: String) {
+    guard let url = URL(string: urlString) else {
+      print("Invalid URL: \(urlString)")
+      bgBitmap = nil
+      return
+    }
+    
+    DispatchQueue.global(qos: .background).async { [weak self] in
+      do {
+        let data = try Data(contentsOf: url)
+        DispatchQueue.main.async {
+          if let image = UIImage(data: data) {
+            self?.bgBitmap = image
+            print("Successfully loaded background image from URL: \(urlString) (size: \(image.size.width)x\(image.size.height))")
+          } else {
+            print("Failed to load background image from URL: \(urlString)")
+            self?.bgBitmap = nil
+          }
+        }
+      } catch {
+        DispatchQueue.main.async {
+          print("Error loading background image from URL: \(urlString), error: \(error)")
+          self?.bgBitmap = nil
+        }
+      }
+    }
+  }
+  
+  /// Applies background image with segmentation mask to an image buffer
+  private func applyBackgroundImageWithMask(
+    mask: SegmentationMask,
+    to imageBuffer: CVImageBuffer,
+    backgroundImage: UIImage?
+  ) {
+    guard let backgroundImage = backgroundImage else {
+     print("No background image provided, falling back to blur")
+      // Fallback to blur if no background image
+      UIUtilities.applySegmentationMask(
+        mask: mask, to: imageBuffer,
+        backgroundColor: UIColor.lightGray.withAlphaComponent(0.95),
+        foregroundColor: nil)
+      return
+    }
+      
+      
+      // Apply the same orientation as camera output to match
+      let orientation: UIImage.Orientation = mUseFrontCamera ? .leftMirrored : .right
+      let transformedBackgroundImage = applyOrientationToImage(backgroundImage, orientation: orientation)
+    
+    let width = CVPixelBufferGetWidth(imageBuffer)
+    let height = CVPixelBufferGetHeight(imageBuffer)
+    
+    // Scale background image to EXACT camera frame dimensions (stretch to fit)
+    guard let scaledBackgroundImage = transformedBackgroundImage.scaledImage(with: CGSize(width: width, height: height)) else {
+        return
+    }
+    
+    
+    // Convert background image to image buffer
+    guard let backgroundImageBuffer = UIUtilities.createImageBuffer(from: scaledBackgroundImage) else {
+      print("Failed to create image buffer from background image")
+      // Fallback to blur
+      UIUtilities.applySegmentationMask(
+        mask: mask, to: imageBuffer,
+        backgroundColor: UIColor.lightGray.withAlphaComponent(0.95),
+        foregroundColor: nil)
+      return
+    }
+    
+    // Apply the mask to composite person from camera image onto background
+    applyMaskToCompositeImages(
+      mask: mask,
+      cameraImageBuffer: imageBuffer,
+      backgroundImageBuffer: backgroundImageBuffer
+    )
+  }
+  
+  /// Applies mask to composite person from camera image onto background image
+  private func applyMaskToCompositeImages(
+    mask: SegmentationMask,
+    cameraImageBuffer: CVImageBuffer,
+    backgroundImageBuffer: CVImageBuffer
+  ) {
+    let width = CVPixelBufferGetWidth(mask.buffer)
+    let height = CVPixelBufferGetHeight(mask.buffer)
+    
+    assert(CVPixelBufferGetWidth(cameraImageBuffer) == width, "Width must match")
+    assert(CVPixelBufferGetHeight(cameraImageBuffer) == height, "Height must match")
+    assert(CVPixelBufferGetWidth(backgroundImageBuffer) == width, "Background width must match")
+    assert(CVPixelBufferGetHeight(backgroundImageBuffer) == height, "Background height must match")
+    
+    let writeFlags = CVPixelBufferLockFlags(rawValue: 0)
+    CVPixelBufferLockBaseAddress(cameraImageBuffer, writeFlags)
+    CVPixelBufferLockBaseAddress(backgroundImageBuffer, CVPixelBufferLockFlags.readOnly)
+    CVPixelBufferLockBaseAddress(mask.buffer, CVPixelBufferLockFlags.readOnly)
+    
+    let maskBytesPerRow = CVPixelBufferGetBytesPerRow(mask.buffer)
+    var maskAddress = CVPixelBufferGetBaseAddress(mask.buffer)!.bindMemory(
+      to: Float32.self, capacity: maskBytesPerRow * height)
+    
+    let cameraBytesPerRow = CVPixelBufferGetBytesPerRow(cameraImageBuffer)
+    var cameraAddress = CVPixelBufferGetBaseAddress(cameraImageBuffer)!.bindMemory(
+      to: UInt8.self, capacity: cameraBytesPerRow * height)
+    
+    let backgroundBytesPerRow = CVPixelBufferGetBytesPerRow(backgroundImageBuffer)
+    var backgroundAddress = CVPixelBufferGetBaseAddress(backgroundImageBuffer)!.bindMemory(
+      to: UInt8.self, capacity: backgroundBytesPerRow * height)
+    
+    for _ in 0...(height - 1) {
+      for col in 0...(width - 1) {
+        let pixelOffset = col * 4 // BGRA format
+        
+        let maskValue: CGFloat = CGFloat(maskAddress[col])
+        let personRegionRatio = maskValue
+        let backgroundRegionRatio: CGFloat = 1.0 - maskValue
+        
+        // Get camera pixel values
+        let cameraRed = CGFloat(cameraAddress[pixelOffset + 2]) / 255.0
+        let cameraGreen = CGFloat(cameraAddress[pixelOffset + 1]) / 255.0
+        let cameraBlue = CGFloat(cameraAddress[pixelOffset]) / 255.0
+        let cameraAlpha = CGFloat(cameraAddress[pixelOffset + 3]) / 255.0
+        
+        // Get background pixel values
+        let backgroundRed = CGFloat(backgroundAddress[pixelOffset + 2]) / 255.0
+        let backgroundGreen = CGFloat(backgroundAddress[pixelOffset + 1]) / 255.0
+        let backgroundBlue = CGFloat(backgroundAddress[pixelOffset]) / 255.0
+        let backgroundAlpha = CGFloat(backgroundAddress[pixelOffset + 3]) / 255.0
+        
+        // Composite the pixels
+        let compositeRed = cameraRed * personRegionRatio + backgroundRed * backgroundRegionRatio
+        let compositeGreen = cameraGreen * personRegionRatio + backgroundGreen * backgroundRegionRatio
+        let compositeBlue = cameraBlue * personRegionRatio + backgroundBlue * backgroundRegionRatio
+        let compositeAlpha = cameraAlpha * personRegionRatio + backgroundAlpha * backgroundRegionRatio
+        
+        // Write back to camera image buffer
+        cameraAddress[pixelOffset] = UInt8(compositeBlue * 255.0)
+        cameraAddress[pixelOffset + 1] = UInt8(compositeGreen * 255.0)
+        cameraAddress[pixelOffset + 2] = UInt8(compositeRed * 255.0)
+        cameraAddress[pixelOffset + 3] = UInt8(compositeAlpha * 255.0)
+      }
+      
+      cameraAddress += cameraBytesPerRow / MemoryLayout<UInt8>.size
+      backgroundAddress += backgroundBytesPerRow / MemoryLayout<UInt8>.size
+      maskAddress += maskBytesPerRow / MemoryLayout<Float32>.size
+    }
+    
+    CVPixelBufferUnlockBaseAddress(cameraImageBuffer, writeFlags)
+    CVPixelBufferUnlockBaseAddress(backgroundImageBuffer, CVPixelBufferLockFlags.readOnly)
+    CVPixelBufferUnlockBaseAddress(mask.buffer, CVPixelBufferLockFlags.readOnly)
+  }
+
   private func detectSegmentationMask(in image: VisionImage, sampleBuffer: CMSampleBuffer) {
     // Ensure processing flag is reset even if function exits early
     defer {
@@ -3375,11 +3580,11 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
       return
     }
 
-    // Apply mask on background thread for better performance
-    UIUtilities.applySegmentationMask(
-      mask: mask, to: imageBuffer,
-      backgroundColor: UIColor.lightGray.withAlphaComponent(0.95),
-      foregroundColor: nil)
+    // Apply background image with mask instead of blur
+    applyBackgroundImageWithMask(
+      mask: mask, 
+      to: imageBuffer,
+      backgroundImage: bgBitmap)
     
     // Only update UI on main thread with appropriate QoS
     DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
@@ -3724,6 +3929,10 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     /// - Size 48 (textSize = 48)
     /// - Top center positioning (x = width/2, y = textBounds.height() + 100)
     private func drawTextOnImage(_ image: UIImage, text: String) -> UIImage? {
+        // if text is empty, return image
+        if text.isEmpty {
+            return image
+        }
 //        print("drawTextOnImage \(drawTextOnImage)")
         let imageSize = image.size
         
@@ -3763,6 +3972,26 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         
         // Get the final image with text
         return UIGraphicsGetImageFromCurrentImageContext()
+    }
+    
+    /// Apply orientation transformation to a UIImage to match camera output
+    /// - Parameters:
+    ///   - image: The input image to transform
+    ///   - orientation: The target orientation (e.g., .leftMirrored for front camera)
+    /// - Returns: Transformed UIImage
+    private func applyOrientationToImage(_ image: UIImage, orientation: UIImage.Orientation) -> UIImage {
+        // If orientation is already correct, return as-is
+        if image.imageOrientation == orientation {
+            return image
+        }
+        
+        // Create new image with the desired orientation
+        guard let cgImage = image.cgImage else {
+            return image
+        }
+        
+        // Return new UIImage with updated orientation
+        return UIImage(cgImage: cgImage, scale: image.scale, orientation: orientation)
     }
 }
 

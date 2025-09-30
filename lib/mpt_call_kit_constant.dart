@@ -127,4 +127,5 @@ class SDKPrefsKeyConstants {
   static const String DEVICE_INFO = "device_info";
   static const String RECORD_LABEL = "record_label";
   static const String ENABLE_BLUR_BACKGROUND = "enable_blur_background";
+  static const String BG_PATH = "bg_path";
 }
