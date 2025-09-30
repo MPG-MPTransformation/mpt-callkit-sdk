@@ -172,9 +172,6 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
         if (segmenter == null) {
             createSegmenter();
         }
-        if (bgPath != null && bgBitmap == null) {
-            loadBackgroundImage();
-        }
         return segmenter.process(image);
     }
 
