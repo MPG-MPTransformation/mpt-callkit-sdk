@@ -844,7 +844,7 @@ class CallManager: NSObject {
 
     func startAudio(audioSession: AVAudioSession) {
         _portSIPSDK.startAudio(audioSession)
-        print("_portSIPSDK startAudio")
+        print("_portSIPSDK starxtAudio")
     }
 
     func stopAudio(audioSession: AVAudioSession) {

@@ -509,28 +509,54 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         print("Self is nil!")
         return
       }
-      let cameraPosition: AVCaptureDevice.Position = strongSelf.mUseFrontCamera ? .front : .back
-      guard let device = strongSelf.captureDevice(forPosition: cameraPosition) else {
-        print("Failed to get capture device for camera position: \(cameraPosition)")
+      
+      // Check camera permission before setting up input
+      guard strongSelf.hasCameraPermission() else {
+        print("❌ setUpCaptureSessionInput failed: Camera permission not granted")
         return
       }
+      
+      let cameraPosition: AVCaptureDevice.Position = strongSelf.mUseFrontCamera ? .front : .back
+      guard let device = strongSelf.captureDevice(forPosition: cameraPosition) else {
+        print("❌ Failed to get capture device for camera position: \(cameraPosition)")
+        return
+      }
+      
+      // Check if device is available and not in use by another session
+      guard device.isConnected && !device.isSuspended else {
+        print("❌ Camera device not available - isConnected: \(device.isConnected), isSuspended: \(device.isSuspended)")
+        return
+      }
+      
       do {
         strongSelf.captureSession.beginConfiguration()
+        
+        // Remove existing inputs safely
         let currentInputs = strongSelf.captureSession.inputs
         for input in currentInputs {
-          strongSelf.captureSession.removeInput(input)
+          if let deviceInput = input as? AVCaptureDeviceInput {
+            print("🔄 Removing existing input for device: \(deviceInput.device.localizedName)")
+            strongSelf.captureSession.removeInput(input)
+          }
         }
 
         let input = try AVCaptureDeviceInput(device: device)
         guard strongSelf.captureSession.canAddInput(input) else {
           print("❌ Failed to add capture session input - canAddInput returned false")
+          strongSelf.captureSession.commitConfiguration()
           return
         }
+        
         strongSelf.captureSession.addInput(input)
         print("✅ Successfully added camera input: \(device.localizedName) (position: \(cameraPosition))")
         strongSelf.captureSession.commitConfiguration()
+        
+        // Reset session started flag after reconfiguration
+        strongSelf.sessionIsStarted = false
+        
       } catch {
-        print("Failed to create capture device input: \(error.localizedDescription)")
+        print("❌ Failed to create capture device input: \(error.localizedDescription)")
+        strongSelf.captureSession.commitConfiguration()
       }
     }
   }
@@ -544,9 +570,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
       }
       
       // Check camera permission before starting session
-      let cameraAuthStatus = AVCaptureDevice.authorizationStatus(for: .video)
-      guard cameraAuthStatus == .authorized else {
-        print("❌ startSession failed: Camera permission not granted. Status: \(cameraAuthStatus)")
+      guard strongSelf.hasCameraPermission() else {
+        print("❌ startSession failed: Camera permission not granted")
         return
       }
       
@@ -561,28 +586,45 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         return
       }
       
+      // Prevent multiple simultaneous start attempts
+      guard !strongSelf.sessionIsStarted else {
+        print("⚠️ startSession skipped: Session already starting or started")
+        return
+      }
+      
       if !strongSelf.captureSession.isRunning {
         print("✅ startSession: Starting capture session with \(strongSelf.captureSession.inputs.count) inputs and \(strongSelf.captureSession.outputs.count) outputs")
         
         // Check for camera availability before starting
+        guard strongSelf.isCameraDeviceReady() else {
+          print("❌ startSession failed: Camera device not ready")
+          return
+        }
+        
         let cameraPosition: AVCaptureDevice.Position = strongSelf.mUseFrontCamera ? .front : .back
         if let currentDevice = strongSelf.captureDevice(forPosition: cameraPosition) {
           print("🔍 Camera device available: \(currentDevice.localizedName)")
+        }
+        
+        print("🔄 Starting capture session...")
+        
+        // Mark as starting to prevent race conditions
+        strongSelf.sessionIsStarted = true
+        
+        // Use proper error handling for startRunning
+        do {
+          try strongSelf.captureSession.startRunning()
+          print("✅ Capture session started successfully")
+        } catch {
+          print("❌ Failed to start capture session: \(error.localizedDescription)")
+          strongSelf.sessionIsStarted = false
           
-          // Check if device is already in use
-          if currentDevice.isConnected && !currentDevice.isSuspended {
-            print("🔄 Starting capture session...")
-            strongSelf.captureSession.startRunning()
-          } else {
-            print("⚠️ Camera device not ready - isConnected: \(currentDevice.isConnected), isSuspended: \(currentDevice.isSuspended)")
-            // Try after a short delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-              print("🔄 Retrying capture session start...")
-              strongSelf.captureSession.startRunning()
-            }
+          // Retry after a delay on background queue (not main queue)
+          DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 1.0) {
+            print("🔄 Retrying capture session start on background queue...")
+            strongSelf.startSession()
           }
-        } else {
-          print("❌ No camera device found for position: \(cameraPosition)")
+          return
         }
         
         // Verify session started successfully (after the delay)
@@ -619,13 +661,21 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         print("Self is nil!")
         return
       }
-        if strongSelf.captureSession.isRunning {
-            print("stopSession")
-            strongSelf.captureSession.stopRunning()
-        } else {
-            print("stopSession session is still running")
-        }
       
+      // Reset the session started flag
+      strongSelf.sessionIsStarted = false
+      
+      if strongSelf.captureSession.isRunning {
+        print("🛑 stopSession: Stopping capture session")
+        do {
+          strongSelf.captureSession.stopRunning()
+          print("✅ Capture session stopped successfully")
+        } catch {
+          print("❌ Failed to stop capture session: \(error.localizedDescription)")
+        }
+      } else {
+        print("ℹ️ stopSession: Session is not running")
+      }
     }
   }
 
@@ -642,6 +692,21 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     return nil
   }
   
+  /// Safely checks if camera permissions are granted
+  private func hasCameraPermission() -> Bool {
+    let status = AVCaptureDevice.authorizationStatus(for: .video)
+    return status == .authorized
+  }
+  
+  /// Safely checks if camera device is available and ready
+  private func isCameraDeviceReady() -> Bool {
+    let cameraPosition: AVCaptureDevice.Position = mUseFrontCamera ? .front : .back
+    guard let device = captureDevice(forPosition: cameraPosition) else {
+      return false
+    }
+    return device.isConnected && !device.isSuspended
+  }
+  
   // MARK: - Capture Session Error Handling
   
   @objc private func captureSessionRuntimeError(_ notification: Notification) {
@@ -653,13 +718,28 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     print("❌ Capture session runtime error: \(error.localizedDescription)")
     print("❌ Error code: \(error.code.rawValue)")
     
+    // Reset the session started flag since we're handling an error
+    sessionIsStarted = false
+    
     // Try to restart session if it's a recoverable error
     sessionQueue.async { [weak self] in
       guard let self = self else { return }
       
-      if !self.captureSession.isRunning {
+      // Only restart if session is not running and we have valid inputs/outputs
+      if !self.captureSession.isRunning && 
+         !self.captureSession.inputs.isEmpty && 
+         !self.captureSession.outputs.isEmpty {
         print("🔄 Attempting to restart capture session after error...")
-        self.captureSession.startRunning()
+        
+        // Use proper error handling
+        do {
+          try self.captureSession.startRunning()
+          print("✅ Successfully restarted capture session after error")
+        } catch {
+          print("❌ Failed to restart capture session after error: \(error.localizedDescription)")
+        }
+      } else {
+        print("⚠️ Cannot restart session - inputs: \(self.captureSession.inputs.count), outputs: \(self.captureSession.outputs.count), running: \(self.captureSession.isRunning)")
       }
     }
   }
@@ -694,9 +774,23 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     sessionQueue.async { [weak self] in
       guard let self = self else { return }
       
-      if !self.captureSession.isRunning {
+      // Reset the session started flag since interruption ended
+      self.sessionIsStarted = false
+      
+      if !self.captureSession.isRunning && 
+         !self.captureSession.inputs.isEmpty && 
+         !self.captureSession.outputs.isEmpty {
         print("🔄 Restarting capture session after interruption ended...")
-        self.captureSession.startRunning()
+        
+        // Use proper error handling
+        do {
+          try self.captureSession.startRunning()
+          print("✅ Successfully restarted capture session after interruption ended")
+        } catch {
+          print("❌ Failed to restart capture session after interruption ended: \(error.localizedDescription)")
+        }
+      } else {
+        print("⚠️ Cannot restart session after interruption - inputs: \(self.captureSession.inputs.count), outputs: \(self.captureSession.outputs.count), running: \(self.captureSession.isRunning)")
       }
     }
   }
@@ -2445,13 +2539,26 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             NSLog("appKilled hangup result: \(appKilledHangupResult)")
             result(true)
         case "requestPermission":
+            // Check current permission status first
+            let currentVideoStatus = AVCaptureDevice.authorizationStatus(for: .video)
+            let currentAudioStatus = AVAudioSession.sharedInstance().recordPermission
+            
+            if currentVideoStatus == .authorized && currentAudioStatus == .granted {
+                result(true)
+                return
+            }
+            
             AVCaptureDevice.requestAccess(for: .video) { videoGranted in
                 if videoGranted {
                     AVAudioSession.sharedInstance().requestRecordPermission { audioGranted in
-                        result(audioGranted)
+                        DispatchQueue.main.async {
+                            result(audioGranted)
+                        }
                     }
                 } else {
-                    result(false)
+                    DispatchQueue.main.async {
+                        result(false)
+                    }
                 }
             }
         case "initialize":

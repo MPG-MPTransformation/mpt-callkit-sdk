@@ -129,7 +129,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     WidgetsBinding.instance.addObserver(this);
     Future.microtask(() async {
       if (mounted) {
-        await Future.delayed(const Duration(seconds: 1));
+        // await Future.delayed(const Duration(seconds: 1));
         await _initDataWhenLoginSuccess();
         isFirstTime = false;
       }
@@ -142,7 +142,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       final prefs = await SharedPreferences.getInstance();
       final accessToken = prefs.getString("saved_access_token");
       if (accessToken != null) {
-        await Future.delayed(const Duration(seconds: 1));
+        // await Future.delayed(const Duration(seconds: 1));
         await MptCallKitController().connectToSocketServer(accessToken);
       }
     }

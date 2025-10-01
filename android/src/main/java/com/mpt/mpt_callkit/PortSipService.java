@@ -1386,8 +1386,11 @@ public class PortSipService extends Service
             // invaluable
         } else {
             if (CallManager.Instance().isRegistered) {
-                logWithTimestamp("SDK-Android: onNetworkChange - refreshRegistration");
-                Engine.Instance().getEngine().refreshRegistration(0);
+                Session currentLine = CallManager.Instance().getCurrentSession();
+                if (currentLine == null || currentLine.sessionID < 1 || currentLine.state != Session.CALL_STATE_FLAG.INCOMING) {
+                    logWithTimestamp("SDK-Android: onNetworkChange - refreshRegistration");
+                    Engine.Instance().getEngine().refreshRegistration(0);
+                }
             } else {
                 //
             }

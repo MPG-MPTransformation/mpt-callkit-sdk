@@ -138,7 +138,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private Handler callCheckHandler;
     private Runnable callCheckRunnable;
     private static final int CALL_CHECK_INTERVAL = 200; // Check every 200ms
-    private static final int CALL_CHECK_TIMEOUT = 8000; // Stop after 8 seconds
+    private static final int CALL_CHECK_TIMEOUT = 10000; // Stop after 8 seconds
     private long callCheckStartTime = 0;
 
     private CameraSource cameraSource = null;
@@ -637,7 +637,12 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             stopCallCheckJob();
             return;
         }
+        Session currentLine = CallManager.Instance().getCurrentSession();
         
+        if (currentLine == null) {
+            return;
+        }
+
         boolean isRegistered = CallManager.Instance().isRegistered;
         boolean answeredWithCallKit = CallManager.Instance().answeredWithCallKit;
         boolean socketReady = CallManager.Instance().socketReady;
@@ -645,12 +650,16 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         System.out.println("SDK-Android: Call conditions check - answeredWithCallKit: " + answeredWithCallKit + 
                           ", socketReady: " + socketReady + 
                           ", isRegistered: " + isRegistered + 
+                          ", currentLine: " + currentLine.sessionID + 
+                          ", state: " + currentLine.state + 
                           ", elapsedTime: " + elapsedTime + "ms");
         
         // Check all conditions
         if (answeredWithCallKit && 
-            socketReady && 
-            isRegistered) {
+            socketReady &&
+            isRegistered && 
+            currentLine.sessionID > 0 && 
+            currentLine.state == Session.CALL_STATE_FLAG.INCOMING) {
             
             System.out.println("SDK-Android: All conditions met - Answering call");
             answerCall(false);
@@ -987,7 +996,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     if (currentLine != null) {
                         System.out.println("SDK-Android: MptCallkitPlugin - socketStatus - ready: " + ready + ", answeredWithCallKit: " + CallManager.Instance().answeredWithCallKit + ", sessionID: " + currentLine.sessionID + ", state: " + currentLine.state);
                         // Restart call check job when socket status changes
-                        if (currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING && ready && CallManager.Instance().answeredWithCallKit) {
+                        if (ready && CallManager.Instance().answeredWithCallKit) {
                             startCallCheckJob();
                         }
                     }
