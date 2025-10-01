@@ -2454,6 +2454,24 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     result(false)
                 }
             }
+        case "initialize":
+            if let args = call.arguments as? [String: Any] {
+                if let recordLabel = args["recordLabel"] as? String {
+                    MptCallkitPlugin.overlayText = recordLabel
+                }
+                if let enableBlurBackground = args["enableBlurBackground"] as? Bool {
+                    MptCallkitPlugin.enableBlurBackground = enableBlurBackground
+                }
+                if let bgPath = args["bgPath"] as? String {
+                    self.bgPath = bgPath
+                    if !bgPath.isEmpty {
+                        loadBackgroundImage()
+                    }
+                }
+                print("onMethodCall MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground), bgPath: \(String(describing: bgPath))")
+            }
+            result(true)
+
         case "Login":
             if let args = call.arguments as? [String: Any],
                 let username = args["username"] as? String,
@@ -2567,6 +2585,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     UserDefaults.standard.removeObject(forKey: "frameRate")
                     UserDefaults.standard.removeObject(forKey: "recordLabel")
                     UserDefaults.standard.removeObject(forKey: "autoLogin")
+                    UserDefaults.standard.removeObject(forKey: "enableBlurBackground")
+                    UserDefaults.standard.removeObject(forKey: "bgPath")
+                    UserDefaults.standard.synchronize()
                 }
             }
             
@@ -2736,11 +2757,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         case "refreshRegister":
             print("refreshRegister called")
             // loginViewController.refreshRegister()
-            result(portSIPSDK.refreshRegistration(0))
+//            result(portSIPSDK.refreshRegistration(0))
+            result(-1)
         case "refreshRegistration":
             print("refreshRegistration called")
             // loginViewController.refreshRegister()
-            result(portSIPSDK.refreshRegistration(0))
+//            result(portSIPSDK.refreshRegistration(0))
+            result(-1)
         case "setResolutionMode":
             if let args = call.arguments as? [String: Any],
                let mode = args["mode"] as? Int {

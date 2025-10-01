@@ -664,7 +664,7 @@ public class PortSipService extends Service
         Intent broadIntent = new Intent(REGISTER_CHANGE_ACTION);
         broadIntent.putExtra(EXTRA_REGISTER_STATE, statusText);
         sendPortSipMessage("onRegisterFailure" + statusCode, broadIntent);
-        CallManager.Instance().resetAll();
+        // CallManager.Instance().resetAll();
         Engine.Instance().invokeMethod("registrationStateStream", false);
         MptCallkitPlugin.sendToFlutter("registrationStateStream", false);
 
@@ -1385,7 +1385,8 @@ public class PortSipService extends Service
         if (netMobile == -1) {
             // invaluable
         } else {
-            if (CallManager.Instance().online) {
+            if (CallManager.Instance().isRegistered) {
+                logWithTimestamp("SDK-Android: onNetworkChange - refreshRegistration");
                 Engine.Instance().getEngine().refreshRegistration(0);
             } else {
                 //

@@ -406,6 +406,20 @@ class MptCallKitController {
       this.recordLabel = recordLabel;
     }
 
+    try {
+      await channel
+          .invokeMethod(MptCallKitConstants.initialize, <String, dynamic>{
+        'appId': appId,
+        'enableDebugLog': resolvedEnableDebug,
+        'pushToken': pushToken,
+        'recordLabel': recordLabel,
+        'enableBlurBackground': enableBlurBackground ?? false,
+        'bgPath': bgPath,
+      });
+    } on PlatformException catch (e) {
+      debugPrint("Failed to initialize SDK: '${e.message}'.");
+    }
+
     // Persist initialization params to SharedPreferences
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();

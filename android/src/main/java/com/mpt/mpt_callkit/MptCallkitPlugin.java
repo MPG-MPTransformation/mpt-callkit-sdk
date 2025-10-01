@@ -433,12 +433,15 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             String resolution = preferences.getString("resolution", "720P");
             int bitrate = preferences.getInt("bitrate", 1024);
             int frameRate = preferences.getInt("frameRate", 30);
-            MptCallkitPlugin.recordLabel = preferences.getString("recordLabel", "Agent");
-            MptCallkitPlugin.enableBlurBackground = preferences.getBoolean("enableBlurBackground", false);
-            MptCallkitPlugin.bgPath = preferences.getString("bgPath", null);
+            String recordLabel = preferences.getString("recordLabel", "Agent");
+            Boolean enableBlurBackground = preferences.getBoolean("enableBlurBackground", false);
+            String bgPath = preferences.getString("bgPath", null);
             Boolean autoLogin = preferences.getBoolean("autoLogin", false);
 
             if (autoLogin && username != null && password != null && userDomain != null && sipServer != null && sipServerPort != null) {
+                MptCallkitPlugin.recordLabel = recordLabel;
+                MptCallkitPlugin.enableBlurBackground = enableBlurBackground;
+                MptCallkitPlugin.bgPath = bgPath;
                 Intent onLineIntent = new Intent(ctx, PortSipService.class);
                 onLineIntent.setAction(PortSipService.ACTION_SIP_REGIEST);
                 onLineIntent.putExtra("username", username);
@@ -462,7 +465,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     private void unregisterIfNeeded() {
         Session currentLine = CallManager.Instance().getCurrentSession();
-        System.out.println("SDK-Android: OnPause - sessionId=" + currentLine.sessionID + " state=" + currentLine.state);
+        if (currentLine != null){
+            System.out.println("SDK-Android: unregisterIfNeeded - currentLine state: " + currentLine.state);
+        }
         if (currentLine != null && currentLine.sessionID > 0 && (currentLine.state == Session.CALL_STATE_FLAG.CONNECTED || currentLine.state == Session.CALL_STATE_FLAG.INCOMING)) {
             // IN CALl
             System.out.println("SDK-Android: OnPause - In call, cannot unregister " + currentLine.state);
@@ -531,6 +536,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     public void onStop()   {
         System.out.println("SDK-Android: MptCallkitPlugin - onStop called");
+        stopCameraSource();
+        unregisterIfNeeded();
+        stopCallCheckJob();
         stopCameraSource();
         unregisterIfNeeded();
         stopCallCheckJob();
@@ -782,6 +790,42 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 }
                 MainActivity.activity.finish();
                 break;
+            case "initialize":
+                preferences = PreferenceManager.getDefaultSharedPreferences(activity);
+                editor = preferences.edit();
+                if (call.argument("appId") != null) {
+                    this.appId = call.argument("appId");
+                    editor.putString("appId", this.appId);
+                    editor.apply();
+                }
+                if (call.argument("pushToken") != null) {
+                    this.pushToken = call.argument("pushToken");
+                    editor.putString("pushToken", this.pushToken);
+                    editor.apply();
+                }
+                if (call.argument("enableDebugLog") != null) {
+                    editor.putBoolean("enableDebugLog", call.argument("enableDebugLog"));
+                    editor.apply();
+                }
+                if (call.argument("recordLabel") != null) {
+                    MptCallkitPlugin.recordLabel = call.argument("recordLabel");
+                    editor.putString("recordLabel", MptCallkitPlugin.recordLabel);
+                    editor.apply();
+                }
+                if (call.argument("enableBlurBackground") != null) {
+                    MptCallkitPlugin.enableBlurBackground = call.argument("enableBlurBackground");
+                    editor.putBoolean("enableBlurBackground", MptCallkitPlugin.enableBlurBackground);
+                    editor.apply();
+                }
+                if (call.argument("bgPath") != null) {
+                    MptCallkitPlugin.bgPath = call.argument("bgPath");
+                    editor.putString("bgPath", MptCallkitPlugin.bgPath);
+                    editor.apply();
+                }
+
+                System.out.println("SDK-Android: Initialize called with appId: " + appId);
+                result.success(true);
+                break;
             case "Login":
                 String username = call.argument("username");
                 String displayName = call.argument("displayName") + "";
@@ -929,9 +973,12 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 result.success(updateCallRes == 0);
                 break;
             case "refreshRegister":
-                result.success(Engine.Instance().getEngine().refreshRegistration(0));
+                // result.success(Engine.Instance().getEngine().refreshRegistration(0));
+                result.success(-1);
                 break;
-
+            case "refreshRegistration":
+                result.success(-1);
+                break;
             case "socketStatus":
                 Boolean ready = call.argument("ready");
                 if (ready != null) {
