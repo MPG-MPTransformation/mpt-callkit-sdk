@@ -539,9 +539,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         stopCameraSource();
         unregisterIfNeeded();
         stopCallCheckJob();
-        stopCameraSource();
-        unregisterIfNeeded();
-        stopCallCheckJob();
     }
 
     public void onDestroy()   {
