@@ -623,14 +623,14 @@ class MptCallKitController {
         frameRate: _configuration!["MOBILE_SIP_FRAMERATE"],
       );
 
-      // var regResult = await refreshRegistration();
+      var regResult = await refreshRegistration();
 
-      // Future.delayed(const Duration(milliseconds: 500), () async {
-      //   {
-      //     if (regResult == 0 && _isOnline == true) {
-      //       print("SIP already online");
-      //       return;
-      //     }
+      Future.delayed(const Duration(milliseconds: 500), () async {
+        {
+          if (regResult == 0 && _isOnline == true) {
+            print("SIP already online");
+            return;
+          }
 
           if (extensionData != null) {
             lastesExtensionData = extensionData;
