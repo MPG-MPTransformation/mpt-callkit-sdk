@@ -300,6 +300,16 @@ class MptSocketSocketServer {
       return;
     }
 
+    // Clean up existing socket before creating a new one
+    if (socket != null) {
+      print("Cleaning up existing socket before creating new one");
+      socket!.clearListeners();
+      if (socket!.connected) {
+        socket!.disconnect();
+      }
+      socket!.dispose();
+    }
+
     print(
         "Initializing Socket.IO with clientId: ${tenantId}_${userId}_$userName");
 
@@ -360,6 +370,14 @@ class MptSocketSocketServer {
   /// Set up socket event listeners
   void _setupSocketListeners() {
     print("Socket server - _setupSocketListeners");
+
+    // Remove any existing listeners to prevent duplicates
+    socket!.off("connect");
+    socket!.off("reconnect");
+    socket!.off("disconnect");
+    socket!.off("connect_error");
+    socket!.off("error");
+
     socket!.onConnect((_) {
       print("Socket server connected");
       isConnecting = true;
@@ -448,22 +466,22 @@ class MptSocketSocketServer {
   }
 
   void sendAgentState(String sessionId, String state) {
-    if (socket == null || !socket!.connected) {
-      print(
-          "Socket server - sendAgentState - Cannot send message: socket is null or not connected");
-      return;
-    }
+    // if (socket == null || !socket!.connected) {
+    //   print(
+    //       "Socket server - sendAgentState - Cannot send message: socket is null or not connected");
+    //   return;
+    // }
 
-    try {
-      socket!.emitWithAck("agent_state", {
-        "sessionId": sessionId,
-        "state": state,
-      }, ack: (data) {
-        print("Socket server - sendAgentState - Sent agent state: $data");
-      });
-    } catch (e) {
-      print("Socket server - sendAgentState - Error sending agent state: $e");
-    }
+    // try {
+    //   socket!.emitWithAck("agent_state", {
+    //     "sessionId": sessionId,
+    //     "state": state,
+    //   }, ack: (data) {
+    //     print("Socket server - sendAgentState - Sent agent state: $data");
+    //   });
+    // } catch (e) {
+    //   print("Socket server - sendAgentState - Error sending agent state: $e");
+    // }
   }
 
   void _listenEventChannels() {

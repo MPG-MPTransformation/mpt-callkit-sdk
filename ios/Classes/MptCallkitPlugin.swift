@@ -279,6 +279,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     private var frameCounter: Int = 0
     private static var enableBlurBackground: Bool = false
     
+    // Background image variables
+    private var bgPath: String? = nil
+    private var bgBitmap: UIImage? = nil
+    
     // MARK: - Camera Resolution Configuration
     
     // Resolution presets for automatic selection (matching Android CameraSource)
@@ -402,8 +406,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         self._segmenter = Segmenter.segmenter(options: options)
         // Initialize resolution system
         updateRequestedResolution()
-        setUpCaptureSessionOutput()
-        setUpCaptureSessionInput()
         
         // Add session error handling
         NotificationCenter.default.addObserver(
@@ -426,12 +428,28 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             name: .AVCaptureSessionInterruptionEnded,
             object: captureSession
         )
+        
+        // Add session state monitoring
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(captureSessionDidStartRunning),
+            name: .AVCaptureSessionDidStartRunning,
+            object: captureSession
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(captureSessionDidStopRunning),
+            name: .AVCaptureSessionDidStopRunning,
+            object: captureSession
+        )
     }
 
       private func updatePreviewOverlayViewWithImageBuffer(_ imageBuffer: CVImageBuffer?) {
         guard let buffer = imageBuffer else {
             return
         }
+
         let orientation: UIImage.Orientation = mUseFrontCamera ? .leftMirrored : .right
         guard let image = UIUtilities.createUIImage(from: buffer, orientation: orientation) else {
             return
@@ -454,81 +472,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                                                            data: yuvData,
                                                            width: Int32(width),
                                                            height: Int32(height))
-              print("sendVideoStream result: \(result)")
+//              print("sendVideoStream result: \(result)")
           }
         }
     }
 
 
   // MARK: - Private
-
-  private func setUpCaptureSessionOutput() {
-    weak var weakSelf = self
-    sessionQueue.async {
-      guard let strongSelf = weakSelf else {
-        print("Self is nil!")
-        return
-      }
-      strongSelf.captureSession.beginConfiguration()
-        
-      // Update resolution based on current mode before setting up capture
-      strongSelf.updateRequestedResolution()
-      
-      // Set session preset based on requested resolution
-      strongSelf.captureSession.sessionPreset = strongSelf.getOptimalSessionPreset()
-
-      let output = AVCaptureVideoDataOutput()
-      output.videoSettings = [
-        (kCVPixelBufferPixelFormatTypeKey as String): kCVPixelFormatType_32BGRA
-      ]
-      output.alwaysDiscardsLateVideoFrames = true
-      let outputQueue = DispatchQueue(label: "com.mpt.outputQueue")
-      output.setSampleBufferDelegate(strongSelf, queue: outputQueue)
-      
-      guard strongSelf.captureSession.canAddOutput(output) else {
-        print("❌ Failed to add capture session output - canAddOutput returned false")
-        return
-      }
-      
-      strongSelf.captureSession.addOutput(output)
-      print("✅ Successfully added video output to capture session")
-      print("✅ Video output delegate set to: \(strongSelf)")
-      strongSelf.captureSession.commitConfiguration()
-    }
-  }
-
-  private func setUpCaptureSessionInput() {
-    weak var weakSelf = self
-    sessionQueue.async {
-      guard let strongSelf = weakSelf else {
-        print("Self is nil!")
-        return
-      }
-      let cameraPosition: AVCaptureDevice.Position = strongSelf.mUseFrontCamera ? .front : .back
-      guard let device = strongSelf.captureDevice(forPosition: cameraPosition) else {
-        print("Failed to get capture device for camera position: \(cameraPosition)")
-        return
-      }
-      do {
-        strongSelf.captureSession.beginConfiguration()
-        let currentInputs = strongSelf.captureSession.inputs
-        for input in currentInputs {
-          strongSelf.captureSession.removeInput(input)
-        }
-
-        let input = try AVCaptureDeviceInput(device: device)
-        guard strongSelf.captureSession.canAddInput(input) else {
-          print("❌ Failed to add capture session input - canAddInput returned false")
-          return
-        }
-        strongSelf.captureSession.addInput(input)
-        print("✅ Successfully added camera input: \(device.localizedName) (position: \(cameraPosition))")
-        strongSelf.captureSession.commitConfiguration()
-      } catch {
-        print("Failed to create capture device input: \(error.localizedDescription)")
-      }
-    }
-  }
 
   private func startSession() {
     weak var weakSelf = self
@@ -539,67 +489,139 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
       }
       
       // Check camera permission before starting session
-      let cameraAuthStatus = AVCaptureDevice.authorizationStatus(for: .video)
-      guard cameraAuthStatus == .authorized else {
-        print("❌ startSession failed: Camera permission not granted. Status: \(cameraAuthStatus)")
+      guard strongSelf.hasCameraPermission() else {
+        print("❌ startSession failed: Camera permission not granted")
         return
       }
       
-      // Verify capture session has inputs and outputs
-      guard !strongSelf.captureSession.inputs.isEmpty else {
-        print("❌ startSession failed: No capture inputs configured")
+      // Prevent multiple simultaneous start attempts
+      guard !strongSelf.sessionIsStarted else {
+        print("⚠️ startSession skipped: Session already starting or started")
         return
       }
       
-      guard !strongSelf.captureSession.outputs.isEmpty else {
-        print("❌ startSession failed: No capture outputs configured")
-        return
+      // Set up capture session if not already configured
+      if strongSelf.captureSession.inputs.isEmpty || strongSelf.captureSession.outputs.isEmpty {
+        print("🔄 Setting up capture session...")
+        
+        // Configure session
+        strongSelf.captureSession.beginConfiguration()
+        
+        // Update resolution and set preset
+        strongSelf.updateRequestedResolution()
+        let preset = strongSelf.getOptimalSessionPreset()
+        if strongSelf.captureSession.canSetSessionPreset(preset) {
+          strongSelf.captureSession.sessionPreset = preset
+          print("✅ Session preset set to: \(preset)")
+        } else {
+          print("⚠️ Cannot set session preset to \(preset), using current: \(strongSelf.captureSession.sessionPreset)")
+        }
+        
+        // Set up outputs if missing
+        if strongSelf.captureSession.outputs.isEmpty {
+          let output = AVCaptureVideoDataOutput()
+          output.videoSettings = [
+            (kCVPixelBufferPixelFormatTypeKey as String): kCVPixelFormatType_32BGRA
+          ]
+          output.alwaysDiscardsLateVideoFrames = true
+          let outputQueue = DispatchQueue(label: "com.mpt.outputQueue")
+          output.setSampleBufferDelegate(strongSelf, queue: outputQueue)
+          
+          if strongSelf.captureSession.canAddOutput(output) {
+            strongSelf.captureSession.addOutput(output)
+            print("✅ Added video output to capture session")
+          } else {
+            print("❌ Failed to add video output")
+            strongSelf.captureSession.commitConfiguration()
+            return
+          }
+        }
+        
+        // Set up inputs if missing
+        if strongSelf.captureSession.inputs.isEmpty {
+          let cameraPosition: AVCaptureDevice.Position = strongSelf.mUseFrontCamera ? .front : .back
+          guard let device = strongSelf.captureDevice(forPosition: cameraPosition) else {
+            print("❌ Failed to get capture device for camera position: \(cameraPosition)")
+            strongSelf.captureSession.commitConfiguration()
+            return
+          }
+          
+          guard device.isConnected && !device.isSuspended else {
+            print("❌ Camera device not available - isConnected: \(device.isConnected), isSuspended: \(device.isSuspended)")
+            strongSelf.captureSession.commitConfiguration()
+            return
+          }
+          
+          do {
+            let input = try AVCaptureDeviceInput(device: device)
+            if strongSelf.captureSession.canAddInput(input) {
+              strongSelf.captureSession.addInput(input)
+              print("✅ Added camera input: \(device.localizedName) (position: \(cameraPosition))")
+            } else {
+              print("❌ Failed to add camera input")
+              strongSelf.captureSession.commitConfiguration()
+              return
+            }
+          } catch {
+            print("❌ Failed to create capture device input: \(error.localizedDescription)")
+            strongSelf.captureSession.commitConfiguration()
+            return
+          }
+        }
+        
+        strongSelf.captureSession.commitConfiguration()
+        print("✅ Capture session configured - inputs: \(strongSelf.captureSession.inputs.count), outputs: \(strongSelf.captureSession.outputs.count)")
+        
+        // Ensure SIP SDK compatibility
+        strongSelf.ensureSIPCompatibility()
       }
       
       if !strongSelf.captureSession.isRunning {
         print("✅ startSession: Starting capture session with \(strongSelf.captureSession.inputs.count) inputs and \(strongSelf.captureSession.outputs.count) outputs")
         
         // Check for camera availability before starting
+        guard strongSelf.isCameraDeviceReady() else {
+          print("❌ startSession failed: Camera device not ready")
+          return
+        }
+        
         let cameraPosition: AVCaptureDevice.Position = strongSelf.mUseFrontCamera ? .front : .back
         if let currentDevice = strongSelf.captureDevice(forPosition: cameraPosition) {
           print("🔍 Camera device available: \(currentDevice.localizedName)")
-          
-          // Check if device is already in use
-          if currentDevice.isConnected && !currentDevice.isSuspended {
-            print("🔄 Starting capture session...")
-            strongSelf.captureSession.startRunning()
-          } else {
-            print("⚠️ Camera device not ready - isConnected: \(currentDevice.isConnected), isSuspended: \(currentDevice.isSuspended)")
-            // Try after a short delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-              print("🔄 Retrying capture session start...")
-              strongSelf.captureSession.startRunning()
-            }
-          }
-        } else {
-          print("❌ No camera device found for position: \(cameraPosition)")
         }
         
-        // Verify session started successfully (after the delay)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-          if strongSelf.captureSession.isRunning {
-            print("✅ Capture session is running successfully")
-            print("✅ Session has \(strongSelf.captureSession.inputs.count) inputs and \(strongSelf.captureSession.outputs.count) outputs")
-          } else {
-            print("❌ Capture session failed to start")
-            print("❌ Session state - inputs: \(strongSelf.captureSession.inputs.count), outputs: \(strongSelf.captureSession.outputs.count)")
-            print("❌ Session preset: \(strongSelf.captureSession.sessionPreset)")
-            
-            // Check if session was interrupted
-            if strongSelf.captureSession.isInterrupted {
-              print("❌ Session was interrupted")
-            }
-            
-            // Check for runtime errors
-            if let error = strongSelf.captureSession.outputs.first as? AVCaptureVideoDataOutput {
-              print("❌ Video output exists but session not running")
+        print("🔄 Starting capture session...")
+        
+        // Mark as starting to prevent race conditions
+        strongSelf.sessionIsStarted = true
+        
+        // Use proper error handling for startRunning
+        do {
+          try strongSelf.captureSession.startRunning()
+          print("✅ Capture session started successfully")
+          
+          // Check session state immediately after starting
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            if strongSelf.captureSession.isRunning {
+              print("✅ Session confirmed running immediately after start")
+            } else {
+              print("⚠️ Session stopped immediately after start - likely interrupted")
+              if strongSelf.captureSession.isInterrupted {
+                print("⚠️ Session is marked as interrupted")
+              }
             }
           }
+          
+        } catch {
+          print("❌ Failed to start capture session: \(error.localizedDescription)")
+          strongSelf.sessionIsStarted = false
+          
+          // Retry after a delay on background queue (not main queue)
+          DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 1.0) {
+            print("🔄 Retrying capture session start on background queue...")
+            strongSelf.startSession()
+          }
+          return
         }
       } else {
         print("ℹ️ Capture session already running")
@@ -614,16 +636,32 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         print("Self is nil!")
         return
       }
-        if strongSelf.captureSession.isRunning {
-            print("stopSession")
-            strongSelf.captureSession.stopRunning()
-        } else {
-            print("stopSession session is still running")
-        }
       
+      // Reset the session started flag
+      strongSelf.sessionIsStarted = false
+      
+      if strongSelf.captureSession.isRunning {
+        print("🛑 stopSession: Stopping capture session")
+        do {
+          strongSelf.captureSession.stopRunning()
+          print("✅ Capture session stopped successfully")
+        } catch {
+          print("❌ Failed to stop capture session: \(error.localizedDescription)")
+        }
+      } else {
+        print("ℹ️ stopSession: Session is not running")
+      }
     }
   }
-
+  
+  @objc private func captureSessionDidStartRunning(_ notification: Notification) {
+    print("✅ AVCaptureSessionDidStartRunning notification received")
+  }
+  
+  @objc private func captureSessionDidStopRunning(_ notification: Notification) {
+    print("⚠️ AVCaptureSessionDidStopRunning notification received")
+    sessionIsStarted = false
+  }
 
   private func captureDevice(forPosition position: AVCaptureDevice.Position) -> AVCaptureDevice? {
     if #available(iOS 10.0, *) {
@@ -637,6 +675,28 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     return nil
   }
   
+  /// Safely checks if camera permissions are granted
+  private func hasCameraPermission() -> Bool {
+    let status = AVCaptureDevice.authorizationStatus(for: .video)
+    return status == .authorized
+  }
+  
+  /// Safely checks if camera device is available and ready
+  private func isCameraDeviceReady() -> Bool {
+    let cameraPosition: AVCaptureDevice.Position = mUseFrontCamera ? .front : .back
+    guard let device = captureDevice(forPosition: cameraPosition) else {
+      return false
+    }
+    return device.isConnected && !device.isSuspended
+  }
+  
+  /// Ensures SIP SDK doesn't interfere with our capture session
+  private func ensureSIPCompatibility() {
+    let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
+    print("enableSendVideoStream result: \(sendResult)")
+  }
+  
+  
   // MARK: - Capture Session Error Handling
   
   @objc private func captureSessionRuntimeError(_ notification: Notification) {
@@ -648,13 +708,28 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     print("❌ Capture session runtime error: \(error.localizedDescription)")
     print("❌ Error code: \(error.code.rawValue)")
     
+    // Reset the session started flag since we're handling an error
+    sessionIsStarted = false
+    
     // Try to restart session if it's a recoverable error
     sessionQueue.async { [weak self] in
       guard let self = self else { return }
       
-      if !self.captureSession.isRunning {
+      // Only restart if session is not running and we have valid inputs/outputs
+      if !self.captureSession.isRunning && 
+         !self.captureSession.inputs.isEmpty && 
+         !self.captureSession.outputs.isEmpty {
         print("🔄 Attempting to restart capture session after error...")
-        self.captureSession.startRunning()
+        
+        // Use proper error handling
+        do {
+          try self.captureSession.startRunning()
+          print("✅ Successfully restarted capture session after error")
+        } catch {
+          print("❌ Failed to restart capture session after error: \(error.localizedDescription)")
+        }
+      } else {
+        print("⚠️ Cannot restart session - inputs: \(self.captureSession.inputs.count), outputs: \(self.captureSession.outputs.count), running: \(self.captureSession.isRunning)")
       }
     }
   }
@@ -689,9 +764,23 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     sessionQueue.async { [weak self] in
       guard let self = self else { return }
       
-      if !self.captureSession.isRunning {
+      // Reset the session started flag since interruption ended
+      self.sessionIsStarted = false
+      
+      if !self.captureSession.isRunning && 
+         !self.captureSession.inputs.isEmpty && 
+         !self.captureSession.outputs.isEmpty {
         print("🔄 Restarting capture session after interruption ended...")
-        self.captureSession.startRunning()
+        
+        // Use proper error handling
+        do {
+          try self.captureSession.startRunning()
+          print("✅ Successfully restarted capture session after interruption ended")
+        } catch {
+          print("❌ Failed to restart capture session after interruption ended: \(error.localizedDescription)")
+        }
+      } else {
+        print("⚠️ Cannot restart session after interruption - inputs: \(self.captureSession.inputs.count), outputs: \(self.captureSession.outputs.count), running: \(self.captureSession.isRunning)")
       }
     }
   }
@@ -856,7 +945,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // if you want work with other PBX, please contact your PBX Provider
 
         addPushSupportWithPortPBX(_enablePushNotification!)
-        loginViewController.refreshRegister()
+//        loginViewController.refreshRegister()
+        portSIPSDK.refreshRegistration(0)
     }
 
     func processPushMessageFromPortPBX(
@@ -1119,10 +1209,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         case NotReachable:
             NSLog("reachabilityChanged:kNotReachable")
         case ReachableViaWWAN:
-            loginViewController.refreshRegister()
+            portSIPSDK.refreshRegistration(0)
             NSLog("reachabilityChanged:kReachableViaWWAN")
         case ReachableViaWiFi:
-            loginViewController.refreshRegister()
+            portSIPSDK.refreshRegistration(0)
             NSLog("reachabilityChanged:kReachableViaWiFi")
         default:
             break
@@ -1188,9 +1278,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             timer.schedule(deadline: .now() + 5)
 
             timer.setEventHandler { [weak self] in
-                self?.loginViewController.unRegister()
                 self?.backtaskTimer = nil
                 NSLog("SipEngine finishBackgroundTaskForRegister")
+                guard let strongSelf = self else {
+                    return
+                }
+                let result = strongSelf._callManager.findCallBySessionID(strongSelf.activeSessionid)
+                if result == nil || !result!.session.sessionState {
+                    strongSelf.loginViewController.unRegister()
+                }
             }
 
             backtaskTimer = timer
@@ -1221,6 +1317,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
             print("enableSendVideoStream result: \(sendResult)")
             startSession()
+            _callManager.configureAudioSession()
         }
     }
 
@@ -1648,7 +1745,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 //            type: "call_state", payloadKey: "answered", payloadValue: true)
         
         self.activeSessionid = sessionId
-        
         setLoudspeakerStatus(true)
 
         // 🔥 ANDROID PATTERN: Send state notification instead of direct call
@@ -2258,7 +2354,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
         if result != nil {
             NSLog("Found call session, videoState: \(result!.session.videoState)")
-            
+            _callManager.configureAudioSession()
             setLoudspeakerStatus(true)
             
             if _callManager.isHideCallkit{
@@ -2433,15 +2529,46 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             NSLog("appKilled hangup result: \(appKilledHangupResult)")
             result(true)
         case "requestPermission":
+            // Check current permission status first
+            let currentVideoStatus = AVCaptureDevice.authorizationStatus(for: .video)
+            let currentAudioStatus = AVAudioSession.sharedInstance().recordPermission
+            
+            if currentVideoStatus == .authorized && currentAudioStatus == .granted {
+                result(true)
+                return
+            }
+            
             AVCaptureDevice.requestAccess(for: .video) { videoGranted in
                 if videoGranted {
                     AVAudioSession.sharedInstance().requestRecordPermission { audioGranted in
-                        result(audioGranted)
+                        DispatchQueue.main.async {
+                            result(audioGranted)
+                        }
                     }
                 } else {
-                    result(false)
+                    DispatchQueue.main.async {
+                        result(false)
+                    }
                 }
             }
+        case "initialize":
+            if let args = call.arguments as? [String: Any] {
+                if let recordLabel = args["recordLabel"] as? String {
+                    MptCallkitPlugin.overlayText = recordLabel
+                }
+                if let enableBlurBackground = args["enableBlurBackground"] as? Bool {
+                    MptCallkitPlugin.enableBlurBackground = enableBlurBackground
+                }
+                if let bgPath = args["bgPath"] as? String {
+                    self.bgPath = bgPath
+                    if !bgPath.isEmpty {
+                        loadBackgroundImage()
+                    }
+                }
+                print("onMethodCall MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground), bgPath: \(String(describing: bgPath))")
+            }
+            result(true)
+
         case "Login":
             if let args = call.arguments as? [String: Any],
                 let username = args["username"] as? String,
@@ -2461,13 +2588,20 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let recordLabel = (args["recordLabel"] as? String) ?? "Customer"
                 let autoLogin = (args["autoLogin"] as? Bool) ?? false
                 let enableBlur = (args["enableBlurBackground"] as? Bool) ?? false
+                let backgroundPath = (args["bgPath"] as? String) ?? nil
 
                 // Lưu username hiện tại
                 currentUsername = username
                 MptCallkitPlugin.overlayText = recordLabel
                 MptCallkitPlugin.enableBlurBackground = enableBlur
                 
-                print("onMethodCall MptCallkitPlugin.overlayText: \(MptCallkitPlugin.overlayText), MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground)")
+                if (backgroundPath != nil) {
+                    // Set background path and load background image
+                    bgPath = backgroundPath
+                    loadBackgroundImage()
+                }
+                
+                print("onMethodCall MptCallkitPlugin.overlayText: \(MptCallkitPlugin.overlayText), MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground), bgPath: \(String(describing: bgPath))")
 
                 // Lưu localizedCallerName vào UserDefaults và biến hiện tại
                 currentLocalizedCallerName = localizedCallerName
@@ -2548,6 +2682,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     UserDefaults.standard.removeObject(forKey: "frameRate")
                     UserDefaults.standard.removeObject(forKey: "recordLabel")
                     UserDefaults.standard.removeObject(forKey: "autoLogin")
+                    UserDefaults.standard.removeObject(forKey: "enableBlurBackground")
+                    UserDefaults.standard.removeObject(forKey: "bgPath")
+                    UserDefaults.standard.synchronize()
                 }
             }
             
@@ -2694,6 +2831,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     sessionResult.session.sessionId, enableAudio: true, enableVideo: isVideo)
                 NSLog("🔍 updateVideoCall - updateCall(audio=true, video=\(isVideo)): \(updateRes)")
 
+                // Start capture session after SIP update to ensure it's not interfered with
+                if isVideo {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
+                        print("enableSendVideoStream result: \(sendResult)")
+                        self.startSession()
+                    }
+                }
+
                 // 🔥 SIMPLE: Just send notification, let views handle themselves
                 let videoState = PortSIPVideoState(
                     sessionId: Int64(sessionResult.session.sessionId),
@@ -2715,9 +2861,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             result(getCallkitAnsweredState())
             return
         case "refreshRegister":
-            result(portSIPSDK.refreshRegistration(0))
+            print("refreshRegister called")
+            // loginViewController.refreshRegister()
+//            result(portSIPSDK.refreshRegistration(0))
+            result(-1)
         case "refreshRegistration":
-            result(portSIPSDK.refreshRegistration(0))
+            print("refreshRegistration called")
+            // loginViewController.refreshRegister()
+//            result(portSIPSDK.refreshRegistration(0))
+            result(-1)
         case "setResolutionMode":
             if let args = call.arguments as? [String: Any],
                let mode = args["mode"] as? Int {
@@ -2884,8 +3036,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         sipRegistered = true
         methodChannel?.invokeMethod("onlineStatus", arguments: true)
         methodChannel?.invokeMethod("registrationStateStream", arguments: true)
-//        loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_ONLINE
+        loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_ONLINE
         loginViewController.onRegisterSuccess(statusText: statusText)
+        _callManager.updateRegisterSuccess(true)
         NSLog("onRegisterSuccess")
     }
 
@@ -2896,8 +3049,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         sipRegistered = false
         methodChannel?.invokeMethod("onlineStatus", arguments: false)
         methodChannel?.invokeMethod("registrationStateStream", arguments: false)
-//        loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_FAILUE
+        loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_FAILUE
         loginViewController.onRegisterFailure(statusCode: statusCode, statusText: statusText)
+        _callManager.updateRegisterSuccess(false)
         NSLog("onRegisterFailure")
     }
 
@@ -3131,10 +3285,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         setCamera(useFrontCamera: newUseFrontCamera)
         mUseFrontCamera = newUseFrontCamera
         stopSession()
-        setUpCaptureSessionInput()
-        let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: activeSessionid, state: true)
-        print("enableSendVideoStream result: \(sendResult)")
-        startSession()
+        // Wait for stop to complete, then start session (which will reconfigure)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
+            print("enableSendVideoStream result: \(sendResult)")
+            self.startSession()
+        }
 
         // Send state notification - views will handle themselves
         let videoState = PortSIPVideoState(
@@ -3344,6 +3500,195 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     }
   }
 
+  /// Loads the background image from the specified path into bgBitmap.
+  /// Supports both local file paths and internet URLs.
+  private func loadBackgroundImage() {
+    guard let path = bgPath, !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      print("No background path specified, clearing bgBitmap")
+      bgBitmap = nil
+      return
+    }
+    
+    // Check if it's a valid URL
+    if isValidUrl(path) {
+      print("Loading background image from URL: \(path)")
+      loadImageFromUrl(path)
+    } else {
+      // Local file path
+      do {
+        // Load the background image from local file
+        if let image = UIImage(contentsOfFile: path) {
+          bgBitmap = image
+          print("Successfully loaded background image: \(path) (size: \(image.size.width)x\(image.size.height))")
+        } else {
+          print("Failed to load background image from path: \(path)")
+          bgBitmap = nil
+        }
+      } catch {
+        print("Error loading background image from path: \(path), error: \(error)")
+        bgBitmap = nil
+      }
+    }
+  }
+  
+  /// Checks if the given string is a valid URL
+  private func isValidUrl(_ string: String) -> Bool {
+    guard let url = URL(string: string) else { return false }
+    return url.scheme != nil && (url.scheme == "http" || url.scheme == "https")
+  }
+  
+  /// Loads image from URL asynchronously
+  private func loadImageFromUrl(_ urlString: String) {
+    guard let url = URL(string: urlString) else {
+      print("Invalid URL: \(urlString)")
+      bgBitmap = nil
+      return
+    }
+    
+    DispatchQueue.global(qos: .background).async { [weak self] in
+      do {
+        let data = try Data(contentsOf: url)
+        DispatchQueue.main.async {
+          if let image = UIImage(data: data) {
+            self?.bgBitmap = image
+            print("Successfully loaded background image from URL: \(urlString) (size: \(image.size.width)x\(image.size.height))")
+          } else {
+            print("Failed to load background image from URL: \(urlString)")
+            self?.bgBitmap = nil
+          }
+        }
+      } catch {
+        DispatchQueue.main.async {
+          print("Error loading background image from URL: \(urlString), error: \(error)")
+          self?.bgBitmap = nil
+        }
+      }
+    }
+  }
+  
+  /// Applies background image with segmentation mask to an image buffer
+  private func applyBackgroundImageWithMask(
+    mask: SegmentationMask,
+    to imageBuffer: CVImageBuffer,
+    backgroundImage: UIImage?
+  ) {
+    guard let backgroundImage = backgroundImage else {
+     print("No background image provided, falling back to blur")
+      // Fallback to blur if no background image
+      UIUtilities.applySegmentationMask(
+        mask: mask, to: imageBuffer,
+        backgroundColor: UIColor.lightGray.withAlphaComponent(0.95),
+        foregroundColor: nil)
+      return
+    }
+      
+      
+      // Apply the same orientation as camera output to match
+      let orientation: UIImage.Orientation = mUseFrontCamera ? .leftMirrored : .right
+      let transformedBackgroundImage = applyOrientationToImage(backgroundImage, orientation: orientation)
+    
+    let width = CVPixelBufferGetWidth(imageBuffer)
+    let height = CVPixelBufferGetHeight(imageBuffer)
+    
+    // Scale background image to EXACT camera frame dimensions (stretch to fit)
+    guard let scaledBackgroundImage = transformedBackgroundImage.scaledImage(with: CGSize(width: width, height: height)) else {
+        return
+    }
+    
+    
+    // Convert background image to image buffer
+    guard let backgroundImageBuffer = UIUtilities.createImageBuffer(from: scaledBackgroundImage) else {
+      print("Failed to create image buffer from background image")
+      // Fallback to blur
+      UIUtilities.applySegmentationMask(
+        mask: mask, to: imageBuffer,
+        backgroundColor: UIColor.lightGray.withAlphaComponent(0.95),
+        foregroundColor: nil)
+      return
+    }
+    
+    // Apply the mask to composite person from camera image onto background
+    applyMaskToCompositeImages(
+      mask: mask,
+      cameraImageBuffer: imageBuffer,
+      backgroundImageBuffer: backgroundImageBuffer
+    )
+  }
+  
+  /// Applies mask to composite person from camera image onto background image
+  private func applyMaskToCompositeImages(
+    mask: SegmentationMask,
+    cameraImageBuffer: CVImageBuffer,
+    backgroundImageBuffer: CVImageBuffer
+  ) {
+    let width = CVPixelBufferGetWidth(mask.buffer)
+    let height = CVPixelBufferGetHeight(mask.buffer)
+    
+    assert(CVPixelBufferGetWidth(cameraImageBuffer) == width, "Width must match")
+    assert(CVPixelBufferGetHeight(cameraImageBuffer) == height, "Height must match")
+    assert(CVPixelBufferGetWidth(backgroundImageBuffer) == width, "Background width must match")
+    assert(CVPixelBufferGetHeight(backgroundImageBuffer) == height, "Background height must match")
+    
+    let writeFlags = CVPixelBufferLockFlags(rawValue: 0)
+    CVPixelBufferLockBaseAddress(cameraImageBuffer, writeFlags)
+    CVPixelBufferLockBaseAddress(backgroundImageBuffer, CVPixelBufferLockFlags.readOnly)
+    CVPixelBufferLockBaseAddress(mask.buffer, CVPixelBufferLockFlags.readOnly)
+    
+    let maskBytesPerRow = CVPixelBufferGetBytesPerRow(mask.buffer)
+    var maskAddress = CVPixelBufferGetBaseAddress(mask.buffer)!.bindMemory(
+      to: Float32.self, capacity: maskBytesPerRow * height)
+    
+    let cameraBytesPerRow = CVPixelBufferGetBytesPerRow(cameraImageBuffer)
+    var cameraAddress = CVPixelBufferGetBaseAddress(cameraImageBuffer)!.bindMemory(
+      to: UInt8.self, capacity: cameraBytesPerRow * height)
+    
+    let backgroundBytesPerRow = CVPixelBufferGetBytesPerRow(backgroundImageBuffer)
+    var backgroundAddress = CVPixelBufferGetBaseAddress(backgroundImageBuffer)!.bindMemory(
+      to: UInt8.self, capacity: backgroundBytesPerRow * height)
+    
+    for _ in 0...(height - 1) {
+      for col in 0...(width - 1) {
+        let pixelOffset = col * 4 // BGRA format
+        
+        let maskValue: CGFloat = CGFloat(maskAddress[col])
+        let personRegionRatio = maskValue
+        let backgroundRegionRatio: CGFloat = 1.0 - maskValue
+        
+        // Get camera pixel values
+        let cameraRed = CGFloat(cameraAddress[pixelOffset + 2]) / 255.0
+        let cameraGreen = CGFloat(cameraAddress[pixelOffset + 1]) / 255.0
+        let cameraBlue = CGFloat(cameraAddress[pixelOffset]) / 255.0
+        let cameraAlpha = CGFloat(cameraAddress[pixelOffset + 3]) / 255.0
+        
+        // Get background pixel values
+        let backgroundRed = CGFloat(backgroundAddress[pixelOffset + 2]) / 255.0
+        let backgroundGreen = CGFloat(backgroundAddress[pixelOffset + 1]) / 255.0
+        let backgroundBlue = CGFloat(backgroundAddress[pixelOffset]) / 255.0
+        let backgroundAlpha = CGFloat(backgroundAddress[pixelOffset + 3]) / 255.0
+        
+        // Composite the pixels
+        let compositeRed = cameraRed * personRegionRatio + backgroundRed * backgroundRegionRatio
+        let compositeGreen = cameraGreen * personRegionRatio + backgroundGreen * backgroundRegionRatio
+        let compositeBlue = cameraBlue * personRegionRatio + backgroundBlue * backgroundRegionRatio
+        let compositeAlpha = cameraAlpha * personRegionRatio + backgroundAlpha * backgroundRegionRatio
+        
+        // Write back to camera image buffer
+        cameraAddress[pixelOffset] = UInt8(compositeBlue * 255.0)
+        cameraAddress[pixelOffset + 1] = UInt8(compositeGreen * 255.0)
+        cameraAddress[pixelOffset + 2] = UInt8(compositeRed * 255.0)
+        cameraAddress[pixelOffset + 3] = UInt8(compositeAlpha * 255.0)
+      }
+      
+      cameraAddress += cameraBytesPerRow / MemoryLayout<UInt8>.size
+      backgroundAddress += backgroundBytesPerRow / MemoryLayout<UInt8>.size
+      maskAddress += maskBytesPerRow / MemoryLayout<Float32>.size
+    }
+    
+    CVPixelBufferUnlockBaseAddress(cameraImageBuffer, writeFlags)
+    CVPixelBufferUnlockBaseAddress(backgroundImageBuffer, CVPixelBufferLockFlags.readOnly)
+    CVPixelBufferUnlockBaseAddress(mask.buffer, CVPixelBufferLockFlags.readOnly)
+  }
+
   private func detectSegmentationMask(in image: VisionImage, sampleBuffer: CMSampleBuffer) {
     // Ensure processing flag is reset even if function exits early
     defer {
@@ -3375,11 +3720,11 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
       return
     }
 
-    // Apply mask on background thread for better performance
-    UIUtilities.applySegmentationMask(
-      mask: mask, to: imageBuffer,
-      backgroundColor: UIColor.lightGray.withAlphaComponent(0.95),
-      foregroundColor: nil)
+    // Apply background image with mask instead of blur
+    applyBackgroundImageWithMask(
+      mask: mask, 
+      to: imageBuffer,
+      backgroundImage: bgBitmap)
     
     // Only update UI on main thread with appropriate QoS
     DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
@@ -3724,6 +4069,10 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     /// - Size 48 (textSize = 48)
     /// - Top center positioning (x = width/2, y = textBounds.height() + 100)
     private func drawTextOnImage(_ image: UIImage, text: String) -> UIImage? {
+        // if text is empty, return image
+        if text.isEmpty {
+            return image
+        }
 //        print("drawTextOnImage \(drawTextOnImage)")
         let imageSize = image.size
         
@@ -3763,6 +4112,26 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         
         // Get the final image with text
         return UIGraphicsGetImageFromCurrentImageContext()
+    }
+    
+    /// Apply orientation transformation to a UIImage to match camera output
+    /// - Parameters:
+    ///   - image: The input image to transform
+    ///   - orientation: The target orientation (e.g., .leftMirrored for front camera)
+    /// - Returns: Transformed UIImage
+    private func applyOrientationToImage(_ image: UIImage, orientation: UIImage.Orientation) -> UIImage {
+        // If orientation is already correct, return as-is
+        if image.imageOrientation == orientation {
+            return image
+        }
+        
+        // Create new image with the desired orientation
+        guard let cgImage = image.cgImage else {
+            return image
+        }
+        
+        // Return new UIImage with updated orientation
+        return UIImage(cgImage: cgImage, scale: image.scale, orientation: orientation)
     }
 }
 

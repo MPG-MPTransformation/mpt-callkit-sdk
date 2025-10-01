@@ -40,7 +40,7 @@ A new Flutter plugin project.
     mkdir -p SDK
     if [ ! -d "SDK/PortSIPVoIPSDK.xcframework" ]; then
       echo "PortSIPVoIPSDK.xcframework not found in SDK. Downloading..."
-      curl -L -o SDK/PortSIPVoIPSDK.xcframework.zip https://github.com/mpt-hienhh/PortSIPVoiPSDK/raw/main/PortSIPVoIPSDK.xcframework.zip
+      curl -L -o SDK/PortSIPVoIPSDK.xcframework.zip https://github.com/mpt-hienhh/PortSIPVoiPSDK-ios-19.6/raw/main/PortSIPVoIPSDK.xcframework.zip
       unzip SDK/PortSIPVoIPSDK.xcframework.zip -d SDK
       rm SDK/PortSIPVoIPSDK.xcframework.zip
     else

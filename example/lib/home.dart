@@ -62,8 +62,9 @@ class _HomeScreenState extends State<HomeScreen> {
         appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
         enableDebugLog: true,
         deviceInfo: "deviceInfo",
-        recordLabel: "Nhân viên",
+        recordLabel: "",
         enableBlurBackground: true,
+        bgPath: "https://i0.wp.com/picjumbo.com/wp-content/uploads/orange-slices-summer-backgrounds-free-image.jpeg?w=2210&quality=70",
       );
 
       // var result = await MptCallKitController().loginRequest(
@@ -117,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
             // appId: Platform.isAndroid ? CallkitConstants.ANDROID_APP_ID : null,
             enableDebugLog: true,
             deviceInfo: "deviceInfo",
-            recordLabel: "Khách hàng",
+            recordLabel: "",
             enableBlurBackground: false,
           );
           await MptCallKitController().makeCallByGuest(

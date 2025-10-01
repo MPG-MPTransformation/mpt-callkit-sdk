@@ -2,6 +2,7 @@ class MptCallKitConstants {
   static const String login = 'Login';
   static const String offline = 'Offline';
   static const String hangOut = 'onHangOut';
+  static const String initialize = 'initialize';
 }
 
 class CallStateConstants {
@@ -127,4 +128,5 @@ class SDKPrefsKeyConstants {
   static const String DEVICE_INFO = "device_info";
   static const String RECORD_LABEL = "record_label";
   static const String ENABLE_BLUR_BACKGROUND = "enable_blur_background";
+  static const String BG_PATH = "bg_path";
 }

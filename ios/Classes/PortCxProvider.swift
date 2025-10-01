@@ -139,6 +139,7 @@ class PortCxProvider: NSObject, CXProviderDelegate {
     }
 
     func provider(_: CXProvider, perform action: CXAnswerCallAction) {
+        callManager.configureAudioSession()
         performAnswerCall(uuid: action.callUUID) { success in
             if success {
                 action.fulfill()
@@ -154,7 +155,7 @@ class PortCxProvider: NSObject, CXProviderDelegate {
 
     func provider(_: CXProvider, perform action: CXStartCallAction) {
         print("performStartCallAction uuid = \(action.callUUID)")
-
+        callManager.configureAudioSession()
         let sessionid = callManager.makeCallWithUUID(callee: action.handle.value, displayName: action.handle.value, videoCall: action.isVideo, uuid: action.callUUID)
         print(sessionid)
         if sessionid >= 0 {

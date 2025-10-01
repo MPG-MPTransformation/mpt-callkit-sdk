@@ -205,7 +205,7 @@ class LoginViewController {
         print("Offline and Unregistered - unRegister: \(unReg)")
     }
     
-    func refreshRegister() {
+    @objc func refreshRegister() {
         
         print("refreshRegister: \(sipRegistrationStatus)")
         switch sipRegistrationStatus {
@@ -214,7 +214,7 @@ class LoginViewController {
         case .LOGIN_STATUS_LOGIN:
             break
         case .LOGIN_STATUS_ONLINE:
-            portSIPSDK.refreshRegistration(0)
+//            portSIPSDK.refreshRegistration(0)
             print("Refresh Registration...")
             break
         case .LOGIN_STATUS_FAILUE:
@@ -272,9 +272,14 @@ class LoginViewController {
         MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: false)
         
         if statusCode != 401, statusCode != 403, statusCode != 404 {
+            // 401-Unauthorized 403-Forbidden
+            // If the NetworkStatus not change, received onRegisterFailure event.
+            // added a atuo reRegister Timer
             var interval = TimeInterval(autoRegisterRetryTimes * 2 + 1)
-            interval = min(interval, 60)
-            autoRegisterRetryTimes += 1
+            // max interval is 60
+            interval = interval > 60 ? 60 : interval
+            autoRegisterRetryTimes = autoRegisterRetryTimes + 1
+            autoRegisterTimer = Timer.scheduledTimer(timeInterval: interval, target: self, selector: #selector(refreshRegister), userInfo: nil, repeats: false)
         }
     }
 }

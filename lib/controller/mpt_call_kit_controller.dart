@@ -192,6 +192,12 @@ class MptCallKitController {
   // Add Completer for guest registration
   Completer<bool>? _guestRegistrationCompleter;
 
+  // Track socket connection process to prevent multiple simultaneous calls
+  bool _isConnectingToSocket = false;
+  Completer<bool>? _socketConnectionCompleter;
+  StreamSubscription<bool>? _tempSocketStatusSubscription;
+  Timer? _socketConnectionTimer;
+
   // SIP server connectivity check variables
   Timer? _pingTimer;
   String? _sipServerUrl;
@@ -385,6 +391,7 @@ class MptCallKitController {
     String? deviceInfo,
     String? recordLabel,
     bool? enableBlurBackground,
+    String? bgPath,
   }) async {
     await enableFileLogging();
 
@@ -403,6 +410,20 @@ class MptCallKitController {
     this.localizedCallerName = resolvedCallerName;
     if (recordLabel != null) {
       this.recordLabel = recordLabel;
+    }
+
+    try {
+      await channel
+          .invokeMethod(MptCallKitConstants.initialize, <String, dynamic>{
+        'appId': appId,
+        'enableDebugLog': resolvedEnableDebug,
+        'pushToken': pushToken,
+        'recordLabel': recordLabel,
+        'enableBlurBackground': enableBlurBackground ?? false,
+        'bgPath': bgPath,
+      });
+    } on PlatformException catch (e) {
+      debugPrint("Failed to initialize SDK: '${e.message}'.");
     }
 
     // Persist initialization params to SharedPreferences
@@ -424,6 +445,9 @@ class MptCallKitController {
       if (enableBlurBackground != null) {
         await prefs.setBool(
             SDKPrefsKeyConstants.ENABLE_BLUR_BACKGROUND, enableBlurBackground);
+      }
+      if (bgPath != null) {
+        await prefs.setString(SDKPrefsKeyConstants.BG_PATH, bgPath);
       }
     } catch (e) {
       debugPrint('Failed to persist initSdk params: $e');
@@ -608,39 +632,40 @@ class MptCallKitController {
       //       return;
       //     }
 
-      if (extensionData != null) {
-        lastesExtensionData = extensionData;
-        // Register to SIP server
-        await MptCallKitController().online(
-          username: extensionData?.username ?? "",
-          displayName: extensionData?.username ?? "", // ??
-          srtpType: 0,
-          authName: extensionData?.username ?? "", // ??
-          password: extensionData?.password ?? "",
-          userDomain: extensionData?.domain ?? "",
-          sipServer: extensionData?.sipServer ?? "",
-          sipServerPort: extensionData?.port ?? 5063,
-          // sipServerPort: 5063,
-          transportType: 0,
-          pushToken: await getCurrentPushToken(),
-          appId: await getCurrentAppId(),
-          onError: (p0) {
-            print("Error in register to sip server: ${p0.toString()}");
-          },
-          context: context,
-          resolution: extensionData?.resolution,
-          bitrate: extensionData?.bitrate,
-          frameRate: extensionData?.frameRate,
-          recordLabel: await getCurrentRecordLabel(),
-          autoLogin: true,
-          enableBlurBackground: true,
-        );
-      } else {
-        _appEvent.add(AppEventConstants.ERROR);
-        _currentAppEvent = AppEventConstants.ERROR;
-      }
-      // }
-      // });
+          if (extensionData != null) {
+            lastesExtensionData = extensionData;
+            // Register to SIP server
+            await MptCallKitController().online(
+              username: extensionData?.username ?? "",
+              displayName: extensionData?.username ?? "", // ??
+              srtpType: 0,
+              authName: extensionData?.username ?? "", // ??
+              password: extensionData?.password ?? "",
+              userDomain: extensionData?.domain ?? "",
+              sipServer: extensionData?.sipServer ?? "",
+              sipServerPort: extensionData?.port ?? 5063,
+              // sipServerPort: 5063,
+              transportType: 0,
+              pushToken: await getCurrentPushToken(),
+              appId: await getCurrentAppId(),
+              onError: (p0) {
+                print("Error in register to sip server: ${p0.toString()}");
+              },
+              context: context,
+              resolution: extensionData?.resolution,
+              bitrate: extensionData?.bitrate,
+              frameRate: extensionData?.frameRate,
+              recordLabel: await getCurrentRecordLabel(),
+              autoLogin: true,
+              enableBlurBackground: true,
+              bgPath: await getCurrentBgPath(),
+            );
+          } else {
+            _appEvent.add(AppEventConstants.ERROR);
+            _currentAppEvent = AppEventConstants.ERROR;
+          }
+        }
+      });
     } else {
       _appEvent.add(AppEventConstants.TOKEN_EXPIRED);
       _currentAppEvent = AppEventConstants.TOKEN_EXPIRED;
@@ -676,8 +701,36 @@ class MptCallKitController {
   Future<bool> connectToSocketServer(String accessToken) async {
     print("connectToSocketServer");
 
+    // Prevent multiple simultaneous connection attempts
+    if (_isConnectingToSocket && _socketConnectionCompleter != null) {
+      print(
+          "Socket connection already in progress, waiting for existing attempt...");
+      return await _socketConnectionCompleter!.future;
+    }
+
+    // Check if already connected
+    if (MptSocketSocketServer.getCurrentConnectionState()) {
+      print("Socket server already connected");
+      try {
+        await channel.invokeMethod('socketStatus', {'ready': true});
+      } catch (e) {
+        print('Failed to notify iOS about socket status: $e');
+      }
+      return true;
+    }
+
     if (_configuration != null) {
       try {
+        // Set connecting flag
+        _isConnectingToSocket = true;
+
+        // Clean up any previous temporary resources
+        _tempSocketStatusSubscription?.cancel();
+        _socketConnectionTimer?.cancel();
+
+        // Create new completer for this attempt
+        _socketConnectionCompleter = Completer<bool>();
+
         MptSocketSocketServer.initialize(
           tokenParam: accessToken,
           configuration: _configuration!,
@@ -700,32 +753,29 @@ class MptCallKitController {
           }
         });
 
-        // Wait for socket connection with timeout
-        final completer = Completer<bool>();
-        StreamSubscription<bool>? subscription;
-        Timer? timeoutTimer;
-
         // Set up timeout
-        timeoutTimer = Timer(const Duration(seconds: 10), () {
-          subscription?.cancel();
-          if (!completer.isCompleted) {
-            completer.complete(false);
+        _socketConnectionTimer = Timer(const Duration(seconds: 10), () {
+          _tempSocketStatusSubscription?.cancel();
+          if (!_socketConnectionCompleter!.isCompleted) {
+            _socketConnectionCompleter!.complete(false);
             print("Socket connection timeout after 10 seconds");
           }
+          _isConnectingToSocket = false;
         });
 
         // Listen to connection status
-        subscription =
+        _tempSocketStatusSubscription =
             MptSocketSocketServer.connectionStatus.listen((isConnected) {
-          if (isConnected && !completer.isCompleted) {
-            timeoutTimer?.cancel();
-            subscription?.cancel();
-            completer.complete(true);
+          if (isConnected && !_socketConnectionCompleter!.isCompleted) {
+            _socketConnectionTimer?.cancel();
+            _tempSocketStatusSubscription?.cancel();
+            _socketConnectionCompleter!.complete(true);
+            _isConnectingToSocket = false;
             print("Socket server connected successfully");
           }
         });
 
-        // Check if already connected
+        // Check if already connected (race condition check)
         if (MptSocketSocketServer.getCurrentConnectionState()) {
           try {
             await channel.invokeMethod('socketStatus', {
@@ -734,17 +784,24 @@ class MptCallKitController {
           } catch (e) {
             print('Failed to notify iOS about socket status: $e');
           }
-          timeoutTimer.cancel();
-          subscription.cancel();
-          if (!completer.isCompleted) {
-            completer.complete(true);
-            print("Socket server already connected");
+          _socketConnectionTimer?.cancel();
+          _tempSocketStatusSubscription?.cancel();
+          if (!_socketConnectionCompleter!.isCompleted) {
+            _socketConnectionCompleter!.complete(true);
+            print("Socket server already connected (race condition)");
           }
+          _isConnectingToSocket = false;
         }
 
-        return await completer.future;
+        final result = await _socketConnectionCompleter!.future;
+        _socketConnectionCompleter = null;
+        return result;
       } catch (e) {
         print("Error in connect to socket server: ${e.toString()}");
+        _isConnectingToSocket = false;
+        _socketConnectionCompleter = null;
+        _tempSocketStatusSubscription?.cancel();
+        _socketConnectionTimer?.cancel();
         return false;
       }
     } else {
@@ -795,8 +852,16 @@ class MptCallKitController {
       // Ngắt kết nối socket
       await MptSocketSocketServer.disconnect();
 
+      // Clean up all socket-related subscriptions and timers
       _socketConnectionSubscription?.cancel();
       _socketConnectionSubscription = null;
+      _tempSocketStatusSubscription?.cancel();
+      _tempSocketStatusSubscription = null;
+      _socketConnectionTimer?.cancel();
+      _socketConnectionTimer = null;
+      _isConnectingToSocket = false;
+      _socketConnectionCompleter = null;
+
       await channel.invokeMethod('socketStatus', {'ready': false});
     } catch (e) {
       print('Failed to notify iOS about socket disconnect: $e');
@@ -804,22 +869,26 @@ class MptCallKitController {
 
     isLogoutAccountSuccess = await offline(disablePushNoti: true);
 
-    // clear all SIP registration of agent's extension on server
-    isDeleteRegistrationSuccess = await deleteRegistration(
-      tenantId: currentUserInfo!["tenant"]["id"] ?? 0,
-      agentId: currentUserInfo!["user"]["id"] ?? 0,
-      baseUrl: await getCurrentBaseUrl(),
-      onError: onError,
-    );
+    if (currentUserInfo != null &&
+        currentUserInfo!["user"] != null &&
+        currentUserInfo!["tenant"] != null) {
+      // clear all SIP registration of agent's extension on server
+      isDeleteRegistrationSuccess = await deleteRegistration(
+        tenantId: currentUserInfo!["tenant"]["id"] ?? 0,
+        agentId: currentUserInfo!["user"]["id"] ?? 0,
+        baseUrl: await getCurrentBaseUrl(),
+        onError: onError,
+      );
 
-    // logout account from server
-    isUnregistered = await logoutRequest(
-      cloudAgentId: currentUserInfo!["user"]["id"],
-      cloudAgentName: currentUserInfo!["user"]["fullName"] ?? "",
-      cloudTenantId: currentUserInfo!["tenant"]["id"],
-      baseUrl: await getCurrentBaseUrl(),
-      onError: onError,
-    );
+      // logout account from server
+      isUnregistered = await logoutRequest(
+        cloudAgentId: currentUserInfo!["user"]["id"],
+        cloudAgentName: currentUserInfo!["user"]["fullName"] ?? "",
+        cloudTenantId: currentUserInfo!["tenant"]["id"],
+        baseUrl: await getCurrentBaseUrl(),
+        onError: onError,
+      );
+    }
 
     // Important: Destroy instance when logout
     await MptSocketSocketServer.destroyInstance();
@@ -903,7 +972,8 @@ class MptCallKitController {
             frameRate: result.frameRate,
             recordLabel: await getCurrentRecordLabel(),
             autoLogin: false,
-            enableBlurBackground: await getCurrentEnableBlurBackground());
+            enableBlurBackground: await getCurrentEnableBlurBackground(),
+            bgPath: await getCurrentBgPath());
 
         // 🔧 FIX: Ensure no previous completer is pending
         if (_guestRegistrationCompleter != null &&
@@ -1168,6 +1238,7 @@ class MptCallKitController {
     String? recordLabel,
     bool? autoLogin,
     bool? enableBlurBackground,
+    String? bgPath,
     // required String localizedCallerName,
   }) async {
     this.isMakeCallByGuest = isMakeCallByGuest ?? false;
@@ -1207,6 +1278,7 @@ class MptCallKitController {
           "recordLabel": recordLabel ?? "Customer",
           "autoLogin": autoLogin ?? false,
           "enableBlurBackground": enableBlurBackground ?? false,
+          "bgPath": bgPath ?? null,
         },
       );
 
@@ -2232,6 +2304,11 @@ class MptCallKitController {
   Future<bool> getCurrentEnableBlurBackground() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(SDKPrefsKeyConstants.ENABLE_BLUR_BACKGROUND) ?? false;
+  }
+
+  Future<String?> getCurrentBgPath() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(SDKPrefsKeyConstants.BG_PATH) ?? null;
   }
 
   Future<String> getCurrentAppId() async {
