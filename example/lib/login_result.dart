@@ -147,11 +147,11 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       }
     }
 
-    if ((state == AppLifecycleState.paused ||
-            state == AppLifecycleState.inactive) &&
-        isOnCall == false) {
-      await MptSocketSocketServer.disconnect();
-    }
+    // if ((state == AppLifecycleState.paused ||
+    //         state == AppLifecycleState.inactive) &&
+    //     isOnCall == false) {
+    //   await MptSocketSocketServer.disconnect();
+    // }
   }
 
   Future<void> _initDataWhenLoginSuccess() async {

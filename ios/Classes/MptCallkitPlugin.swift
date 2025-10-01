@@ -406,8 +406,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         self._segmenter = Segmenter.segmenter(options: options)
         // Initialize resolution system
         updateRequestedResolution()
-        setUpCaptureSessionOutput()
-        setUpCaptureSessionInput()
         
         // Add session error handling
         NotificationCenter.default.addObserver(
@@ -428,6 +426,21 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             self,
             selector: #selector(captureSessionInterruptionEnded),
             name: .AVCaptureSessionInterruptionEnded,
+            object: captureSession
+        )
+        
+        // Add session state monitoring
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(captureSessionDidStartRunning),
+            name: .AVCaptureSessionDidStartRunning,
+            object: captureSession
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(captureSessionDidStopRunning),
+            name: .AVCaptureSessionDidStopRunning,
             object: captureSession
         )
     }
@@ -467,100 +480,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
   // MARK: - Private
 
-  private func setUpCaptureSessionOutput() {
-    weak var weakSelf = self
-    sessionQueue.async {
-      guard let strongSelf = weakSelf else {
-        print("Self is nil!")
-        return
-      }
-      strongSelf.captureSession.beginConfiguration()
-        
-      // Update resolution based on current mode before setting up capture
-      strongSelf.updateRequestedResolution()
-      
-      // Set session preset based on requested resolution
-      strongSelf.captureSession.sessionPreset = strongSelf.getOptimalSessionPreset()
-
-      let output = AVCaptureVideoDataOutput()
-      output.videoSettings = [
-        (kCVPixelBufferPixelFormatTypeKey as String): kCVPixelFormatType_32BGRA
-      ]
-      output.alwaysDiscardsLateVideoFrames = true
-      let outputQueue = DispatchQueue(label: "com.mpt.outputQueue")
-      output.setSampleBufferDelegate(strongSelf, queue: outputQueue)
-      
-      guard strongSelf.captureSession.canAddOutput(output) else {
-        print("❌ Failed to add capture session output - canAddOutput returned false")
-        return
-      }
-      
-      strongSelf.captureSession.addOutput(output)
-      print("✅ Successfully added video output to capture session")
-      print("✅ Video output delegate set to: \(strongSelf)")
-      strongSelf.captureSession.commitConfiguration()
-    }
-  }
-
-  private func setUpCaptureSessionInput() {
-    weak var weakSelf = self
-    sessionQueue.async {
-      guard let strongSelf = weakSelf else {
-        print("Self is nil!")
-        return
-      }
-      
-      // Check camera permission before setting up input
-      guard strongSelf.hasCameraPermission() else {
-        print("❌ setUpCaptureSessionInput failed: Camera permission not granted")
-        return
-      }
-      
-      let cameraPosition: AVCaptureDevice.Position = strongSelf.mUseFrontCamera ? .front : .back
-      guard let device = strongSelf.captureDevice(forPosition: cameraPosition) else {
-        print("❌ Failed to get capture device for camera position: \(cameraPosition)")
-        return
-      }
-      
-      // Check if device is available and not in use by another session
-      guard device.isConnected && !device.isSuspended else {
-        print("❌ Camera device not available - isConnected: \(device.isConnected), isSuspended: \(device.isSuspended)")
-        return
-      }
-      
-      do {
-        strongSelf.captureSession.beginConfiguration()
-        
-        // Remove existing inputs safely
-        let currentInputs = strongSelf.captureSession.inputs
-        for input in currentInputs {
-          if let deviceInput = input as? AVCaptureDeviceInput {
-            print("🔄 Removing existing input for device: \(deviceInput.device.localizedName)")
-            strongSelf.captureSession.removeInput(input)
-          }
-        }
-
-        let input = try AVCaptureDeviceInput(device: device)
-        guard strongSelf.captureSession.canAddInput(input) else {
-          print("❌ Failed to add capture session input - canAddInput returned false")
-          strongSelf.captureSession.commitConfiguration()
-          return
-        }
-        
-        strongSelf.captureSession.addInput(input)
-        print("✅ Successfully added camera input: \(device.localizedName) (position: \(cameraPosition))")
-        strongSelf.captureSession.commitConfiguration()
-        
-        // Reset session started flag after reconfiguration
-        strongSelf.sessionIsStarted = false
-        
-      } catch {
-        print("❌ Failed to create capture device input: \(error.localizedDescription)")
-        strongSelf.captureSession.commitConfiguration()
-      }
-    }
-  }
-
   private func startSession() {
     weak var weakSelf = self
     sessionQueue.async {
@@ -575,21 +494,86 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         return
       }
       
-      // Verify capture session has inputs and outputs
-      guard !strongSelf.captureSession.inputs.isEmpty else {
-        print("❌ startSession failed: No capture inputs configured")
-        return
-      }
-      
-      guard !strongSelf.captureSession.outputs.isEmpty else {
-        print("❌ startSession failed: No capture outputs configured")
-        return
-      }
-      
       // Prevent multiple simultaneous start attempts
       guard !strongSelf.sessionIsStarted else {
         print("⚠️ startSession skipped: Session already starting or started")
         return
+      }
+      
+      // Set up capture session if not already configured
+      if strongSelf.captureSession.inputs.isEmpty || strongSelf.captureSession.outputs.isEmpty {
+        print("🔄 Setting up capture session...")
+        
+        // Configure session
+        strongSelf.captureSession.beginConfiguration()
+        
+        // Update resolution and set preset
+        strongSelf.updateRequestedResolution()
+        let preset = strongSelf.getOptimalSessionPreset()
+        if strongSelf.captureSession.canSetSessionPreset(preset) {
+          strongSelf.captureSession.sessionPreset = preset
+          print("✅ Session preset set to: \(preset)")
+        } else {
+          print("⚠️ Cannot set session preset to \(preset), using current: \(strongSelf.captureSession.sessionPreset)")
+        }
+        
+        // Set up outputs if missing
+        if strongSelf.captureSession.outputs.isEmpty {
+          let output = AVCaptureVideoDataOutput()
+          output.videoSettings = [
+            (kCVPixelBufferPixelFormatTypeKey as String): kCVPixelFormatType_32BGRA
+          ]
+          output.alwaysDiscardsLateVideoFrames = true
+          let outputQueue = DispatchQueue(label: "com.mpt.outputQueue")
+          output.setSampleBufferDelegate(strongSelf, queue: outputQueue)
+          
+          if strongSelf.captureSession.canAddOutput(output) {
+            strongSelf.captureSession.addOutput(output)
+            print("✅ Added video output to capture session")
+          } else {
+            print("❌ Failed to add video output")
+            strongSelf.captureSession.commitConfiguration()
+            return
+          }
+        }
+        
+        // Set up inputs if missing
+        if strongSelf.captureSession.inputs.isEmpty {
+          let cameraPosition: AVCaptureDevice.Position = strongSelf.mUseFrontCamera ? .front : .back
+          guard let device = strongSelf.captureDevice(forPosition: cameraPosition) else {
+            print("❌ Failed to get capture device for camera position: \(cameraPosition)")
+            strongSelf.captureSession.commitConfiguration()
+            return
+          }
+          
+          guard device.isConnected && !device.isSuspended else {
+            print("❌ Camera device not available - isConnected: \(device.isConnected), isSuspended: \(device.isSuspended)")
+            strongSelf.captureSession.commitConfiguration()
+            return
+          }
+          
+          do {
+            let input = try AVCaptureDeviceInput(device: device)
+            if strongSelf.captureSession.canAddInput(input) {
+              strongSelf.captureSession.addInput(input)
+              print("✅ Added camera input: \(device.localizedName) (position: \(cameraPosition))")
+            } else {
+              print("❌ Failed to add camera input")
+              strongSelf.captureSession.commitConfiguration()
+              return
+            }
+          } catch {
+            print("❌ Failed to create capture device input: \(error.localizedDescription)")
+            strongSelf.captureSession.commitConfiguration()
+            return
+          }
+        }
+        
+        strongSelf.captureSession.commitConfiguration()
+        print("✅ Capture session configured - inputs: \(strongSelf.captureSession.inputs.count), outputs: \(strongSelf.captureSession.outputs.count)")
+        
+        // Ensure SIP SDK compatibility
+        strongSelf.ensureSIPCompatibility()
       }
       
       if !strongSelf.captureSession.isRunning {
@@ -615,6 +599,19 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         do {
           try strongSelf.captureSession.startRunning()
           print("✅ Capture session started successfully")
+          
+          // Check session state immediately after starting
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            if strongSelf.captureSession.isRunning {
+              print("✅ Session confirmed running immediately after start")
+            } else {
+              print("⚠️ Session stopped immediately after start - likely interrupted")
+              if strongSelf.captureSession.isInterrupted {
+                print("⚠️ Session is marked as interrupted")
+              }
+            }
+          }
+          
         } catch {
           print("❌ Failed to start capture session: \(error.localizedDescription)")
           strongSelf.sessionIsStarted = false
@@ -625,28 +622,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             strongSelf.startSession()
           }
           return
-        }
-        
-        // Verify session started successfully (after the delay)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-          if strongSelf.captureSession.isRunning {
-            print("✅ Capture session is running successfully")
-            print("✅ Session has \(strongSelf.captureSession.inputs.count) inputs and \(strongSelf.captureSession.outputs.count) outputs")
-          } else {
-            print("❌ Capture session failed to start")
-            print("❌ Session state - inputs: \(strongSelf.captureSession.inputs.count), outputs: \(strongSelf.captureSession.outputs.count)")
-            print("❌ Session preset: \(strongSelf.captureSession.sessionPreset)")
-            
-            // Check if session was interrupted
-            if strongSelf.captureSession.isInterrupted {
-              print("❌ Session was interrupted")
-            }
-            
-            // Check for runtime errors
-            if let error = strongSelf.captureSession.outputs.first as? AVCaptureVideoDataOutput {
-              print("❌ Video output exists but session not running")
-            }
-          }
         }
       } else {
         print("ℹ️ Capture session already running")
@@ -678,7 +653,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
       }
     }
   }
-
+  
+  @objc private func captureSessionDidStartRunning(_ notification: Notification) {
+    print("✅ AVCaptureSessionDidStartRunning notification received")
+  }
+  
+  @objc private func captureSessionDidStopRunning(_ notification: Notification) {
+    print("⚠️ AVCaptureSessionDidStopRunning notification received")
+    sessionIsStarted = false
+  }
 
   private func captureDevice(forPosition position: AVCaptureDevice.Position) -> AVCaptureDevice? {
     if #available(iOS 10.0, *) {
@@ -706,6 +689,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
     return device.isConnected && !device.isSuspended
   }
+  
+  /// Ensures SIP SDK doesn't interfere with our capture session
+  private func ensureSIPCompatibility() {
+    let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
+    print("enableSendVideoStream result: \(sendResult)")
+  }
+  
   
   // MARK: - Capture Session Error Handling
   
@@ -2841,6 +2831,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     sessionResult.session.sessionId, enableAudio: true, enableVideo: isVideo)
                 NSLog("🔍 updateVideoCall - updateCall(audio=true, video=\(isVideo)): \(updateRes)")
 
+                // Start capture session after SIP update to ensure it's not interfered with
+                if isVideo {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
+                        print("enableSendVideoStream result: \(sendResult)")
+                        self.startSession()
+                    }
+                }
+
                 // 🔥 SIMPLE: Just send notification, let views handle themselves
                 let videoState = PortSIPVideoState(
                     sessionId: Int64(sessionResult.session.sessionId),
@@ -3286,10 +3285,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         setCamera(useFrontCamera: newUseFrontCamera)
         mUseFrontCamera = newUseFrontCamera
         stopSession()
-        setUpCaptureSessionInput()
-        let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: activeSessionid, state: true)
-        print("enableSendVideoStream result: \(sendResult)")
-        startSession()
+        // Wait for stop to complete, then start session (which will reconfigure)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
+            print("enableSendVideoStream result: \(sendResult)")
+            self.startSession()
+        }
 
         // Send state notification - views will handle themselves
         let videoState = PortSIPVideoState(
