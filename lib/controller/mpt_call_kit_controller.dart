@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -16,6 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 import 'mpt_call_kit_controller_repo.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class MptCallKitController {
   String extension = '';
@@ -205,6 +207,8 @@ class MptCallKitController {
 
   /// callback functions
   Function(bool)? onRegisterSIP;
+  Function(AudioRawData)? onAudioRawCallback;
+  Function(VideoRawData)? onVideoRawCallback;
 
   MptCallKitController._internal() {
     if (Platform.isAndroid) {
@@ -294,7 +298,11 @@ class MptCallKitController {
         }
 
         if (call.method == 'onVideoRawCallback') {
-          print('Received onVideoRawCallback from native: ${call.arguments}');
+          onVideoRawCallback?.call(VideoRawData.fromJson(call.arguments));
+        }
+
+        if (call.method == 'onAudioRawCallback') {
+          onAudioRawCallback?.call(AudioRawData.fromJson(call.arguments));
         }
 
         if (call.method == 'isRemoteVideoReceived') {
@@ -895,6 +903,8 @@ class MptCallKitController {
 
     await clearInitPreferences();
 
+    currentUserInfo = null;
+
     if (isDeleteRegistrationSuccess && isUnregistered) {
       _appEvent.add(AppEventConstants.LOGGED_OUT);
       _currentAppEvent = AppEventConstants.LOGGED_OUT;
@@ -1231,6 +1241,8 @@ class MptCallKitController {
     required BuildContext context,
     String? pushToken,
     String? appId,
+    int? agentId,
+    int? tenantId,
     bool? isMakeCallByGuest = false,
     String? resolution,
     int? bitrate,
@@ -1270,6 +1282,8 @@ class MptCallKitController {
           'srtpType': srtpType,
           "pushToken": pushToken ?? "",
           "appId": appId ?? "",
+          "agentId": agentId ?? "",
+          "tenantId": tenantId ?? "",
           "enableDebugLog": enableDebugLog ?? false,
           "localizedCallerName": localizedCallerName,
           "resolution": resolution ?? "720P",
@@ -1278,7 +1292,7 @@ class MptCallKitController {
           "recordLabel": recordLabel ?? "Customer",
           "autoLogin": autoLogin ?? false,
           "enableBlurBackground": enableBlurBackground ?? false,
-          "bgPath": bgPath ?? null,
+          "bgPath": bgPath,
         },
       );
 
@@ -1775,10 +1789,12 @@ class MptCallKitController {
           AgentStateConstants.TALKING,
         );
 
-        // Update video call after 2.5 seconds in the agent side
-        Future.delayed(const Duration(milliseconds: 2500), () {
-          updateVideoCall(isVideo: true);
-        });
+        if (!isMakeCallByGuest) {
+          // Update video call after 2.5 seconds in the agent side
+          Future.delayed(const Duration(milliseconds: 2500), () {
+            updateVideoCall(isVideo: true);
+          });
+        }
       }
     } else {
       print(
@@ -1801,6 +1817,8 @@ class MptCallKitController {
       // } else {
       //   //show ios callkit
       // }
+
+      reportMediaDeviceStatus();
 
       Future.delayed(const Duration(milliseconds: 1500), () {
         setSpeaker(state: SpeakerStatusConstants.SPEAKER_PHONE);
@@ -1911,7 +1929,10 @@ class MptCallKitController {
             handleRecvCallMessage(data);
             break;
           case 'onVideoRawCallback':
-            print('Received onVideoRawCallback from native: $data');
+            onVideoRawCallback?.call(VideoRawData.fromJson(data));
+            break;
+          case 'onAudioRawCallback':
+            onAudioRawCallback?.call(AudioRawData.fromJson(data));
             break;
           case 'isRemoteVideoReceived':
             print('Received isRemoteVideoReceived from native: $data');
@@ -2234,6 +2255,16 @@ class MptCallKitController {
           }
           break;
 
+        case "agentId":
+          final int agentId = value as int;
+          print('Agent ID received: $agentId');
+          break;
+
+        case "tenantId":
+          final int tenantId = value as int;
+          print('Tenant ID received: $tenantId');
+          break;
+
         // case "isVideo":
         //   final bool isVideo = value as bool;
         //   print(
@@ -2308,7 +2339,7 @@ class MptCallKitController {
 
   Future<String?> getCurrentBgPath() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(SDKPrefsKeyConstants.BG_PATH) ?? null;
+    return prefs.getString(SDKPrefsKeyConstants.BG_PATH);
   }
 
   Future<String> getCurrentAppId() async {
@@ -2428,5 +2459,59 @@ class MptCallKitController {
       debugPrint("Failed in 'getCurrentCallSessionId' mothod: '${e.message}'.");
       return null;
     }
+  }
+
+  Future<void> reportMediaDeviceStatus({
+    Function(String?)? onError,
+  }) async {
+    DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+    final hasPermission = await channel.invokeMethod('requestPermission');
+
+    final currentTime = DateTime.now();
+    final timeStamp = currentTime.millisecondsSinceEpoch;
+    final date = DateFormat('dd/MM/yy HH:mm:ss').format(currentTime);
+    const title = "m_mediaDeviceStatus";
+
+    var data = {
+      "deviceType": "mobile",
+      "devicePermissions": hasPermission,
+      "extension": int.parse(lastesExtensionData?.username ?? "0"),
+      "extensionRole": isMakeCallByGuest ? "caller" : "callee",
+    };
+
+    if (Platform.isAndroid) {
+      final androidInfo = await deviceInfo.androidInfo;
+      data["platform"] = "Android";
+      data["androidVersion"] = androidInfo.version.release;
+      data["sdk"] = androidInfo.version.sdkInt;
+      data["manufacturer"] = androidInfo.manufacturer;
+      data["model"] = androidInfo.model;
+    } else if (Platform.isIOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      data["platform"] = "iOS";
+      data["iosVersion"] = iosInfo.systemVersion;
+      data["machine"] = iosInfo.utsname.machine;
+      data["name"] = iosInfo.name;
+    }
+
+    final payload = {
+      "values": (data),
+      "title": title,
+      "tabId": "",
+      "date": date,
+    };
+
+    print("reportMediaDeviceStatus - payload: ${jsonEncode(payload)}");
+
+    await MptCallKitControllerRepo().reportDynamicClientLog(
+      baseUrl: await getCurrentBaseUrl(),
+      tenantId: 4,
+      // agentId: int.parse(lastesExtensionData?.username ?? "0"),
+      agentId: currentUserInfo?["user"]["id"] ?? 0,
+      sessionId: await getCurrentCallSessionId() ?? "",
+      timeStamp: timeStamp,
+      payload: jsonEncode(payload),
+      onError: onError,
+    );
   }
 }

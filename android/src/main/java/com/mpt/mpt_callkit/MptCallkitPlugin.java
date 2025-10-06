@@ -87,6 +87,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private static String currentUsername; // Lưu username hiện tại
     private  String appId;
     private  String pushToken;
+    private  String agentId;
+    private  String tenantId;
     private static volatile boolean fileLoggingEnabled = false;
     private static FileOutputStream logFileStream;
     private static PrintStream originalOut;
@@ -844,6 +846,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 String sipServerPort = call.argument("sipServerPort") + "";
                 this.appId = call.argument("appId");
                 this.pushToken = call.argument("pushToken");
+                this.agentId = call.argument("agentId");
+                this.tenantId = call.argument("tenantId");
                 Boolean enableDebugLog = call.argument("enableDebugLog");
                 String recordLabel = call.argument("recordLabel");
                 Boolean enableBlurBackground = call.argument("enableBlurBackground");
@@ -1529,6 +1533,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     // Notice to remote
                     String[] sessionInfo = getCurrentSessionInfo();
                     sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "answered", true);
+                    sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "agentId", MptCallkitPlugin.shared.agentId);
+                    sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "tenantId", MptCallkitPlugin.shared.tenantId);
                 }
 
                 // re-invite to update video call

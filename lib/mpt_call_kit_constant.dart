@@ -130,3 +130,11 @@ class SDKPrefsKeyConstants {
   static const String ENABLE_BLUR_BACKGROUND = "enable_blur_background";
   static const String BG_PATH = "bg_path";
 }
+
+class CallBackDirectionMode {
+  static const DIRECTION_NONE = 0; //   NOT EXIST.
+  static const DIRECTION_SEND_RECV = 1; //   both received and sent.
+  static const DIRECTION_SEND = 2; //   Only the sent.
+  static const DIRECTION_RECV = 3; //   Only the received .
+  static const DIRECTION_INACTIVE = 4; //  INACTIVE.
+}

@@ -49,7 +49,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
 
   bool isOnCall = false;
   bool isNavigatedToCallPad = false;
-  String _tokenKey = 'fcm_token';
+  final String _tokenKey = 'fcm_token';
   bool isFirstTime = true;
 
   @override
@@ -690,6 +690,17 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                                           const Size(double.infinity, 36),
                                     ),
                                     child: const Text("Refresh Agent Status"),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  ElevatedButton(
+                                    onPressed: () async {},
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue,
+                                      foregroundColor: Colors.white,
+                                      minimumSize:
+                                          const Size(double.infinity, 36),
+                                    ),
+                                    child: const Text("Get Device Status"),
                                   ),
                                   const SizedBox(height: 10),
                                   ElevatedButton(

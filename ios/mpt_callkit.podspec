@@ -30,11 +30,11 @@ A new Flutter plugin project.
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
-    'OTHER_LDFLAGS' => '$(inherited) -ObjC'
+    'OTHER_LDFLAGS' => '$(inherited) -ObjC',
+    'FRAMEWORK_SEARCH_PATHS' => '$(inherited) $(PODS_TARGET_SRCROOT)/SDK'
   }
 
   s.preserve_paths = 'SDK/PortSIPVoIPSDK.xcframework/**/*'
-  s.xcconfig = { 'OTHER_LDFLAGS' => '-framework PortSIPVoIPSDK' }
   s.vendored_frameworks = 'SDK/PortSIPVoIPSDK.xcframework'
   s.prepare_command = <<-CMD
     mkdir -p SDK

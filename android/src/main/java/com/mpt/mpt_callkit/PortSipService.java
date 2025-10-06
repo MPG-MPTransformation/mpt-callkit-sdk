@@ -389,7 +389,7 @@ public class PortSipService extends Service
         // Validate and provide default values for ports
         if (TextUtils.isEmpty(serverPort)) {
             logWithTimestamp("SDK-Android: serverPort is null or empty, using default port 5060");
-            serverPort = "5060"; // Default SIP port
+            serverPort = "5069"; // Default SIP port
         }
         
         int sipServerPort = Integer.parseInt(serverPort);
@@ -416,10 +416,11 @@ public class PortSipService extends Service
 
         Engine.Instance().getEngine().removeUser();
         int result = Engine.Instance().getEngine().setUser(userName, displayName, authName, password,
-                userDomain, sipServer, sipServerPort, stunServer, stunServerPort, null, 5063);
+                userDomain, sipServer, sipServerPort, stunServer, stunServerPort, null, 5069);
 
         if (result != PortSipErrorcode.ECoreErrorNone) {
             showTipMessage("setUser failure ErrorCode = " + result);
+            logWithTimestamp("SDK-Android: Registration failed - ErrorCode = " + result);
             CallManager.Instance().resetAll();
             return;
         }
@@ -966,6 +967,10 @@ public class PortSipService extends Service
 
         if (session != null) {
 
+            if (existsAudio) {
+                Engine.Instance().getEngine().enableAudioStreamCallback(sessionId, true, PortSipEnumDefine.ENUM_DIRECTION_RECV);
+            }
+
             if (existsVideo) {
                 // for receive video stream
                 Engine.Instance().getEngine().enableVideoStreamCallback(sessionId,
@@ -975,15 +980,15 @@ public class PortSipService extends Service
                 MptCallkitPlugin.shared.startCameraSource();
             }
 
-            if (session.hasVideo && !existsVideo && videoCodecs.isEmpty()) {
-                // Gửi video từ camera
-                int sendVideoRes = Engine.Instance().getEngine().sendVideo(session.sessionID, true);
-                logWithTimestamp("SDK-Android: onInviteUpdated - re-sendVideo(): " + sendVideoRes);
+            // if (session.hasVideo && !existsVideo && videoCodecs.isEmpty()) {
+            //     // Gửi video từ camera
+            //     int sendVideoRes = Engine.Instance().getEngine().sendVideo(session.sessionID, true);
+            //     logWithTimestamp("SDK-Android: onInviteUpdated - re-sendVideo(): " + sendVideoRes);
 
-                // Cập nhật cuộc gọi để thêm video stream
-                int updateRes = Engine.Instance().getEngine().updateCall(session.sessionID, true, true);
-                logWithTimestamp("SDK-Android: onInviteUpdated - re-updateCall(): " + updateRes);
-            }
+            //     // Cập nhật cuộc gọi để thêm video stream
+            //     int updateRes = Engine.Instance().getEngine().updateCall(session.sessionID, true, true);
+            //     logWithTimestamp("SDK-Android: onInviteUpdated - re-updateCall(): " + updateRes);
+            // }
 
             session.state = Session.CALL_STATE_FLAG.CONNECTED;
             session.hasVideo = existsVideo;
@@ -1340,30 +1345,73 @@ public class PortSipService extends Service
     }
 
     @Override
-    public void onAudioRawCallback(long l, int i, byte[] bytes, int i1, int i2) {
-
+    public void onAudioRawCallback(long sessionId, int audioCallbackMode, byte[] data, int dataLength, int samplingFreqHz) {
+        // Post to main thread to avoid crash - don't call SDK API or Flutter methods
+        // directly in this callback
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    // Create arguments map to send to Flutter - match iOS structure
+                    java.util.Map<String, Object> arguments = new java.util.HashMap<>();
+                    arguments.put("audioCallbackMode", audioCallbackMode);
+                    arguments.put("dataLength", dataLength);
+                    arguments.put("samplingFreqHz", samplingFreqHz);
+                    
+                    MptCallkitPlugin.sendToFlutter("onAudioRawCallback", arguments);
+                    Engine.Instance().invokeMethod("onAudioRawCallback", arguments);
+                    logWithTimestamp("SDK-Android: Posted onAudioRawCallback to Flutter on main thread - " +
+                        "audioCallbackMode: " + audioCallbackMode +
+                        ", dataLength: " + dataLength +
+                        ", samplingFreqHz: " + samplingFreqHz);
+                } catch (Exception e) {
+                    logWithTimestamp(
+                            "SDK-Android: Error sending onAudioRawCallback to Flutter: " + e.getMessage());
+                }
+            }
+        });
     }
 
     @Override
     public void onVideoRawCallback(long sessionId,
-            int enum_direction,
+            int videoCallbackMode,
             int width,
             int height,
             byte[] data,
             int dataLength) {
 
+        // Post to main thread to avoid crash - don't call SDK API or Flutter methods
+        // directly in this callback
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    // Create arguments map to send to Flutter - match iOS structure
+                    java.util.Map<String, Object> arguments = new java.util.HashMap<>();
+                    arguments.put("videoCallbackMode", videoCallbackMode);
+                    arguments.put("width", width);
+                    arguments.put("height", height);
+                    arguments.put("dataLength", dataLength);
+                    
+                    MptCallkitPlugin.sendToFlutter("onVideoRawCallback", arguments);
+                    logWithTimestamp("SDK-Android: Posted onVideoRawCallback to Flutter on main thread - " +
+                        "videoCallbackMode: " + videoCallbackMode +
+                        ", width: " + width +
+                        ", height: " + height +
+                        ", dataLength: " + dataLength);
+                } catch (Exception e) {
+                    logWithTimestamp(
+                            "SDK-Android: Error sending onVideoRawCallback to Flutter: " + e.getMessage());
+                }
+            }
+        });
+
         if (!isRemoteVideoReceived) {
-             logWithTimestamp("SDK-Android: onVideoRawCallback - " +
-                "sessionId: " + sessionId +
-                "enum_direction: " + enum_direction +
-                "width: " + width +
-                "height: " + height +
-                "dataLength: " + dataLength);
+            logWithTimestamp("SDK-Android: onVideoRawCallback - first time received");
             isRemoteVideoReceived = true;
             Engine.Instance().getEngine().enableVideoStreamCallback(sessionId, PortSipEnumDefine.ENUM_DIRECTION_NONE);
 
-            // Post to main thread to avoid crash - don't call SDK API or Flutter methods
-            // directly in this callback
+            // Post to main thread to send isRemoteVideoReceived event
             new android.os.Handler(android.os.Looper.getMainLooper()).post(new Runnable() {
                 @Override
                 public void run() {
@@ -1377,7 +1425,7 @@ public class PortSipService extends Service
                 }
             });
         }
-    };
+    }
 
     @Override
     public void onNetworkChange(int netMobile) {

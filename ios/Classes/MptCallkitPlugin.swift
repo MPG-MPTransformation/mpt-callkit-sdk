@@ -268,6 +268,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     var currentRemoteName: String = ""
     var currentLocalizedCallerName: String = ""  // Lưu localizedCallerName
     var currentUUID: UUID? = UUID()
+    var currentTenantId: Int32 = 0
+    var currentAgentId: Int32 = 0
 
     var _enablePushNotification: Bool?
 
@@ -2084,8 +2086,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
     public func onAudioRawCallback(
-        _: Int, audioCallbackMode _: Int32, data _: UnsafeMutablePointer<UInt8>!,
-        dataLength _: Int32, samplingFreqHz _: Int32
+        _: Int, audioCallbackMode: Int32, data: UnsafeMutablePointer<UInt8>!,
+        dataLength: Int32, samplingFreqHz: Int32
     ) {
         /* !!! IMPORTANT !!!
         
@@ -2093,7 +2095,19 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
          other code which will spend long time, you should post a message to main thread(main window) or other thread,
          let the thread to call SDK API functions or other code.
          */
-//        print("onAudioRawCallback - dataLength \(dataLength)")
+        
+        // Chuyển buffer sang Data
+        let buffer = Data(bytes: data, count: Int(dataLength))
+
+        // Convert sang FlutterStandardTypedData
+        let typedData = FlutterStandardTypedData(bytes: buffer)
+
+        // Gửi về Flutter qua MethodChannel
+        methodChannel?.invokeMethod("onAudioRawCallback", arguments: [
+            "audioCallbackMode": audioCallbackMode,
+            "samplingFreqHz": samplingFreqHz,
+            "dataLength": dataLength
+        ])
     }
 
     // Optimized video processing queue
@@ -2117,6 +2131,21 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         //       print("Raw video data (first 16 bytes):", frameData.prefix(16).map { String(format: "%02x", $0) }.joined(separator: " "))
 
 //        print("Total data length: \(dataLength) bytes")
+
+        // Chuyển buffer sang Data
+        let buffer = Data(bytes: data, count: Int(dataLength))
+
+        // Convert sang FlutterStandardTypedData
+        let typedData = FlutterStandardTypedData(bytes: buffer)
+
+        // Gửi về Flutter qua MethodChannel (hoặc EventChannel)
+        methodChannel?.invokeMethod("onVideoRawCallback", arguments: [
+            "videoCallbackMode": videoCallbackMode,
+            "width": width,
+            "height": height,
+            "dataLength": dataLength
+        ])
+
         if self.isRemoteVideoReceived == false {
             print("Total data length: \(dataLength) bytes")
             methodChannel?.invokeMethod("isRemoteVideoReceived", arguments: true)
@@ -2395,6 +2424,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             sendCustomMessage(
                 callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
                 type: "call_state", payloadKey: "answered", payloadValue: true)
+            sendCustomMessage(
+                callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
+                type: "call_state", payloadKey: "agentId", payloadValue: self.currentAgentId)
+            sendCustomMessage(
+                callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
+                type: "call_state", payloadKey: "tenantId", payloadValue: self.currentTenantId)
 
             sendCallStateToFlutter(.ANSWERED)
         }
@@ -2579,7 +2614,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let userDomain = args["userDomain"] as? String,
                 let sipServer = args["sipServer"] as? String,
                 let enableDebugLog = args["enableDebugLog"] as? Bool,
-                let sipServerPort = args["sipServerPort"] as? Int32
+                let sipServerPort = args["sipServerPort"] as? Int32,
+                let agentId = args["agentId"] as? Int32,
+                let tenantId = args["tenantId"] as? Int32
             {
                 // video params with defaults
                 let resolution = (args["resolution"] as? String) ?? "720P"
@@ -2592,6 +2629,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
                 // Lưu username hiện tại
                 currentUsername = username
+                self.currentAgentId = agentId
+                self.currentTenantId = tenantId
                 MptCallkitPlugin.overlayText = recordLabel
                 MptCallkitPlugin.enableBlurBackground = enableBlur
                 
