@@ -49,6 +49,10 @@ class MainActivity : FlutterActivity() {
         MptCallkitPlugin.shared?.onPause()
         super.onPause()
     }
+    override fun onStop() {
+        MptCallkitPlugin.shared?.onStop()
+        super.onStop()
+    }
     override fun onResume() {
         MptCallkitPlugin.shared?.onResume(this)
         super.onResume()

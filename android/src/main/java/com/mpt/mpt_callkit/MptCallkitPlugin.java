@@ -458,7 +458,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     private void unregisterIfNeeded() {
         Session currentLine = CallManager.Instance().getCurrentSession();
-        if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.CONNECTED) {
+        System.out.println("SDK-Android: OnPause - sessionId=" + currentLine.sessionID + " state=" + currentLine.state);
+        if (currentLine != null && currentLine.sessionID > 0 && (currentLine.state == Session.CALL_STATE_FLAG.CONNECTED || currentLine.state == Session.CALL_STATE_FLAG.INCOMING)) {
             // IN CALl
             System.out.println("SDK-Android: OnPause - In call, cannot unregister " + currentLine.state);
             return;
@@ -514,9 +515,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     }
     public void onPause()   {
         System.out.println("SDK-Android: MptCallkitPlugin - onPause called");
-        stopCameraSource();
-        unregisterIfNeeded();
-        stopCallCheckJob();
     }
 
     public void onCreate()   {
@@ -529,6 +527,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     public void onStop()   {
         System.out.println("SDK-Android: MptCallkitPlugin - onStop called");
+        stopCameraSource();
+        unregisterIfNeeded();
+        stopCallCheckJob();
     }
 
     public void onDestroy()   {
