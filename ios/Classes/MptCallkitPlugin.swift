@@ -7,11 +7,6 @@ import Darwin
 import AVFoundation
 import CoreVideo
 import CoreImage
-import MLImage
-import MLKitSegmentationSelfie
-import MLKitSegmentationCommon
-import MLKitVision
-import MLKitCommon
 import VideoToolbox
 import Accelerate
 import Accelerate.vImage
@@ -275,7 +270,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
     var mUseFrontCamera: Bool = true
 
-    private var _segmenter: Segmenter? = nil
     private var frameCounter: Int = 0
     private static var enableBlurBackground: Bool = false
     
@@ -400,10 +394,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         setupNotificationHandling()
         // setupViewLifecycleObservers() // REMOVED - Views manage themselves
 
-        let options = SelfieSegmenterOptions()
-        options.segmenterMode = .stream
-        // options.shouldEnableRawSizeMask = true
-        self._segmenter = Segmenter.segmenter(options: options)
         // Initialize resolution system
         updateRequestedResolution()
         
@@ -835,7 +825,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
     deinit {
-        self._segmenter = nil
         NotificationCenter.default.removeObserver(self)
         NSLog("MptCallkitPlugin - deinit")
     }
@@ -2587,21 +2576,20 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let frameRate = (args["frameRate"] as? Int) ?? 30
                 let recordLabel = (args["recordLabel"] as? String) ?? "Customer"
                 let autoLogin = (args["autoLogin"] as? Bool) ?? false
-                let enableBlur = (args["enableBlurBackground"] as? Bool) ?? false
-                let backgroundPath = (args["bgPath"] as? String) ?? nil
+//                let enableBlur = (args["enableBlurBackground"] as? Bool) ?? false
+//                let backgroundPath = (args["bgPath"] as? String) ?? nil
 
                 // Lưu username hiện tại
                 currentUsername = username
                 MptCallkitPlugin.overlayText = recordLabel
-                MptCallkitPlugin.enableBlurBackground = enableBlur
                 
-                if (backgroundPath != nil) {
-                    // Set background path and load background image
-                    bgPath = backgroundPath
-                    loadBackgroundImage()
-                }
+//                if (backgroundPath != nil) {
+//                    // Set background path and load background image
+//                    bgPath = backgroundPath
+//                    loadBackgroundImage()
+//                }
                 
-                print("onMethodCall MptCallkitPlugin.overlayText: \(MptCallkitPlugin.overlayText), MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground), bgPath: \(String(describing: bgPath))")
+                print("onMethodCall MptCallkitPlugin.overlayText: \(MptCallkitPlugin.overlayText)")
 
                 // Lưu localizedCallerName vào UserDefaults và biến hiện tại
                 currentLocalizedCallerName = localizedCallerName
@@ -3467,37 +3455,11 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
       return
     }
 
-    if !MptCallkitPlugin.enableBlurBackground {
         DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
             self?.updatePreviewOverlayViewWithImageBuffer(imageBuffer)
         }
-      return
-    }
+
     
-    frameCount += 1
-    
-    // Skip processing if previous frame is still being processed
-    guard !isProcessingFrame else {
-      return
-    }
-    
-    // Apply frame skip interval for FPS control
-    if frameSkipInterval > 1 && frameCount % frameSkipInterval != 0 {
-      return
-    }
-    
-    let visionImage = VisionImage(buffer: sampleBuffer)
-    let orientation = UIUtilities.imageOrientation(
-      fromDevicePosition: mUseFrontCamera ? .front : .back
-    )
-    visionImage.orientation = orientation
-    
-    // Set processing flag and use async processing
-    isProcessingFrame = true
-    // Use dedicated video processing queue to avoid priority inversion
-    videoProcessingQueue.async { [weak self] in
-      self?.detectSegmentationMask(in: visionImage, sampleBuffer: sampleBuffer)
-    }
   }
 
   /// Loads the background image from the specified path into bgBitmap.
@@ -3568,17 +3530,12 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
   
   /// Applies background image with segmentation mask to an image buffer
   private func applyBackgroundImageWithMask(
-    mask: SegmentationMask,
     to imageBuffer: CVImageBuffer,
     backgroundImage: UIImage?
   ) {
     guard let backgroundImage = backgroundImage else {
      print("No background image provided, falling back to blur")
       // Fallback to blur if no background image
-      UIUtilities.applySegmentationMask(
-        mask: mask, to: imageBuffer,
-        backgroundColor: UIColor.lightGray.withAlphaComponent(0.95),
-        foregroundColor: nil)
       return
     }
       
@@ -3599,134 +3556,9 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     // Convert background image to image buffer
     guard let backgroundImageBuffer = UIUtilities.createImageBuffer(from: scaledBackgroundImage) else {
       print("Failed to create image buffer from background image")
-      // Fallback to blur
-      UIUtilities.applySegmentationMask(
-        mask: mask, to: imageBuffer,
-        backgroundColor: UIColor.lightGray.withAlphaComponent(0.95),
-        foregroundColor: nil)
       return
     }
     
-    // Apply the mask to composite person from camera image onto background
-    applyMaskToCompositeImages(
-      mask: mask,
-      cameraImageBuffer: imageBuffer,
-      backgroundImageBuffer: backgroundImageBuffer
-    )
-  }
-  
-  /// Applies mask to composite person from camera image onto background image
-  private func applyMaskToCompositeImages(
-    mask: SegmentationMask,
-    cameraImageBuffer: CVImageBuffer,
-    backgroundImageBuffer: CVImageBuffer
-  ) {
-    let width = CVPixelBufferGetWidth(mask.buffer)
-    let height = CVPixelBufferGetHeight(mask.buffer)
-    
-    assert(CVPixelBufferGetWidth(cameraImageBuffer) == width, "Width must match")
-    assert(CVPixelBufferGetHeight(cameraImageBuffer) == height, "Height must match")
-    assert(CVPixelBufferGetWidth(backgroundImageBuffer) == width, "Background width must match")
-    assert(CVPixelBufferGetHeight(backgroundImageBuffer) == height, "Background height must match")
-    
-    let writeFlags = CVPixelBufferLockFlags(rawValue: 0)
-    CVPixelBufferLockBaseAddress(cameraImageBuffer, writeFlags)
-    CVPixelBufferLockBaseAddress(backgroundImageBuffer, CVPixelBufferLockFlags.readOnly)
-    CVPixelBufferLockBaseAddress(mask.buffer, CVPixelBufferLockFlags.readOnly)
-    
-    let maskBytesPerRow = CVPixelBufferGetBytesPerRow(mask.buffer)
-    var maskAddress = CVPixelBufferGetBaseAddress(mask.buffer)!.bindMemory(
-      to: Float32.self, capacity: maskBytesPerRow * height)
-    
-    let cameraBytesPerRow = CVPixelBufferGetBytesPerRow(cameraImageBuffer)
-    var cameraAddress = CVPixelBufferGetBaseAddress(cameraImageBuffer)!.bindMemory(
-      to: UInt8.self, capacity: cameraBytesPerRow * height)
-    
-    let backgroundBytesPerRow = CVPixelBufferGetBytesPerRow(backgroundImageBuffer)
-    var backgroundAddress = CVPixelBufferGetBaseAddress(backgroundImageBuffer)!.bindMemory(
-      to: UInt8.self, capacity: backgroundBytesPerRow * height)
-    
-    for _ in 0...(height - 1) {
-      for col in 0...(width - 1) {
-        let pixelOffset = col * 4 // BGRA format
-        
-        let maskValue: CGFloat = CGFloat(maskAddress[col])
-        let personRegionRatio = maskValue
-        let backgroundRegionRatio: CGFloat = 1.0 - maskValue
-        
-        // Get camera pixel values
-        let cameraRed = CGFloat(cameraAddress[pixelOffset + 2]) / 255.0
-        let cameraGreen = CGFloat(cameraAddress[pixelOffset + 1]) / 255.0
-        let cameraBlue = CGFloat(cameraAddress[pixelOffset]) / 255.0
-        let cameraAlpha = CGFloat(cameraAddress[pixelOffset + 3]) / 255.0
-        
-        // Get background pixel values
-        let backgroundRed = CGFloat(backgroundAddress[pixelOffset + 2]) / 255.0
-        let backgroundGreen = CGFloat(backgroundAddress[pixelOffset + 1]) / 255.0
-        let backgroundBlue = CGFloat(backgroundAddress[pixelOffset]) / 255.0
-        let backgroundAlpha = CGFloat(backgroundAddress[pixelOffset + 3]) / 255.0
-        
-        // Composite the pixels
-        let compositeRed = cameraRed * personRegionRatio + backgroundRed * backgroundRegionRatio
-        let compositeGreen = cameraGreen * personRegionRatio + backgroundGreen * backgroundRegionRatio
-        let compositeBlue = cameraBlue * personRegionRatio + backgroundBlue * backgroundRegionRatio
-        let compositeAlpha = cameraAlpha * personRegionRatio + backgroundAlpha * backgroundRegionRatio
-        
-        // Write back to camera image buffer
-        cameraAddress[pixelOffset] = UInt8(compositeBlue * 255.0)
-        cameraAddress[pixelOffset + 1] = UInt8(compositeGreen * 255.0)
-        cameraAddress[pixelOffset + 2] = UInt8(compositeRed * 255.0)
-        cameraAddress[pixelOffset + 3] = UInt8(compositeAlpha * 255.0)
-      }
-      
-      cameraAddress += cameraBytesPerRow / MemoryLayout<UInt8>.size
-      backgroundAddress += backgroundBytesPerRow / MemoryLayout<UInt8>.size
-      maskAddress += maskBytesPerRow / MemoryLayout<Float32>.size
-    }
-    
-    CVPixelBufferUnlockBaseAddress(cameraImageBuffer, writeFlags)
-    CVPixelBufferUnlockBaseAddress(backgroundImageBuffer, CVPixelBufferLockFlags.readOnly)
-    CVPixelBufferUnlockBaseAddress(mask.buffer, CVPixelBufferLockFlags.readOnly)
-  }
-
-  private func detectSegmentationMask(in image: VisionImage, sampleBuffer: CMSampleBuffer) {
-    // Ensure processing flag is reset even if function exits early
-    defer {
-      DispatchQueue.main.async { [weak self] in
-        self?.isProcessingFrame = false
-      }
-    }
-    
-    guard let segmenter = self._segmenter else {
-      return
-    }
-    
-    // Perform segmentation on background thread
-    var mask: SegmentationMask? = nil
-    do {
-      mask = try segmenter.results(in: image)
-    } catch let error {
-      print("Failed to perform segmentation with error: \(error.localizedDescription).")
-      return
-    }
-    
-    guard let mask = mask else {
-      print("Segmenter returned empty mask.")
-      return
-    }
-    
-    guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-      print("Failed to get image buffer from sample buffer.")
-      return
-    }
-
-    // Apply background image with mask instead of blur
-    applyBackgroundImageWithMask(
-      mask: mask, 
-      to: imageBuffer,
-      backgroundImage: bgBitmap)
-    
-    // Only update UI on main thread with appropriate QoS
     DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
       self?.updatePreviewOverlayViewWithImageBuffer(imageBuffer)
     }
