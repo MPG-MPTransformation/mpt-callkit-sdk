@@ -49,7 +49,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
 
   bool isOnCall = false;
   bool isNavigatedToCallPad = false;
-  String _tokenKey = 'fcm_token';
+  final String _tokenKey = 'fcm_token';
   bool isFirstTime = true;
 
   @override
@@ -165,9 +165,6 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       enableDebugLog: true,
       deviceInfo: "deviceInfo",
       recordLabel: "",
-      enableBlurBackground: true,
-      bgPath:
-          "https://i0.wp.com/picjumbo.com/wp-content/uploads/orange-slices-summer-backgrounds-free-image.jpeg?w=2210&quality=70",
     );
 
     await MptCallKitController().initDataWhenLoginSuccess(

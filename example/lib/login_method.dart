@@ -41,7 +41,6 @@ class _LoginMethodState extends State<LoginMethod> {
     //   enableDebugLog: true,
     //   deviceInfo: "deviceInfo",
     //   recordLabel: "Khách hàng",
-    //   enableBlurBackground: false,
     // );
   }
 

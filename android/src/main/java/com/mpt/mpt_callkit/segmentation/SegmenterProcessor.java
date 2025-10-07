@@ -78,7 +78,7 @@ public class SegmenterProcessor extends VisionProcessorBase<SegmentationMask> {
     
     // Overlay and background settings
     private String text;
-    private boolean enableBlurBackground;
+    private boolean enableBlurBackground = false;
     private String bgPath;
     private Bitmap bgBitmap;
     

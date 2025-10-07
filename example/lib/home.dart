@@ -63,8 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
         enableDebugLog: true,
         deviceInfo: "deviceInfo",
         recordLabel: "",
-        enableBlurBackground: true,
-        bgPath: "https://i0.wp.com/picjumbo.com/wp-content/uploads/orange-slices-summer-backgrounds-free-image.jpeg?w=2210&quality=70",
       );
 
       // var result = await MptCallKitController().loginRequest(
@@ -119,7 +117,6 @@ class _HomeScreenState extends State<HomeScreen> {
             enableDebugLog: true,
             deviceInfo: "deviceInfo",
             recordLabel: "",
-            enableBlurBackground: false,
           );
           await MptCallKitController().makeCallByGuest(
               context: context,
