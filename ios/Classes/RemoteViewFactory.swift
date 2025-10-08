@@ -52,6 +52,8 @@ class RemoteView: NSObject, FlutterPlatformView {
        remoteViewController: RemoteViewController
    ) {
        _view = UIView()
+       _view.backgroundColor = .black // 🔥 FIX: Background đen cho letterbox/pillarbox
+       _view.clipsToBounds = true // 🔥 FIX: Cắt phần thừa để không bị tràn ra ngoài
        self.remoteViewController = remoteViewController
        super.init()
        createNativeView(view: _view, arguments: args, remoteViewController: remoteViewController)
@@ -112,12 +114,16 @@ class RemoteView: NSObject, FlutterPlatformView {
       
        let view = flutterView.view
        view?.translatesAutoresizingMaskIntoConstraints = false
+       view?.clipsToBounds = true // 🔥 FIX: Cắt phần thừa để không bị tràn ra ngoài
 
 
        topController?.addChild(flutterView)
        _view.addSubview(view!)
 
 
+       // 🔥 FIX: Respect Flutter widget size constraints
+       // Instead of forcing full size, let the view controller size itself
+       // The RemoteViewController will handle its own sizing within the Flutter widget bounds
        NSLayoutConstraint.activate([
            view!.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
            view!.trailingAnchor.constraint(equalTo: _view.trailingAnchor),

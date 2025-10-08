@@ -14,7 +14,9 @@
         <ImageView
             android:id="@+id/local_image_view"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent"
+            android:scaleType="fitCenter"
+            android:adjustViewBounds="true" />
 
         <!-- <com.portsip.PortSIPVideoRenderer
             android:id="@+id/local_video_view"
