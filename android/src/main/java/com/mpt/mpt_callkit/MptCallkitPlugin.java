@@ -13,6 +13,7 @@ import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.graphics.Bitmap;
 import com.mpt.mpt_callkit.segmentation.VisionImageProcessorCallback;
+import com.mpt.mpt_callkit.segmentation.Camera2Source;
 import com.mpt.mpt_callkit.segmentation.CameraSource;
 import com.mpt.mpt_callkit.segmentation.SegmenterProcessor;
 import org.json.JSONArray;
@@ -20,6 +21,7 @@ import org.json.JSONObject;
 import org.json.JSONException;
 import android.os.Handler;
 import android.os.Looper;
+import android.hardware.camera2.CameraAccessException;
 
 import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
@@ -141,7 +143,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private static final int CALL_CHECK_TIMEOUT = 10000; // Stop after 8 seconds
     private long callCheckStartTime = 0;
 
-    private CameraSource cameraSource = null;
+    private Object cameraSource = null; // Can be Camera2Source or CameraSource
     private boolean isStartCameraSource = false;
     private static String recordLabel = "Agent";
     private static boolean enableBlurBackground = false;
@@ -323,10 +325,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             byte[] yuvData = bitmapToYUVData(bitmap);
             int width = bitmap.getWidth();
             int height = bitmap.getHeight();
-
-
             int result = Engine.Instance().getEngine().sendVideoStreamToRemote(currentLine.sessionID, yuvData, yuvData.length, width, height);
-            // System.out.println("SDK-Android: MptCallkitPlugin - sendVideoStreamToRemote result: " + result + ", width: " + width + ", height: " + height);
         }
     }
 
@@ -338,11 +337,23 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private void createCameraSource() {
         // If there's no existing cameraSource, create one.
         if (cameraSource == null) {
-            cameraSource = new CameraSource(activity, Engine.Instance().mUseFrontCamera);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                // Use Camera2 API for better resource management on API 21+
+                cameraSource = new Camera2Source(activity, Engine.Instance().mUseFrontCamera);
+                System.out.println("SDK-Android: Using Camera2 API");
+            } else {
+                // Fallback to Camera1 API for older devices
+                cameraSource = new CameraSource(activity, Engine.Instance().mUseFrontCamera);
+                System.out.println("SDK-Android: Using Camera1 API (fallback)");
+            }
         }
         if (segmenterProcessor == null) {
             segmenterProcessor = new SegmenterProcessor(activity, this, MptCallkitPlugin.recordLabel, MptCallkitPlugin.enableBlurBackground, MptCallkitPlugin.bgPath);
-            cameraSource.setMachineLearningFrameProcessor(segmenterProcessor);
+            if (cameraSource instanceof Camera2Source) {
+                ((Camera2Source) cameraSource).setMachineLearningFrameProcessor(segmenterProcessor);
+            } else if (cameraSource instanceof CameraSource) {
+                ((CameraSource) cameraSource).setMachineLearningFrameProcessor(segmenterProcessor);
+            }
         }
     }
 
@@ -351,17 +362,45 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         if (cameraSource != null && !isStartCameraSource) {
             try {
                 System.out.println("SDK-Android: startCameraSource");
-                cameraSource.start();
+                if (cameraSource instanceof Camera2Source) {
+                    ((Camera2Source) cameraSource).start();
+                } else if (cameraSource instanceof CameraSource) {
+                    ((CameraSource) cameraSource).start();
+                }
                 isStartCameraSource = true;
-            } catch (IOException e) {
+            } catch (Exception e) {
                 System.out.println("SDK-Android: startCameraSource error: " + e.getMessage());
+                // Retry after a delay for camera conflicts
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    retryCameraStart();
+                }, 1000);
+            }
+        }
+    }
+    
+    private void retryCameraStart() {
+        if (cameraSource != null && !isStartCameraSource) {
+            try {
+                System.out.println("SDK-Android: retryCameraStart");
+                if (cameraSource instanceof Camera2Source) {
+                    ((Camera2Source) cameraSource).start();
+                } else if (cameraSource instanceof CameraSource) {
+                    ((CameraSource) cameraSource).start();
+                }
+                isStartCameraSource = true;
+            } catch (Exception e) {
+                System.out.println("SDK-Android: retryCameraStart failed: " + e.getMessage());
             }
         }
     }
 
     public void stopCameraSource() {
         if (cameraSource != null && isStartCameraSource) {
-            cameraSource.stop();
+            if (cameraSource instanceof Camera2Source) {
+                ((Camera2Source) cameraSource).stop();
+            } else if (cameraSource instanceof CameraSource) {
+                ((CameraSource) cameraSource).stop();
+            }
             isStartCameraSource = false;
             cameraSource = null;
             if (segmenterProcessor != null) {
@@ -373,7 +412,11 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     public void releaseCameraSource() {
         if (cameraSource != null) {
-            cameraSource.release();
+            if (cameraSource instanceof Camera2Source) {
+                ((Camera2Source) cameraSource).release();
+            } else if (cameraSource instanceof CameraSource) {
+                ((CameraSource) cameraSource).release();
+            }
             cameraSource = null;
             segmenterProcessor = null;
             isStartCameraSource = false;
@@ -1532,7 +1575,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 }
 
                 // re-invite to update video call
-                reinviteSession(xSessionId);
+                //reinviteSession(xSessionId);
             } else {
                 System.out.println("SDK-Android: Answer call failed with error code: " + result);
             }
