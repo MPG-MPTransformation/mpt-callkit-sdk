@@ -2102,12 +2102,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // Convert sang FlutterStandardTypedData
         let typedData = FlutterStandardTypedData(bytes: buffer)
 
-        // Gửi về Flutter qua MethodChannel
-        methodChannel?.invokeMethod("onAudioRawCallback", arguments: [
-            "audioCallbackMode": audioCallbackMode,
-            "samplingFreqHz": samplingFreqHz,
-            "dataLength": dataLength
-        ])
+//        // Gửi về Flutter qua MethodChannel
+//        methodChannel?.invokeMethod("onAudioRawCallback", arguments: [
+//            "audioCallbackMode": audioCallbackMode,
+//            "samplingFreqHz": samplingFreqHz,
+//            "dataLength": dataLength
+//        ])
     }
 
     // Optimized video processing queue
@@ -2138,13 +2138,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // Convert sang FlutterStandardTypedData
         let typedData = FlutterStandardTypedData(bytes: buffer)
 
-        // Gửi về Flutter qua MethodChannel (hoặc EventChannel)
-        methodChannel?.invokeMethod("onVideoRawCallback", arguments: [
-            "videoCallbackMode": videoCallbackMode,
-            "width": width,
-            "height": height,
-            "dataLength": dataLength
-        ])
+//        // Gửi về Flutter qua MethodChannel (hoặc EventChannel)
+//        methodChannel?.invokeMethod("onVideoRawCallback", arguments: [
+//            "videoCallbackMode": videoCallbackMode,
+//            "width": width,
+//            "height": height,
+//            "dataLength": dataLength
+//        ])
 
         if self.isRemoteVideoReceived == false {
             print("Total data length: \(dataLength) bytes")
@@ -2424,12 +2424,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             sendCustomMessage(
                 callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
                 type: "call_state", payloadKey: "answered", payloadValue: true)
+            
+            // Send agentInfo as a single object to match Android pattern
+            let agentInfo: [String: Any] = [
+                "agentId": self.currentAgentId,
+                "tenantId": self.currentTenantId
+            ]
             sendCustomMessage(
                 callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
-                type: "call_state", payloadKey: "agentId", payloadValue: self.currentAgentId)
-            sendCustomMessage(
-                callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
-                type: "call_state", payloadKey: "tenantId", payloadValue: self.currentTenantId)
+                type: "call_state", payloadKey: "agentInfo", payloadValue: agentInfo)
 
             sendCallStateToFlutter(.ANSWERED)
         }
@@ -2614,9 +2617,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let userDomain = args["userDomain"] as? String,
                 let sipServer = args["sipServer"] as? String,
                 let enableDebugLog = args["enableDebugLog"] as? Bool,
-                let sipServerPort = args["sipServerPort"] as? Int32,
-                let agentId = args["agentId"] as? Int32,
-                let tenantId = args["tenantId"] as? Int32
+                let sipServerPort = args["sipServerPort"] as? Int32
             {
                 // video params with defaults
                 let resolution = (args["resolution"] as? String) ?? "720P"
@@ -2626,6 +2627,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let autoLogin = (args["autoLogin"] as? Bool) ?? false
                 let enableBlur = (args["enableBlurBackground"] as? Bool) ?? false
                 let backgroundPath = (args["bgPath"] as? String) ?? nil
+                let agentId = (args["agentId"] as? Int32) ?? -1
+                let tenantId = (args["tenantId"] as? Int32) ?? -1
 
                 // Lưu username hiện tại
                 currentUsername = username

@@ -87,8 +87,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private static String currentUsername; // Lưu username hiện tại
     private  String appId;
     private  String pushToken;
-    private  String agentId;
-    private  String tenantId;
+    private static int agentId;
+    private static int tenantId;
     private static volatile boolean fileLoggingEnabled = false;
     private static FileOutputStream logFileStream;
     private static PrintStream originalOut;
@@ -439,8 +439,15 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             Boolean enableBlurBackground = preferences.getBoolean("enableBlurBackground", false);
             String bgPath = preferences.getString("bgPath", null);
             Boolean autoLogin = preferences.getBoolean("autoLogin", false);
+            int agentId = preferences.getInt("agentId", -1);
+            int tenantId = preferences.getInt("tenantId", -1);
 
             if (autoLogin && username != null && password != null && userDomain != null && sipServer != null && sipServerPort != null) {
+                // Restore agentId và tenantId
+                this.agentId = agentId;
+                this.tenantId = tenantId;
+                System.out.println("SDK-Android: loginIfNeeded - Restored agentId: " + this.agentId + ", tenantId: " + this.tenantId);
+                
                 MptCallkitPlugin.recordLabel = recordLabel;
                 MptCallkitPlugin.enableBlurBackground = enableBlurBackground;
                 MptCallkitPlugin.bgPath = bgPath;
@@ -848,6 +855,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 this.pushToken = call.argument("pushToken");
                 this.agentId = call.argument("agentId");
                 this.tenantId = call.argument("tenantId");
+                System.out.println("SDK-Android: Login - agentId: " + this.agentId + ", tenantId: " + this.tenantId);
                 Boolean enableDebugLog = call.argument("enableDebugLog");
                 String recordLabel = call.argument("recordLabel");
                 Boolean enableBlurBackground = call.argument("enableBlurBackground");
@@ -935,7 +943,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     editor.putBoolean("autoLogin", autoLogin);
                     editor.putBoolean("enableBlurBackground", MptCallkitPlugin.enableBlurBackground);
                     editor.putString("bgPath", MptCallkitPlugin.bgPath);
+                    editor.putInt("agentId", this.agentId);
+                    editor.putInt("tenantId", this.tenantId);
                     editor.commit();
+                    System.out.println("SDK-Android: Login - Saved to SharedPreferences - agentId: " + this.agentId + ", tenantId: " + this.tenantId);
                 }
 
                 result.success(true);
@@ -1529,13 +1540,19 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 currentLine.state = Session.CALL_STATE_FLAG.CONNECTED;
                 Engine.Instance().getEngine().joinToConference(currentLine.sessionID);
 
+                String[] sessionInfo = getCurrentSessionInfo();
+                
                 if (!isAutoAnswer) {
                     // Notice to remote
-                    String[] sessionInfo = getCurrentSessionInfo();
                     sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "answered", true);
-                    sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "agentId", MptCallkitPlugin.shared.agentId);
-                    sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "tenantId", MptCallkitPlugin.shared.tenantId);
                 }
+
+                System.out.println("SDK-Android: answerCall - Sending agentId: " + agentId + ", tenantId: " + tenantId);
+                java.util.Map<String, Object> agentInfo = new java.util.HashMap<>();
+                agentInfo.put("agentId", agentId);
+                agentInfo.put("tenantId", tenantId);
+                sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "agentInfo", agentInfo);
+//                sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "tenantId", tenantId);
 
                 // re-invite to update video call
                 reinviteSession(xSessionId);
@@ -1728,7 +1745,14 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             try {
                 // Tạo payload object
                 JSONObject payload = new JSONObject();
-                payload.put(payloadKey, payloadValue);
+                
+                // Convert Map to JSONObject if needed
+                if (payloadValue instanceof java.util.Map) {
+                    JSONObject nestedObject = new JSONObject((java.util.Map) payloadValue);
+                    payload.put(payloadKey, nestedObject);
+                } else {
+                    payload.put(payloadKey, payloadValue);
+                }
 
                 // Tạo message object
                 JSONObject message = new JSONObject();
@@ -1738,6 +1762,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 message.put("payload", payload);
 
                 String msg = message.toString();
+                System.out.println("SDK-Android: Sending custom message with payloadKey: " + payloadKey + ", payloadValue: " + payloadValue);
                 System.out.println("SDK-Android: Sending custom message: " + msg);
 
                 long resSendMsg = portSipSdk.sendMessage(currentLine.sessionID, "text", "plain",

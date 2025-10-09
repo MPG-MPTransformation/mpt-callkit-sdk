@@ -1358,12 +1358,12 @@ public class PortSipService extends Service
                     arguments.put("dataLength", dataLength);
                     arguments.put("samplingFreqHz", samplingFreqHz);
                     
-                    MptCallkitPlugin.sendToFlutter("onAudioRawCallback", arguments);
-                    Engine.Instance().invokeMethod("onAudioRawCallback", arguments);
-                    logWithTimestamp("SDK-Android: Posted onAudioRawCallback to Flutter on main thread - " +
-                        "audioCallbackMode: " + audioCallbackMode +
-                        ", dataLength: " + dataLength +
-                        ", samplingFreqHz: " + samplingFreqHz);
+                    // MptCallkitPlugin.sendToFlutter("onAudioRawCallback", arguments);
+                    // Engine.Instance().invokeMethod("onAudioRawCallback", arguments);
+                    // logWithTimestamp("SDK-Android: Posted onAudioRawCallback to Flutter on main thread - " +
+                    //     "audioCallbackMode: " + audioCallbackMode +
+                    //     ", dataLength: " + dataLength +
+                    //     ", samplingFreqHz: " + samplingFreqHz);
                 } catch (Exception e) {
                     logWithTimestamp(
                             "SDK-Android: Error sending onAudioRawCallback to Flutter: " + e.getMessage());
@@ -1393,12 +1393,12 @@ public class PortSipService extends Service
                     arguments.put("height", height);
                     arguments.put("dataLength", dataLength);
                     
-                    MptCallkitPlugin.sendToFlutter("onVideoRawCallback", arguments);
-                    logWithTimestamp("SDK-Android: Posted onVideoRawCallback to Flutter on main thread - " +
-                        "videoCallbackMode: " + videoCallbackMode +
-                        ", width: " + width +
-                        ", height: " + height +
-                        ", dataLength: " + dataLength);
+                    // MptCallkitPlugin.sendToFlutter("onVideoRawCallback", arguments);
+                    // logWithTimestamp("SDK-Android: Posted onVideoRawCallback to Flutter on main thread - " +
+                    //     "videoCallbackMode: " + videoCallbackMode +
+                    //     ", width: " + width +
+                    //     ", height: " + height +
+                    //     ", dataLength: " + dataLength);
                 } catch (Exception e) {
                     logWithTimestamp(
                             "SDK-Android: Error sending onVideoRawCallback to Flutter: " + e.getMessage());
