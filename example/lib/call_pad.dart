@@ -492,7 +492,7 @@ class _CallPadState extends State<CallPad> {
                     const SizedBox(height: 16),
                     const Text("Video"),
                     const SizedBox(
-                      height: 400,
+                      height: 1600 / 3,
                       width: 300,
                       child: RemoteView(),
                     ),

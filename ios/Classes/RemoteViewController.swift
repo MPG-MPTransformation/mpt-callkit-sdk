@@ -8,6 +8,7 @@ class RemoteViewController: UIViewController {
    var portSIPSDK: PortSIPSDK!
    var isVideoInitialized: Bool = false
    var isStartVideo: Bool = false
+   var contentModeTimer: Timer?
   
    override func viewDidLoad() {
        super.viewDidLoad()
@@ -224,11 +225,25 @@ class RemoteViewController: UIViewController {
        viewRemoteVideo = PortSIPVideoRenderView()
        viewRemoteVideo.translatesAutoresizingMaskIntoConstraints = false
        viewRemoteVideo.backgroundColor = .black
-//       viewRemoteVideo.contentMode = .scaleToFill // Sử dụng scaleAspectFill để lấp đầy view
-//       viewRemoteVideo.clipsToBounds = true // Cắt phần thừa để không bị tràn ra ngoài
+       viewRemoteVideo.contentMode = .scaleAspectFit // 🔥 FIX: Hiển thị toàn bộ video không bị cắt
+       viewRemoteVideo.clipsToBounds = true // Giữ clipsToBounds để không tràn ra ngoài
+       
+       // 🔥 DEBUG: Log video view properties
+       print("RemoteViewController - Video view frame: \(viewRemoteVideo.frame)")
+       print("RemoteViewController - Video view bounds: \(viewRemoteVideo.bounds)")
+       print("RemoteViewController - Video view contentMode: \(viewRemoteVideo.contentMode.rawValue)")
+       
+       // 🔥 FIX: Override contentMode in layoutSubviews
+       DispatchQueue.main.async { [weak self] in
+           guard let self = self else { return }
+           self.viewRemoteVideo.contentMode = .scaleAspectFit
+           self.viewRemoteVideo.setNeedsLayout()
+           self.viewRemoteVideo.layoutIfNeeded()
+       }
        self.view.addSubview(viewRemoteVideo)
       
-       // Đặt constraints để lấp đầy toàn bộ màn hình (không dùng safeArea)
+       // Đặt constraints để lấp đầy toàn bộ view controller (không dùng safeArea)
+       // Nhưng tôn trọng kích thước của Flutter widget
        NSLayoutConstraint.activate([
            viewRemoteVideo.topAnchor.constraint(equalTo: view.topAnchor),
            viewRemoteVideo.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -236,8 +251,9 @@ class RemoteViewController: UIViewController {
            viewRemoteVideo.trailingAnchor.constraint(equalTo: view.trailingAnchor)
        ])
       
-       // Đặt màu nền rõ ràng để dễ debug
+       // Đặt màu nền đen cho letterbox/pillarbox areas
        self.view.backgroundColor = .black
+       self.view.clipsToBounds = true // 🔥 FIX: Cắt phần thừa để không bị tràn ra ngoài
    }
   
    func initializeRemoteVideo() {
@@ -252,6 +268,13 @@ class RemoteViewController: UIViewController {
            viewRemoteVideo.initVideoRender()
            isVideoInitialized = true
           
+           // 🔥 FIX: Force set contentMode after video initialization
+           DispatchQueue.main.async { [weak self] in
+               guard let self = self else { return }
+               self.viewRemoteVideo.contentMode = .scaleAspectFit
+               print("RemoteViewController - Forced contentMode to scaleAspectFit")
+           }
+          
            // Đảm bảo view được hiển thị
            viewRemoteVideo.isHidden = false
            self.view.isHidden = false
@@ -260,6 +283,25 @@ class RemoteViewController: UIViewController {
        }
        
        self.updateVideoVisibility(isVisible: true)
+       
+       // 🔥 FIX: Start timer to continuously force contentMode
+       startContentModeTimer()
+   }
+   
+   private func startContentModeTimer() {
+       contentModeTimer?.invalidate()
+       contentModeTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+           guard let self = self, let videoView = self.viewRemoteVideo else { return }
+           if videoView.contentMode != .scaleAspectFit {
+               videoView.contentMode = .scaleAspectFit
+               print("RemoteViewController - Timer forced contentMode to scaleAspectFit")
+           }
+       }
+   }
+   
+   private func stopContentModeTimer() {
+       contentModeTimer?.invalidate()
+       contentModeTimer = nil
    }
   
    func onStartVideo(_ sessionID: Int) {
@@ -273,12 +315,20 @@ class RemoteViewController: UIViewController {
                print("RemoteViewController - Setting remote video window")
                let result = self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: self.viewRemoteVideo)
                print("RemoteViewController - setRemoteVideoWindow result: \(result)")
+               
+               // 🔥 FIX: Force set contentMode after setting video window
+               self.viewRemoteVideo.contentMode = .scaleAspectFit
+               print("RemoteViewController - Forced contentMode to scaleAspectFit in onStartVideo")
            } else {
                // Initialize if not already done
                print("RemoteViewController - Initializing remote video first")
                self.initializeRemoteVideo()
                let result = self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: self.viewRemoteVideo)
                print("RemoteViewController - setRemoteVideoWindow result: \(result)")
+               
+               // 🔥 FIX: Force set contentMode after setting video window
+               self.viewRemoteVideo.contentMode = .scaleAspectFit
+               print("RemoteViewController - Forced contentMode to scaleAspectFit in onStartVideo")
            }
           
            // Đảm bảo view được hiển thị
@@ -381,6 +431,10 @@ class RemoteViewController: UIViewController {
   
    func cleanupVideo() {
        print("RemoteViewController - cleanupVideo")
+       
+       // 🔥 FIX: Stop contentMode timer
+       stopContentModeTimer()
+       
        if isVideoInitialized {
            if sessionId != 0 {
                portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)

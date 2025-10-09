@@ -6,6 +6,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.FrameLayout;
 import androidx.annotation.NonNull;
+import android.os.Handler;
+import android.os.Looper;
 
 import io.flutter.plugin.platform.PlatformView;
 
@@ -22,6 +24,8 @@ public class RemoteView implements PlatformView {
     private PortMessageReceiver receiver;
     CallManager callManager = CallManager.Instance();
     private PortMessageReceiver.BroadcastListener remoteViewListener;
+    private Handler scalingHandler;
+    private Runnable scalingRunnable;
 
     public RemoteView(@NonNull Context context, int viewId) {
 
@@ -44,13 +48,38 @@ public class RemoteView implements PlatformView {
                 FrameLayout.LayoutParams.MATCH_PARENT));
 
         remoteRenderVideoView = containerView.findViewById(R.id.remote_video_view);
-        remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FILL);
+        remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FIT);
 
         callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderVideoView);
 
         updateVideo(portSipLib);
 
         setupReceiver();
+        
+        // 🔥 FIX: Start timer to continuously force scaling type
+        startScalingTimer();
+    }
+    
+    private void startScalingTimer() {
+        scalingHandler = new Handler(Looper.getMainLooper());
+        scalingRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (remoteRenderVideoView != null) {
+                    remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FIT);
+                    System.out.println("SDK-Android: RemoteView - Timer force set SCALE_ASPECT_FIT");
+                }
+                scalingHandler.postDelayed(this, 500);
+            }
+        };
+        scalingHandler.postDelayed(scalingRunnable, 500);
+    }
+    
+    private void stopScalingTimer() {
+        if (scalingHandler != null && scalingRunnable != null) {
+            scalingHandler.removeCallbacks(scalingRunnable);
+            System.out.println("SDK-Android: RemoteView - Stopped scaling timer");
+        }
     }
 
     @Override
@@ -62,6 +91,9 @@ public class RemoteView implements PlatformView {
     public void dispose() {
         // Giải phóng tài nguyên nếu cần
         try {
+            // 🔥 FIX: Stop scaling timer
+            stopScalingTimer();
+            
             // Đặt cửa sổ video về null trước
             if (Engine.Instance() != null && Engine.Instance().getEngine() != null) {
                 CallManager.Instance().setRemoteVideoWindow(Engine.Instance().getEngine(), -1, null);
@@ -187,15 +219,28 @@ public class RemoteView implements PlatformView {
                 if (cur.hasVideo) {
                     System.out.println("SDK-Android: application.mConference = false - cur.hasVideo = true");
                     if (remoteRenderVideoView != null) {
-                        remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FILL);
+                        // 🔥 FIX: Force set scaling type to prevent cropping
+                        remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FIT);
+                        System.out.println("SDK-Android: RemoteView - Force set SCALE_ASPECT_FIT in updateVideo");
                         remoteRenderVideoView.setVisibility(View.VISIBLE);
+                        
+                        // 🔥 FIX: Post a delayed runnable to force set scaling after video starts
+                        remoteRenderVideoView.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FIT);
+                                System.out.println("SDK-Android: RemoteView - Delayed force set SCALE_ASPECT_FIT");
+                            }
+                        }, 500);
                     }
                     callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderVideoView);
                     portSipLib.sendVideo(cur.sessionID, true);
                 } else {
                     System.out.println("SDK-Android: application.mConference = false - cur.hasVideo = false");
                     if (remoteRenderVideoView != null) {
-                        remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FILL);
+                        // 🔥 FIX: Force set scaling type to prevent cropping
+                        remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FIT);
+                        System.out.println("SDK-Android: RemoteView - Force set SCALE_ASPECT_FIT in updateVideo (no video)");
                         remoteRenderVideoView.setVisibility(View.VISIBLE);
                     }
                     callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, null);
