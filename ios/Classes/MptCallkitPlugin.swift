@@ -1121,16 +1121,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
 
         processPushMessageFromPortPBX(payload.dictionaryPayload, completion: {
-            let callState = PortSIPCallState(
-                sessionId: Int64(self.activeSessionid),
-                hasVideo: self.isVideoCall,
-                hasAudio: true,
-                isIncoming: true,
-                remoteParty: nil,
-                remoteDisplayName: nil,
-                state: .pushed
-            )
-            PortSIPStateManager.shared.updateCallState(callState)
             self.loginViewController.refreshRegister()
             self.beginBackgroundRegister()
         })
