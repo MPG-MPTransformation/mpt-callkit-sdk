@@ -107,7 +107,7 @@ class LoginViewController {
         UserDefaults.standard.set(frameRate, forKey: "frameRate")
         UserDefaults.standard.set(autoLogin, forKey: "autoLogin")
         
-        _ = portSIPSDK.setLicenseKey("PORTSIP_TEST_LICENSE")
+        portSIPSDK.setLicenseKey("PORTSIP_TEST_LICENSE")
         
         portSIPSDK.addAudioCodec(AUDIOCODEC_OPUS)
         portSIPSDK.addAudioCodec(AUDIOCODEC_G729)
@@ -163,8 +163,6 @@ class LoginViewController {
         let portSipPlugin = MptCallkitPlugin.shared
         
         portSipPlugin.addPushSupportWithPortPBX(portSipPlugin._enablePushNotification!)
-        sipInitialized = true
-        sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_LOGIN
 
         portSIPSDK.registerServer(90, retryTimes: 0)
         var sipURL: String
@@ -173,8 +171,9 @@ class LoginViewController {
         } else {
             sipURL = "sip:\(username):\(userDomain):\(String(describing: sipServerPort))"
         }
-
         appDelegate.sipURL = sipURL
+        sipInitialized = true
+        sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_LOGIN
         print("Registration initiated...")
     }
     
@@ -214,14 +213,14 @@ class LoginViewController {
         case .LOGIN_STATUS_LOGIN:
             break
         case .LOGIN_STATUS_ONLINE:
-           if let callstate = PortSIPStateManager.shared.getCurrentCallState(),
-              callstate.state == .incoming {
-               print("refreshRegister but has INVITE, do nothing")
-               return
-           } else {
-               print("Refresh Registration...")
+//           if let callstate = PortSIPStateManager.shared.getCurrentCallState(),
+//              callstate.state == .incoming || callstate.state == .pushed {
+//               print("refreshRegister but has INVITE, do nothing")
+//               return
+//           } else {
+//               print("Refresh Registration...")
                 portSIPSDK.refreshRegistration(0)
-           }
+//           }
             
             break
         case .LOGIN_STATUS_FAILUE:

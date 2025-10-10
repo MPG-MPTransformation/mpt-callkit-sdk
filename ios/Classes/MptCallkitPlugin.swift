@@ -708,6 +708,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   private func ensureSIPCompatibility() {
     let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
     print("enableSendVideoStream result: \(sendResult)")
+//      if sendResult < 0 {
+//          updateCall()
+//      }
   }
   
   
@@ -1042,9 +1045,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 _callManager.incomingCall(
                     sessionid: -1, existsVideo: true, remoteParty: self.currentRemoteName,
                     callUUID: uuid!, completionHandle: {})
-                
-               loginViewController.refreshRegister()
-                beginBackgroundRegister()
 
                 if #available(iOS 10.0, *) {
                     // Add timeout protection for CallKit reporting
@@ -1120,7 +1120,20 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             return
         }
 
-        processPushMessageFromPortPBX(payload.dictionaryPayload, completion: {})
+        processPushMessageFromPortPBX(payload.dictionaryPayload, completion: {
+            let callState = PortSIPCallState(
+                sessionId: Int64(self.activeSessionid),
+                hasVideo: self.isVideoCall,
+                hasAudio: true,
+                isIncoming: true,
+                remoteParty: nil,
+                remoteDisplayName: nil,
+                state: .pushed
+            )
+            PortSIPStateManager.shared.updateCallState(callState)
+            self.loginViewController.refreshRegister()
+            self.beginBackgroundRegister()
+        })
     }
 
     public func pushRegistry(
@@ -1135,7 +1148,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             return
         }
 
-        processPushMessageFromPortPBX(payload.dictionaryPayload, completion: completion)
+        processPushMessageFromPortPBX(payload.dictionaryPayload, completion: {
+            self.loginViewController.refreshRegister()
+            self.beginBackgroundRegister()
+            completion()
+        })
     }
 
     func beginBackgroundRegister() {
@@ -1249,6 +1266,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     private var backtaskTimer: DispatchSourceTimer?
 
     public func didEnterBackground() {
+        _callManager.setForeground(false)
         if _callManager.getConnectCallNum() > 0 {
             return
         }
@@ -1258,10 +1276,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         //     // Disable to save battery, or when you don't need incoming calls while APP is in background.
         //     portSIPSDK.startKeepAwake()
         // } else {
-        loginViewController.unRegister()
+        // loginViewController.unRegister()
 
-        beginBackgroundRegister()
-//            beginBackgroundTaskForRegister()
+        // beginBackgroundRegister()
+        beginBackgroundTaskForRegister()
         
 
         //     beginBackgroundRegister()
@@ -1322,7 +1340,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // } else {
         endBackgroundRegister()
         endBackgroundTaskForRegister()
-        loginViewController.refreshRegister()
+        if !_callManager.setForeground(true) {
+            loginViewController.refreshRegister()
+        }
         // }
         if let result = _callManager.findCallBySessionID(self.activeSessionid), result.session.videoState {
             let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
@@ -1333,6 +1353,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
     public override func applicationWillTerminate(_: UIApplication) {
+        _callManager.setForeground(false)
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
         print("applicationWillTerminate")
         if _enablePushNotification! {
@@ -1693,9 +1714,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             let sendVideoRes = portSIPSDK.sendVideo(result.session.sessionId, sendState: true)
             NSLog("onInviteUpdated - re-sendVideo: \(sendVideoRes)")
 
-            // let updateRes = portSIPSDK.updateCall(
-            //     result.session.sessionId, enableAudio: true, enableVideo: true)
-            // NSLog("onInviteUpdated - re-updateCall: \(updateRes)")
+//             let updateRes = portSIPSDK.updateCall(
+//                 result.session.sessionId, enableAudio: true, enableVideo: true)
+//             NSLog("onInviteUpdated - re-updateCall: \(updateRes)")
         } else {
             NSLog("onInviteUpdated - CONDITIONS NOT MET, skipping re-send logic")
         }
