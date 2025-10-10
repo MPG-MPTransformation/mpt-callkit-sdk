@@ -51,6 +51,7 @@ class CallManager: NSObject {
     var waitSocketBeforeAnswer: Bool = true
     private var isSocketReady: Bool = false
     private var isCallIncoming: Bool = false
+    private var isForeground: Bool = false
     private var pendingAnswerBlocks: [() -> Void] = []
 
     init(portsipSdk: PortSIPSDK) {
@@ -70,25 +71,35 @@ class CallManager: NSObject {
         _portSIPSDK.enableCallKit(_enableCallKit)
     }
 
-    // Update socket readiness status from Flutter side
-    func updateSocketReady(_ ready: Bool) {
-        isSocketReady = ready
-        if ready && isCallIncoming && !pendingAnswerBlocks.isEmpty {
-            print("updateSocketReady - socket ready and call incoming - answer call immediately")
+    func checkAndAnswerPendingCalls() -> Bool {
+        print("CallManager - checkAndAnswerPendingCalls")
+        if isForeground && isSocketReady && isCallIncoming && !pendingAnswerBlocks.isEmpty {
+            print("CallManager - checkAndAnswerPendingCalls - answer call immediately")
             let tasks = pendingAnswerBlocks
             pendingAnswerBlocks.removeAll()
             tasks.forEach { $0() }
+            return true
         }
+        return false
+    }
+
+    // Update socket readiness status from Flutter side
+    func updateSocketReady(_ ready: Bool) {
+        isSocketReady = ready
+        print("CallManager - updateSocketReady \(ready)")
+        _ = checkAndAnswerPendingCalls()
     }
 
     func setCallIncoming(_ incall: Bool) {
         isCallIncoming = incall
-        if incall && isSocketReady && !pendingAnswerBlocks.isEmpty {
-            print("setCallIncoming - socket ready and call incomming - answer call immediately")
-            let tasks = pendingAnswerBlocks
-            pendingAnswerBlocks.removeAll()
-            tasks.forEach { $0() }
-        }
+        print("CallManager - setCallIncoming \(incall)")
+        _ = checkAndAnswerPendingCalls()
+    }
+
+    func setForeground(_ foreground: Bool) -> Bool {
+        isForeground = foreground
+        print("CallManager - setForeground \(foreground)")
+        return checkAndAnswerPendingCalls()
     }
 
     func setPlayDTMFMethod(dtmfMethod: DTMF_METHOD, playDTMFTone: Bool) {
@@ -643,7 +654,7 @@ class CallManager: NSObject {
             }
 
             // If configured to wait for socket readiness and not yet ready, queue the answer
-            if waitSocketBeforeAnswer && (!isSocketReady || !isCallIncoming) && pendingAnswerBlocks.isEmpty{
+            if waitSocketBeforeAnswer && (!isSocketReady || !isCallIncoming || !isForeground) && pendingAnswerBlocks.isEmpty{
                 pendingAnswerBlocks.append(performAnswer)
                 print("Queued answer until socket is ready for session \(sessionCall!.session.sessionId)")
             } else {

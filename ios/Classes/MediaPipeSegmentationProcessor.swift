@@ -9,6 +9,13 @@ import MediaPipeTasksVision
     private var imageSegmenter: ImageSegmenter?
     private var statusMessage: String = "Initializing..."
     
+    // Confidence thresholds (MediaPipe returns PERSON confidence, opposite of MLKit's background confidence)
+    private let confidenceThresholdHigh: Float = 0.9  // >0.9 = definitely person
+    private let confidenceThresholdLow: Float = 0.5   // <0.2 = definitely background
+    
+    // Mask erosion radius (disabled to match MLKit)
+    private var maskErosionRadius: Float = 0.0
+    
     // Reusable pixel buffer attributes
     private static let pixelBufferAttrs: CFDictionary = [
         kCVPixelBufferCGImageCompatibilityKey: kCFBooleanTrue!,
@@ -34,8 +41,8 @@ import MediaPipeTasksVision
         do {
             let options = ImageSegmenterOptions()
             options.runningMode = .video
-            options.shouldOutputCategoryMask = true
-            options.shouldOutputConfidenceMasks = false
+            options.shouldOutputCategoryMask = false
+            options.shouldOutputConfidenceMasks = true  // Use confidence masks like MLKit
             
             if let modelPath = Bundle.main.path(forResource: "selfie_segmenter", ofType: "tflite") {
                 options.baseOptions.modelAssetPath = modelPath
@@ -70,10 +77,14 @@ import MediaPipeTasksVision
            let mpImage = try MPImage(pixelBuffer: sampleBuffer)
             let result = try segmenter.segment(videoFrame: mpImage, timestampInMilliseconds: Int(Date().timeIntervalSince1970 * 1000))
             
-            guard let categoryMask = result.categoryMask else {
+            // Use confidence masks instead of category masks for better quality
+            guard let confidenceMasks = result.confidenceMasks, !confidenceMasks.isEmpty else {
            completion(sampleBuffer)
            return
             }
+            
+            // MediaPipe returns multiple masks, first one is usually person/background
+            let mask = confidenceMasks[0]
             
             let width = CVPixelBufferGetWidth(sampleBuffer)
             let height = CVPixelBufferGetHeight(sampleBuffer)
@@ -95,18 +106,18 @@ import MediaPipeTasksVision
        
                 compositeWithBackground(
                     personBuffer: sampleBuffer,
-                    maskData: categoryMask.uint8Data,
-                    maskWidth: categoryMask.width,
-                    maskHeight: categoryMask.height,
+                    maskData: mask.float32Data,
+                    maskWidth: mask.width,
+                    maskHeight: mask.height,
                     backgroundBuffer: backgroundBuffer,
                     outputBuffer: output
                 )
             } else {
                 applyBlurEffect(
                     personBuffer: sampleBuffer,
-                    maskData: categoryMask.uint8Data,
-                    maskWidth: categoryMask.width,
-                    maskHeight: categoryMask.height,
+                    maskData: mask.float32Data,
+                    maskWidth: mask.width,
+                    maskHeight: mask.height,
                     outputBuffer: output
                 )
             }
@@ -148,10 +159,10 @@ import MediaPipeTasksVision
        return buffer
    }
    
-    // Optimized composite using CIFilter blend modes for smooth edges (similar to Android Canvas)
+    // Optimized composite using CIFilter blend modes with confidence thresholds (matching MLKit)
     private func compositeWithBackground(
         personBuffer: CVPixelBuffer,
-        maskData: UnsafePointer<UInt8>,
+        maskData: UnsafePointer<Float32>,
         maskWidth: Int,
         maskHeight: Int,
         backgroundBuffer: CVPixelBuffer,
@@ -180,16 +191,14 @@ import MediaPipeTasksVision
             return
         }
         
-        // Invert mask: MediaPipe returns 0=background, 255=person, we need opposite for blending
-        guard let invertFilter = CIFilter(name: "CIColorInvert") else { return }
-        invertFilter.setValue(maskCIImage, forKey: kCIInputImageKey)
-        guard let invertedMask = invertFilter.outputImage else { return }
+        // No need to invert - we already processed confidence values correctly
+        // (255 = person, 0 = background for CIBlendWithMask)
         
         // Apply mask to person (keep only person pixels) - like Android's DST_IN
         guard let blendFilter = CIFilter(name: "CIBlendWithMask") else { return }
         blendFilter.setValue(personImage, forKey: kCIInputImageKey)
         blendFilter.setValue(backgroundImage, forKey: kCIInputBackgroundImageKey)
-        blendFilter.setValue(invertedMask, forKey: kCIInputMaskImageKey)
+        blendFilter.setValue(maskCIImage, forKey: kCIInputMaskImageKey)
         
         guard let compositedImage = blendFilter.outputImage else { return }
         
@@ -198,17 +207,38 @@ import MediaPipeTasksVision
         ciContext.render(compositedImage, to: outputBuffer, bounds: bounds, colorSpace: CGColorSpaceCreateDeviceRGB())
     }
     
-    // Creates mask CIImage with smooth scaling using Lanczos interpolation
-    private func createMaskCIImage(from maskData: UnsafePointer<UInt8>, 
+    // Creates mask CIImage from Float32 confidence values with thresholds (like MLKit)
+    private func createMaskCIImage(from maskData: UnsafePointer<Float32>, 
                                    maskWidth: Int, 
                                    maskHeight: Int, 
                                    targetWidth: Int, 
                                    targetHeight: Int) -> CIImage? {
-        // Create mask image from raw data
+        // Convert Float32 confidence to UInt8 with thresholds for better segmentation
+        let pixelCount = maskWidth * maskHeight
+        var uint8Data = [UInt8](repeating: 0, count: pixelCount)
+        
+        for i in 0..<pixelCount {
+            let confidence = maskData[i]  // PERSON confidence (MediaPipe)
+            
+            // MediaPipe returns PERSON confidence (opposite of MLKit's background confidence)
+            if confidence > confidenceThresholdHigh {
+                // Definitely person (high person confidence)
+                uint8Data[i] = 255  // Person = white
+            } else if confidence < confidenceThresholdLow {
+                // Definitely background (low person confidence)
+                uint8Data[i] = 0    // Background = black
+            } else {
+                // Transition zone: interpolate smoothly
+                // let normalized = (confidence - confidenceThresholdLow) / (confidenceThresholdHigh - confidenceThresholdLow)
+                uint8Data[i] = UInt8(confidence * 255.0)  // Higher confidence = more person
+            }
+        }
+        
+        // Create mask image from processed data
         let colorSpace = CGColorSpaceCreateDeviceGray()
         let bitmapInfo = CGImageAlphaInfo.none.rawValue
         
-        guard let provider = CGDataProvider(data: Data(bytes: maskData, count: maskWidth * maskHeight) as CFData),
+        guard let provider = CGDataProvider(data: Data(uint8Data) as CFData),
               let maskCGImage = CGImage(width: maskWidth,
                                        height: maskHeight,
                                        bitsPerComponent: 8,
@@ -224,6 +254,20 @@ import MediaPipeTasksVision
         }
         
         var maskImage = CIImage(cgImage: maskCGImage)
+        
+        // Apply erosion to reduce false positives (shrink mask to keep only confident regions)
+        if maskErosionRadius > 0 {
+            maskImage = applyMaskErosion(maskImage, radius: maskErosionRadius) ?? maskImage
+        }
+        
+        // Apply Gaussian blur to mask edges for smoother compositing (like MLKit's soft blending)
+        if let blurFilter = CIFilter(name: "CIGaussianBlur") {
+            blurFilter.setValue(maskImage, forKey: kCIInputImageKey)
+            blurFilter.setValue(2.0, forKey: kCIInputRadiusKey)  // Soft edge transition
+            if let blurredMask = blurFilter.outputImage {
+                maskImage = blurredMask
+            }
+        }
         
         // Scale with high quality Lanczos algorithm (better than bilinear)
         let scaleX = CGFloat(targetWidth) / CGFloat(maskWidth)
@@ -241,10 +285,23 @@ import MediaPipeTasksVision
         return scaleFilter.outputImage
     }
     
-    // Fallback to pixel-by-pixel blending if Core Graphics approach fails
+    // Apply morphological erosion to mask (shrinks mask to reduce false positives)
+    private func applyMaskErosion(_ maskImage: CIImage, radius: Float) -> CIImage? {
+        // Use CIMorphologyMinimum (erosion) to shrink white regions
+        guard let morphologyFilter = CIFilter(name: "CIMorphologyMinimum") else {
+            return maskImage
+        }
+        
+        morphologyFilter.setValue(maskImage, forKey: kCIInputImageKey)
+        morphologyFilter.setValue(radius, forKey: kCIInputRadiusKey)
+        
+        return morphologyFilter.outputImage
+    }
+    
+    // Fallback to pixel-by-pixel blending with confidence thresholds
     private func compositeWithBackgroundFallback(
         personBuffer: CVPixelBuffer,
-        maskData: UnsafePointer<UInt8>,
+        maskData: UnsafePointer<Float32>,
         maskWidth: Int,
         maskHeight: Int,
         backgroundBuffer: CVPixelBuffer,
@@ -284,11 +341,19 @@ import MediaPipeTasksVision
                 let maskX = Int(CGFloat(x) * scaleX)
                 let maskY = Int(CGFloat(y) * scaleY)
                 let maskIndex = min(maskY * maskWidth + maskX, maskWidth * maskHeight - 1)
-                let maskValue = CGFloat(maskData[maskIndex]) / 255.0
+                let confidence = CGFloat(maskData[maskIndex])  // Float32 PERSON confidence
                 
-                // Composite pixels - INVERTED: MediaPipe 0 = background, >0 = person
-                let personRatio = 1.0 - maskValue
-                let backgroundRatio = maskValue
+                // Apply confidence thresholds (confidence = PERSON likelihood, not background)
+                let personRatio: CGFloat
+                if confidence > CGFloat(confidenceThresholdHigh) {
+                    personRatio = 1.0  // Definitely person
+                } else if confidence < CGFloat(confidenceThresholdLow) {
+                    personRatio = 0.0  // Definitely background
+                } else {
+                    // Smooth interpolation in transition zone
+                    personRatio = (confidence - CGFloat(confidenceThresholdLow)) / CGFloat(confidenceThresholdHigh - confidenceThresholdLow)
+                }
+                let backgroundRatio = 1.0 - personRatio
                 
                 outputAddress[pixelOffset] = UInt8(CGFloat(personAddress[pixelOffset]) * personRatio + CGFloat(backgroundAddress[pixelOffset]) * backgroundRatio)
                 outputAddress[pixelOffset + 1] = UInt8(CGFloat(personAddress[pixelOffset + 1]) * personRatio + CGFloat(backgroundAddress[pixelOffset + 1]) * backgroundRatio)
@@ -302,10 +367,10 @@ import MediaPipeTasksVision
         }
     }
     
-    // Optimized blur effect using CIFilter blend modes
+    // Optimized blur effect using CIFilter with confidence thresholds
     private func applyBlurEffect(
         personBuffer: CVPixelBuffer,
-        maskData: UnsafePointer<UInt8>,
+        maskData: UnsafePointer<Float32>,
         maskWidth: Int,
         maskHeight: Int,
         outputBuffer: CVPixelBuffer
@@ -335,16 +400,13 @@ import MediaPipeTasksVision
         blurFilter.setValue(20.0, forKey: kCIInputRadiusKey)
         guard let blurredImage = blurFilter.outputImage else { return }
         
-        // Invert mask
-        guard let invertFilter = CIFilter(name: "CIColorInvert") else { return }
-        invertFilter.setValue(maskCIImage, forKey: kCIInputImageKey)
-        guard let invertedMask = invertFilter.outputImage else { return }
+        // No need to invert - mask already has person=255, background=0
         
         // Blend person (sharp) with blurred background
         guard let blendFilter = CIFilter(name: "CIBlendWithMask") else { return }
         blendFilter.setValue(personImage, forKey: kCIInputImageKey)
         blendFilter.setValue(blurredImage, forKey: kCIInputBackgroundImageKey)
-        blendFilter.setValue(invertedMask, forKey: kCIInputMaskImageKey)
+        blendFilter.setValue(maskCIImage, forKey: kCIInputMaskImageKey)
         
         guard let compositedImage = blendFilter.outputImage else { return }
         
@@ -353,10 +415,10 @@ import MediaPipeTasksVision
         ciContext.render(compositedImage, to: outputBuffer, bounds: bounds, colorSpace: CGColorSpaceCreateDeviceRGB())
     }
     
-    // Fallback to pixel-by-pixel blending for blur effect
+    // Fallback to pixel-by-pixel blending for blur effect with confidence thresholds
     private func applyBlurEffectFallback(
         personBuffer: CVPixelBuffer,
-        maskData: UnsafePointer<UInt8>,
+        maskData: UnsafePointer<Float32>,
         maskWidth: Int,
         maskHeight: Int,
         outputBuffer: CVPixelBuffer
@@ -410,11 +472,19 @@ import MediaPipeTasksVision
                 let maskX = Int(CGFloat(x) * scaleX)
                 let maskY = Int(CGFloat(y) * scaleY)
                 let maskIndex = min(maskY * maskWidth + maskX, maskWidth * maskHeight - 1)
-                let maskValue = CGFloat(maskData[maskIndex]) / 255.0
+                let confidence = CGFloat(maskData[maskIndex])  // Float32 PERSON confidence
                 
-                // Composite pixels - INVERTED: MediaPipe 0 = background, >0 = person
-                let personRatio = 1.0 - maskValue
-                let blurredRatio = maskValue
+                // Apply confidence thresholds (confidence = PERSON likelihood, not background)
+                let personRatio: CGFloat
+                if confidence > CGFloat(confidenceThresholdHigh) {
+                    personRatio = 1.0  // Definitely person - keep sharp
+                } else if confidence < CGFloat(confidenceThresholdLow) {
+                    personRatio = 0.0  // Definitely background - blur
+                } else {
+                    // Smooth interpolation in transition zone
+                    personRatio = (confidence - CGFloat(confidenceThresholdLow)) / CGFloat(confidenceThresholdHigh - confidenceThresholdLow)
+                }
+                let blurredRatio = 1.0 - personRatio
                 
                 outputAddress[pixelOffset] = UInt8(CGFloat(personAddress[pixelOffset]) * personRatio + CGFloat(blurredAddress[pixelOffset]) * blurredRatio)
                 outputAddress[pixelOffset + 1] = UInt8(CGFloat(personAddress[pixelOffset + 1]) * personRatio + CGFloat(blurredAddress[pixelOffset + 1]) * blurredRatio)
