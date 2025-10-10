@@ -64,7 +64,8 @@ class _HomeScreenState extends State<HomeScreen> {
         deviceInfo: "deviceInfo",
         recordLabel: "",
         enableBlurBackground: true,
-        bgPath: "https://i0.wp.com/picjumbo.com/wp-content/uploads/orange-slices-summer-backgrounds-free-image.jpeg?w=2210&quality=70",
+        bgPath:
+            "https://s3-sgn09.fptcloud.com/ict-mvno/Background_eho_mvno.png",
       );
 
       // var result = await MptCallKitController().loginRequest(

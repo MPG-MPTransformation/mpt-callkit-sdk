@@ -967,12 +967,19 @@ public class PortSipService extends Service
         if (session != null) {
 
             if (existsVideo) {
+                // Stop any existing camera source to avoid conflicts
+                MptCallkitPlugin.shared.stopCameraSource();
+                
                 // for receive video stream
                 Engine.Instance().getEngine().enableVideoStreamCallback(sessionId,
                         PortSipEnumDefine.ENUM_DIRECTION_RECV);
                 int result = Engine.Instance().getEngine().enableSendVideoStreamToRemote(sessionId, true);
                 System.out.println("SDK-Android: enableSendVideoStream result: " + result);
-                MptCallkitPlugin.shared.startCameraSource();
+                
+                // Start custom camera source after a delay to let PortSIP initialize
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                    MptCallkitPlugin.shared.startCameraSource();
+                }, 500); // 500ms delay
             }
 
             if (session.hasVideo && !existsVideo && videoCodecs.isEmpty()) {
@@ -981,8 +988,8 @@ public class PortSipService extends Service
                 logWithTimestamp("SDK-Android: onInviteUpdated - re-sendVideo(): " + sendVideoRes);
 
                 // Cập nhật cuộc gọi để thêm video stream
-                int updateRes = Engine.Instance().getEngine().updateCall(session.sessionID, true, true);
-                logWithTimestamp("SDK-Android: onInviteUpdated - re-updateCall(): " + updateRes);
+                // int updateRes = Engine.Instance().getEngine().updateCall(session.sessionID, true, true);
+                // logWithTimestamp("SDK-Android: onInviteUpdated - re-updateCall(): " + updateRes);
             }
 
             session.state = Session.CALL_STATE_FLAG.CONNECTED;

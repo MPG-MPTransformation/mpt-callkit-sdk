@@ -50,7 +50,7 @@ class CallManager: NSObject {
     // If true, answering a call will wait until the socket is ready (connected/connecting)
     var waitSocketBeforeAnswer: Bool = true
     private var isSocketReady: Bool = false
-    private var isRegisterSuccess: Bool = false
+    private var isCallIncoming: Bool = false
     private var pendingAnswerBlocks: [() -> Void] = []
 
     init(portsipSdk: PortSIPSDK) {
@@ -73,16 +73,18 @@ class CallManager: NSObject {
     // Update socket readiness status from Flutter side
     func updateSocketReady(_ ready: Bool) {
         isSocketReady = ready
-        if ready && isRegisterSuccess && !pendingAnswerBlocks.isEmpty {
+        if ready && isCallIncoming && !pendingAnswerBlocks.isEmpty {
+            print("updateSocketReady - socket ready and call incoming - answer call immediately")
             let tasks = pendingAnswerBlocks
             pendingAnswerBlocks.removeAll()
             tasks.forEach { $0() }
         }
     }
 
-    func updateRegisterSuccess(_ success: Bool) {
-        isRegisterSuccess = success
-        if success && isSocketReady && !pendingAnswerBlocks.isEmpty {
+    func setCallIncoming(_ incall: Bool) {
+        isCallIncoming = incall
+        if incall && isSocketReady && !pendingAnswerBlocks.isEmpty {
+            print("setCallIncoming - socket ready and call incomming - answer call immediately")
             let tasks = pendingAnswerBlocks
             pendingAnswerBlocks.removeAll()
             tasks.forEach { $0() }
@@ -617,11 +619,11 @@ class CallManager: NSObject {
         } else {
             // Execute answer once ready
             let performAnswer: () -> Void = { [weak self] in
-                guard let strongSelf = self else {
-                    completion?(false)
-                    return
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                DispatchQueue.main.async { [weak self] in
+                    guard let strongSelf = self else {
+                        completion?(false)
+                        return
+                    }
                     let nRet = strongSelf._portSIPSDK.answerCall(sessionCall!.session.sessionId, videoCall: isVideo)
                     if nRet == 0 {
                         sessionCall!.session.sessionState = true
@@ -641,10 +643,11 @@ class CallManager: NSObject {
             }
 
             // If configured to wait for socket readiness and not yet ready, queue the answer
-            if waitSocketBeforeAnswer && (!isSocketReady || !isRegisterSuccess) && pendingAnswerBlocks.isEmpty{
+            if waitSocketBeforeAnswer && (!isSocketReady || !isCallIncoming) && pendingAnswerBlocks.isEmpty{
                 pendingAnswerBlocks.append(performAnswer)
                 print("Queued answer until socket is ready for session \(sessionCall!.session.sessionId)")
             } else {
+                print("Answer call immediately for session \(sessionCall!.session.sessionId) isSocketReady: \(isSocketReady) isCallIncoming: \(isCallIncoming) pendingAnswerBlocks: \(pendingAnswerBlocks.count) waitSocketBeforeAnswer: \(waitSocketBeforeAnswer)")
                 performAnswer()
             }
             return 0 // Return immediately since we're handling the answer asynchronously

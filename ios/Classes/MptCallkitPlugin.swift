@@ -7,11 +7,7 @@ import Darwin
 import AVFoundation
 import CoreVideo
 import CoreImage
-import MLImage
-import MLKitSegmentationSelfie
-import MLKitSegmentationCommon
-import MLKitVision
-import MLKitCommon
+import MediaPipeTasksVision
 import VideoToolbox
 import Accelerate
 import Accelerate.vImage
@@ -208,7 +204,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
     // public method để set APNs push token
     public func setAPNsPushToken(_ token: String) {
-        _APNsPushToken = token as NSString
+        _APNsPushToken = token
     }
 
     public func cleanupOnTerminate() {
@@ -257,8 +253,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     var isVideoCall: Bool = false
     var isRemoteVideoReceived: Bool = false
 
-    var _VoIPPushToken: NSString!
-    var _APNsPushToken: NSString!
+    var _VoIPPushToken: String?
+    var _APNsPushToken: String?
     var _backtaskIdentifier: UIBackgroundTaskIdentifier = UIBackgroundTaskIdentifier.invalid
 
     var currentSessionid: String = ""
@@ -275,7 +271,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
     var mUseFrontCamera: Bool = true
 
-    private var _segmenter: Segmenter? = nil
+    private var mediaPipeProcessor: MediaPipeSegmentationProcessor? = nil
     private var frameCounter: Int = 0
     private static var enableBlurBackground: Bool = false
     
@@ -400,10 +396,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         setupNotificationHandling()
         // setupViewLifecycleObservers() // REMOVED - Views manage themselves
 
-        let options = SelfieSegmenterOptions()
-        options.segmenterMode = .stream
-        // options.shouldEnableRawSizeMask = true
-        self._segmenter = Segmenter.segmenter(options: options)
+        // Initialize MediaPipe segmentation processor (iOS 13+ compatible)
+        mediaPipeProcessor = MediaPipeSegmentationProcessor()
+        print("MediaPipe Segmentation Status: \(mediaPipeProcessor?.getStatusMessage() ?? "Not available")")
         // Initialize resolution system
         updateRequestedResolution()
         
@@ -546,10 +541,19 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             return
           }
           
-          guard device.isConnected && !device.isSuspended else {
-            print("❌ Camera device not available - isConnected: \(device.isConnected), isSuspended: \(device.isSuspended)")
+          guard device.isConnected else {
+            print("❌ Camera device not available - isConnected: \(device.isConnected)")
             strongSelf.captureSession.commitConfiguration()
             return
+          }
+          
+          // Check isSuspended only on iOS 14+
+          if #available(iOS 14.0, *) {
+            guard !device.isSuspended else {
+              print("❌ Camera device suspended")
+              strongSelf.captureSession.commitConfiguration()
+              return
+            }
           }
           
           do {
@@ -687,7 +691,17 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     guard let device = captureDevice(forPosition: cameraPosition) else {
       return false
     }
-    return device.isConnected && !device.isSuspended
+    
+    guard device.isConnected else {
+      return false
+    }
+    
+    // Check isSuspended only on iOS 14+
+    if #available(iOS 14.0, *) {
+      return !device.isSuspended
+    }
+    
+    return true
   }
   
   /// Ensures SIP SDK doesn't interfere with our capture session
@@ -835,7 +849,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
     deinit {
-        self._segmenter = nil
         NotificationCenter.default.removeObserver(self)
         NSLog("MptCallkitPlugin - deinit")
     }
@@ -900,43 +913,38 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     // MARK: - VoIP PUSH
 
     func addPushSupportWithPortPBX(_ enablePush: Bool) {
-        print("addPushSupportWithPortPBX:{\(enablePush)}")
-        print("addPushSupportWithPortPBX:{\(_VoIPPushToken)}")
-        print("addPushSupportWithPortPBX:{\(_APNsPushToken)}")
-        if _VoIPPushToken == nil || _APNsPushToken == nil {
+        // Ensure both tokens are available
+        guard let voipToken = _VoIPPushToken, let apnsToken = _APNsPushToken else {
             return
         }
-        // This VoIP Push is only work with PortPBX(https://www.portsip.com/portsip-pbx/)
-        // if you want work with other PBX, please contact your PBX Provider
-
-        let bundleIdentifier: String = Bundle.main.bundleIdentifier!
-        portSIPSDK.clearAddedSipMessageHeaders()
-        let token = NSString(format: "%@|%@", _VoIPPushToken, _APNsPushToken)
-        if enablePush {
-            let pushMessage: String =
-                NSString(
-                    format:
-                        "device-os=ios;device-uid=%@;allow-call-push=true;allow-message-push=true;app-id=%@",
-                    token, bundleIdentifier) as String
-
-            print("Enable pushMessage:{\(pushMessage)}")
-
-            portSIPSDK.addSipMessageHeader(
-                -1, methodName: "REGISTER", msgType: 1, headerName: "X-Push",
-                headerValue: pushMessage)
-        } else {
-            let pushMessage: String =
-                NSString(
-                    format:
-                        "device-os=ios;device-uid=%@;allow-call-push=false;allow-message-push=false;app-id=%@",
-                    token, bundleIdentifier) as String
-
-            print("Disable pushMessage:{\(pushMessage)}")
-
-            portSIPSDK.addSipMessageHeader(
-                -1, methodName: "REGISTER", msgType: 1, headerName: "X-Push",
-                headerValue: pushMessage)
+        
+        // Get the app's bundle identifier
+        guard let bundleIdentifier = Bundle.main.bundleIdentifier else {
+            print("Bundle identifier not found.")
+            return
         }
+        
+        // Clear any previously added SIP message headers
+        portSIPSDK.clearAddedSipMessageHeaders()
+        
+        // Combine both tokens into one string
+        let token = "\(voipToken)|\(apnsToken)"
+        
+        // Determine push permission values based on enablePush flag
+        let allowPush = enablePush ? "true" : "false"
+        
+        // Construct the push message header value
+        let pushMessage = "device-os=ios;device-uid=\(token);allow-call-push=\(allowPush);allow-message-push=\(allowPush);app-id=\(bundleIdentifier)"
+        
+        // Debug output
+        if enablePush {
+            print("Enable pushMessage: {\(pushMessage)}")
+        } else {
+            print("Disable pushMessage: {\(pushMessage)}")
+        }
+        
+        // Add the SIP message header for push notification support
+        portSIPSDK.addSipMessageHeader(-1, methodName: "REGISTER", msgType: 1, headerName: "X-Push", headerValue: pushMessage)
     }
 
     func updatePushStatusToSipServer() {
@@ -945,8 +953,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // if you want work with other PBX, please contact your PBX Provider
 
         addPushSupportWithPortPBX(_enablePushNotification!)
-//        loginViewController.refreshRegister()
-        portSIPSDK.refreshRegistration(0)
+        loginViewController.refreshRegister()
     }
 
     func processPushMessageFromPortPBX(
@@ -1036,7 +1043,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     sessionid: -1, existsVideo: true, remoteParty: self.currentRemoteName,
                     callUUID: uuid!, completionHandle: {})
                 
-                loginViewController.refreshRegister()
+               loginViewController.refreshRegister()
                 beginBackgroundRegister()
 
                 if #available(iOS 10.0, *) {
@@ -1084,17 +1091,22 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     public func pushRegistry(
         _: PKPushRegistry, didUpdate pushCredentials: PKPushCredentials, for _: PKPushType
     ) {
+        // Convert device token data to a hex string
         var deviceTokenString = String()
         let bytes = [UInt8](pushCredentials.token)
         for item in bytes {
             deviceTokenString += String(format: "%02x", item & 0x0000_00FF)
         }
-
-        _VoIPPushToken = NSString(string: deviceTokenString)
-
-        print("didUpdatePushCredentials token=", deviceTokenString)
-
-        updatePushStatusToSipServer()
+        
+        // Update the VoIP push token only if it has changed
+        if _VoIPPushToken != deviceTokenString {
+            _VoIPPushToken = deviceTokenString
+            let settings = UserDefaults.standard
+            settings.set(deviceTokenString, forKey: "kVoIPPushToken")
+            
+            print("_VoIPPushToken updated: \(deviceTokenString)")
+            updatePushStatusToSipServer()
+        }
     }
 
     public func pushRegistry(
@@ -1102,11 +1114,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     ) {
         print("didReceiveIncomingPushWith:payload=", payload.dictionaryPayload)
         if sipRegistered,
-            UIApplication.shared.applicationState == .active || _callManager.getConnectCallNum() > 0
-        {  // ignore push message when app is active
-            print(
-                "didReceiveIncomingPushWith:ignore push message when ApplicationStateActive or have active call. "
-            )
+            UIApplication.shared.applicationState == .active || _callManager.getConnectCallNum() > 0 { // ignore push message when app is active
+            print("didReceiveIncomingPushWith:ignore push message when ApplicationStateActive or have active call. ")
 
             return
         }
@@ -1118,22 +1127,14 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         _: PKPushRegistry, didReceiveIncomingPushWith payload: PKPushPayload, for _: PKPushType,
         completion: @escaping () -> Void
     ) {
-        print("🔔 didReceiveIncomingPushWith:payload=", payload.dictionaryPayload)
-        print(
-            "🔔 App state: \(UIApplication.shared.applicationState.rawValue), SIP registered: \(sipRegistered), Active calls: \(_callManager.getConnectCallNum())"
-        )
-
+        print("didReceiveIncomingPushWith:payload=", payload.dictionaryPayload)
         if sipRegistered,
-            UIApplication.shared.applicationState == .active || _callManager.getConnectCallNum() > 0
-        {  // ignore push message when app is active
-            print("🔔 Ignoring push - app is active or has active calls")
+            UIApplication.shared.applicationState == .active || _callManager.getConnectCallNum() > 0 { // ignore push message when app is active
+            print("didReceiveIncomingPushWith:ignore push message when ApplicationStateActive or have active call. ")
 
-            // 🔥 FIX: Always call completion handler to avoid iOS killing the app
-            completion()
             return
         }
 
-        print("🔔 Processing VoIP push notification")
         processPushMessageFromPortPBX(payload.dictionaryPayload, completion: completion)
     }
 
@@ -1187,15 +1188,22 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     public override func application(
         _: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
-        print("application(_: UIApplication")
+        // Convert deviceToken data to a hex string
         var deviceTokenString = String()
         let bytes = [UInt8](deviceToken)
         for item in bytes {
             deviceTokenString += String(format: "%02x", item & 0x0000_00FF)
         }
-
-        _APNsPushToken = NSString(string: deviceTokenString)
-        updatePushStatusToSipServer()
+        
+        // Update the APNs token only if it has changed
+        if _APNsPushToken != deviceTokenString {
+            _APNsPushToken = deviceTokenString
+            let settings = UserDefaults.standard
+            settings.set(deviceTokenString, forKey: "kAPNsPushToken")
+            
+            print("_APNsPushToken updated: \(deviceTokenString)")
+            updatePushStatusToSipServer()
+        }
     }
 
     private func registerAppNotificationSettings(
@@ -1209,10 +1217,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         case NotReachable:
             NSLog("reachabilityChanged:kNotReachable")
         case ReachableViaWWAN:
-            portSIPSDK.refreshRegistration(0)
+           loginViewController.refreshRegister()
             NSLog("reachabilityChanged:kReachableViaWWAN")
         case ReachableViaWiFi:
-            portSIPSDK.refreshRegistration(0)
+           loginViewController.refreshRegister()
             NSLog("reachabilityChanged:kReachableViaWiFi")
         default:
             break
@@ -1250,7 +1258,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         //     // Disable to save battery, or when you don't need incoming calls while APP is in background.
         //     portSIPSDK.startKeepAwake()
         // } else {
-            beginBackgroundTaskForRegister()
+        loginViewController.unRegister()
+
+        beginBackgroundRegister()
+//            beginBackgroundTaskForRegister()
         
 
         //     beginBackgroundRegister()
@@ -1283,10 +1294,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 guard let strongSelf = self else {
                     return
                 }
-                let result = strongSelf._callManager.findCallBySessionID(strongSelf.activeSessionid)
-                if result == nil || !result!.session.sessionState {
-                    strongSelf.loginViewController.unRegister()
-                }
+//                let result = strongSelf._callManager.findCallBySessionID(strongSelf.activeSessionid)
+//                if result == nil || !result!.session.sessionState {
+                strongSelf.loginViewController.unRegister()
+//                }
             }
 
             backtaskTimer = timer
@@ -1317,7 +1328,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
             print("enableSendVideoStream result: \(sendResult)")
             startSession()
-            _callManager.configureAudioSession()
+//            _callManager.configureAudioSession()
         }
     }
 
@@ -1445,6 +1456,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             }
             self.xSessionId = ""
             methodChannel?.invokeMethod("callType", arguments: "INCOMING_CALL")
+            _callManager.setCallIncoming(true)
         }
 
         // Setting speakers for sound output (The system default behavior)
@@ -1681,9 +1693,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             let sendVideoRes = portSIPSDK.sendVideo(result.session.sessionId, sendState: true)
             NSLog("onInviteUpdated - re-sendVideo: \(sendVideoRes)")
 
-            let updateRes = portSIPSDK.updateCall(
-                result.session.sessionId, enableAudio: true, enableVideo: true)
-            NSLog("onInviteUpdated - re-updateCall: \(updateRes)")
+            // let updateRes = portSIPSDK.updateCall(
+            //     result.session.sessionId, enableAudio: true, enableVideo: true)
+            // NSLog("onInviteUpdated - re-updateCall: \(updateRes)")
         } else {
             NSLog("onInviteUpdated - CONDITIONS NOT MET, skipping re-send logic")
         }
@@ -1788,6 +1800,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         methodChannel?.invokeMethod("isRemoteVideoReceived", arguments: false)
         self.isRemoteVideoReceived = false
         self.mUseFrontCamera = true
+        _callManager.setCallIncoming(false)
         stopSession()
     }
 
@@ -1795,10 +1808,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         _ BLFMonitoredUri: String!, blfDialogState BLFDialogState: String!,
         blfDialogId BLFDialogId: String!, blfDialogDirection BLFDialogDirection: String!
     ) {
-
-        NSLog(
-            "The user \(BLFMonitoredUri!) dialog state is updated:\(BLFDialogState!), dialog id: \(BLFDialogId!), direction: \(BLFDialogDirection!) "
-        )
+        print("onDialogStateUpdated - BLFMonitoredUri: \(BLFMonitoredUri!), BLFDialogState: \(BLFDialogState!), BLFDialogId: \(BLFDialogId!), BLFDialogDirection: \(BLFDialogDirection!)")
     }
 
     public func onRemoteHold(_ sessionId: Int) {
@@ -2174,6 +2184,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
             // Use CallManager.endCall which returns proper status codes
             statusCode = _callManager.endCall(sessionid: activeSessionid)
+            _callManager.setCallIncoming(false)
             stopSession()
             NSLog("hangUpCall - endCall result: \(statusCode)")
         } else {
@@ -2410,6 +2421,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     func onCloseCall(sessionId: CLong) {
         NSLog("onCloseCall")
         freeLine(sessionid: sessionId)
+        _callManager.setCallIncoming(false)
         stopSession()
 
         let result = _callManager.findCallBySessionID(sessionId)
@@ -2560,8 +2572,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     MptCallkitPlugin.enableBlurBackground = enableBlurBackground
                 }
                 if let bgPath = args["bgPath"] as? String {
-                    self.bgPath = bgPath
-                    if !bgPath.isEmpty {
+                    if !bgPath.isEmpty && self.bgPath != bgPath{
+                        self.bgPath = bgPath
                         loadBackgroundImage()
                     }
                 }
@@ -2862,13 +2874,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             return
         case "refreshRegister":
             print("refreshRegister called")
-            // loginViewController.refreshRegister()
-//            result(portSIPSDK.refreshRegistration(0))
+//             loginViewController.refreshRegister()
             result(-1)
         case "refreshRegistration":
             print("refreshRegistration called")
-            // loginViewController.refreshRegister()
-//            result(portSIPSDK.refreshRegistration(0))
+//             loginViewController.refreshRegister()
             result(-1)
         case "setResolutionMode":
             if let args = call.arguments as? [String: Any],
@@ -3038,7 +3048,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         methodChannel?.invokeMethod("registrationStateStream", arguments: true)
         loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_ONLINE
         loginViewController.onRegisterSuccess(statusText: statusText)
-        _callManager.updateRegisterSuccess(true)
         NSLog("onRegisterSuccess")
     }
 
@@ -3051,7 +3060,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         methodChannel?.invokeMethod("registrationStateStream", arguments: false)
         loginViewController.sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_FAILUE
         loginViewController.onRegisterFailure(statusCode: statusCode, statusText: statusText)
-        _callManager.updateRegisterSuccess(false)
         NSLog("onRegisterFailure")
     }
 
@@ -3135,7 +3143,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     NSLog(
                         "🔍 answerCall() - SDK answer success, waiting for onInviteAnswered() callback"
                     )
-                    //                    reInvite(xSessionIdRecv)
+                    reInvite(self.xSessionIdRecv)
                 } else {
                     NSLog(
                         "❌ answerCall - Answer call failed with error code: \(String(describing: answerRes))"
@@ -3486,17 +3494,38 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
       return
     }
     
-    let visionImage = VisionImage(buffer: sampleBuffer)
-    let orientation = UIUtilities.imageOrientation(
-      fromDevicePosition: mUseFrontCamera ? .front : .back
-    )
-    visionImage.orientation = orientation
-    
     // Set processing flag and use async processing
     isProcessingFrame = true
     // Use dedicated video processing queue to avoid priority inversion
     videoProcessingQueue.async { [weak self] in
-      self?.detectSegmentationMask(in: visionImage, sampleBuffer: sampleBuffer)
+        self?.processSegmentationWithMediaPipe(imageBuffer)
+    }
+  }
+
+  /// Process segmentation using MediaPipe (iOS 13+ compatible)
+  private func processSegmentationWithMediaPipe(_ imageBuffer: CVPixelBuffer) {
+    // Ensure processing flag is reset even if function exits early
+    defer {
+      DispatchQueue.main.async { [weak self] in
+        self?.isProcessingFrame = false
+      }
+    }
+    
+    guard let processor = mediaPipeProcessor else {
+      print("❌ MediaPipe processor not available")
+      return
+    }
+    
+    processor.processSampleBuffer(imageBuffer, background: bgBitmap) { [weak self] result in
+      guard let result = result else {
+          DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
+              self?.updatePreviewOverlayViewWithImageBuffer(imageBuffer)
+          }
+        return
+      }
+        DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
+            self?.updatePreviewOverlayViewWithImageBuffer(result)
+        }
     }
   }
 
@@ -3563,172 +3592,6 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
           self?.bgBitmap = nil
         }
       }
-    }
-  }
-  
-  /// Applies background image with segmentation mask to an image buffer
-  private func applyBackgroundImageWithMask(
-    mask: SegmentationMask,
-    to imageBuffer: CVImageBuffer,
-    backgroundImage: UIImage?
-  ) {
-    guard let backgroundImage = backgroundImage else {
-     print("No background image provided, falling back to blur")
-      // Fallback to blur if no background image
-      UIUtilities.applySegmentationMask(
-        mask: mask, to: imageBuffer,
-        backgroundColor: UIColor.lightGray.withAlphaComponent(0.95),
-        foregroundColor: nil)
-      return
-    }
-      
-      
-      // Apply the same orientation as camera output to match
-      let orientation: UIImage.Orientation = mUseFrontCamera ? .leftMirrored : .right
-      let transformedBackgroundImage = applyOrientationToImage(backgroundImage, orientation: orientation)
-    
-    let width = CVPixelBufferGetWidth(imageBuffer)
-    let height = CVPixelBufferGetHeight(imageBuffer)
-    
-    // Scale background image to EXACT camera frame dimensions (stretch to fit)
-    guard let scaledBackgroundImage = transformedBackgroundImage.scaledImage(with: CGSize(width: width, height: height)) else {
-        return
-    }
-    
-    
-    // Convert background image to image buffer
-    guard let backgroundImageBuffer = UIUtilities.createImageBuffer(from: scaledBackgroundImage) else {
-      print("Failed to create image buffer from background image")
-      // Fallback to blur
-      UIUtilities.applySegmentationMask(
-        mask: mask, to: imageBuffer,
-        backgroundColor: UIColor.lightGray.withAlphaComponent(0.95),
-        foregroundColor: nil)
-      return
-    }
-    
-    // Apply the mask to composite person from camera image onto background
-    applyMaskToCompositeImages(
-      mask: mask,
-      cameraImageBuffer: imageBuffer,
-      backgroundImageBuffer: backgroundImageBuffer
-    )
-  }
-  
-  /// Applies mask to composite person from camera image onto background image
-  private func applyMaskToCompositeImages(
-    mask: SegmentationMask,
-    cameraImageBuffer: CVImageBuffer,
-    backgroundImageBuffer: CVImageBuffer
-  ) {
-    let width = CVPixelBufferGetWidth(mask.buffer)
-    let height = CVPixelBufferGetHeight(mask.buffer)
-    
-    assert(CVPixelBufferGetWidth(cameraImageBuffer) == width, "Width must match")
-    assert(CVPixelBufferGetHeight(cameraImageBuffer) == height, "Height must match")
-    assert(CVPixelBufferGetWidth(backgroundImageBuffer) == width, "Background width must match")
-    assert(CVPixelBufferGetHeight(backgroundImageBuffer) == height, "Background height must match")
-    
-    let writeFlags = CVPixelBufferLockFlags(rawValue: 0)
-    CVPixelBufferLockBaseAddress(cameraImageBuffer, writeFlags)
-    CVPixelBufferLockBaseAddress(backgroundImageBuffer, CVPixelBufferLockFlags.readOnly)
-    CVPixelBufferLockBaseAddress(mask.buffer, CVPixelBufferLockFlags.readOnly)
-    
-    let maskBytesPerRow = CVPixelBufferGetBytesPerRow(mask.buffer)
-    var maskAddress = CVPixelBufferGetBaseAddress(mask.buffer)!.bindMemory(
-      to: Float32.self, capacity: maskBytesPerRow * height)
-    
-    let cameraBytesPerRow = CVPixelBufferGetBytesPerRow(cameraImageBuffer)
-    var cameraAddress = CVPixelBufferGetBaseAddress(cameraImageBuffer)!.bindMemory(
-      to: UInt8.self, capacity: cameraBytesPerRow * height)
-    
-    let backgroundBytesPerRow = CVPixelBufferGetBytesPerRow(backgroundImageBuffer)
-    var backgroundAddress = CVPixelBufferGetBaseAddress(backgroundImageBuffer)!.bindMemory(
-      to: UInt8.self, capacity: backgroundBytesPerRow * height)
-    
-    for _ in 0...(height - 1) {
-      for col in 0...(width - 1) {
-        let pixelOffset = col * 4 // BGRA format
-        
-        let maskValue: CGFloat = CGFloat(maskAddress[col])
-        let personRegionRatio = maskValue
-        let backgroundRegionRatio: CGFloat = 1.0 - maskValue
-        
-        // Get camera pixel values
-        let cameraRed = CGFloat(cameraAddress[pixelOffset + 2]) / 255.0
-        let cameraGreen = CGFloat(cameraAddress[pixelOffset + 1]) / 255.0
-        let cameraBlue = CGFloat(cameraAddress[pixelOffset]) / 255.0
-        let cameraAlpha = CGFloat(cameraAddress[pixelOffset + 3]) / 255.0
-        
-        // Get background pixel values
-        let backgroundRed = CGFloat(backgroundAddress[pixelOffset + 2]) / 255.0
-        let backgroundGreen = CGFloat(backgroundAddress[pixelOffset + 1]) / 255.0
-        let backgroundBlue = CGFloat(backgroundAddress[pixelOffset]) / 255.0
-        let backgroundAlpha = CGFloat(backgroundAddress[pixelOffset + 3]) / 255.0
-        
-        // Composite the pixels
-        let compositeRed = cameraRed * personRegionRatio + backgroundRed * backgroundRegionRatio
-        let compositeGreen = cameraGreen * personRegionRatio + backgroundGreen * backgroundRegionRatio
-        let compositeBlue = cameraBlue * personRegionRatio + backgroundBlue * backgroundRegionRatio
-        let compositeAlpha = cameraAlpha * personRegionRatio + backgroundAlpha * backgroundRegionRatio
-        
-        // Write back to camera image buffer
-        cameraAddress[pixelOffset] = UInt8(compositeBlue * 255.0)
-        cameraAddress[pixelOffset + 1] = UInt8(compositeGreen * 255.0)
-        cameraAddress[pixelOffset + 2] = UInt8(compositeRed * 255.0)
-        cameraAddress[pixelOffset + 3] = UInt8(compositeAlpha * 255.0)
-      }
-      
-      cameraAddress += cameraBytesPerRow / MemoryLayout<UInt8>.size
-      backgroundAddress += backgroundBytesPerRow / MemoryLayout<UInt8>.size
-      maskAddress += maskBytesPerRow / MemoryLayout<Float32>.size
-    }
-    
-    CVPixelBufferUnlockBaseAddress(cameraImageBuffer, writeFlags)
-    CVPixelBufferUnlockBaseAddress(backgroundImageBuffer, CVPixelBufferLockFlags.readOnly)
-    CVPixelBufferUnlockBaseAddress(mask.buffer, CVPixelBufferLockFlags.readOnly)
-  }
-
-  private func detectSegmentationMask(in image: VisionImage, sampleBuffer: CMSampleBuffer) {
-    // Ensure processing flag is reset even if function exits early
-    defer {
-      DispatchQueue.main.async { [weak self] in
-        self?.isProcessingFrame = false
-      }
-    }
-    
-    guard let segmenter = self._segmenter else {
-      return
-    }
-    
-    // Perform segmentation on background thread
-    var mask: SegmentationMask? = nil
-    do {
-      mask = try segmenter.results(in: image)
-    } catch let error {
-      print("Failed to perform segmentation with error: \(error.localizedDescription).")
-      return
-    }
-    
-    guard let mask = mask else {
-      print("Segmenter returned empty mask.")
-      return
-    }
-    
-    guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-      print("Failed to get image buffer from sample buffer.")
-      return
-    }
-
-    // Apply background image with mask instead of blur
-    applyBackgroundImageWithMask(
-      mask: mask, 
-      to: imageBuffer,
-      backgroundImage: bgBitmap)
-    
-    // Only update UI on main thread with appropriate QoS
-    DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
-      self?.updatePreviewOverlayViewWithImageBuffer(imageBuffer)
     }
   }
     

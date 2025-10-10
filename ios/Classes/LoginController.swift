@@ -165,7 +165,7 @@ class LoginViewController {
         portSipPlugin.addPushSupportWithPortPBX(portSipPlugin._enablePushNotification!)
         sipInitialized = true
         sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_LOGIN
-        
+
         portSIPSDK.registerServer(90, retryTimes: 0)
         var sipURL: String
         if sipServerPort == 5063 {
@@ -173,7 +173,7 @@ class LoginViewController {
         } else {
             sipURL = "sip:\(username):\(userDomain):\(String(describing: sipServerPort))"
         }
-        
+
         appDelegate.sipURL = sipURL
         print("Registration initiated...")
     }
@@ -214,8 +214,15 @@ class LoginViewController {
         case .LOGIN_STATUS_LOGIN:
             break
         case .LOGIN_STATUS_ONLINE:
-//            portSIPSDK.refreshRegistration(0)
-            print("Refresh Registration...")
+           if let callstate = PortSIPStateManager.shared.getCurrentCallState(),
+              callstate.state == .incoming {
+               print("refreshRegister but has INVITE, do nothing")
+               return
+           } else {
+               print("Refresh Registration...")
+                portSIPSDK.refreshRegistration(0)
+           }
+            
             break
         case .LOGIN_STATUS_FAILUE:
             portSIPSDK.unRegisterServer(90)
