@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -40,6 +42,8 @@ class MptCallKitController {
   static const eventChannel = EventChannel('native_events');
   static final MptCallKitController _instance =
       MptCallKitController._internal();
+  static const int DEFAULT_TENANT_ID = -1;
+  static const int DEFAULT_AGENT_ID = -1;
 
   /// online status stream
   final StreamController<bool> _onlineStatuslistener =
@@ -659,6 +663,8 @@ class MptCallKitController {
               autoLogin: true,
               enableBlurBackground: true,
               bgPath: await getCurrentBgPath(),
+              tenantId: currentUserInfo!["tenant"]["id"] ?? DEFAULT_TENANT_ID,
+              agentId: currentUserInfo!["user"]["id"] ?? DEFAULT_AGENT_ID,
             );
           } else {
             _appEvent.add(AppEventConstants.ERROR);
@@ -895,6 +901,8 @@ class MptCallKitController {
 
     await clearInitPreferences();
 
+    currentUserInfo = null;
+
     if (isDeleteRegistrationSuccess && isUnregistered) {
       _appEvent.add(AppEventConstants.LOGGED_OUT);
       _currentAppEvent = AppEventConstants.LOGGED_OUT;
@@ -953,27 +961,30 @@ class MptCallKitController {
         lastesExtensionData = extensionData;
 
         online(
-            username: result.username ?? "",
-            displayName: userPhoneNumber,
-            authName: '',
-            password: result.password ?? "",
-            userDomain: result.domain ?? "",
-            sipServer: result.sipServer ?? "",
-            sipServerPort: result.port ?? 5063,
-            // sipServerPort: 5063,
-            transportType: 0,
-            srtpType: 0,
-            context: context,
-            appId: await getCurrentAppId(),
-            pushToken: await getCurrentPushToken(),
-            isMakeCallByGuest: true,
-            resolution: result.resolution,
-            bitrate: result.bitrate,
-            frameRate: result.frameRate,
-            recordLabel: await getCurrentRecordLabel(),
-            autoLogin: false,
-            enableBlurBackground: await getCurrentEnableBlurBackground(),
-            bgPath: await getCurrentBgPath());
+          username: result.username ?? "",
+          displayName: userPhoneNumber,
+          authName: '',
+          password: result.password ?? "",
+          userDomain: result.domain ?? "",
+          sipServer: result.sipServer ?? "",
+          sipServerPort: result.port ?? 5063,
+          // sipServerPort: 5063,
+          transportType: 0,
+          srtpType: 0,
+          context: context,
+          appId: await getCurrentAppId(),
+          pushToken: await getCurrentPushToken(),
+          isMakeCallByGuest: true,
+          resolution: result.resolution,
+          bitrate: result.bitrate,
+          frameRate: result.frameRate,
+          recordLabel: await getCurrentRecordLabel(),
+          autoLogin: false,
+          enableBlurBackground: await getCurrentEnableBlurBackground(),
+          bgPath: await getCurrentBgPath(),
+          agentId: DEFAULT_AGENT_ID,
+          tenantId: DEFAULT_TENANT_ID,
+        );
 
         // 🔧 FIX: Ensure no previous completer is pending
         if (_guestRegistrationCompleter != null &&
@@ -1231,6 +1242,8 @@ class MptCallKitController {
     required BuildContext context,
     String? pushToken,
     String? appId,
+    int? agentId,
+    int? tenantId,
     bool? isMakeCallByGuest = false,
     String? resolution,
     int? bitrate,
@@ -1270,6 +1283,8 @@ class MptCallKitController {
           'srtpType': srtpType,
           "pushToken": pushToken ?? "",
           "appId": appId ?? "",
+          "agentId": agentId ?? "",
+          "tenantId": tenantId ?? "",
           "enableDebugLog": enableDebugLog ?? false,
           "localizedCallerName": localizedCallerName,
           "resolution": resolution ?? "720P",
@@ -1278,7 +1293,7 @@ class MptCallKitController {
           "recordLabel": recordLabel ?? "Customer",
           "autoLogin": autoLogin ?? false,
           "enableBlurBackground": enableBlurBackground ?? false,
-          "bgPath": bgPath ?? null,
+          "bgPath": bgPath,
         },
       );
 
@@ -1775,10 +1790,12 @@ class MptCallKitController {
           AgentStateConstants.TALKING,
         );
 
-        // Update video call after 2.5 seconds in the agent side
-        Future.delayed(const Duration(milliseconds: 2500), () {
-          updateVideoCall(isVideo: true);
-        });
+        if (!isMakeCallByGuest) {
+          // Update video call after 2.5 seconds in the agent side
+          Future.delayed(const Duration(milliseconds: 2500), () {
+            updateVideoCall(isVideo: true);
+          });
+        }
       }
     } else {
       print(
@@ -1801,6 +1818,13 @@ class MptCallKitController {
       // } else {
       //   //show ios callkit
       // }
+
+      if (!isMakeCallByGuest) {
+        reportMediaDeviceStatus(
+          tenantId: currentUserInfo!["tenant"]["id"] ?? DEFAULT_TENANT_ID,
+          agentId: currentUserInfo?["user"]["id"] ?? DEFAULT_AGENT_ID,
+        );
+      }
 
       Future.delayed(const Duration(milliseconds: 1500), () {
         setSpeaker(state: SpeakerStatusConstants.SPEAKER_PHONE);
@@ -2233,6 +2257,41 @@ class MptCallKitController {
             <--*/
           }
           break;
+        // callee agent info
+        case "agentInfo":
+          try {
+            Map<String, dynamic> agentInfo;
+
+            // Handle both String and Map types
+            if (value is String) {
+              // If it's a string, try to parse it as JSON
+              agentInfo = jsonDecode(value) as Map<String, dynamic>;
+            } else if (value is Map) {
+              // If it's already a Map, use it directly
+              agentInfo = Map<String, dynamic>.from(value);
+            } else {
+              print('Invalid agentInfo type: ${value.runtimeType}');
+              break;
+            }
+
+            print("Agent Info received: ${agentInfo.toString()}");
+
+            final int agentId = agentInfo["agentId"] as int;
+            final int tenantId = agentInfo["tenantId"] as int;
+
+            print('Agent ID received: $agentId');
+            print('Tenant ID received: $tenantId');
+
+            if (agentId != DEFAULT_AGENT_ID &&
+                tenantId != DEFAULT_TENANT_ID &&
+                isMakeCallByGuest) {
+              reportMediaDeviceStatus(tenantId: tenantId, agentId: agentId);
+            }
+          } catch (e) {
+            print('Error parsing agentInfo: $e');
+            print('agentInfo value: $value (type: ${value.runtimeType})');
+          }
+          break;
 
         // case "isVideo":
         //   final bool isVideo = value as bool;
@@ -2308,7 +2367,7 @@ class MptCallKitController {
 
   Future<String?> getCurrentBgPath() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(SDKPrefsKeyConstants.BG_PATH) ?? null;
+    return prefs.getString(SDKPrefsKeyConstants.BG_PATH);
   }
 
   Future<String> getCurrentAppId() async {
@@ -2428,5 +2487,61 @@ class MptCallKitController {
       debugPrint("Failed in 'getCurrentCallSessionId' mothod: '${e.message}'.");
       return null;
     }
+  }
+
+  Future<void> reportMediaDeviceStatus({
+    required int tenantId,
+    required int agentId,
+    Function(String?)? onError,
+  }) async {
+    DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+    final hasPermission = await channel.invokeMethod('requestPermission');
+
+    final currentTime = DateTime.now();
+    final timeStamp = currentTime.millisecondsSinceEpoch;
+    final date = DateFormat('dd/MM/yy HH:mm:ss').format(currentTime);
+
+    var data = {
+      "deviceType": "mobile",
+      "devicePermissions": hasPermission,
+      "extension": int.parse(lastesExtensionData?.username ?? "0"),
+      "extensionRole": isMakeCallByGuest ? "caller" : "callee",
+      "mptSDKVersion": MptSDKCoreConstants.VERSION,
+    };
+
+    if (Platform.isAndroid) {
+      final androidInfo = await deviceInfo.androidInfo;
+      data["platform"] = "Android";
+      data["androidVersion"] = androidInfo.version.release;
+      data["androidSDKVersion"] = androidInfo.version.sdkInt;
+      data["manufacturer"] = androidInfo.manufacturer;
+      data["model"] = androidInfo.model;
+    } else if (Platform.isIOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      data["platform"] = "iOS";
+      data["iosVersion"] = iosInfo.systemVersion;
+      data["machine"] = iosInfo.utsname.machine;
+      data["name"] = iosInfo.name;
+    }
+
+    final payload = {
+      "values": (data),
+      "title": MPTSDKLogTitleConstants.MEDIA_DEVICE_STATUS,
+      "tabId": "",
+      "date": date,
+    };
+
+    print("reportMediaDeviceStatus - payload: ${jsonEncode(payload)}");
+
+    await MptCallKitControllerRepo().reportDynamicClientLog(
+      baseUrl: await getCurrentBaseUrl(),
+      tenantId: tenantId,
+      // agentId: int.parse(lastesExtensionData?.username ?? "0"),
+      agentId: agentId,
+      sessionId: await getCurrentCallSessionId() ?? "",
+      timeStamp: timeStamp,
+      payload: jsonEncode(payload),
+      onError: onError,
+    );
   }
 }

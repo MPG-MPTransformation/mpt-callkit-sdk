@@ -264,6 +264,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     var currentRemoteName: String = ""
     var currentLocalizedCallerName: String = ""  // Lưu localizedCallerName
     var currentUUID: UUID? = UUID()
+    var currentTenantId: Int32 = 0
+    var currentAgentId: Int32 = 0
 
     var _enablePushNotification: Bool?
 
@@ -2418,6 +2420,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
                 type: "call_state", payloadKey: "answered", payloadValue: true)
 
+            // Send agentInfo as a single object to match Android pattern
+            let agentInfo: [String: Any] = [
+                "agentId": self.currentAgentId,
+                "tenantId": self.currentTenantId
+            ]
+            sendCustomMessage(
+                callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
+                type: "call_state", payloadKey: "agentInfo", payloadValue: agentInfo)
+
             sendCallStateToFlutter(.ANSWERED)
         }
 
@@ -2612,9 +2623,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let autoLogin = (args["autoLogin"] as? Bool) ?? false
                 let enableBlur = (args["enableBlurBackground"] as? Bool) ?? false
                 let backgroundPath = (args["bgPath"] as? String) ?? nil
+                let agentId = (args["agentId"] as? Int32) ?? -1
+                let tenantId = (args["tenantId"] as? Int32) ?? -1
 
                 // Lưu username hiện tại
                 currentUsername = username
+                self.currentAgentId = agentId
+                self.currentTenantId = tenantId
                 MptCallkitPlugin.overlayText = recordLabel
                 MptCallkitPlugin.enableBlurBackground = enableBlur
                 
