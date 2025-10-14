@@ -74,15 +74,15 @@ public class CameraSource {
 
   public static final int IMAGE_FORMAT = ImageFormat.NV21;
   
-  // Resolution presets for automatic selection
-  public static final int RESOLUTION_LOW = 0;      // 480x640
-  public static final int RESOLUTION_MEDIUM = 1;   // 720x1280  
-  public static final int RESOLUTION_HIGH = 2;     // 1080x1920
+  // Resolution presets for automatic selection (16:9 aspect ratio - landscape)
+  public static final int RESOLUTION_LOW = 0;      // 640x360
+  public static final int RESOLUTION_MEDIUM = 1;   // 1280x720  
+  public static final int RESOLUTION_HIGH = 2;     // 1920x1080
   public static final int RESOLUTION_AUTO = 3;     // Automatic based on device
   
-  // Default resolution constants (fallback)
-  public static final int DEFAULT_REQUESTED_CAMERA_PREVIEW_WIDTH = 720;
-  public static final int DEFAULT_REQUESTED_CAMERA_PREVIEW_HEIGHT = 1280;
+  // Default resolution constants (fallback) - 720p HD with 16:9 aspect ratio
+  public static final int DEFAULT_REQUESTED_CAMERA_PREVIEW_WIDTH = 1280;
+  public static final int DEFAULT_REQUESTED_CAMERA_PREVIEW_HEIGHT = 720;
 
   private static final String TAG = "MptCallkit:CameraSource";
 
@@ -105,7 +105,7 @@ public class CameraSource {
 
   private int facing = CAMERA_FACING_FRONT;
   
-  // Resolution configuration
+  // Resolution configuration (default: 720p HD - 16:9 aspect ratio)
   private int resolutionMode = RESOLUTION_AUTO;
   private int requestedWidth = DEFAULT_REQUESTED_CAMERA_PREVIEW_WIDTH;
   private int requestedHeight = DEFAULT_REQUESTED_CAMERA_PREVIEW_HEIGHT;
@@ -900,16 +900,19 @@ public class CameraSource {
   private void updateRequestedResolution() {
     switch (resolutionMode) {
       case RESOLUTION_LOW:
-        requestedWidth = 480;
-        requestedHeight = 848;
+        // 16:9 aspect ratio - landscape
+        requestedWidth = 640;
+        requestedHeight = 360;
         break;
       case RESOLUTION_MEDIUM:
-        requestedWidth = 720;
-        requestedHeight = 1280;
+        // 16:9 aspect ratio - landscape
+        requestedWidth = 1280;
+        requestedHeight = 720;
         break;
       case RESOLUTION_HIGH:
-        requestedWidth = 1280;
-        requestedHeight = 1920;
+        // 16:9 aspect ratio - landscape
+        requestedWidth = 1920;
+        requestedHeight = 1080;
         break;
       case RESOLUTION_AUTO:
         autoSelectResolution();
@@ -939,19 +942,19 @@ public class CameraSource {
       
       // Auto-select based on device capabilities
       if (isHighEndDevice(totalMemory, cpuCores, screenWidth, screenHeight)) {
-        // High-end device: use high resolution
-        requestedWidth = 1280;
-        requestedHeight = 1920;
+        // High-end device: use high resolution (16:9 aspect ratio - landscape)
+        requestedWidth = 1920;
+        requestedHeight = 1080;
         Log.d(TAG, "Auto-selected HIGH resolution for high-end device");
       } else if (isMidRangeDevice(totalMemory, cpuCores, screenWidth, screenHeight)) {
-        // Mid-range device: use medium resolution
-        requestedWidth = 720;
-        requestedHeight = 1280;
+        // Mid-range device: use medium resolution (16:9 aspect ratio - landscape)
+        requestedWidth = 1280;
+        requestedHeight = 720;
         Log.d(TAG, "Auto-selected MEDIUM resolution for mid-range device");
       } else {
-        // Low-end device: use low resolution
-        requestedWidth = 480;
-        requestedHeight = 848;
+        // Low-end device: use low resolution (16:9 aspect ratio - landscape)
+        requestedWidth = 640;
+        requestedHeight = 360;
         Log.d(TAG, "Auto-selected LOW resolution for low-end device");
       }
       

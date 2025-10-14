@@ -137,13 +137,13 @@ class LoginViewController {
         case "CIF":
             width = 352; height = 288
         case "VGA":
-            width = 848; height = 480
+            width = 848; height = 480  // 16:9 aspect ratio
         case "720P":
-            width = 1280; height = 720
+            width = 1280; height = 720  // 16:9 aspect ratio
         case "1080P":
-            width = 1920; height = 1280
+            width = 1920; height = 1080  // 16:9 aspect ratio (Full HD)
         default:
-            width = 1280; height = 720
+            width = 1280; height = 720  // 16:9 aspect ratio (default 720p)
         }
         portSIPSDK.setVideoResolution(Int32(width), height: Int32(height))
         portSIPSDK.setAudioSamples(20, maxPtime: 60)

@@ -284,15 +284,16 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     // MARK: - Camera Resolution Configuration
     
     // Resolution presets for automatic selection (matching Android CameraSource)
-    static let RESOLUTION_LOW = 0      // 480x640
-    static let RESOLUTION_MEDIUM = 1   // 720x1280
-    static let RESOLUTION_HIGH = 2     // 1080x1920
+    // All resolutions use 16:9 aspect ratio (landscape orientation)
+    static let RESOLUTION_LOW = 0      // 640x360
+    static let RESOLUTION_MEDIUM = 1   // 1280x720
+    static let RESOLUTION_HIGH = 2     // 1920x1080
     static let RESOLUTION_AUTO = 3     // Automatic based on device capabilities
     
-    // Resolution configuration
+    // Resolution configuration (default: 720p HD - 16:9 aspect ratio)
     private var resolutionMode = RESOLUTION_AUTO
-    private var requestedWidth = 720
-    private var requestedHeight = 1280
+    private var requestedWidth = 1280
+    private var requestedHeight = 720
     
     // Text overlay configuration (matching Android SegmenterProcessor)
     private static var overlayText = "Agent" // Default text matching Android
@@ -3814,14 +3815,17 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     private func updateRequestedResolution() {
         switch resolutionMode {
         case MptCallkitPlugin.RESOLUTION_LOW:
-            requestedWidth = 480
-            requestedHeight = 848
+            // 16:9 aspect ratio - landscape
+            requestedWidth = 640
+            requestedHeight = 360
         case MptCallkitPlugin.RESOLUTION_MEDIUM:
-            requestedWidth = 720
-            requestedHeight = 1280
-        case MptCallkitPlugin.RESOLUTION_HIGH:
+            // 16:9 aspect ratio - landscape
             requestedWidth = 1280
-            requestedHeight = 1920
+            requestedHeight = 720
+        case MptCallkitPlugin.RESOLUTION_HIGH:
+            // 16:9 aspect ratio - landscape
+            requestedWidth = 1920
+            requestedHeight = 1080
         case MptCallkitPlugin.RESOLUTION_AUTO:
             autoSelectResolution()
         default:
@@ -3850,20 +3854,20 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         // Auto-select based on device capabilities
         if isHighEndDevice(physicalMemory: physicalMemory, processorCount: processorCount, 
                           screenWidth: screenWidth, screenHeight: screenHeight, deviceModel: deviceModel) {
-            // High-end device: use high resolution
-            requestedWidth = 1280
-            requestedHeight = 1920
+            // High-end device: use high resolution (16:9 aspect ratio - landscape)
+            requestedWidth = 1920
+            requestedHeight = 1080
             NSLog("Auto-selected HIGH resolution for high-end device (\(deviceModel))")
         } else if isMidRangeDevice(physicalMemory: physicalMemory, processorCount: processorCount,
                                  screenWidth: screenWidth, screenHeight: screenHeight, deviceModel: deviceModel) {
-            // Mid-range device: use medium resolution
-            requestedWidth = 720
-            requestedHeight = 1280
+            // Mid-range device: use medium resolution (16:9 aspect ratio - landscape)
+            requestedWidth = 1280
+            requestedHeight = 720
             NSLog("Auto-selected MEDIUM resolution for mid-range device (\(deviceModel))")
         } else {
-            // Low-end device: use low resolution
-            requestedWidth = 480    
-            requestedHeight = 848
+            // Low-end device: use low resolution (16:9 aspect ratio - landscape)
+            requestedWidth = 640
+            requestedHeight = 360
             NSLog("Auto-selected LOW resolution for low-end device (\(deviceModel))")
         }
         
