@@ -137,11 +137,11 @@ class LoginViewController {
         case "CIF":
             width = 352; height = 288
         case "VGA":
-            width = 640; height = 480
+            width = 848; height = 480
         case "720P":
             width = 1280; height = 720
         case "1080P":
-            width = 1920; height = 1080
+            width = 1920; height = 1280
         default:
             width = 1280; height = 720
         }

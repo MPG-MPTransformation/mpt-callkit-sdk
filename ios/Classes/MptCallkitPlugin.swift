@@ -3815,13 +3815,13 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         switch resolutionMode {
         case MptCallkitPlugin.RESOLUTION_LOW:
             requestedWidth = 480
-            requestedHeight = 640
+            requestedHeight = 848
         case MptCallkitPlugin.RESOLUTION_MEDIUM:
             requestedWidth = 720
             requestedHeight = 1280
         case MptCallkitPlugin.RESOLUTION_HIGH:
             requestedWidth = 1280
-            requestedHeight = 1440
+            requestedHeight = 1920
         case MptCallkitPlugin.RESOLUTION_AUTO:
             autoSelectResolution()
         default:
@@ -3852,7 +3852,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
                           screenWidth: screenWidth, screenHeight: screenHeight, deviceModel: deviceModel) {
             // High-end device: use high resolution
             requestedWidth = 1280
-            requestedHeight = 1440
+            requestedHeight = 1920
             NSLog("Auto-selected HIGH resolution for high-end device (\(deviceModel))")
         } else if isMidRangeDevice(physicalMemory: physicalMemory, processorCount: processorCount,
                                  screenWidth: screenWidth, screenHeight: screenHeight, deviceModel: deviceModel) {
@@ -3863,7 +3863,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         } else {
             // Low-end device: use low resolution
             requestedWidth = 480    
-            requestedHeight = 640
+            requestedHeight = 848
             NSLog("Auto-selected LOW resolution for low-end device (\(deviceModel))")
         }
         
