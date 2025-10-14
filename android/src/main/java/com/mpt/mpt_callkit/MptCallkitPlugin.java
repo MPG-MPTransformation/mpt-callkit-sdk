@@ -1063,6 +1063,19 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 String currentSessionId = Engine.getCurrentCallSessionId();
                 result.success(currentSessionId);
                 break;
+            case "isInternal":
+                String sessionId = call.argument("sessionId");
+                String extension = call.argument("extension");
+                Boolean isInternal = call.argument("isInternal");
+                if (isInternal == null) {
+                    System.out.println("SDK-Android: isInternal - isInternal is null");
+                    result.error("INVALID_ARGUMENTS", "'isInternal' is required", null);
+                    break;
+                }
+                System.out.println("SDK-Android: isInternal - sessionId: " + sessionId + ", extension: " + extension + ", isInternal: " + isInternal);
+                sendCustomMessage(sessionId, extension, "call_state", "isInternal", isInternal);
+                result.success(true);
+                break;
             default:
                 result.notImplemented();
         }

@@ -563,6 +563,35 @@ class MptSocketSocketServer {
                     //   print(
                     //       "Socket server - CALL_EVENT - Error invoking reinvite method: $e");
                     // }
+
+                    var isInternal = false;
+
+                    if (data["dnis"] == currentUserInfo?["user"]["extension"]) {
+                      print(
+                          "[Socket server] - CALL_EVENT - call to agent extension");
+                      // Handle video call
+                      isInternal = true;
+                    } else {
+                      print(
+                          "[Socket server] - CALL_EVENT - call to queue agent");
+                      isInternal = false;
+                    }
+
+                    try {
+                      var payload = {
+                        "isInternal": isInternal,
+                        "sessionId": sessionId,
+                        "extension": currentUserInfo?["user"]["extension"],
+                      };
+                      await MptCallKitController.channel
+                          .invokeMethod('isInternal', payload);
+
+                      print(
+                          "Socket server - CALL_EVENT - currentSessionId: $sessionId");
+                    } catch (e) {
+                      print(
+                          "Socket server - CALL_EVENT - Error invoking reinvite method: $e");
+                    }
                   }
                 } else {
                   print(

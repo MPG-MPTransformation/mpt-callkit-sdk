@@ -2940,6 +2940,14 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             result(getOverlayText())
         case "getCurrentCallSessionId":
             result(self.currentSessionid)
+        case "isInternal":
+            let isInternalPayload = call.arguments as? [String: Any]
+            let isInternal = isInternalPayload?["isInternal"] as? Bool
+            let sessionId = isInternalPayload?["sessionId"] as? String
+            let agentExtension = isInternalPayload?["extension"] as? String
+            sendCustomMessage(
+                callSessionId: sessionId!, userExtension: agentExtension!,
+                type: "call_state", payloadKey: "isInternal", payloadValue: isInternal ?? true)
         default:
             result(FlutterMethodNotImplemented)
         }
