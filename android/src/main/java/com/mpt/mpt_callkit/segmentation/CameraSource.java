@@ -901,7 +901,7 @@ public class CameraSource {
     switch (resolutionMode) {
       case RESOLUTION_LOW:
         requestedWidth = 480;
-        requestedHeight = 640;
+        requestedHeight = 848;
         break;
       case RESOLUTION_MEDIUM:
         requestedWidth = 720;
@@ -951,7 +951,7 @@ public class CameraSource {
       } else {
         // Low-end device: use low resolution
         requestedWidth = 480;
-        requestedHeight = 640;
+        requestedHeight = 848;
         Log.d(TAG, "Auto-selected LOW resolution for low-end device");
       }
       

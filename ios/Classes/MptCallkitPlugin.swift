@@ -264,6 +264,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     var currentRemoteName: String = ""
     var currentLocalizedCallerName: String = ""  // Lưu localizedCallerName
     var currentUUID: UUID? = UUID()
+    var currentTenantId: Int32 = 0
+    var currentAgentId: Int32 = 0
 
     var _enablePushNotification: Bool?
 
@@ -2418,6 +2420,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
                 type: "call_state", payloadKey: "answered", payloadValue: true)
 
+            // Send agentInfo as a single object to match Android pattern
+            let agentInfo: [String: Any] = [
+                "agentId": self.currentAgentId,
+                "tenantId": self.currentTenantId
+            ]
+            sendCustomMessage(
+                callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
+                type: "call_state", payloadKey: "agentInfo", payloadValue: agentInfo)
+
             sendCallStateToFlutter(.ANSWERED)
         }
 
@@ -2612,9 +2623,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let autoLogin = (args["autoLogin"] as? Bool) ?? false
                 let enableBlur = (args["enableBlurBackground"] as? Bool) ?? false
                 let backgroundPath = (args["bgPath"] as? String) ?? nil
+                let agentId = (args["agentId"] as? Int32) ?? -1
+                let tenantId = (args["tenantId"] as? Int32) ?? -1
 
                 // Lưu username hiện tại
                 currentUsername = username
+                self.currentAgentId = agentId
+                self.currentTenantId = tenantId
                 MptCallkitPlugin.overlayText = recordLabel
                 MptCallkitPlugin.enableBlurBackground = enableBlur
                 
@@ -2925,6 +2940,14 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             result(getOverlayText())
         case "getCurrentCallSessionId":
             result(self.currentSessionid)
+        case "isInternal":
+            let isInternalPayload = call.arguments as? [String: Any]
+            let isInternal = isInternalPayload?["isInternal"] as? Bool
+            let sessionId = isInternalPayload?["sessionId"] as? String
+            let agentExtension = isInternalPayload?["extension"] as? String
+            sendCustomMessage(
+                callSessionId: sessionId!, userExtension: agentExtension!,
+                type: "call_state", payloadKey: "isInternal", payloadValue: isInternal ?? true)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -3792,13 +3815,13 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         switch resolutionMode {
         case MptCallkitPlugin.RESOLUTION_LOW:
             requestedWidth = 480
-            requestedHeight = 640
+            requestedHeight = 848
         case MptCallkitPlugin.RESOLUTION_MEDIUM:
             requestedWidth = 720
             requestedHeight = 1280
         case MptCallkitPlugin.RESOLUTION_HIGH:
             requestedWidth = 1280
-            requestedHeight = 1440
+            requestedHeight = 1920
         case MptCallkitPlugin.RESOLUTION_AUTO:
             autoSelectResolution()
         default:
@@ -3829,7 +3852,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
                           screenWidth: screenWidth, screenHeight: screenHeight, deviceModel: deviceModel) {
             // High-end device: use high resolution
             requestedWidth = 1280
-            requestedHeight = 1440
+            requestedHeight = 1920
             NSLog("Auto-selected HIGH resolution for high-end device (\(deviceModel))")
         } else if isMidRangeDevice(physicalMemory: physicalMemory, processorCount: processorCount,
                                  screenWidth: screenWidth, screenHeight: screenHeight, deviceModel: deviceModel) {
@@ -3840,7 +3863,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         } else {
             // Low-end device: use low resolution
             requestedWidth = 480    
-            requestedHeight = 640
+            requestedHeight = 848
             NSLog("Auto-selected LOW resolution for low-end device (\(deviceModel))")
         }
         

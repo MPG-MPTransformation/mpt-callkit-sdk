@@ -16,6 +16,7 @@ class MptCallKitControllerRepo {
   final _getQueuesAPI = "/contact-center/queue";
   final _getAllAgentInQueueByExtensionAPI =
       "/contact-center/queue/agentsByExtension";
+  final _dynamicClientLogAPI = "/dynamic-report/api/v2/reports/client-log";
 
   // Change agent status
   Future<bool> changeAgentStatus({
@@ -613,5 +614,45 @@ class MptCallKitControllerRepo {
       return <AgentDataByQueue>[];
     }
     return null;
+  }
+
+  Future<void> reportDynamicClientLog({
+    String? baseUrl,
+    required int tenantId,
+    required int agentId,
+    required String sessionId,
+    required int timeStamp,
+    required String payload,
+    Function(String?)? onError,
+  }) async {
+    final headers = {
+      'Content-Type': 'application/json',
+    };
+
+    final body = {
+      "tenantId": tenantId,
+      "agentId": agentId,
+      "sessionId": sessionId,
+      "timeStamp": timeStamp,
+      "payload": payload,
+    };
+
+    print("[Mpt_API] - reportDynamicClientLog - body: ${jsonEncode(body)}");
+
+    final response = await http.post(
+      Uri.parse(
+          "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$_dynamicClientLogAPI"),
+      headers: headers,
+      body: convert.jsonEncode(body),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      print("[Mpt_API] - reportDynamicClientLog - success!");
+    } else {
+      print(
+          "[Mpt_API] - reportDynamicClientLog - failed with status code: ${response.statusCode}");
+      onError?.call(
+          "[Mpt_API] - reportDynamicClientLog - failed with status code: ${response.statusCode}");
+    }
   }
 }

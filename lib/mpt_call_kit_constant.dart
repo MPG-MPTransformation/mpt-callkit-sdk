@@ -130,3 +130,11 @@ class SDKPrefsKeyConstants {
   static const String ENABLE_BLUR_BACKGROUND = "enable_blur_background";
   static const String BG_PATH = "bg_path";
 }
+
+class MptSDKCoreConstants {
+  static const String VERSION = "v0.0.34";
+}
+
+class MPTSDKLogTitleConstants {
+  static const String MEDIA_DEVICE_STATUS = "m_mediaDeviceStatus";
+}
