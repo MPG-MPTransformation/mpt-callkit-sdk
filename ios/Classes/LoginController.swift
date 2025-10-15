@@ -141,7 +141,7 @@ class LoginViewController {
         case "720P":
             width = 1280; height = 720
         case "1080P":
-            width = 1920; height = 1280
+            width = 1280; height = 720
         default:
             width = 1280; height = 720
         }

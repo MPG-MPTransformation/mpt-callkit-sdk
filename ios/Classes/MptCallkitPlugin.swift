@@ -3820,8 +3820,8 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
             requestedWidth = 720
             requestedHeight = 1280
         case MptCallkitPlugin.RESOLUTION_HIGH:
-            requestedWidth = 1280
-            requestedHeight = 1920
+            requestedWidth = 720
+            requestedHeight = 1280
         case MptCallkitPlugin.RESOLUTION_AUTO:
             autoSelectResolution()
         default:
@@ -3851,8 +3851,8 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         if isHighEndDevice(physicalMemory: physicalMemory, processorCount: processorCount, 
                           screenWidth: screenWidth, screenHeight: screenHeight, deviceModel: deviceModel) {
             // High-end device: use high resolution
-            requestedWidth = 1280
-            requestedHeight = 1920
+            requestedWidth = 720
+            requestedHeight = 1280
             NSLog("Auto-selected HIGH resolution for high-end device (\(deviceModel))")
         } else if isMidRangeDevice(physicalMemory: physicalMemory, processorCount: processorCount,
                                  screenWidth: screenWidth, screenHeight: screenHeight, deviceModel: deviceModel) {
@@ -3945,11 +3945,12 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     private func getOptimalSessionPreset() -> AVCaptureSession.Preset {
         // Map resolution to appropriate AVCaptureSession preset
         if requestedHeight >= 1920 {
-            if #available(iOS 9.0, *) {
-                return .hd1920x1080
-            } else {
-                return .high
-            }
+//            if #available(iOS 9.0, *) {
+//                return .hd1920x1080
+//            } else {
+//                return .high
+//            }
+            return .hd1280x720
         } else if requestedHeight >= 1280 {
             return .hd1280x720
         } else if requestedHeight >= 640 {
