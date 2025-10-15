@@ -90,8 +90,8 @@ public class Camera2Source {
     public static final int DEFAULT_REQUESTED_CAMERA_PREVIEW_HEIGHT = 1280;
     
     // Camera2 specific constants
-    private static final int MAX_PREVIEW_WIDTH = 1920;
-    private static final int MAX_PREVIEW_HEIGHT = 1080;
+    private static final int MAX_PREVIEW_WIDTH = 1280;
+    private static final int MAX_PREVIEW_HEIGHT = 720;
     private static final int FRAME_PROCESSING_SKIP_RATE = 1;
     private static final float REQUESTED_FPS = 20.0f;
     
@@ -715,8 +715,8 @@ public class Camera2Source {
                 requestedHeight = 1280;
                 break;
             case RESOLUTION_HIGH:
-                requestedWidth = 1280;
-                requestedHeight = 1920;
+                requestedWidth = 720;
+                requestedHeight = 1280;
                 break;
             case RESOLUTION_AUTO:
                 autoSelectResolution();
@@ -749,16 +749,18 @@ public class Camera2Source {
             
             // Auto-select based on device capabilities
             if (isHighEndDevice(totalMemory, cpuCores, screenWidth, screenHeight)) {
-                requestedWidth = 1280;
-                requestedHeight = 1920;
-                Log.d(TAG, "Auto-selected HIGH resolution for high-end device");
-            } else if (isMidRangeDevice(totalMemory, cpuCores, screenWidth, screenHeight)) {
                 requestedWidth = 720;
                 requestedHeight = 1280;
-                Log.d(TAG, "Auto-selected MEDIUM resolution for mid-range device");
-            } else {
-                requestedWidth = 480;
-                requestedHeight = 848;
+                Log.d(TAG, "Auto-selected HIGH resolution for high-end device");
+            }
+            // else if (isMidRangeDevice(totalMemory, cpuCores, screenWidth, screenHeight)) {
+            //     requestedWidth = 720;
+            //     requestedHeight = 1280;
+            //     Log.d(TAG, "Auto-selected MEDIUM resolution for mid-range device");
+            // } 
+            else {
+                requestedWidth = 720;
+                requestedHeight = 1280;
                 Log.d(TAG, "Auto-selected LOW resolution for low-end device");
             }
             
