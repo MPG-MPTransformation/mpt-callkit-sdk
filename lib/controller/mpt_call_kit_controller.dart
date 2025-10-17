@@ -2544,4 +2544,8 @@ class MptCallKitController {
       onError: onError,
     );
   }
+
+  Future<void> updateToConference() async {
+    await channel.invokeMethod("conference");
+  }
 }

@@ -34,6 +34,7 @@ class _CallPadState extends State<CallPad> {
     if (Platform.isAndroid) 'speakerBluetooth',
     if (Platform.isAndroid) 'getAudioDevices',
     'updateVideoCall',
+    'conference',
     'hangup',
     'endCallAPI',
   ];
@@ -632,6 +633,9 @@ class _CallPadState extends State<CallPad> {
         break;
       case 'updateVideoCall':
         MptCallKitController().updateVideoCall(isVideo: true);
+        break;
+      case 'conference':
+        MptCallKitController().updateToConference();
         break;
       default:
         print('Function $functionName not implemented');
