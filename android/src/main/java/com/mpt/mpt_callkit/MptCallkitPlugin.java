@@ -1076,6 +1076,10 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 sendCustomMessage(sessionId, extension, "call_state", "isInternal", isInternal);
                 result.success(true);
                 break;
+            case "conference":
+                updateToConference();
+                result.success(true);
+                break;
             default:
                 result.notImplemented();
         }
@@ -1996,5 +2000,16 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 logcatThread = null;
             }
         } catch (Exception ignored) {}
+    }
+
+    private void updateToConference() {
+        if (!Engine.Instance().mConference) {
+            Engine.Instance().getEngine().createVideoConference(null, 480, 720, 0);
+            CallManager.Instance().addActiveSessionToConfrence(Engine.Instance().getEngine());
+            Engine.Instance().mConference = true;
+        }else {
+            Engine.Instance().getEngine().destroyConference();
+            Engine.Instance().mConference = false;
+        }
     }
 }

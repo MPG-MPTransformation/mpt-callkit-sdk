@@ -38,6 +38,7 @@ struct PortSIPVideoState {
     let isVideoEnabled: Bool
     let isCameraOn: Bool
     let useFrontCamera: Bool
+    let conference: Bool
 }
 
 struct PortSIPAudioState {
@@ -133,10 +134,11 @@ class PortSIPStateManager {
             "isVideoEnabled": state.isVideoEnabled,
             "isCameraOn": state.isCameraOn,
             "useFrontCamera": state.useFrontCamera,
+            "conference": state.conference,
         ]
 
         NSLog(
-            "PortSIPStateManager: Broadcasting video state - enabled: \(state.isVideoEnabled), camera: \(state.isCameraOn)"
+            "PortSIPStateManager: Broadcasting video state - enabled: \(state.isVideoEnabled), camera: \(state.isCameraOn), conference: \(state.conference)"
         )
 
         NotificationCenter.default.post(
@@ -1413,7 +1415,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             sessionId: Int64(sessionId),
             isVideoEnabled: true,  // Always enabled for local video
             isCameraOn: true,
-            useFrontCamera: mUseFrontCamera
+            useFrontCamera: mUseFrontCamera,
+            conference: self.isConference
         )
         PortSIPStateManager.shared.updateVideoState(videoState)
 
@@ -1566,7 +1569,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 sessionId: Int64(sessionId),
                 isVideoEnabled: result.session.videoState,
                 isCameraOn: result.session.videoState && !result.session.videoMuted,
-                useFrontCamera: mUseFrontCamera
+                useFrontCamera: mUseFrontCamera,
+                conference: self.isConference
             )
             PortSIPStateManager.shared.updateVideoState(videoState)
 
@@ -1733,7 +1737,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             sessionId: Int64(sessionId),
             isVideoEnabled: existsVideo,
             isCameraOn: existsVideo && !result.session.videoMuted,
-            useFrontCamera: mUseFrontCamera
+            useFrontCamera: mUseFrontCamera,
+            conference: self.isConference
         )
         PortSIPStateManager.shared.updateVideoState(videoState)
 
@@ -1779,7 +1784,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 sessionId: Int64(sessionId),
                 isVideoEnabled: true,
                 isCameraOn: !result.session.videoMuted,
-                useFrontCamera: mUseFrontCamera
+                useFrontCamera: mUseFrontCamera,
+                conference: self.isConference
             )
             PortSIPStateManager.shared.updateVideoState(videoState)
         }
@@ -2332,7 +2338,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             sessionId: Int64(sessionId),
             isVideoEnabled: true,  // Always enabled for local video
             isCameraOn: true,
-            useFrontCamera: mUseFrontCamera
+            useFrontCamera: mUseFrontCamera,
+            conference: self.isConference
         )
         PortSIPStateManager.shared.updateVideoState(videoState)
 
@@ -2403,7 +2410,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 sessionId: Int64(sessionId),
                 isVideoEnabled: true,  // Always enabled for local video
                 isCameraOn: true,
-                useFrontCamera: mUseFrontCamera
+                useFrontCamera: mUseFrontCamera,
+                conference: self.isConference
             )
             PortSIPStateManager.shared.updateVideoState(videoState)
 
@@ -2490,7 +2498,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     func createConference(_ conferenceVideoWindow: PortSIPVideoRenderView) {
         print("\(conferenceVideoWindow)")
         if _callManager.createConference(
-            conferenceVideoWindow: conferenceVideoWindow, videoWidth: 352, videoHeight: 288,
+            conferenceVideoWindow: conferenceVideoWindow, videoWidth: 480, videoHeight: 720,
             displayLocalVideoInConference: true)
         {
             isConference = true
@@ -2883,7 +2891,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     sessionId: Int64(sessionResult.session.sessionId),
                     isVideoEnabled: isVideo,
                     isCameraOn: isVideo,
-                    useFrontCamera: mUseFrontCamera
+                    useFrontCamera: mUseFrontCamera,
+                    conference: self.isConference
                 )
                 PortSIPStateManager.shared.updateVideoState(videoState)
 
@@ -2948,6 +2957,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             sendCustomMessage(
                 callSessionId: sessionId!, userExtension: agentExtension!,
                 type: "call_state", payloadKey: "isInternal", payloadValue: isInternal ?? true)
+        case "conference":
+            updateToConference()
+            result(true)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -3128,7 +3140,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     sessionId: Int64(activeSessionid),
                     isVideoEnabled: true,  // Video vẫn enabled
                     isCameraOn: enable,  // Chỉ camera state thay đổi
-                    useFrontCamera: mUseFrontCamera
+                    useFrontCamera: mUseFrontCamera,
+                    conference: self.isConference
                 )
                 PortSIPStateManager.shared.updateVideoState(videoState)
 
@@ -3276,7 +3289,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 sessionId: Int64(activeSessionid),
                 isVideoEnabled: true,  // Video luôn enabled để views không bị ẩn
                 isCameraOn: isOn,  // Chỉ camera state thay đổi
-                useFrontCamera: mUseFrontCamera
+                useFrontCamera: mUseFrontCamera,
+                conference: self.isConference
             )
             PortSIPStateManager.shared.updateVideoState(videoState)
         }
@@ -3339,7 +3353,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             sessionId: Int64(activeSessionid),
             isVideoEnabled: true,
             isCameraOn: true,
-            useFrontCamera: newUseFrontCamera
+            useFrontCamera: newUseFrontCamera,
+            conference: self.isConference
         )
         PortSIPStateManager.shared.updateVideoState(videoState)
 
@@ -3399,7 +3414,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 sessionId: Int64(sessionResult.session.sessionId),
                 isVideoEnabled: true,
                 isCameraOn: true,
-                useFrontCamera: mUseFrontCamera
+                useFrontCamera: mUseFrontCamera,
+                conference: self.isConference
             )
             PortSIPStateManager.shared.updateVideoState(videoState)
 
@@ -4030,6 +4046,28 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         
         // Return new UIImage with updated orientation
         return UIImage(cgImage: cgImage, scale: image.scale, orientation: orientation)
+    }
+
+    private func updateToConference() {
+        if !isConference {
+            let videoState = PortSIPVideoState(
+                sessionId: Int64(activeSessionid),
+                isVideoEnabled: true,
+                isCameraOn: true,
+                useFrontCamera: mUseFrontCamera,
+                conference: true
+            )
+            PortSIPStateManager.shared.updateVideoState(videoState)
+        }else {
+            let videoState = PortSIPVideoState(
+                sessionId: Int64(activeSessionid),
+                isVideoEnabled: true,
+                isCameraOn: true,
+                useFrontCamera: mUseFrontCamera,
+                conference: false
+            )
+            PortSIPStateManager.shared.updateVideoState(videoState)
+        }
     }
 }
 

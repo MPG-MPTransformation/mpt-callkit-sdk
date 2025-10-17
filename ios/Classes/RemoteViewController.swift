@@ -9,6 +9,7 @@ class RemoteViewController: UIViewController {
    var isVideoInitialized: Bool = false
    var isStartVideo: Bool = false
    var contentModeTimer: Timer?
+   var isConferenceMode: Bool = false
   
    override func viewDidLoad() {
        super.viewDidLoad()
@@ -110,10 +111,15 @@ class RemoteViewController: UIViewController {
        }
       
        let sessionId = Int(sessionIdInt64)
-       print("RemoteViewController - Video state changed: enabled=\(isVideoEnabled), camera=\(isCameraOn), sessionId: \(sessionId)")
+       let isConference = userInfo["conference"] as? Bool ?? false
+       
+       print("RemoteViewController - Video state changed: enabled=\(isVideoEnabled), camera=\(isCameraOn), conference=\(isConference), sessionId: \(sessionId)")
       
        DispatchQueue.main.async { [weak self] in
            guard let self = self else { return }
+          
+           // Handle conference mode change
+           self.handleConferenceModeChange(isConference: isConference)
           
            if isVideoEnabled {
                if !self.isVideoInitialized {
@@ -129,7 +135,33 @@ class RemoteViewController: UIViewController {
            }
        }
    }
-  
+
+   /// Handles conference mode changes (switching between normal call and conference call)
+   private func handleConferenceModeChange(isConference: Bool) {
+       guard isConferenceMode != isConference else {
+           print("RemoteViewController - same action")
+           return
+       }
+      
+       print("RemoteViewController - Conference mode changed from \(isConferenceMode) to \(isConference)")
+       isConferenceMode = isConference
+       // Get the SDK instance from the plugin
+       let appDelegate = MptCallkitPlugin.shared
+       let sessionId = appDelegate.activeSessionid ?? 0
+      
+       if isConference {
+           // Entered conference mode
+           print("RemoteViewController - Entering CONFERENCE mode")
+           appDelegate.createConference(viewRemoteVideo)
+           
+       } else {
+           // Exited conference mode (back to normal call)
+           print("RemoteViewController - Exiting CONFERENCE mode (back to normal)")
+           appDelegate.destoryConference(viewRemoteVideo)
+           portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: viewRemoteVideo)
+       }
+   }
+    
    private func updateRemoteVideoDisplay(hasCameraOn: Bool) {
        guard let remoteVideo = viewRemoteVideo else {
            return
@@ -313,9 +345,15 @@ class RemoteViewController: UIViewController {
            if self.isVideoInitialized {
                // Set the remote video window
                print("RemoteViewController - Setting remote video window")
-               let result = self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: self.viewRemoteVideo)
-               print("RemoteViewController - setRemoteVideoWindow result: \(result)")
-               
+               if self.isConferenceMode {
+                   let result1 = self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: nil)
+                   let result2 = self.portSIPSDK.setConferenceVideoWindow(self.viewRemoteVideo)
+                   print("RemoteViewController - setRemoteVideoWindow result=\(result1) - setConferenceVideoWindow result=\(result2)")
+               } else {
+                   let result1 = self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: self.viewRemoteVideo)
+                   let result2 = self.portSIPSDK.setConferenceVideoWindow(nil)
+                   print("RemoteViewController - setRemoteVideoWindow result=\(result1) - setConferenceVideoWindow result=\(result2)")
+               }
                // 🔥 FIX: Force set contentMode after setting video window
                self.viewRemoteVideo.contentMode = .scaleAspectFill
                print("RemoteViewController - Forced contentMode to scaleAspectFill in onStartVideo")
@@ -323,8 +361,15 @@ class RemoteViewController: UIViewController {
                // Initialize if not already done
                print("RemoteViewController - Initializing remote video first")
                self.initializeRemoteVideo()
-               let result = self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: self.viewRemoteVideo)
-               print("RemoteViewController - setRemoteVideoWindow result: \(result)")
+               if self.isConferenceMode {
+                   let result1 = self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: nil)
+                   let result2 = self.portSIPSDK.setConferenceVideoWindow(self.viewRemoteVideo)
+                   print("RemoteViewController - setRemoteVideoWindow result=\(result1) - setConferenceVideoWindow result=\(result2)")
+               } else {
+                   let result1 = self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: self.viewRemoteVideo)
+                   let result2 = self.portSIPSDK.setConferenceVideoWindow(nil)
+                   print("RemoteViewController - setRemoteVideoWindow result=\(result1) - setConferenceVideoWindow result=\(result2)")
+               }
                
                // 🔥 FIX: Force set contentMode after setting video window
                self.viewRemoteVideo.contentMode = .scaleAspectFill
@@ -439,6 +484,7 @@ class RemoteViewController: UIViewController {
            if sessionId != 0 {
                portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: nil)
                portSIPSDK.setRemoteScreenWindow(sessionId, remoteScreenWindow: nil)
+               portSIPSDK.setConferenceVideoWindow(nil)
            }
           
            viewRemoteVideo.releaseVideoRender()
