@@ -44,6 +44,7 @@ public class LocalView implements PlatformView {
 
         // localRenderVideoView = containerView.findViewById(R.id.local_video_view);
         localImageView = containerView.findViewById(R.id.local_image_view);
+        localImageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
 
         // portSipLib.displayLocalVideo(true, Engine.Instance().mUseFrontCamera, localRenderVideoView);
 

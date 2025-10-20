@@ -225,7 +225,7 @@ class RemoteViewController: UIViewController {
        viewRemoteVideo = PortSIPVideoRenderView()
        viewRemoteVideo.translatesAutoresizingMaskIntoConstraints = false
        viewRemoteVideo.backgroundColor = .black
-       viewRemoteVideo.contentMode = .scaleAspectFit // 🔥 FIX: Hiển thị toàn bộ video không bị cắt
+       viewRemoteVideo.contentMode = .scaleAspectFill // 🔥 FIX: Hiển thị toàn bộ video không bị cắt
        viewRemoteVideo.clipsToBounds = true // Giữ clipsToBounds để không tràn ra ngoài
        
        // 🔥 DEBUG: Log video view properties
@@ -236,7 +236,7 @@ class RemoteViewController: UIViewController {
        // 🔥 FIX: Override contentMode in layoutSubviews
        DispatchQueue.main.async { [weak self] in
            guard let self = self else { return }
-           self.viewRemoteVideo.contentMode = .scaleAspectFit
+           self.viewRemoteVideo.contentMode = .scaleAspectFill
            self.viewRemoteVideo.setNeedsLayout()
            self.viewRemoteVideo.layoutIfNeeded()
        }
@@ -271,8 +271,8 @@ class RemoteViewController: UIViewController {
            // 🔥 FIX: Force set contentMode after video initialization
            DispatchQueue.main.async { [weak self] in
                guard let self = self else { return }
-               self.viewRemoteVideo.contentMode = .scaleAspectFit
-               print("RemoteViewController - Forced contentMode to scaleAspectFit")
+               self.viewRemoteVideo.contentMode = .scaleAspectFill
+               print("RemoteViewController - Forced contentMode to scaleAspectFill")
            }
           
            // Đảm bảo view được hiển thị
@@ -292,9 +292,9 @@ class RemoteViewController: UIViewController {
        contentModeTimer?.invalidate()
        contentModeTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
            guard let self = self, let videoView = self.viewRemoteVideo else { return }
-           if videoView.contentMode != .scaleAspectFit {
-               videoView.contentMode = .scaleAspectFit
-               print("RemoteViewController - Timer forced contentMode to scaleAspectFit")
+           if videoView.contentMode != .scaleAspectFill {
+               videoView.contentMode = .scaleAspectFill
+               print("RemoteViewController - Timer forced contentMode to scaleAspectFill")
            }
        }
    }
@@ -317,8 +317,8 @@ class RemoteViewController: UIViewController {
                print("RemoteViewController - setRemoteVideoWindow result: \(result)")
                
                // 🔥 FIX: Force set contentMode after setting video window
-               self.viewRemoteVideo.contentMode = .scaleAspectFit
-               print("RemoteViewController - Forced contentMode to scaleAspectFit in onStartVideo")
+               self.viewRemoteVideo.contentMode = .scaleAspectFill
+               print("RemoteViewController - Forced contentMode to scaleAspectFill in onStartVideo")
            } else {
                // Initialize if not already done
                print("RemoteViewController - Initializing remote video first")
@@ -327,8 +327,8 @@ class RemoteViewController: UIViewController {
                print("RemoteViewController - setRemoteVideoWindow result: \(result)")
                
                // 🔥 FIX: Force set contentMode after setting video window
-               self.viewRemoteVideo.contentMode = .scaleAspectFit
-               print("RemoteViewController - Forced contentMode to scaleAspectFit in onStartVideo")
+               self.viewRemoteVideo.contentMode = .scaleAspectFill
+               print("RemoteViewController - Forced contentMode to scaleAspectFill in onStartVideo")
            }
           
            // Đảm bảo view được hiển thị
