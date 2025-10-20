@@ -11,7 +11,7 @@ class LocalViewController: UIViewController {
 
         precondition(isViewLoaded)
         let previewOverlayView = UIImageView(frame: .zero)
-        previewOverlayView.contentMode = UIView.ContentMode.scaleAspectFit
+        previewOverlayView.contentMode = UIView.ContentMode.scaleAspectFill
        previewOverlayView.clipsToBounds = true
         previewOverlayView.translatesAutoresizingMaskIntoConstraints = false
         return previewOverlayView

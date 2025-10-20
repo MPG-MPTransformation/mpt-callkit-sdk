@@ -48,7 +48,7 @@ public class RemoteView implements PlatformView {
                 FrameLayout.LayoutParams.MATCH_PARENT));
 
         remoteRenderVideoView = containerView.findViewById(R.id.remote_video_view);
-        remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FIT);
+        remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FILL);
 
         callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderVideoView);
 
@@ -66,8 +66,8 @@ public class RemoteView implements PlatformView {
             @Override
             public void run() {
                 if (remoteRenderVideoView != null) {
-                    remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FIT);
-                    System.out.println("SDK-Android: RemoteView - Timer force set SCALE_ASPECT_FIT");
+                    remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FILL);
+                    System.out.println("SDK-Android: RemoteView - Timer force set SCALE_ASPECT_FILL");
                 }
                 scalingHandler.postDelayed(this, 500);
             }
@@ -220,16 +220,16 @@ public class RemoteView implements PlatformView {
                     System.out.println("SDK-Android: application.mConference = false - cur.hasVideo = true");
                     if (remoteRenderVideoView != null) {
                         // 🔥 FIX: Force set scaling type to prevent cropping
-                        remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FIT);
-                        System.out.println("SDK-Android: RemoteView - Force set SCALE_ASPECT_FIT in updateVideo");
+                        remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FILL);
+                        System.out.println("SDK-Android: RemoteView - Force set SCALE_ASPECT_FILL in updateVideo");
                         remoteRenderVideoView.setVisibility(View.VISIBLE);
                         
                         // 🔥 FIX: Post a delayed runnable to force set scaling after video starts
                         remoteRenderVideoView.postDelayed(new Runnable() {
                             @Override
                             public void run() {
-                                remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FIT);
-                                System.out.println("SDK-Android: RemoteView - Delayed force set SCALE_ASPECT_FIT");
+                                remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FILL);
+                                System.out.println("SDK-Android: RemoteView - Delayed force set SCALE_ASPECT_FILL");
                             }
                         }, 500);
                     }
@@ -239,8 +239,8 @@ public class RemoteView implements PlatformView {
                     System.out.println("SDK-Android: application.mConference = false - cur.hasVideo = false");
                     if (remoteRenderVideoView != null) {
                         // 🔥 FIX: Force set scaling type to prevent cropping
-                        remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FIT);
-                        System.out.println("SDK-Android: RemoteView - Force set SCALE_ASPECT_FIT in updateVideo (no video)");
+                        remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FILL);
+                        System.out.println("SDK-Android: RemoteView - Force set SCALE_ASPECT_FILL in updateVideo (no video)");
                         remoteRenderVideoView.setVisibility(View.VISIBLE);
                     }
                     callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, null);

@@ -52,8 +52,8 @@ class RemoteView: NSObject, FlutterPlatformView {
        remoteViewController: RemoteViewController
    ) {
        _view = UIView()
-       _view.backgroundColor = .black // 🔥 FIX: Background đen cho letterbox/pillarbox
-       _view.clipsToBounds = true // 🔥 FIX: Cắt phần thừa để không bị tràn ra ngoài
+//       _view.backgroundColor = .black // 🔥 FIX: Background đen cho letterbox/pillarbox
+//       _view.clipsToBounds = true // 🔥 FIX: Cắt phần thừa để không bị tràn ra ngoài
        self.remoteViewController = remoteViewController
        super.init()
        createNativeView(view: _view, arguments: args, remoteViewController: remoteViewController)
@@ -114,7 +114,7 @@ class RemoteView: NSObject, FlutterPlatformView {
       
        let view = flutterView.view
        view?.translatesAutoresizingMaskIntoConstraints = false
-       view?.clipsToBounds = true // 🔥 FIX: Cắt phần thừa để không bị tràn ra ngoài
+//       view?.clipsToBounds = true // 🔥 FIX: Cắt phần thừa để không bị tràn ra ngoài
 
 
        topController?.addChild(flutterView)
