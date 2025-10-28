@@ -3271,6 +3271,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 NSLog("🔍   result.session.sessionState: \(result!.session.sessionState)")
 
                 _callManager.waitSocketBeforeAnswer = !isAutoAnswer
+                _ = _callManager.setForeground(UIApplication.shared.applicationState == .active)
                 let answerRes = _callManager.answerCall(
                     sessionId: activeSessionid, isVideo: result?.session.videoState ?? false)
 
