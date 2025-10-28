@@ -582,6 +582,19 @@ class CallManager: NSObject {
         isConference = false
         print("DestoryConference")
     }
+    
+    func hangUpAllCalls(){
+        for i in 0 ..< MAX_LINES {
+            if sessionArray[i].sessionId > INVALID_SESSION_ID {
+                let res = _portSIPSDK.hangUp(sessionArray[i].sessionId)
+                if res == 0 {
+                    NSLog("Hang up on sessionId=\(sessionArray[i].sessionId)")
+                    reportEndCall(uuid: sessionArray[i].uuid)
+                    sessionArray[i].sessionId = CLong(INVALID_SESSION_ID)
+                }
+            }
+        }
+    }
 
     //    Call Manager implementation
 
@@ -752,7 +765,8 @@ class CallManager: NSObject {
         }
         if isConference {
             if result.session.sessionState {
-                _portSIPSDK.join(toConference: result.session.sessionId)
+                let joinRes = _portSIPSDK.join(toConference: result.session.sessionId)
+                NSLog("joinConference response=\(joinRes)")
                 if(result.session.holdState){
                     holdCall(uuid: result.session.uuid, onHold: false);
                 }

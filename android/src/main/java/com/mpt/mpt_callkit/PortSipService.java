@@ -44,9 +44,11 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -861,7 +863,11 @@ public class PortSipService extends Service
                 + ", messageData: " + str
                 + ", messageDataLength: " + messageDataLength);
 
-        MptCallkitPlugin.sendToFlutter("recvCallMessage", str);
+        // Gửi tin nhắn về Flutter với sessionId
+        Map<String, Object> messageMap = new HashMap<>();
+        messageMap.put("sipSessionId", sessionId);
+        messageMap.put("message", str);
+        MptCallkitPlugin.sendToFlutter("recvCallMessage", messageMap);
     }
 
     @Override
@@ -1505,9 +1511,28 @@ public class PortSipService extends Service
 
     private void sendCallStateToFlutter(String state) {
         if (Engine.Instance() != null) {
-            Engine.Instance().invokeMethod("callState", state);
-            MptCallkitPlugin.sendToFlutter("callState", state);
-            logWithTimestamp("SDK-Android: callState - " + state);
+            Session currentSession = CallManager.Instance().getCurrentSession();
+            if (currentSession != null && currentSession.sessionID != Session.INVALID_SESSION_ID) {
+                // Tạo Map với sessionId, hasVideo, và state giống như iOS
+                java.util.Map<String, Object> callState = new java.util.HashMap<>();
+                callState.put("sessionId", currentSession.sessionID);
+                callState.put("hasVideo", currentSession.hasVideo);
+                callState.put("state", state);
+                
+                Engine.Instance().invokeMethod("callState", callState);
+                MptCallkitPlugin.sendToFlutter("callState", callState);
+                logWithTimestamp("SDK-Android: callState - " + state + " (sessionId: " + currentSession.sessionID + ", hasVideo: " + currentSession.hasVideo + ")");
+            } else {
+                // Fallback nếu không có session
+                java.util.Map<String, Object> callState = new java.util.HashMap<>();
+                callState.put("sessionId", -1);
+                callState.put("hasVideo", false);
+                callState.put("state", state);
+                
+                Engine.Instance().invokeMethod("callState", callState);
+                MptCallkitPlugin.sendToFlutter("callState", callState);
+                logWithTimestamp("SDK-Android: callState - " + state + " (no active session)");
+            }
         }
     }
 

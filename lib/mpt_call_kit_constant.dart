@@ -132,9 +132,19 @@ class SDKPrefsKeyConstants {
 }
 
 class MptSDKCoreConstants {
-  static const String VERSION = "v0.0.34";
+  static const String VERSION = "v0.0.36";
 }
 
 class MPTSDKLogTitleConstants {
   static const String MEDIA_DEVICE_STATUS = "m_mediaDeviceStatus";
+  static const String UPDATE_VIDEO = "m_updateVideo";
+  static const String CALL_MSG_RECV = "m_callMessageRecv";
+  static const String CALL_MSG_SEND = "m_callMessageSend";
+}
+
+class SIPMessageTypeConstants {
+  static const String ANSWERED = "answered";
+  static const String AGENT_INFO = "agentInfo";
+  static const String ADD_TO_CONF_REQ = "add_to_conf";
+  static const String ADD_TO_CONF_RESP = "add_conf_res";
 }

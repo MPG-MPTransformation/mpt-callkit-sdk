@@ -22,6 +22,7 @@ import org.json.JSONException;
 import android.os.Handler;
 import android.os.Looper;
 import android.hardware.camera2.CameraAccessException;
+import android.util.Log;
 
 import com.mpt.mpt_callkit.receiver.PortMessageReceiver;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
@@ -95,6 +96,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private static FileOutputStream logFileStream;
     private static PrintStream originalOut;
     private static PrintStream originalErr;
+    private static final String TAG = "MptCallkit:MptCallkitPlugin";
     private static class LinePrefixingOutputStream extends OutputStream {
         private final OutputStream delegate;
         private final String platformTag;
@@ -752,7 +754,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             case "call":
                 String destinationNumber = call.argument("destination");
                 boolean isVideoCall = call.argument("isVideoCall");
-                boolean callResult = makeCall(destinationNumber, isVideoCall);
+                int callResult = makeCall(destinationNumber, isVideoCall);
                 result.success(callResult);
                 break;
             case "requestPermission":
@@ -1080,6 +1082,46 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 updateToConference();
                 result.success(true);
                 break;
+            case "inviteToConference":
+                String destinationConf = call.argument("destination");
+                Boolean isVideoCallConf = call.argument("isVideoCall");
+                if (destinationConf != null && isVideoCallConf != null) {
+                    int selectedLine = autoSelectAvailableLine();
+                    if (selectedLine != -1) {
+                        didSelectLine(selectedLine);
+                        int inviteResult = makeCall(destinationConf, isVideoCallConf);
+                        result.success(inviteResult);
+                    } else {
+                        result.error("NO_AVAILABLE_LINE", "No available line for inviteToConference", null);
+                    }
+                } else {
+                    result.error("INVALID_ARGUMENTS", "Missing destination or isVideoCall for inviteToConference", null);
+                }
+                break;
+            case "getConferenceState":
+                boolean conferenceState = Engine.Instance().mConference;
+                result.success(conferenceState);
+                break;
+            case "sendSipMessage":
+                currentLine = CallManager.Instance().getCurrentSession();
+                if (currentLine == null || currentLine.sessionID <= 0) {
+                    result.error("INVALID_ARGUMENTS", "Current line is null for sendSipMessage", null);
+                    break;
+                }
+                Long sipSessionIdArg = call.argument("sipSessionId");
+                int sipSessionId = sipSessionIdArg != null ? sipSessionIdArg.intValue() : (int) currentLine.sessionID;
+                String message = call.argument("message");
+                if (sipSessionId > 0 && message != null) {
+                    long sendSipMessageResult = sendSipMessage(sipSessionId, message);
+                    result.success(sendSipMessageResult);
+                } else {
+                    result.error("INVALID_ARGUMENTS", "Missing sipSessionId or message for sendSipMessage", null);
+                }
+                break;
+            case "hangUpAllCalls":
+                CallManager.Instance().hangupAllCalls(Engine.Instance().getEngine());
+                result.success(true);
+                break;
             default:
                 result.notImplemented();
         }
@@ -1379,25 +1421,25 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     private final int REQ_DANGERS_PERMISSION = 2;
 
-    boolean makeCall(String phoneNumber, boolean isVideoCall) {
+    int makeCall(String phoneNumber, boolean isVideoCall) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         String callTo = phoneNumber;
         if (!currentLine.IsIdle()) {
             System.out.println("SDK-Android: Current line is busy now, please switch a line.");
-            return false;
+            return -1;
         }
 
         // Ensure that we have been added one audio codec at least
         if (Engine.Instance().getEngine().isAudioCodecEmpty()) {
             System.out.println("SDK-Android: Audio Codec Empty,add audio codec at first");
-            return false;
+            return -2;
         }
 
         // Usually for 3PCC need to make call without SDP
         long sessionId = Engine.Instance().getEngine().call(callTo, true, isVideoCall);
         if (sessionId <= 0) {
             System.out.println("SDK-Android: Call failure");
-            return false;
+            return -3;
         }
         // default send video
         Engine.Instance().getEngine().sendVideo(sessionId, isVideoCall);
@@ -1408,7 +1450,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         currentLine.state = Session.CALL_STATE_FLAG.TRYING;
         currentLine.hasVideo = isVideoCall;
         System.out.println("SDK-Android: line= " + currentLine.lineName + ": Calling...");
-        return true;
+        return (int) sessionId;
     }
 
     public static int hangup() {
@@ -1601,19 +1643,21 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 currentLine.state = Session.CALL_STATE_FLAG.CONNECTED;
                 Engine.Instance().getEngine().joinToConference(currentLine.sessionID);
 
+                // Send call state message with multiple fields in payload
                 String[] sessionInfo = getCurrentSessionInfo();
-
-                if (!isAutoAnswer) {
-                    // Notice to remote
-                    sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "answered", true);
-                }
-
+                
                 System.out.println("SDK-Android: answerCall - Sending agentId: " + agentId + ", tenantId: " + tenantId);
                 java.util.Map<String, Object> agentInfo = new java.util.HashMap<>();
                 agentInfo.put("agentId", agentId);
                 agentInfo.put("tenantId", tenantId);
-                sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "agentInfo", agentInfo);
-//                sendCustomMessage(sessionInfo[0], sessionInfo[1], "call_state", "tenantId", tenantId);
+                
+                java.util.Map<String, Object> payload = new java.util.HashMap<>();
+                payload.put("answered", true);
+                payload.put("agentInfo", agentInfo);
+                payload.put("existsVideo", currentLine.hasVideo);
+                payload.put("existsAudio", true);
+                
+                sendCallStateMsg(sessionInfo[0], sessionInfo[1], "call_state", payload);
 
                 // re-invite to update video call
                 //reinviteSession(xSessionId);
@@ -1837,6 +1881,101 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     }
 
     /**
+     * Gửi tin nhắn call state với nhiều key-value pairs trong payload
+     * 
+     * @param xSessionId Session ID của cuộc gọi
+     * @param extension Extension của user
+     * @param type Loại message (mặc định là "call_state")
+     * @param payload Map chứa nhiều key-value pairs
+     * 
+     * Example usage:
+     * <pre>
+     * Map<String, Object> payload = new HashMap<>();
+     * payload.put("answered", true);
+     * payload.put("microphone", false);
+     * payload.put("camera", true);
+     * payload.put("isInternal", false);
+     * sendCallStateMsg(sessionId, extension, "call_state", payload);
+     * </pre>
+     */
+    public static void sendCallStateMsg(String xSessionId, String extension, String type, 
+            java.util.Map<String, Object> payload) {
+        Session currentLine = CallManager.Instance().getCurrentSession();
+        PortSipSdk portSipSdk = Engine.Instance().getEngine();
+
+        if (currentLine != null && currentLine.sessionID > 0) {
+            try {
+                // Tạo payload object từ Map
+                JSONObject payloadJson = new JSONObject();
+                for (java.util.Map.Entry<String, Object> entry : payload.entrySet()) {
+                    String key = entry.getKey();
+                    Object value = entry.getValue();
+                    
+                    // Convert nested Map to JSONObject if needed
+                    if (value instanceof java.util.Map) {
+                        JSONObject nestedObject = new JSONObject((java.util.Map) value);
+                        payloadJson.put(key, nestedObject);
+                    } else {
+                        payloadJson.put(key, value);
+                    }
+                }
+
+                // Tạo message object
+                JSONObject message = new JSONObject();
+                message.put("sessionId", xSessionId);
+                message.put("extension", extension);
+                message.put("type", type);
+                message.put("payload", payloadJson);
+
+                String msg = message.toString();
+                System.out.println("SDK-Android: Sending call state message: " + msg);
+
+                long resSendMsg = portSipSdk.sendMessage(currentLine.sessionID, "text", "plain",
+                        msg.getBytes(StandardCharsets.UTF_8), msg.length());
+                System.out.println("SDK-Android: Send call state message result: " + resSendMsg);
+            } catch (Exception e) {
+                System.out.println("SDK-Android: Error creating call state message: " + e.getMessage());
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("SDK-Android: Cannot send call state message - no active session");
+        }
+    }
+
+    /**
+     * Gửi tin nhắn call state (shorthand method với type mặc định là "call_state")
+     * 
+     * @param xSessionId Session ID của cuộc gọi
+     * @param extension Extension của user
+     * @param payload Map chứa nhiều key-value pairs
+     * 
+     * Example usage:
+     * <pre>
+     * String[] sessionInfo = getCurrentSessionInfo();
+     * Map<String, Object> payload = new HashMap<>();
+     * payload.put("answered", true);
+     * payload.put("microphone", false);
+     * sendCallStateMsg(sessionInfo[0], sessionInfo[1], payload);
+     * </pre>
+     */
+    public static void sendCallStateMsg(String xSessionId, String extension, 
+            java.util.Map<String, Object> payload) {
+        sendCallStateMsg(xSessionId, extension, "call_state", payload);
+    }
+
+    public static long sendSipMessage(int sessionId, String message) {
+
+        if (sessionId <= 0 || message == null) {
+            System.out.println("SDK-Android: sendSipMessage - sessionId or message is null");
+            return -1;
+        }
+
+        long resSendMsg = Engine.Instance().getEngine().sendMessage(sessionId, "text", "plain", message.getBytes(StandardCharsets.UTF_8), message.length());
+        System.out.println("SDK-Android: Send sip message result: " + resSendMsg);
+        return resSendMsg;
+    }
+
+    /**
      * Helper method để lấy session ID và extension hiện tại
      */
     private static String[] getCurrentSessionInfo() {
@@ -2011,5 +2150,41 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             Engine.Instance().getEngine().destroyConference();
             Engine.Instance().mConference = false;
         }
+    }
+
+    public void didSelectLine(int activedLine){
+        // To switch the line, must hold currently line first
+        Session currentLine = CallManager.Instance().getCurrentSession();
+        if (!Engine.Instance().mConference && currentLine.state == Session.CALL_STATE_FLAG.CONNECTED && !currentLine.bHold) {
+            Engine.Instance().getEngine().hold(currentLine.sessionID);
+            currentLine.bHold = true;
+            Log.d(TAG, currentLine.lineName + ": Hold");
+        }
+
+        CallManager.Instance().CurrentLine = activedLine;
+        currentLine = CallManager.Instance().getCurrentSession();
+
+        // If target line was in hold state, then un-hold it
+        if (currentLine.IsIdle()) {
+            Log.d(TAG, currentLine.lineName + ": Idle");
+        } else if (currentLine.state == Session.CALL_STATE_FLAG.CONNECTED && currentLine.bHold) {
+            Engine.Instance().getEngine().unHold(currentLine.sessionID);
+            currentLine.bHold = false;
+            Log.d(TAG, currentLine.lineName + ": UnHold - call established");
+        }
+    }
+
+    private int autoSelectAvailableLine() {
+        int selectedLine = -1;
+
+        for (int i = 0; i < CallManager.MAX_LINES; i++) {
+            Session session = CallManager.Instance().findSessionByIndex(i);
+            if (session != null && session.IsIdle()) {
+                selectedLine = i;
+                Log.d(TAG, "autoSelectAvailableLine: selectedLine: " + selectedLine);
+                break;
+            }
+        }
+        return selectedLine;
     }
 }

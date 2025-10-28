@@ -47,9 +47,8 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   AgentData? agentData;
   List<QueueDataByAgent>? agentQueues;
 
-  bool isOnCall = false;
   bool isNavigatedToCallPad = false;
-  String _tokenKey = 'fcm_token';
+  final String _tokenKey = 'fcm_token';
   bool isFirstTime = true;
 
   @override
@@ -80,13 +79,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     _callTypeSubscription =
         MptCallKitController().callEvent.listen((type) async {
       print("MptCallKitController().callEvent: $type");
-      if (type == CallStateConstants.INCOMING ||
-          type == CallStateConstants.CONNECTED) {
-        isOnCall = true;
-      } else {
-        isOnCall = false;
-      }
-      if (type == CallStateConstants.CONNECTED) {
+      if (type == CallStateConstants.INCOMING) {
         if (mounted && !isNavigatedToCallPad) {
           isNavigatedToCallPad = true;
           await _navigateToCallPad();
@@ -146,12 +139,6 @@ class _LoginResultScreenState extends State<LoginResultScreen>
         await MptCallKitController().connectToSocketServer(accessToken);
       }
     }
-
-    // if ((state == AppLifecycleState.paused ||
-    //         state == AppLifecycleState.inactive) &&
-    //     isOnCall == false) {
-    //   await MptSocketSocketServer.disconnect();
-    // }
   }
 
   Future<void> _initDataWhenLoginSuccess() async {
@@ -350,66 +337,6 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     );
   }
 
-  // Future<void> _listenCallkitEvent() async {
-  //   try {
-  //     FlutterCallkitIncoming.onEvent.listen((event) {
-  //       print("Listener event: ${event?.event.toString()}");
-  //       switch (event!.event) {
-  //         case Event.actionCallIncoming:
-  //           // TODO: received an incoming call
-  //           break;
-  //         case Event.actionCallStart:
-  //           // TODO: started an outgoing call
-  //           // TODO: show screen calling in Flutter
-  //           break;
-  //         case Event.actionCallAccept:
-  //           print("actionCallAccept");
-  //           break;
-  //         case Event.actionCallDecline:
-  //           // TODO: declined an incoming call
-  //           print("actionCallDecline");
-  //           break;
-  //         case Event.actionCallEnded:
-  //           // TODO: ended an incoming/outgoing call
-  //           print("actionCallEnded");
-  //           break;
-  //         case Event.actionCallTimeout:
-  //           // TODO: missed an incoming call
-  //           break;
-  //         case Event.actionCallCallback:
-  //           // TODO: only Android - click action `Call back` from missed call notification
-  //           break;
-  //         case Event.actionCallCustom:
-  //           break;
-  //         case Event.actionCallConnected:
-  //           // TODO: Handle this case.
-  //           throw UnimplementedError();
-  //         case Event.actionDidUpdateDevicePushTokenVoip:
-  //           // TODO: Handle this case.
-  //           throw UnimplementedError();
-  //         case Event.actionCallToggleHold:
-  //           // TODO: Handle this case.
-  //           throw UnimplementedError();
-  //         case Event.actionCallToggleMute:
-  //           // TODO: Handle this case.
-  //           throw UnimplementedError();
-  //         case Event.actionCallToggleDmtf:
-  //           // TODO: Handle this case.
-  //           throw UnimplementedError();
-  //         case Event.actionCallToggleGroup:
-  //           // TODO: Handle this case.
-  //           throw UnimplementedError();
-  //         case Event.actionCallToggleAudioSession:
-  //           // TODO: Handle this case.
-  //           throw UnimplementedError();
-  //       }
-  //       // callback(event);
-  //     });
-  //   } on Exception catch (e) {
-  //     print("Listener event Exception: $e");
-  //   }
-  // }
-
   // change status method
   Future<bool> changeStatus({
     required String statusName,
@@ -488,7 +415,12 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "Login status: ${widget.title}",
+                              "[${MptCallKitController().currentUserInfo?["user"]["userName"].toString() ?? ""} - ${MptCallKitController().currentUserInfo?["user"]["extension"].toString() ?? ""}]",
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            Text(
+                              "Agent name: ${MptCallKitController().currentUserInfo?["user"]["fullName"].toString() ?? ""}",
                             ),
                             StreamBuilder<bool>(
                               stream: MptSocketSocketServer.connectionStatus,
@@ -755,19 +687,43 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                                   MptCallKitController().onlineStatuslistener,
                               initialData: MptCallKitController().isOnline,
                               builder: (context, snapshot) {
-                                return ElevatedButton(
-                                  onPressed: () async {
-                                    await _makeCallOutbound();
-                                  },
-                                  style: ButtonStyle(
-                                    backgroundColor: WidgetStateProperty.all(
-                                        Colors.blueGrey),
-                                    foregroundColor:
-                                        WidgetStateProperty.all(Colors.white),
-                                    minimumSize: WidgetStateProperty.all(
-                                        const Size(double.infinity, 50)),
-                                  ),
-                                  child: const Text('Call'),
+                                return Column(
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        // await makeNativeCall();
+                                        await makeNativeCall();
+                                      },
+                                      style: ButtonStyle(
+                                        backgroundColor:
+                                            WidgetStateProperty.all(
+                                                Colors.blueGrey),
+                                        foregroundColor:
+                                            WidgetStateProperty.all(
+                                                Colors.white),
+                                        minimumSize: WidgetStateProperty.all(
+                                            const Size(double.infinity, 50)),
+                                      ),
+                                      child: const Text('Call'),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        await _navigateToCallPad();
+                                      },
+                                      style: ButtonStyle(
+                                        backgroundColor:
+                                            WidgetStateProperty.all(
+                                                Colors.blueGrey),
+                                        foregroundColor:
+                                            WidgetStateProperty.all(
+                                                Colors.white),
+                                        minimumSize: WidgetStateProperty.all(
+                                            const Size(double.infinity, 50)),
+                                      ),
+                                      child: const Text('Call pad'),
+                                    )
+                                  ],
                                 );
                               },
                             ),
@@ -946,5 +902,13 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       MaterialPageRoute(builder: (context) => const CallPad()),
     );
     isNavigatedToCallPad = false;
+  }
+
+  Future<void> makeNativeCall() async {
+    await MptCallKitController().makeNativeCall(
+      destination: _destinationController.text.trim(),
+      isVideoCall: true,
+    );
+    print("makeNativeCall");
   }
 }

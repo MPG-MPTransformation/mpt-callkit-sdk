@@ -7,7 +7,7 @@ import java.util.List;
 
 public class ContactManager
 {
-    public final int MAX_LINES = 10;
+    public final int MAX_LINES = 20;
     private static ContactManager mInstance;
     private static Object locker = new Object();
     List<Contact> contacts = new ArrayList<>();

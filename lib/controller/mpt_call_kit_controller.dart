@@ -15,6 +15,7 @@ import 'package:mpt_callkit/mpt_call_kit_constant.dart';
 import 'package:mpt_callkit/mpt_callkit_auth_method.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/models.dart';
 import 'mpt_call_kit_controller_repo.dart';
@@ -37,6 +38,7 @@ class MptCallKitController {
   File? _logFile;
   bool _fileLoggingEnabled = false;
   void Function(String? message, {int? wrapWidth})? _originalDebugPrint;
+  final List<AgentDataOnConf> _agentDataOnConferenceList = <AgentDataOnConf>[];
 
   static const MethodChannel channel = MethodChannel('mpt_callkit');
   static const eventChannel = EventChannel('native_events');
@@ -44,6 +46,7 @@ class MptCallKitController {
       MptCallKitController._internal();
   static const int DEFAULT_TENANT_ID = -1;
   static const int DEFAULT_AGENT_ID = -1;
+  static const int INVALID_SESSION_ID = -1;
 
   /// online status stream
   final StreamController<bool> _onlineStatuslistener =
@@ -215,7 +218,8 @@ class MptCallKitController {
       _setupEventChannelListener();
     } else {
       channel.setMethodCallHandler((call) async {
-        print("Received event from native: ${call.method}");
+        print(
+            "Received event from native: method=${call.method}, arguments=${call.arguments.toString()}");
         if (call.method == 'onlineStatus') {
           _isOnline = call.arguments as bool;
           _onlineStatuslistener.add(call.arguments as bool);
@@ -230,19 +234,35 @@ class MptCallKitController {
           }
         }
         if (call.method == 'callState') {
-          _currentCallState = call.arguments as String;
-          _callEvent.add(call.arguments as String);
-          _handleCallStateChanged(call.arguments as String);
+          // Xử lý Map từ native (iOS/Android)
+          Map<String, dynamic> callStateData;
+          if (call.arguments is Map) {
+            callStateData = Map<String, dynamic>.from(call.arguments);
+          } else {
+            // Fallback cho format cũ (String)
+            callStateData = {
+              'sessionId': INVALID_SESSION_ID,
+              'hasVideo': false,
+              'state': "",
+            };
+          }
+
+          print('callStateData from flutter: $callStateData');
+
+          final String state = callStateData['state'] as String;
+          _currentCallState = state;
+          _callEvent.add(state);
+          _handleCallStateChanged(state);
 
           // Handle guest call specific logic
           if (isMakeCallByGuest) {
-            if (call.arguments == CallStateConstants.FAILED) {
+            if (state == CallStateConstants.FAILED) {
               print("makeCallByGuest() - Call failed!");
               offline(disablePushNoti: true);
               releaseExtension();
             }
 
-            if (call.arguments == CallStateConstants.CLOSED) {
+            if (state == CallStateConstants.CLOSED) {
               print("makeCallByGuest() - Call ended!");
               offline(disablePushNoti: true);
               releaseExtension();
@@ -1357,6 +1377,38 @@ class MptCallKitController {
     );
   }
 
+  Future<void> makeNativeCall({
+    required String destination,
+    required bool isVideoCall,
+  }) async {
+    await channel.invokeMethod("call", {
+      "destination": destination,
+      "isVideoCall": isVideoCall,
+    });
+  }
+
+  Future<void> inviteToConference({
+    required String destination,
+    required bool isVideoCall,
+  }) async {
+    // make sure conference mode is active
+    final conferenceState = await getConferenceState();
+    if (!conferenceState) {
+      await updateToConference();
+    }
+
+    // invite to conference
+    await channel.invokeMethod("inviteToConference", {
+      "destination": destination,
+      "isVideoCall": isVideoCall,
+    });
+  }
+
+  Future<bool> getConferenceState() async {
+    final result = await channel.invokeMethod("getConferenceState");
+    return result ?? false;
+  }
+
   Future<bool> changeAgentStatus({
     required int reasonCodeId,
     required String statusName,
@@ -1440,9 +1492,18 @@ class MptCallKitController {
   Future<int> hangup() async {
     // If hangup success, return 0 - failed in others case
     try {
-      final result = await channel.invokeMethod("hangup");
-      print("hangup result: $result");
-      return result;
+      final isConference = await getConferenceState();
+      if (isConference) {
+        // hang up all calls
+        await hangUpAllCalls();
+        // // stop conference mode
+        // await updateToConference();
+        return 0;
+      } else {
+        final result = await channel.invokeMethod("hangup");
+        print("hangup result: $result");
+        return result;
+      }
     } on PlatformException catch (e) {
       debugPrint("Failed in 'hangup' mothod: '${e.message}'.");
       return -1;
@@ -1790,12 +1851,12 @@ class MptCallKitController {
           AgentStateConstants.TALKING,
         );
 
-        if (!isMakeCallByGuest) {
-          // Update video call after 2.5 seconds in the agent side
-          Future.delayed(const Duration(milliseconds: 2500), () {
-            updateVideoCall(isVideo: true);
-          });
-        }
+        // if (!isMakeCallByGuest) {
+        //   // Update video call after 2.5 seconds in the agent side
+        //   Future.delayed(const Duration(milliseconds: 2500), () {
+        //     updateVideoCall(isVideo: true);
+        //   });
+        // }
       }
     } else {
       print(
@@ -1881,19 +1942,36 @@ class MptCallKitController {
             }
             break;
           case 'callState':
-            _currentCallState = data.toString();
-            _callEvent.add(data.toString());
-            _handleCallStateChanged(data.toString());
+            // Xử lý Map từ native (Android)
+            Map<String, dynamic> callStateData;
+            if (data is Map) {
+              callStateData = Map<String, dynamic>.from(data);
+            } else {
+              print('Invalid callStateData: $data');
+              // Fallback cho format cũ (String)
+              callStateData = {
+                'sessionId': INVALID_SESSION_ID,
+                'hasVideo': false,
+                'state': "",
+              };
+            }
+
+            print('callStateData from native: $callStateData');
+
+            final String state = callStateData['state'] as String;
+            _currentCallState = state;
+            _callEvent.add(state);
+            _handleCallStateChanged(state);
 
             // Handle guest call specific logic
             if (isMakeCallByGuest) {
-              if (data == CallStateConstants.FAILED) {
+              if (state == CallStateConstants.FAILED) {
                 print("makeCallByGuest() - Call failed!");
                 offline(disablePushNoti: true);
                 releaseExtension();
               }
 
-              if (data == CallStateConstants.CLOSED) {
+              if (state == CallStateConstants.CLOSED) {
                 print("makeCallByGuest() - Call ended!");
                 offline(disablePushNoti: true);
                 releaseExtension();
@@ -2137,13 +2215,27 @@ class MptCallKitController {
 
   void handleRecvCallMessage(dynamic data) {
     try {
-      // Parse JSON data
-      if (data is! String) {
+      String messageString;
+      int? sipSessionId;
+
+      // Handle new format (Map with sessionId and message) or old format (String)
+      if (data is Map) {
+        // New format from native: { sessionId: 12345, message: "json_string" }
+        sipSessionId = data['sipSessionId'] as int?;
+        messageString = data['message'] as String;
+        print(
+            'Received message from SIP session $sipSessionId: $messageString');
+      } else if (data is String) {
+        // Old format (backward compatibility): just the JSON string
+        messageString = data;
+        print('Received message (legacy format): $messageString');
+      } else {
         print('Invalid data type for recvCallMessage: ${data.runtimeType}');
         return;
       }
 
-      final Map<String, dynamic> message = jsonDecode(data);
+      // Parse the message JSON string
+      final Map<String, dynamic> message = jsonDecode(messageString);
       print('Parsed message: $message');
 
       // Extract message components
@@ -2153,25 +2245,22 @@ class MptCallKitController {
       final Map<String, dynamic>? payload = message['payload'];
 
       // Validate required fields
-      if (receivedSessionId == null ||
-          extension == null ||
-          type == null ||
-          payload == null) {
+      if (type == null || payload == null) {
         print('Invalid message format: missing required fields');
         return;
       }
 
-      // Check if received sessionId matches current sessionId
-      if (_currentSessionId == null || _currentSessionId!.isEmpty) {
-        print('Current session ID is null or empty, ignoring message');
-        return;
-      }
+      // // Check if received sessionId matches current sessionId
+      // if (_currentSessionId == null || _currentSessionId!.isEmpty) {
+      //   print('Current session ID is null or empty, ignoring message');
+      //   return;
+      // }
 
-      if (receivedSessionId != _currentSessionId) {
-        print(
-            'Session ID mismatch: received=$receivedSessionId, current=$_currentSessionId');
-        return;
-      }
+      // if (receivedSessionId != _currentSessionId) {
+      //   print(
+      //       'Session ID mismatch: received=$receivedSessionId, current=$_currentSessionId');
+      //   return;
+      // }
 
       // // Check if extension is different from current user extension
       // if (this.extension.isEmpty) {
@@ -2187,7 +2276,7 @@ class MptCallKitController {
       // }
 
       print(
-          'Processing message for session: $receivedSessionId, type: $type, from extension: $extension');
+          'Processing message for session: $receivedSessionId (SIP session: $sipSessionId), type: $type, from extension: $extension');
 
       // Handle different message types
       switch (type) {
@@ -2197,6 +2286,10 @@ class MptCallKitController {
 
         case 'call_state':
           _handleCallStateUpdate(payload);
+          break;
+
+        case SIPMessageTypeConstants.ADD_TO_CONF_REQ:
+          _handleAddToConf(sipSessionId!, message);
           break;
 
         default:
@@ -2236,77 +2329,125 @@ class MptCallKitController {
     });
   }
 
+  Future<void> _handleAddToConf(
+      int sipSessionId, Map<String, dynamic> message) async {
+    print('Handling add to conf: $message');
+
+    final int? agentId = message['agentId'];
+    final Map<String, dynamic>? payload = message['payload'];
+
+    var agentDataOnConf = AgentDataOnConf(
+      sipSessionId: sipSessionId,
+      agentId: agentId,
+      uuid: null,
+    );
+
+    if (payload != null) {
+      if (payload.containsKey('extension')) {
+        final String extension = payload['extension'] as String;
+        print('Invite extension: $extension from $agentId');
+        if (extension.isNotEmpty) {
+          await MptCallKitController().inviteToConference(
+            destination: extension,
+            isVideoCall: true,
+          );
+        }
+      }
+      if (payload.containsKey('uuid')) {
+        final String uuid = payload['uuid'] as String;
+        print('Invite uuid: $uuid from $agentId');
+        if (uuid.isNotEmpty) {
+          await sendSipMessage(
+              agentDataOnConf.sipSessionId,
+              jsonEncode({
+                "type": SIPMessageTypeConstants.ADD_TO_CONF_RESP,
+                "agentId": currentUserInfo?["user"]["id"],
+                "payload": {
+                  "uuid": uuid,
+                  "success": true,
+                },
+              }));
+        }
+      }
+    }
+
+    var contain =
+        _agentDataOnConferenceList.where((e) => e.sipSessionId == sipSessionId);
+    if (contain.isEmpty) {
+      _agentDataOnConferenceList.add(agentDataOnConf);
+      print(
+          'Agent data on conference list: ${_agentDataOnConferenceList.toList().toString()}');
+    } else {
+      print(
+          "Agent data on conference list already contains this sipSessionId: $sipSessionId");
+    }
+  }
+
+  Future<int> sendSipMessage(int? sipSessionId, String message) async {
+    final result = await channel.invokeMethod("sendSipMessage", {
+      "sipSessionId": sipSessionId,
+      "message": message,
+    });
+
+    print("sendSipMessage result: $result");
+    return result;
+  }
+
+  Future<void> requestInviteToConference({
+    required String desExtension,
+  }) async {
+    final uuid = const Uuid().v4();
+    final message = jsonEncode({
+      "type": SIPMessageTypeConstants.ADD_TO_CONF_REQ,
+      "agentId": currentUserInfo?["user"]["id"],
+      "payload": {
+        "extension": desExtension,
+        "uuid": uuid,
+      },
+    });
+    await sendSipMessage(null, message);
+  }
+
   /// Handle call state updates
   void _handleCallStateUpdate(Map<String, dynamic> payload) {
     print('Handling call state update: $payload');
 
-    payload.forEach((key, value) {
-      switch (key) {
-        case 'answered':
-          final bool isAnswered = value as bool;
-          print('Call answered state: $isAnswered');
-          if (isAnswered) {
-            // Handle call answered logic
-            print('Remote party answered the call');
-            _calleeAnsweredStream.add(true);
+    bool isAnswered = false;
 
-            /*--> Stop update call to video in guest side
-            // Future.delayed(const Duration(milliseconds: 2500), () {
-            //   updateVideoCall(isVideo: true);
-            // });
-            <--*/
-          }
-          break;
-        // callee agent info
-        case "agentInfo":
-          try {
-            Map<String, dynamic> agentInfo;
-
-            // Handle both String and Map types
-            if (value is String) {
-              // If it's a string, try to parse it as JSON
-              agentInfo = jsonDecode(value) as Map<String, dynamic>;
-            } else if (value is Map) {
-              // If it's already a Map, use it directly
-              agentInfo = Map<String, dynamic>.from(value);
-            } else {
-              print('Invalid agentInfo type: ${value.runtimeType}');
-              break;
-            }
-
-            print("Agent Info received: ${agentInfo.toString()}");
-
-            final int agentId = agentInfo["agentId"] as int;
-            final int tenantId = agentInfo["tenantId"] as int;
-
-            print('Agent ID received: $agentId');
-            print('Tenant ID received: $tenantId');
-
-            if (agentId != DEFAULT_AGENT_ID &&
-                tenantId != DEFAULT_TENANT_ID &&
-                isMakeCallByGuest) {
-              reportMediaDeviceStatus(tenantId: tenantId, agentId: agentId);
-            }
-          } catch (e) {
-            print('Error parsing agentInfo: $e');
-            print('agentInfo value: $value (type: ${value.runtimeType})');
-          }
-          break;
-
-        // case "isVideo":
-        //   final bool isVideo = value as bool;
-        //   print(
-        //       'Remote party send request reinvite video call state: $isVideo');
-        //   if (isVideo) {
-        //     updateVideoCall(isVideo: isVideo);
-        //   }
-        //   break;
-
-        default:
-          print('Unknown call state key: $key');
-          break;
+    if (payload.containsKey(SIPMessageTypeConstants.ANSWERED)) {
+      isAnswered = payload[SIPMessageTypeConstants.ANSWERED] as bool ?? false;
+      print('Call answered state: $isAnswered');
+      if (isAnswered) {
+        _calleeAnsweredStream.add(true);
       }
-    });
+    }
+
+    if (payload.containsKey(SIPMessageTypeConstants.AGENT_INFO)) {
+      final Map<String, dynamic> agentInfo =
+          payload[SIPMessageTypeConstants.AGENT_INFO] as Map<String, dynamic>;
+      print('Agent info: $agentInfo');
+      final int agentId = agentInfo['agentId'] as int;
+      final int tenantId = agentInfo['tenantId'] as int;
+      print('Agent ID: $agentId');
+      print('Tenant ID: $tenantId');
+      if (agentId != DEFAULT_AGENT_ID &&
+          tenantId != DEFAULT_TENANT_ID &&
+          isMakeCallByGuest) {
+        reportMediaDeviceStatus(tenantId: tenantId, agentId: agentId);
+      }
+    }
+
+    if (payload.containsKey("existsVideo")) {
+      final bool existsVideo = payload['existsVideo'] as bool;
+      print(
+          'Remote party send request reinvite video call state: $existsVideo');
+      if (!existsVideo && isAnswered) {
+        // Update video call after 2.5 seconds in the agent side
+        Future.delayed(const Duration(milliseconds: 2500), () {
+          updateVideoCall(isVideo: true);
+        });
+      }
+    }
   }
 
   Future<void> endCallAPI({
@@ -2505,7 +2646,7 @@ class MptCallKitController {
       "deviceType": "mobile",
       "devicePermissions": hasPermission,
       "extension": int.parse(lastesExtensionData?.username ?? "0"),
-      "extensionRole": isMakeCallByGuest ? "caller" : "callee",
+      "extensionRole": isMakeCallByGuest ? "guest" : "agent",
       "mptSDKVersion": MptSDKCoreConstants.VERSION,
     };
 
@@ -2547,5 +2688,9 @@ class MptCallKitController {
 
   Future<void> updateToConference() async {
     await channel.invokeMethod("conference");
+  }
+
+  Future<void> hangUpAllCalls() async {
+    await channel.invokeMethod("hangUpAllCalls");
   }
 }

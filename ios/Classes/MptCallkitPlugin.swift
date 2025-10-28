@@ -249,6 +249,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     var loginViewController: LoginViewController!
     var _activeLine: Int!
     var activeSessionid: CLong!
+    var activeSessionidHasVideo: Bool!
+    var activeSessionidHasAudio: Bool!
     var lineSessions: [CLong] = []
     var phone: String = ""
     var displayName: String = ""
@@ -1370,8 +1372,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         NSLog(
             "onInviteIncoming - sessionId: \(sessionId) - callerDisplayName: \(String(describing: callerDisplayName)) - caller: \(String(describing: caller)) - calleeDisplayName: \(String(describing: calleeDisplayName)) - callee: \(String(describing: callee)) - audioCodecs: \(String(describing: audioCodecs)) - videoCodecs: \(String(describing: videoCodecs)) - existsAudio: \(existsAudio) - existsVideo: \(existsVideo) - sipMessage: \(String(describing: sipMessage))"
         )
+        let sessionInfo = getCurrentSessionInfo()
+        sendCustomMessage(callSessionId: sessionInfo.0, userExtension: sessionInfo.1, type: "call_state", payloadKey: "incoming", payloadValue: true)
+        sendCallStateToFlutter(.INCOMING)
         self.endBackgroundTaskForRegister()
         self.activeSessionid = sessionId
+        self.activeSessionidHasVideo = existsVideo
+        self.activeSessionidHasAudio = existsAudio
         let num = _callManager.getConnectCallNum()
         let index = findIdleLine()
         // if num >= MAX_LINES || index < 0 {
@@ -1532,7 +1539,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         callee: String!, audioCodecs: String!, videoCodecs: String!, existsAudio: Bool,
         existsVideo: Bool, sipMessage: String!
     ) {
-        NSLog("🔍 onInviteAnswered... sessionId: \(sessionId), existsVideo: \(existsVideo)")
+        NSLog("🔍 onInviteAnswered... sessionId: \(sessionId), existsVideo: \(existsVideo), callerDisplayName: \(callerDisplayName), caller: \(caller), calleeDisplayName: \(calleeDisplayName), callee: \(callee), audioCodecs: \(audioCodecs), videoCodecs: \(videoCodecs), existsAudio: \(existsAudio), existsVideo: \(existsVideo), sipMessage: \(sipMessage)")
         guard let result = _callManager.findCallBySessionID(sessionId) else {
             NSLog("❌ onInviteAnswered - Not exist this SessionId = \(sessionId)")
             return
@@ -1598,6 +1605,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             result.session.isReferCall = false
             result.session.originCallSessionId = -1
         }
+        
+        NSLog("onInviteAnswered... isConference=\(String(describing: isConference)), sessionId=\(sessionId)")
 
         if isConference == true {
             _callManager.joinToConference(sessionid: sessionId)
@@ -1774,7 +1783,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 //            callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
 //            type: "call_state", payloadKey: "answered", payloadValue: true)
         
-        self.activeSessionid = sessionId
         setLoudspeakerStatus(true)
 
         // 🔥 ANDROID PATTERN: Send state notification instead of direct call
@@ -2015,7 +2023,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         _ sessionId: Int, mimeType: String!, subMimeType: String!,
         messageData: UnsafeMutablePointer<UInt8>!, messageDataLength: Int32
     ) {
-        NSLog("onRecvMessage...")
+        NSLog("onRecvMessage... sessionId = \(sessionId), mimeType = \(mimeType) subMimeType = \(subMimeType)")
         let index = findSession(sessionid: sessionId)
         if index == -1 {
             return
@@ -2026,10 +2034,14 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 String(
                     data: Data(bytes: messageData, count: Int(messageDataLength)), encoding: .utf8)
                 ?? ""
-            NSLog("onRecvMessage... Received message: \(recvMessage)")
+            NSLog("onRecvMessage... Received plain message: \(recvMessage)")
 
-            // Gửi tin nhắn về Flutter
-            methodChannel?.invokeMethod("recvCallMessage", arguments: recvMessage)
+            // Gửi tin nhắn về Flutter với sessionId
+            let messageData: [String: Any] = [
+                "sipSessionId": sessionId,
+                "message": recvMessage
+            ]
+            methodChannel?.invokeMethod("recvCallMessage", arguments: messageData)
         } else if mimeType == "application", subMimeType == "vnd.3gpp.sms" {
             // The messageData is binary data
             let recvMessage =
@@ -2037,7 +2049,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     data: Data(bytes: messageData, count: Int(messageDataLength)), encoding: .utf8)
                 ?? ""
             NSLog("onRecvMessage... Received 3GPP SMS: \(recvMessage)")
-            methodChannel?.invokeMethod("recvCallMessage", arguments: recvMessage)
+            let messageData: [String: Any] = [
+                "sipSessionId": sessionId,
+                "message": recvMessage
+            ]
+            methodChannel?.invokeMethod("recvCallMessage", arguments: messageData)
         } else if mimeType == "application", subMimeType == "vnd.3gpp2.sms" {
             // The messageData is binary data
             let recvMessage =
@@ -2045,7 +2061,22 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     data: Data(bytes: messageData, count: Int(messageDataLength)), encoding: .utf8)
                 ?? ""
             NSLog("onRecvMessage... Received 3GPP2 SMS: \(recvMessage)")
-            methodChannel?.invokeMethod("recvCallMessage", arguments: recvMessage)
+            let messageData: [String: Any] = [
+                "sipSessionId": sessionId,
+                "message": recvMessage
+            ]
+            methodChannel?.invokeMethod("recvCallMessage", arguments: messageData)
+        } else if mimeType == "application", subMimeType == "json" {
+            let recvMessage = 
+                String(
+                    data: Data(bytes: messageData, count: Int(messageDataLength)), encoding: .utf8)
+                ?? ""
+            NSLog("onRecvMessage... Received json SMS: \(recvMessage)")
+            let messageData: [String: Any] = [
+                "sipSessionId": sessionId,
+                "message": recvMessage
+            ]
+            methodChannel?.invokeMethod("recvCallMessage", arguments: messageData)
         }
     }
 
@@ -2163,7 +2194,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
     func makeCall(_ callee: String, videoCall: Bool) -> (CLong) {
+        NSLog("makeCall... activeSessionid=\(activeSessionid)")
+        
         if activeSessionid != CLong(INVALID_SESSION_ID) {
+            NSLog("makeCall... Current line is busy \(activeSessionid)")
             return CLong(INVALID_SESSION_ID)
         }
 
@@ -2173,11 +2207,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         if sessionId >= 0 {
             activeSessionid = sessionId
             print("makeCall------------------ \(String(describing: activeSessionid))")
-            if (videoCall) {
-                let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: sessionId, state: true)
-                print("enableSendVideoStream result: \(sendResult)")
-                startSession()
-            }
             return activeSessionid
         } else {
             return sessionId
@@ -2212,6 +2241,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
 
         return statusCode
+    }
+    
+    func hangUpAllCalls(){
+        _callManager.hangUpAllCalls()
+        self.isConference = false
+        
+        self.activeSessionid = CLong(INVALID_SESSION_ID)
     }
 
     func holdCall() {
@@ -2296,10 +2332,25 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         _activeLine = activedline
 
         activeSessionid = lineSessions[_activeLine]
+        NSLog("didSelectLine... activeSessionid=\(activeSessionid)")
 
         if !isConference && activeSessionid != CLong(INVALID_SESSION_ID) {
             _callManager.holdCall(sessionid: activeSessionid, onHold: false)
         }
+    }
+    
+    func autoSelectAvailableLine()-> CLong{
+        var selectedLine = -1;
+        
+        for i in 0..<MAX_LINES {
+            if lineSessions[i] == CLong(INVALID_SESSION_ID) {
+                selectedLine = i
+                print("autoSelectAvailableLine, selectedLine=\(i)")
+                break
+            }
+        }
+        
+        return selectedLine
     }
 
     func switchSessionLine() {
@@ -2342,9 +2393,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             conference: self.isConference
         )
         PortSIPStateManager.shared.updateVideoState(videoState)
-
-        // Legacy Flutter state (keep for compatibility)
-        sendCallStateToFlutter(.INCOMING)
 
         // Nếu ứng dụng ở trạng thái nền, có thể hiển thị thông báo hệ thống đơn giản
         if UIApplication.shared.applicationState == .background {
@@ -2423,19 +2471,23 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 didSelectLine(line)
             }
             
+            // Send call state message with multiple fields in payload
             let sessionInfo = getCurrentSessionInfo()
-            sendCustomMessage(
-                callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
-                type: "call_state", payloadKey: "answered", payloadValue: true)
-
-            // Send agentInfo as a single object to match Android pattern
             let agentInfo: [String: Any] = [
                 "agentId": self.currentAgentId,
                 "tenantId": self.currentTenantId
             ]
-            sendCustomMessage(
-                callSessionId: sessionInfo.0, userExtension: sessionInfo.1,
-                type: "call_state", payloadKey: "agentInfo", payloadValue: agentInfo)
+            let payload: [String: Any] = [
+                "answered": true,
+                "agentInfo": agentInfo,
+                "existsVideo": self.activeSessionidHasVideo ?? false,
+                "existsAudio": self.activeSessionidHasAudio ?? false
+            ]
+            sendCallStateMsg(
+                callSessionId: sessionInfo.0, 
+                userExtension: sessionInfo.1, 
+                type: "call_state", 
+                payload: payload)
 
             sendCallStateToFlutter(.ANSWERED)
         }
@@ -2449,14 +2501,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
     func onCloseCall(sessionId: CLong) {
-        NSLog("onCloseCall")
+        NSLog("onCloseCall... sessionId=\(sessionId)")
         freeLine(sessionid: sessionId)
         _callManager.setCallIncoming(false)
         stopSession()
 
         let result = _callManager.findCallBySessionID(sessionId)
         if result != nil {
-            _callManager.reportEndCall(uuid: self.currentUUID!)
             _callManager.removeCall(call: result!.session)
         }
         if sessionId == activeSessionid {
@@ -2683,14 +2734,14 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             }
         case "call":
             if let args = call.arguments as? [String: Any],
-                let phoneNumber = args["phoneNumber"] as? String,
+                let destination = args["destination"] as? String,
                 let isVideoCall = args["isVideoCall"] as? Bool
             {
 
                 // Kiểm tra trạng thái đăng ký trước khi thực hiện cuộc gọi
                 if loginViewController.sipRegistrationStatus == .LOGIN_STATUS_ONLINE {
                     // Sử dụng hàm makeCall có sẵn trong plugin
-                    let sessionId = makeCall(phoneNumber, videoCall: isVideoCall)
+                    let sessionId = makeCall(destination, videoCall: isVideoCall)
                     result(sessionId > 0)
                 } else {
                     result(
@@ -2960,6 +3011,52 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         case "conference":
             updateToConference()
             result(true)
+        case "inviteToConference":
+            if let args = call.arguments as? [String: Any],
+                let destination = args["destination"] as? String,
+                let isVideoCall = args["isVideoCall"] as? Bool
+            {
+                var selectedLine = autoSelectAvailableLine()
+                
+                if selectedLine != -1 {
+                    didSelectLine(selectedLine)
+                    
+                    // Check reg status first
+                    if loginViewController.sipRegistrationStatus == .LOGIN_STATUS_ONLINE {
+                        // then make call
+                        let sessionId = makeCall(destination, videoCall: isVideoCall)
+                        result(sessionId > 0)
+                    } else {
+                        result(
+                            FlutterError(
+                                code: "NOT_REGISTERED",
+                                message: "SIP registration required before making calls",
+                                details: nil))
+                    }
+                } else {
+                    result(
+                        FlutterError(
+                            code: "NO_AVAILABLE_LINE",
+                            message: "No available line for inviteToConference",
+                            details: nil))
+                }
+
+            }
+            result(true)
+        case "getConferenceState":
+            result(self.isConference)
+        case "sendSipMessage":
+            var sendMsgRes = -1
+            if let args = call.arguments as? [String: Any],
+               let sipSessionId = args["sipSessionId"] as? CLong ?? self.activeSessionid,
+               let message = args["message"]  as? String
+            {
+                sendMsgRes = self.sendSipMessage(sessionId: sipSessionId, message: message)
+            }
+            result(sendMsgRes)
+        case "hangUpAllCalls":
+            self.hangUpAllCalls()
+            result(true)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -3190,7 +3287,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     NSLog(
                         "🔍 answerCall() - SDK answer success, waiting for onInviteAnswered() callback"
                     )
-                    reInvite(self.xSessionIdRecv)
+                    // reInvite(self.xSessionIdRecv)
                 } else {
                     NSLog(
                         "❌ answerCall - Answer call failed with error code: \(String(describing: answerRes))"
@@ -3228,19 +3325,17 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
     func sendCallStateToFlutter(_ state: CallState) {
-        // Gửi trạng thái cơ bản
-        print("sendCallStateToFlutter: \(state)")
-        methodChannel?.invokeMethod("callState", arguments: state.rawValue)
-
         // Cập nhật state manager thay vì gọi trực tiếp UI
         if activeSessionid != CLong(INVALID_SESSION_ID) {
             if let result = _callManager.findCallBySessionID(activeSessionid) {
-                let callDetails: [String: Any] = [
+                let callState: [String: Any] = [
                     "sessionId": activeSessionid,
                     "hasVideo": result.session.videoState,
                     "state": state.rawValue,
                 ]
-                methodChannel?.invokeMethod("callDetails", arguments: callDetails)
+                // Gửi trạng thái cơ bản
+                print("sendCallStateToFlutter: \(callState)")
+                methodChannel?.invokeMethod("callState", arguments: callState)
 
                 // Cập nhật state manager
                 let portSIPState = PortSIPCallState(
@@ -3464,6 +3559,97 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 NSLog("SDK-iOS: Error creating custom message: \(error.localizedDescription)")
             }
         }
+    }
+    
+    func sendSipMessage(sessionId: Int, message: String) -> Int{
+        if sessionId < 0 {
+            NSLog("sendSipMessage... sessionId is invalid")
+            return -1
+        }
+        NSLog("sendSipMessage... sendMessage message= \(message.data(using: .utf8))")
+        let resSendMsg = portSIPSDK.sendMessage(
+            sessionId, mimeType: "text",
+            subMimeType: "plain",
+            message: message.data(using: .utf8)!,
+            messageLength: Int32(message.count)
+        )
+        NSLog("sendSipMessage... sendMessage result: \(resSendMsg)")
+        return resSendMsg
+    }
+    
+    /**
+     * Gửi tin nhắn call state với nhiều key-value pairs trong payload
+     * 
+     * - Parameters:
+     *   - callSessionId: Session ID của cuộc gọi
+     *   - userExtension: Extension của user
+     *   - type: Loại message (mặc định là "call_state")
+     *   - payload: Dictionary chứa nhiều key-value pairs
+     * 
+     * Example usage:
+     * ```
+     * let payload: [String: Any] = [
+     *     "answered": true,
+     *     "microphone": false,
+     *     "camera": true,
+     *     "isInternal": false
+     * ]
+     * sendCallStateMsg(callSessionId: sessionId, userExtension: extension, type: "call_state", payload: payload)
+     * ```
+     */
+    func sendCallStateMsg(callSessionId: String, userExtension: String, type: String, payload: [String: Any]) {
+        if activeSessionid != CLong(INVALID_SESSION_ID) {
+            do {
+                // Tạo message object với payload chứa nhiều key-value pairs
+                let message: [String: Any] = [
+                    "sessionId": callSessionId,
+                    "extension": userExtension,
+                    "type": type,
+                    "payload": payload,
+                ]
+
+                let jsonData = try JSONSerialization.data(withJSONObject: message, options: [])
+                let jsonString = String(data: jsonData, encoding: .utf8) ?? ""
+
+                NSLog("SDK-iOS: Sending call state message: \(jsonString)")
+
+                let messageData = jsonString.data(using: .utf8)!
+                let resSendMsg = portSIPSDK.sendMessage(
+                    activeSessionid,
+                    mimeType: "text",
+                    subMimeType: "plain",
+                    message: messageData,
+                    messageLength: Int32(messageData.count))
+                NSLog("SDK-iOS: Send call state message result: \(resSendMsg)")
+            } catch {
+                NSLog("SDK-iOS: Error creating call state message: \(error.localizedDescription)")
+            }
+        } else {
+            NSLog("SDK-iOS: Cannot send call state message - no active session")
+        }
+    }
+    
+    /**
+     * Gửi tin nhắn call state (shorthand method với type mặc định là "call_state")
+     * 
+     * - Parameters:
+     *   - callSessionId: Session ID của cuộc gọi
+     *   - userExtension: Extension của user
+     *   - payload: Dictionary chứa nhiều key-value pairs
+     * 
+     * Example usage:
+     * ```
+     * let sessionInfo = getCurrentSessionInfo()
+     * let payload: [String: Any] = [
+     *     "answered": true,
+     *     "microphone": false,
+     *     "camera": true
+     * ]
+     * sendCallStateMsg(callSessionId: sessionInfo.0, userExtension: sessionInfo.1, payload: payload)
+     * ```
+     */
+    func sendCallStateMsg(callSessionId: String, userExtension: String, payload: [String: Any]) {
+        sendCallStateMsg(callSessionId: callSessionId, userExtension: userExtension, type: "call_state", payload: payload)
     }
 
     /**
@@ -4049,11 +4235,16 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     }
 
     private func updateToConference() {
+        guard let result = _callManager.findCallBySessionID(activeSessionid) else {
+            NSLog("updateToConference - Not exist this SessionId = \(activeSessionid)")
+            return
+        }
+        
         if !isConference {
             let videoState = PortSIPVideoState(
                 sessionId: Int64(activeSessionid),
-                isVideoEnabled: true,
-                isCameraOn: true,
+                isVideoEnabled: result.session.videoState,
+                isCameraOn: result.session.videoState && !result.session.videoMuted,
                 useFrontCamera: mUseFrontCamera,
                 conference: true
             )
@@ -4061,8 +4252,8 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         }else {
             let videoState = PortSIPVideoState(
                 sessionId: Int64(activeSessionid),
-                isVideoEnabled: true,
-                isCameraOn: true,
+                isVideoEnabled: result.session.videoState,
+                isCameraOn: result.session.videoState && !result.session.videoMuted,
                 useFrontCamera: mUseFrontCamera,
                 conference: false
             )

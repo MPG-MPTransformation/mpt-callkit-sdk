@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Set;
 
 public class CallManager {
-	public static final int MAX_LINES = 10;
+	public static final int MAX_LINES = 20;
 	private static CallManager mInstance;
 	private static Object locker = new Object();
 	Session[] sessions = new Session[MAX_LINES];

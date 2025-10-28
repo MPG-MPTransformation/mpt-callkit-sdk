@@ -35,6 +35,8 @@ class _CallPadState extends State<CallPad> {
     if (Platform.isAndroid) 'getAudioDevices',
     'updateVideoCall',
     'conference',
+    'inviteToConference(host)',
+    'inviteToConference(guest)',
     'hangup',
     'endCallAPI',
   ];
@@ -82,6 +84,8 @@ class _CallPadState extends State<CallPad> {
   StreamSubscription<bool>? _isRemoteVideoReceivedSubscription;
   bool _isRemoteVideoReceived = false;
   var callStatusCode = -999;
+  final TextEditingController extensionController = TextEditingController();
+  final TextEditingController lineIndexController = TextEditingController();
 
   @override
   void initState() {
@@ -270,6 +274,7 @@ class _CallPadState extends State<CallPad> {
     _calleeAnswerSubscription?.cancel();
     _callEventSocketSubscription?.cancel();
     _sipPingSubscription?.cancel();
+    extensionController.dispose();
     super.dispose();
   }
 
@@ -637,6 +642,12 @@ class _CallPadState extends State<CallPad> {
       case 'conference':
         MptCallKitController().updateToConference();
         break;
+      case 'inviteToConference(host)':
+        _showInviteToConferenceDialog(isHost: true);
+        break;
+      case 'inviteToConference(guest)':
+        _showInviteToConferenceDialog(isHost: false);
+        break;
       default:
         print('Function $functionName not implemented');
     }
@@ -705,6 +716,99 @@ class _CallPadState extends State<CallPad> {
               foregroundColor: WidgetStateProperty.all<Color>(Colors.red),
             ),
             child: const Text('End call'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInviteToConferenceDialog({required bool isHost}) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Invite to Conference'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter the extension number to invite:'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: extensionController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Extension',
+                hintText: 'Enter extension number',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person_add),
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final extension = extensionController.text.trim();
+
+              if (extension.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter an extension number'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              // Close dialog
+              Navigator.of(context).pop();
+
+              try {
+                // Invite to conference
+                if (isHost) {
+                  await MptCallKitController().inviteToConference(
+                    destination: extension,
+                    isVideoCall: true,
+                  );
+                } else {
+                  await MptCallKitController().requestInviteToConference(
+                    desExtension: extension,
+                  );
+                }
+
+                // Clear the text field after successful invite
+                extensionController.clear();
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Inviting $extension to conference...'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to invite: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Invite'),
           ),
         ],
       ),
