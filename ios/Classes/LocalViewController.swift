@@ -22,7 +22,7 @@ class LocalViewController: UIViewController {
   
    override func viewDidLoad() {
        super.viewDidLoad()
-       print("LocalViewController - viewDidLoad")
+       NSLog("LocalViewController - viewDidLoad")
        setupLocalVideoView()
        setupNotificationObservers()
    }
@@ -78,7 +78,7 @@ class LocalViewController: UIViewController {
            return
        }
       
-       print("LocalViewController - Call state changed: \(state)")
+       NSLog("LocalViewController - Call state changed: \(state)")
       
        DispatchQueue.main.async { [weak self] in
            guard let self = self else { return }
@@ -106,7 +106,7 @@ class LocalViewController: UIViewController {
            return
        }
       
-       print("LocalViewController - handleVideoStateChange - video enabled: \(isVideoEnabled)")
+       NSLog("LocalViewController - handleVideoStateChange - video enabled: \(isVideoEnabled)")
       
        DispatchQueue.main.async { [weak self] in
            guard let self = self else { return }
@@ -125,7 +125,7 @@ class LocalViewController: UIViewController {
            return
        }
       
-       print("LocalViewController - Camera state changed: on=\(isCameraOn), front=\(useFrontCamera)")
+       NSLog("LocalViewController - Camera state changed: on=\(isCameraOn), front=\(useFrontCamera)")
       
        DispatchQueue.main.async { [weak self] in
            guard let self = self else { return }
@@ -165,7 +165,7 @@ class LocalViewController: UIViewController {
            if isOn {
                // Bật camera - hiển thị video
                let result = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
-               print("[Debug] LocalViewController - Enable camera display result: \(result)")
+               NSLog("[Debug] LocalViewController - Enable camera display result: \(result)")
               
                // Đảm bảo view hiển thị và xóa placeholder
                localVideo.isHidden = false
@@ -174,7 +174,7 @@ class LocalViewController: UIViewController {
            } else {
                // Tắt camera - dừng video nhưng vẫn hiển thị view với background
                let result = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
-               print("[Debug] LocalViewController - Disable camera display result: \(result)")
+               NSLog("[Debug] LocalViewController - Disable camera display result: \(result)")
               
                // Vẫn hiển thị view nhưng với background thay vì video
                localVideo.isHidden = false
@@ -227,33 +227,33 @@ class LocalViewController: UIViewController {
   
    override func viewWillAppear(_ animated: Bool) {
        super.viewWillAppear(animated)
-       print("LocalViewController - viewWillAppear")
+       NSLog("LocalViewController - viewWillAppear")
        if !isVideoInitialized {
-           print("LocalViewController - viewWillAppear camera setting: \(mCameraDeviceId)")
+           NSLog("LocalViewController - viewWillAppear camera setting: \(mCameraDeviceId)")
            initializeLocalVideo()
        }
    }
   
    override func viewDidAppear(_ animated: Bool) {
        super.viewDidAppear(animated)
-       print("LocalViewController - viewDidAppear")
+       NSLog("LocalViewController - viewDidAppear")
        
        // Ready notification removed - views manage themselves via state manager
    }
   
    override func viewDidDisappear(_ animated: Bool) {
        super.viewDidDisappear(animated)
-       print("LocalViewController - viewDidDisappear")
+       NSLog("LocalViewController - viewDidDisappear")
        cleanupVideo()
    }
   
    deinit {
        NotificationCenter.default.removeObserver(self)
-       print("LocalViewController - deinit")
+       NSLog("LocalViewController - deinit")
    }
   
    private func setupLocalVideoView() {
-       print("LocalViewController - setupLocalVideoView")
+       NSLog("LocalViewController - setupLocalVideoView")
        // Create the local video view
        viewLocalVideo = PortSIPVideoRenderView()
        viewLocalVideo.translatesAutoresizingMaskIntoConstraints = false
@@ -283,51 +283,51 @@ class LocalViewController: UIViewController {
    }
   
    func initializeLocalVideo() {
-       print("LocalViewController - initializeLocalVideo")
+       NSLog("LocalViewController - initializeLocalVideo")
        // Get the SDK instance from the plugin
        let appDelegate = MptCallkitPlugin.shared
        portSIPSDK = appDelegate.portSIPSDK
       
        if portSIPSDK != nil {
-           print("LocalViewController - Initializing video render")
+           NSLog("LocalViewController - Initializing video render")
            viewLocalVideo.initVideoRender()
            // Display local video with mirror enabled for front camera
            let result = portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
-           print("LocalViewController - displayLocalVideo result: \(result)")
+           NSLog("LocalViewController - displayLocalVideo result: \(result)")
            isVideoInitialized = true
           
            // Make sure the view is visible
            viewLocalVideo.isHidden = false
            self.view.isHidden = false
        } else {
-           print("LocalViewController - Error: portSIPSDK is nil")
+           NSLog("LocalViewController - Error: portSIPSDK is nil")
        }
    }
   
    func switchCamera() {
-       print("LocalViewController - switchCamera: current device ID = \(mCameraDeviceId)")
+       NSLog("LocalViewController - switchCamera: current device ID = \(mCameraDeviceId)")
       
        // Safety check: ensure SDK is available
        guard let sdk = portSIPSDK else {
-           print("LocalViewController - switchCamera failed: portSIPSDK is nil")
+           NSLog("LocalViewController - switchCamera failed: portSIPSDK is nil")
            return
        }
       
        // Safety check: ensure video view is available
        guard let localVideo = viewLocalVideo else {
-           print("LocalViewController - switchCamera failed: viewLocalVideo is nil")
+           NSLog("LocalViewController - switchCamera failed: viewLocalVideo is nil")
            return
        }
       
        // Safety check: ensure video is initialized
        if !isVideoInitialized {
-           print("LocalViewController - switchCamera failed: video is not initialized")
+           NSLog("LocalViewController - switchCamera failed: video is not initialized")
            // Try to initialize video first
            initializeLocalVideo()
           
            // Check again after initialization
            guard isVideoInitialized else {
-               print("LocalViewController - switchCamera failed: unable to initialize video")
+               NSLog("LocalViewController - switchCamera failed: unable to initialize video")
                return
            }
        }
@@ -344,37 +344,37 @@ class LocalViewController: UIViewController {
            // Additional safety check before calling displayLocalVideo
            let displayResult = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
            if displayResult == 0 {
-               print("LocalViewController - Switched to \(shouldMirror ? "front" : "back") camera with mirror \(shouldMirror ? "enabled" : "disabled")")
+               NSLog("LocalViewController - Switched to \(shouldMirror ? "front" : "back") camera with mirror \(shouldMirror ? "enabled" : "disabled")")
               
                // Make sure the view is visible
                localVideo.isHidden = false
                self.view.isHidden = false
            } else {
-               print("LocalViewController - displayLocalVideo failed with result: \(displayResult)")
+               NSLog("LocalViewController - displayLocalVideo failed with result: \(displayResult)")
            }
        } else {
-           print("LocalViewController - setVideoDeviceId failed with result: \(setVideoResult)")
+           NSLog("LocalViewController - setVideoDeviceId failed with result: \(setVideoResult)")
        }
    }
    
    func setCameraDirectly(useFrontCamera: Bool) {
-       print("LocalViewController - setCameraDirectly: front=\(useFrontCamera)")
+       NSLog("LocalViewController - setCameraDirectly: front=\(useFrontCamera)")
       
        // Safety check: ensure SDK is available
        guard let sdk = portSIPSDK else {
-           print("LocalViewController - setCameraDirectly failed: portSIPSDK is nil")
+           NSLog("LocalViewController - setCameraDirectly failed: portSIPSDK is nil")
            return
        }
       
        // Safety check: ensure video view is available
        guard let localVideo = viewLocalVideo else {
-           print("LocalViewController - setCameraDirectly failed: viewLocalVideo is nil")
+           NSLog("LocalViewController - setCameraDirectly failed: viewLocalVideo is nil")
            return
        }
       
        // Safety check: ensure video is initialized
        if !isVideoInitialized {
-           print("LocalViewController - setCameraDirectly failed: video is not initialized")
+           NSLog("LocalViewController - setCameraDirectly failed: video is not initialized")
            return
        }
       
@@ -386,44 +386,44 @@ class LocalViewController: UIViewController {
           
            let displayResult = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
            if displayResult == 0 {
-               print("LocalViewController - Set to \(shouldMirror ? "front" : "back") camera with mirror \(shouldMirror ? "enabled" : "disabled")")
+               NSLog("LocalViewController - Set to \(shouldMirror ? "front" : "back") camera with mirror \(shouldMirror ? "enabled" : "disabled")")
               
                // Make sure the view is visible
                localVideo.isHidden = false
                self.view.isHidden = false
            } else {
-               print("LocalViewController - displayLocalVideo failed with result: \(displayResult)")
+               NSLog("LocalViewController - displayLocalVideo failed with result: \(displayResult)")
            }
        } else {
-           print("LocalViewController - setVideoDeviceId failed with result: \(setVideoResult)")
+           NSLog("LocalViewController - setVideoDeviceId failed with result: \(setVideoResult)")
        }
    }
   
    func updateVideoVisibility(isVisible: Bool) {
-       print("LocalViewController - updateVideoVisibility: \(isVisible)")
+       NSLog("LocalViewController - updateVideoVisibility: \(isVisible)")
       
        // CRITICAL: Check if view controller is still valid and views are loaded
        guard isViewLoaded else {
-           print("[Warning] LocalViewController - View not loaded, ignoring video visibility update")
+           NSLog("[Warning] LocalViewController - View not loaded, ignoring video visibility update")
            return
        }
       
        // Check if we're still attached to a parent (not destroyed)
        guard parent != nil || view.superview != nil else {
-           print("[Warning] LocalViewController - View controller detached, ignoring video visibility update")
+           NSLog("[Warning] LocalViewController - View controller detached, ignoring video visibility update")
            return
        }
       
        // Check viewLocalVideo
        guard let localVideo = viewLocalVideo else {
-           print("[Warning] LocalViewController - viewLocalVideo is nil, view may be destroyed")
+           NSLog("[Warning] LocalViewController - viewLocalVideo is nil, view may be destroyed")
            self.safeUnregisterFromNotifications()
            return
        }
       
        // Check portSIPSDK
        guard let sdk = portSIPSDK else {
-           print("[Error] LocalViewController - portSIPSDK is nil")
+           NSLog("[Error] LocalViewController - portSIPSDK is nil")
            return
        }
       
@@ -433,7 +433,7 @@ class LocalViewController: UIViewController {
           
            // Double-check views are still valid on main thread
            guard let localVideo = self.viewLocalVideo else {
-               print("[Warning] LocalViewController - viewLocalVideo became nil on main thread")
+               NSLog("[Warning] LocalViewController - viewLocalVideo became nil on main thread")
                return
            }
           
@@ -442,7 +442,7 @@ class LocalViewController: UIViewController {
           
            // Only process video when it is initialized
            guard self.isVideoInitialized else {
-               print("[Warning] LocalViewController - updateVideoVisibility: video is not initialized")
+               NSLog("[Warning] LocalViewController - updateVideoVisibility: video is not initialized")
                if isVisible {
                    // Try to initialize if we need to show video
                    self.initializeLocalVideo()
@@ -454,22 +454,22 @@ class LocalViewController: UIViewController {
            if isVisible {
                // Display video with mirror depending on the camera
                let result = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
-               print("[Debug] LocalViewController - Display local video result: \(result)")
+               NSLog("[Debug] LocalViewController - Display local video result: \(result)")
            } else {
                // Hide video but not release
                let result = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
-               print("[Debug] LocalViewController - Hide local video result: \(result)")
+               NSLog("[Debug] LocalViewController - Hide local video result: \(result)")
            }
        }
    }
   
    private func safeUnregisterFromNotifications() {
-       print("[Debug] LocalViewController - Safely unregistering from notifications due to view destruction")
+       NSLog("[Debug] LocalViewController - Safely unregistering from notifications due to view destruction")
        NotificationCenter.default.removeObserver(self)
    }
   
    func cleanupVideo() {
-       print("LocalViewController - cleanupVideo")
+       NSLog("LocalViewController - cleanupVideo")
        if isVideoInitialized {
            portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
            viewLocalVideo.releaseVideoRender()

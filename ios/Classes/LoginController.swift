@@ -42,6 +42,7 @@ class LoginViewController {
         if sipInitialized {
             return
         }
+        sipInitialized = true
         
         let transport = TRANSPORT_TCP
         //        switch userData["transport"] {
@@ -76,18 +77,18 @@ class LoginViewController {
             logPath = ""
         }
         
-        print("Initialize SDk with enableDebugLog \(enableDebugLog) - logPath \(logPath)")
+        NSLog("Initialize SDk with enableDebugLog \(enableDebugLog) - logPath \(logPath)")
         
         let ret = portSIPSDK.initialize(transport, localIP: loaclIPaddress, localSIPPort: Int32(localPort), loglevel: enableDebugLog ? PORTSIP_LOG_DEBUG : PORTSIP_LOG_NONE, logPath: enableDebugLog ? logPath : "", maxLine: 8, agent: "PortSIP SDK for IOS", audioDeviceLayer: 0, videoDeviceLayer: 0, tlsCertificatesRootPath: "", tlsCipherList: "", verifyTLSCertificate: false, dnsServers: "")
         
         if ret != 0 {
-            print("Initialize failure ErrorCode = \(ret)")
+            NSLog("Initialize failure ErrorCode = \(ret)")
             return
         }
         let retUser = portSIPSDK.setUser(username, displayName:displayName, authName: authName, password: password, userDomain: userDomain, sipServer: sipServer, sipServerPort: sipServerPort, stunServer: "", stunServerPort: 0, outboundServer: "", outboundServerPort: 0)
         
         if retUser != 0 {
-            print("Set user failure ErrorCode = \(retUser)")
+            NSLog("Set user failure ErrorCode = \(retUser)")
             return
         }
 
@@ -164,6 +165,7 @@ class LoginViewController {
         
         portSipPlugin.addPushSupportWithPortPBX(portSipPlugin._enablePushNotification!)
 
+        sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_LOGIN
         portSIPSDK.registerServer(90, retryTimes: 0)
         var sipURL: String
         if sipServerPort == 5063 {
@@ -172,9 +174,7 @@ class LoginViewController {
             sipURL = "sip:\(username):\(userDomain):\(String(describing: sipServerPort))"
         }
         appDelegate.sipURL = sipURL
-        sipInitialized = true
-        sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_LOGIN
-        print("Registration initiated...")
+        NSLog("Registration initiated...")
     }
     
     func offLine() {
@@ -195,18 +195,18 @@ class LoginViewController {
             sipInitialized = false
             sipRegistrationStatus = .LOGIN_STATUS_OFFLINE
             if (unReg == 0){
-                print("Unregister success")
+                NSLog("Unregister success")
                 MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: false)
             }
-            print("SIP Unregistered and Offline")
+            NSLog("SIP Unregistered and Offline")
         }
 
-        print("Offline and Unregistered - unRegister: \(unReg)")
+        NSLog("Offline and Unregistered - unRegister: \(unReg)")
     }
     
     @objc func refreshRegister() {
         
-        print("refreshRegister: \(sipRegistrationStatus)")
+        NSLog("refreshRegister: \(sipRegistrationStatus)")
         switch sipRegistrationStatus {
         case .LOGIN_STATUS_OFFLINE:
             break
@@ -215,10 +215,10 @@ class LoginViewController {
         case .LOGIN_STATUS_ONLINE:
 //           if let callstate = PortSIPStateManager.shared.getCurrentCallState(),
 //              callstate.state == .incoming || callstate.state == .pushed {
-//               print("refreshRegister but has INVITE, do nothing")
+//               NSLog("refreshRegister but has INVITE, do nothing")
 //               return
 //           } else {
-//               print("Refresh Registration...")
+//               NSLog("Refresh Registration...")
                 portSIPSDK.refreshRegistration(0)
 //           }
             
@@ -229,12 +229,12 @@ class LoginViewController {
             sipInitialized = false
             MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: false)
             autoOnline()
-            print("Registration failed, re-initiating registration...")
+            NSLog("Registration failed, re-initiating registration...")
         }
     }
 
     func autoOnline() {
-        print("Auto online with saved credentials")
+        NSLog("Auto online with saved credentials")
         guard let username = UserDefaults.standard.string(forKey: "username"),
               let displayName = UserDefaults.standard.string(forKey: "displayName"),
               let authName = UserDefaults.standard.string(forKey: "authName"),
@@ -246,7 +246,7 @@ class LoginViewController {
               let transportType = UserDefaults.standard.value(forKey: "transportType") as? Int,
               let srtpType = UserDefaults.standard.value(forKey: "srtpType") as? Int,
               let enableDebugLog = UserDefaults.standard.value(forKey: "enableDebugLog") as? Bool else {
-            print("Failed to retrieve saved credentials")
+            NSLog("Failed to retrieve saved credentials")
             return
         }
         let resolution = UserDefaults.standard.string(forKey: "resolution") ?? "720P"
@@ -258,21 +258,21 @@ class LoginViewController {
     
     func unRegister() {
         if sipRegistrationStatus == .LOGIN_STATUS_LOGIN || sipRegistrationStatus == .LOGIN_STATUS_ONLINE {
-            print("Force unregister SIP")
+            NSLog("Force unregister SIP")
             portSIPSDK.unRegisterServer(90)
             sipRegistrationStatus = LOGIN_STATUS.LOGIN_STATUS_FAILUE
         }
     }
     
     func onRegisterSuccess(statusText: String) {
-        print("Registration success: \(statusText)")
+        NSLog("Registration success: \(statusText)")
         sipRegistrationStatus = .LOGIN_STATUS_ONLINE
         MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: true)
         autoRegisterRetryTimes = 0
     }
     
     func onRegisterFailure(statusCode: CInt, statusText: String) {
-        print("Registration failure: \(statusText)")
+        NSLog("Registration failure: \(statusText)")
         
         sipRegistrationStatus = .LOGIN_STATUS_FAILUE
         MptCallkitPlugin.shared.methodChannel?.invokeMethod("onlineStatus", arguments: false)

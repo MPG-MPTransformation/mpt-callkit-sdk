@@ -66,14 +66,14 @@ class LocalView: NSObject, FlutterPlatformView {
    }
   
    deinit {
-       print("LocalView - deinit: View is being destroyed")
+       NSLog("LocalView - deinit: View is being destroyed")
        
        // Fix: Ensure cleanup happens on main thread to prevent warnings
        DispatchQueue.main.async {
            // Thông báo cho plugin biết local view bị destroyed
            NotificationCenter.default.post(name: NSNotification.Name("LocalViewDestroyed"), object: nil)
            
-           print("LocalView - Posted LocalViewDestroyed notification")
+           NSLog("LocalView - Posted LocalViewDestroyed notification")
        }
       
        // SAFE cleanup: Chỉ cleanup view controller riêng của platform view này
@@ -96,7 +96,7 @@ class LocalView: NSObject, FlutterPlatformView {
    }
   
    func createNativeView(view _view: UIView, arguments args: Any?, localViewController: LocalViewController) {
-       print("LocalViewFactory - Creating native view")
+       NSLog("LocalViewFactory - Creating native view")
       
        // Fix: Use modern window access pattern for iOS 13+
        let keyWindow: UIWindow?
@@ -134,7 +134,7 @@ class LocalView: NSObject, FlutterPlatformView {
       
        // Thông báo cho plugin biết local view đã được tạo
        NotificationCenter.default.post(name: NSNotification.Name("LocalViewCreated"), object: nil)
-       print("LocalViewFactory - Posted LocalViewCreated notification")
+       NSLog("LocalViewFactory - Posted LocalViewCreated notification")
       
        // 🔥 QUAN TRỌNG: Setup local video nếu đang có video call active
        setupLocalVideoForActiveCall(localViewController: localViewController)
@@ -143,7 +143,7 @@ class LocalView: NSObject, FlutterPlatformView {
    private func setupLocalVideoForActiveCall(localViewController: LocalViewController) {
        // 🔥 ANDROID PATTERN: Views self-manage via state notifications
        // No direct setup calls needed - views will receive notifications and handle themselves
-       print("LocalViewFactory - View created, will self-manage via state notifications")
+       NSLog("LocalViewFactory - View created, will self-manage via state notifications")
    }
   
 }

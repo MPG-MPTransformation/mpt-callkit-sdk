@@ -64,14 +64,14 @@ class RemoteView: NSObject, FlutterPlatformView {
    }
   
    deinit {
-       print("RemoteView - deinit: View is being destroyed")
+       NSLog("RemoteView - deinit: View is being destroyed")
        
        // Fix: Ensure cleanup happens on main thread to prevent warnings
        DispatchQueue.main.async {
            // Thông báo cho plugin biết remote view bị destroyed
            NotificationCenter.default.post(name: NSNotification.Name("RemoteViewDestroyed"), object: nil)
            
-           print("RemoteView - Posted RemoteViewDestroyed notification")
+           NSLog("RemoteView - Posted RemoteViewDestroyed notification")
        }
       
        // SAFE cleanup: Chỉ cleanup view controller riêng của platform view này
@@ -94,7 +94,7 @@ class RemoteView: NSObject, FlutterPlatformView {
    }
   
    func createNativeView(view _view: UIView, arguments args: Any?, remoteViewController: RemoteViewController) {
-       print("RemoteViewFactory - Creating native view")
+       NSLog("RemoteViewFactory - Creating native view")
       
        // Fix: Use modern window access pattern for iOS 13+
        let keyWindow: UIWindow?
@@ -136,7 +136,7 @@ class RemoteView: NSObject, FlutterPlatformView {
       
        // Thông báo cho plugin biết remote view đã được tạo
        NotificationCenter.default.post(name: NSNotification.Name("RemoteViewCreated"), object: nil)
-       print("RemoteViewFactory - Posted RemoteViewCreated notification")
+       NSLog("RemoteViewFactory - Posted RemoteViewCreated notification")
       
        // 🔥 QUAN TRỌNG: Setup remote video nếu đang có video call active
        setupRemoteVideoForActiveCall(remoteViewController: remoteViewController)
@@ -145,7 +145,7 @@ class RemoteView: NSObject, FlutterPlatformView {
    private func setupRemoteVideoForActiveCall(remoteViewController: RemoteViewController) {
        // 🔥 PATTERN: Views self-manage via state notifications
        // No direct setup calls needed - views will receive notifications and handle themselves
-       print("RemoteViewFactory - View created, will self-manage via state notifications")
+       NSLog("RemoteViewFactory - View created, will self-manage via state notifications")
    }
   
 }

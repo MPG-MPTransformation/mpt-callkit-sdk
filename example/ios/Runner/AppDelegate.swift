@@ -19,7 +19,7 @@ import mpt_callkit
     //     center.delegate = self
     //     center.requestAuthorization(options: [.badge, .sound, .alert]) { granted, error in
     //         if error == nil {
-    //             print("request User Notification succeeded!")
+    //             NSLog("request User Notification succeeded!")
     //         }
     //     }
     // } else {
@@ -39,7 +39,7 @@ import mpt_callkit
     for item in bytes {
       deviceTokenString += String(format: "%02x", item & 0x0000_00FF)
     }
-    print("deviceTokenString: \(deviceTokenString)")
+    NSLog("deviceTokenString: \(deviceTokenString)")
     
     // Truyền deviceTokenString sang MptCallkitPlugin thông qua public method
     MptCallkitPlugin.shared.setAPNsPushToken(deviceTokenString)

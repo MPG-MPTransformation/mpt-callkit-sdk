@@ -29,6 +29,7 @@ class MptCallKitController {
   bool? get isOnline => _isOnline;
   BuildContext? context;
   bool isMakeCallByGuest = false;
+  bool isVideoCall = false;
   bool? enableDebugLog = false;
   //hard code until have correct
   String localizedCallerName = "";
@@ -867,6 +868,7 @@ class MptCallKitController {
       _socketConnectionTimer = null;
       _isConnectingToSocket = false;
       _socketConnectionCompleter = null;
+      isVideoCall = false;
 
       await channel.invokeMethod('socketStatus', {'ready': false});
     } catch (e) {
@@ -945,6 +947,7 @@ class MptCallKitController {
     Function(String?)? onError,
   }) async {
     try {
+      this.isVideoCall = isVideoCall;
       extension = '';
       final result = await getExtension(phoneNumber: userPhoneNumber);
 
@@ -1315,6 +1318,7 @@ class MptCallKitController {
     Function(String?)? onError,
     required String accessToken,
   }) async {
+    this.isVideoCall = isVideoCall ?? false;
     var extraInfoResult = {
       "type": isVideoCall == true ? CallType.VIDEO : CallType.VOICE,
       "extraInfo": extraInfo,
@@ -1340,6 +1344,7 @@ class MptCallKitController {
     Function(String?)? onError,
     required String accessToken,
   }) async {
+    this.isVideoCall = isVideoCall ?? false;
     var extraInfoResult = {
       "type": isVideoCall == true ? CallType.VIDEO : CallType.VOICE,
       "extraInfo": extraInfo,
@@ -1790,12 +1795,12 @@ class MptCallKitController {
           AgentStateConstants.TALKING,
         );
 
-        if (!isMakeCallByGuest) {
-          // Update video call after 2.5 seconds in the agent side
-          Future.delayed(const Duration(milliseconds: 2500), () {
-            updateVideoCall(isVideo: true);
-          });
-        }
+        // if (!isMakeCallByGuest) {
+        //   // Update video call after 2.5 seconds in the agent side
+        //   Future.delayed(const Duration(milliseconds: 100), () {
+        //     updateVideoCall(isVideo: true);
+        //   });
+        // }
       }
     } else {
       print(
@@ -2250,11 +2255,11 @@ class MptCallKitController {
             print('Remote party answered the call');
             _calleeAnsweredStream.add(true);
 
-            /*--> Stop update call to video in guest side
-            // Future.delayed(const Duration(milliseconds: 2500), () {
-            //   updateVideoCall(isVideo: true);
-            // });
-            <--*/
+            if (this.isVideoCall) {
+              Future.delayed(const Duration(seconds: 1), () {
+                updateVideoCall(isVideo: true);
+              });
+            }
           }
           break;
         // callee agent info

@@ -54,7 +54,7 @@ class Session {
         isReferCall = false
         originCallSessionId = Int(INVALID_SESSION_ID)
         existEarlyMedia = false
-        _videoMuted = false
+        _videoMuted = true
         screenShare = false;
         outgoing = false
         uuid = UUID()
@@ -74,7 +74,7 @@ class Session {
         isReferCall = false
         originCallSessionId = Int(INVALID_SESSION_ID)
         existEarlyMedia = false
-        _videoMuted = false
+        _videoMuted = true
         outgoing = false
         uuid = UUID()
         groupUUID = nil

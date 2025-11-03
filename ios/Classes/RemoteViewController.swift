@@ -12,7 +12,7 @@ class RemoteViewController: UIViewController {
   
    override func viewDidLoad() {
        super.viewDidLoad()
-       print("RemoteViewController - viewDidLoad")
+       NSLog("RemoteViewController - viewDidLoad")
        setupRemoteVideoView()
        setupNotificationObservers()
    }
@@ -64,7 +64,7 @@ class RemoteViewController: UIViewController {
        }
       
        let sessionId = Int(sessionIdInt64)
-       print("RemoteViewController - Call state changed: \(state), hasVideo: \(hasVideo), sessionId: \(sessionId)")
+       NSLog("RemoteViewController - Call state changed: \(state), hasVideo: \(hasVideo), sessionId: \(sessionId)")
       
        DispatchQueue.main.async { [weak self] in
            guard let self = self else { return }
@@ -110,7 +110,7 @@ class RemoteViewController: UIViewController {
        }
       
        let sessionId = Int(sessionIdInt64)
-       print("RemoteViewController - Video state changed: enabled=\(isVideoEnabled), camera=\(isCameraOn), sessionId: \(sessionId)")
+       NSLog("RemoteViewController - Video state changed: enabled=\(isVideoEnabled), camera=\(isCameraOn), sessionId: \(sessionId)")
       
        DispatchQueue.main.async { [weak self] in
            guard let self = self else { return }
@@ -141,12 +141,12 @@ class RemoteViewController: UIViewController {
                remoteVideo.isHidden = false
                remoteVideo.backgroundColor = UIColor.clear
                self.removeCameraOffPlaceholder() // Xóa placeholder khi camera bật
-               print("[Debug] RemoteViewController - Remote camera ON - showing video")
+               NSLog("[Debug] RemoteViewController - Remote camera ON - showing video")
            } else {
                // Remote camera tắt - hiển thị placeholder thay vì ẩn view
                remoteVideo.isHidden = false
                remoteVideo.backgroundColor = UIColor.darkGray
-               print("[Debug] RemoteViewController - Remote camera OFF - showing placeholder")
+               NSLog("[Debug] RemoteViewController - Remote camera OFF - showing placeholder")
               
 //               // Hiển thị placeholder báo camera đã tắt
 //               self.showCameraOffPlaceholder()
@@ -195,7 +195,7 @@ class RemoteViewController: UIViewController {
   
    override func viewWillAppear(_ animated: Bool) {
        super.viewWillAppear(animated)
-       print("RemoteViewController - viewWillAppear")
+       NSLog("RemoteViewController - viewWillAppear")
        if !isVideoInitialized {
            initializeRemoteVideo()
        }
@@ -203,24 +203,24 @@ class RemoteViewController: UIViewController {
   
    override func viewDidAppear(_ animated: Bool) {
        super.viewDidAppear(animated)
-       print("RemoteViewController - viewDidAppear")
+       NSLog("RemoteViewController - viewDidAppear")
        
        // Ready notification removed - views manage themselves via state manager
    }
   
    override func viewDidDisappear(_ animated: Bool) {
        super.viewDidDisappear(animated)
-       print("RemoteViewController - viewDidDisappear")
+       NSLog("RemoteViewController - viewDidDisappear")
        cleanupVideo()
    }
   
    deinit {
        NotificationCenter.default.removeObserver(self)
-       print("RemoteViewController - deinit")
+       NSLog("RemoteViewController - deinit")
    }
   
    private func setupRemoteVideoView() {
-       print("RemoteViewController - setupRemoteVideoView")
+       NSLog("RemoteViewController - setupRemoteVideoView")
        // Create the remote video view
        viewRemoteVideo = PortSIPVideoRenderView()
        viewRemoteVideo.translatesAutoresizingMaskIntoConstraints = false
@@ -229,9 +229,9 @@ class RemoteViewController: UIViewController {
        viewRemoteVideo.clipsToBounds = true // Giữ clipsToBounds để không tràn ra ngoài
        
        // 🔥 DEBUG: Log video view properties
-       print("RemoteViewController - Video view frame: \(viewRemoteVideo.frame)")
-       print("RemoteViewController - Video view bounds: \(viewRemoteVideo.bounds)")
-       print("RemoteViewController - Video view contentMode: \(viewRemoteVideo.contentMode.rawValue)")
+       NSLog("RemoteViewController - Video view frame: \(viewRemoteVideo.frame)")
+       NSLog("RemoteViewController - Video view bounds: \(viewRemoteVideo.bounds)")
+       NSLog("RemoteViewController - Video view contentMode: \(viewRemoteVideo.contentMode.rawValue)")
        
        // 🔥 FIX: Override contentMode in layoutSubviews
        DispatchQueue.main.async { [weak self] in
@@ -257,14 +257,14 @@ class RemoteViewController: UIViewController {
    }
   
    func initializeRemoteVideo() {
-       print("RemoteViewController - initializeRemoteVideo")
+       NSLog("RemoteViewController - initializeRemoteVideo")
        // Get the SDK instance from the plugin
        let appDelegate = MptCallkitPlugin.shared
        portSIPSDK = appDelegate.portSIPSDK
        sessionId = appDelegate.activeSessionid ?? 0
       
        if portSIPSDK != nil && sessionId != 0 {
-           print("RemoteViewController - Initializing video render for session \(sessionId)")
+           NSLog("RemoteViewController - Initializing video render for session \(sessionId)")
            viewRemoteVideo.initVideoRender()
            isVideoInitialized = true
           
@@ -272,14 +272,14 @@ class RemoteViewController: UIViewController {
            DispatchQueue.main.async { [weak self] in
                guard let self = self else { return }
                self.viewRemoteVideo.contentMode = .scaleAspectFill
-               print("RemoteViewController - Forced contentMode to scaleAspectFill")
+               NSLog("RemoteViewController - Forced contentMode to scaleAspectFill")
            }
           
            // Đảm bảo view được hiển thị
            viewRemoteVideo.isHidden = false
            self.view.isHidden = false
        } else {
-           print("RemoteViewController - Error: portSIPSDK is nil or sessionId = 0")
+           NSLog("RemoteViewController - Error: portSIPSDK is nil or sessionId = 0")
        }
        
        self.updateVideoVisibility(isVisible: true)
@@ -294,7 +294,7 @@ class RemoteViewController: UIViewController {
            guard let self = self, let videoView = self.viewRemoteVideo else { return }
            if videoView.contentMode != .scaleAspectFill {
                videoView.contentMode = .scaleAspectFill
-               print("RemoteViewController - Timer forced contentMode to scaleAspectFill")
+               NSLog("RemoteViewController - Timer forced contentMode to scaleAspectFill")
            }
        }
    }
@@ -305,30 +305,30 @@ class RemoteViewController: UIViewController {
    }
   
    func onStartVideo(_ sessionID: Int) {
-       print("RemoteViewController - onStartVideo: \(sessionID)")
+       NSLog("RemoteViewController - onStartVideo: \(sessionID)")
        DispatchQueue.main.async {
            self.isStartVideo = true
            self.sessionId = sessionID
           
            if self.isVideoInitialized {
                // Set the remote video window
-               print("RemoteViewController - Setting remote video window")
+               NSLog("RemoteViewController - Setting remote video window")
                let result = self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: self.viewRemoteVideo)
-               print("RemoteViewController - setRemoteVideoWindow result: \(result)")
+               NSLog("RemoteViewController - setRemoteVideoWindow result: \(result)")
                
                // 🔥 FIX: Force set contentMode after setting video window
                self.viewRemoteVideo.contentMode = .scaleAspectFill
-               print("RemoteViewController - Forced contentMode to scaleAspectFill in onStartVideo")
+               NSLog("RemoteViewController - Forced contentMode to scaleAspectFill in onStartVideo")
            } else {
                // Initialize if not already done
-               print("RemoteViewController - Initializing remote video first")
+               NSLog("RemoteViewController - Initializing remote video first")
                self.initializeRemoteVideo()
                let result = self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: self.viewRemoteVideo)
-               print("RemoteViewController - setRemoteVideoWindow result: \(result)")
+               NSLog("RemoteViewController - setRemoteVideoWindow result: \(result)")
                
                // 🔥 FIX: Force set contentMode after setting video window
                self.viewRemoteVideo.contentMode = .scaleAspectFill
-               print("RemoteViewController - Forced contentMode to scaleAspectFill in onStartVideo")
+               NSLog("RemoteViewController - Forced contentMode to scaleAspectFill in onStartVideo")
            }
           
            // Đảm bảo view được hiển thị
@@ -338,7 +338,7 @@ class RemoteViewController: UIViewController {
    }
   
    func onStopVideo(_ sessionID: Int) {
-       print("RemoteViewController - onStopVideo: \(sessionID)")
+       NSLog("RemoteViewController - onStopVideo: \(sessionID)")
        DispatchQueue.main.async {
            if self.sessionId == sessionID {
                self.isStartVideo = false
@@ -350,12 +350,12 @@ class RemoteViewController: UIViewController {
    }
   
    func onSetRemoteScreenWindow(_ sessionID: Int) {
-       print("RemoteViewController - onSetRemoteScreenWindow: \(sessionID)")
+       NSLog("RemoteViewController - onSetRemoteScreenWindow: \(sessionID)")
        DispatchQueue.main.async {
            if self.sessionId == sessionID {
                // Set remote screen window for screen sharing
                let result = self.portSIPSDK.setRemoteScreenWindow(self.sessionId, remoteScreenWindow: self.viewRemoteVideo)
-               print("RemoteViewController - setRemoteScreenWindow result: \(result)")
+               NSLog("RemoteViewController - setRemoteScreenWindow result: \(result)")
               
                // Đảm bảo view được hiển thị
                self.viewRemoteVideo.isHidden = false
@@ -365,30 +365,30 @@ class RemoteViewController: UIViewController {
    }
   
    func updateVideoVisibility(isVisible: Bool) {
-       print("RemoteViewController - updateVideoVisibility: \(isVisible)")
+       NSLog("RemoteViewController - updateVideoVisibility: \(isVisible)")
       
        // CRITICAL: Check if view controller is still valid and views are loaded
        guard isViewLoaded else {
-           print("[Warning] RemoteViewController - View not loaded, ignoring video visibility update")
+           NSLog("[Warning] RemoteViewController - View not loaded, ignoring video visibility update")
            return
        }
       
        // Check if we're still attached to a parent (not destroyed)
        guard parent != nil || view.superview != nil else {
-           print("[Warning] RemoteViewController - View controller detached, ignoring video visibility update")
+           NSLog("[Warning] RemoteViewController - View controller detached, ignoring video visibility update")
            return
        }
       
        // Check viewRemoteVideo
        guard let remoteVideo = viewRemoteVideo else {
-           print("[Warning] RemoteViewController - viewRemoteVideo is nil, view may be destroyed")
+           NSLog("[Warning] RemoteViewController - viewRemoteVideo is nil, view may be destroyed")
            self.safeUnregisterFromNotifications()
            return
        }
       
        // Check portSIPSDK
        guard let sdk = portSIPSDK else {
-           print("[Error] RemoteViewController - portSIPSDK is nil")
+           NSLog("[Error] RemoteViewController - portSIPSDK is nil")
            return
        }
       
@@ -398,7 +398,7 @@ class RemoteViewController: UIViewController {
           
            // Double-check views are still valid on main thread
            guard let remoteVideo = self.viewRemoteVideo else {
-               print("[Warning] RemoteViewController - viewRemoteVideo became nil on main thread")
+               NSLog("[Warning] RemoteViewController - viewRemoteVideo became nil on main thread")
                return
            }
           
@@ -408,29 +408,29 @@ class RemoteViewController: UIViewController {
            if isVisible && self.isVideoInitialized && self.sessionId != 0 {
                // Đảm bảo video được hiển thị
                let result = sdk.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: remoteVideo)
-               print("RemoteViewController - setRemoteVideoWindow result: \(result)")
+               NSLog("RemoteViewController - setRemoteVideoWindow result: \(result)")
            } else if !isVisible && self.isVideoInitialized && self.sessionId != 0 {
                // Ẩn video
                sdk.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: nil)
            } else if isVisible && !self.isVideoInitialized {
                // Try to initialize if we need to show video
-               print("[Info] RemoteViewController - Attempting to initialize video for display")
+               NSLog("[Info] RemoteViewController - Attempting to initialize video for display")
                self.initializeRemoteVideo()
                if self.sessionId != 0 {
                    let result = sdk.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: remoteVideo)
-                   print("RemoteViewController - setRemoteVideoWindow after init result: \(result)")
+                   NSLog("RemoteViewController - setRemoteVideoWindow after init result: \(result)")
                }
            }
        }
    }
   
    private func safeUnregisterFromNotifications() {
-       print("[Debug] RemoteViewController - Safely unregistering from notifications due to view destruction")
+       NSLog("[Debug] RemoteViewController - Safely unregistering from notifications due to view destruction")
        NotificationCenter.default.removeObserver(self)
    }
   
    func cleanupVideo() {
-       print("RemoteViewController - cleanupVideo")
+       NSLog("RemoteViewController - cleanupVideo")
        
        // 🔥 FIX: Stop contentMode timer
        stopContentModeTimer()

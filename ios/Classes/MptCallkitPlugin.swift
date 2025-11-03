@@ -311,11 +311,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     func findSession(sessionid: CLong) -> (Int) {
         for i in 0..<MAX_LINES {
             if lineSessions[i] == sessionid {
-                print("findSession, SessionId = \(sessionid)")
+                NSLog("findSession, SessionId = \(sessionid)")
                 return i
             }
         }
-        print("Can't find session, Not exist this SessionId = \(sessionid)")
+        NSLog("Can't find session, Not exist this SessionId = \(sessionid)")
         return -1
     }
 
@@ -325,7 +325,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 return i
             }
         }
-        print("No idle line available. All lines are in use.")
+        NSLog("No idle line available. All lines are in use.")
         return -1
     }
 
@@ -336,7 +336,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 return
             }
         }
-        print("Can't Free Line, Not exist this SessionId = \(sessionid)")
+        NSLog("Can't Free Line, Not exist this SessionId = \(sessionid)")
     }
 
     override init() {
@@ -392,7 +392,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         notifiCenter.requestAuthorization(options: [.alert, .sound, .badge]) { accepted, _ in
 
             if !accepted {
-                print("Permission granted: \(accepted)")
+                NSLog("Permission granted: \(accepted)")
             }
         }
         setupNotificationHandling()
@@ -400,7 +400,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
         // Initialize MediaPipe segmentation processor (iOS 13+ compatible)
         mediaPipeProcessor = MediaPipeSegmentationProcessor()
-        print("MediaPipe Segmentation Status: \(mediaPipeProcessor?.getStatusMessage() ?? "Not available")")
+        NSLog("MediaPipe Segmentation Status: \(mediaPipeProcessor?.getStatusMessage() ?? "Not available")")
         // Initialize resolution system
         updateRequestedResolution()
         
@@ -463,13 +463,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
           if result.session.videoState, let yuvData = convertUIImageToI420Data(finalImage) {
               let width = Int(finalImage.size.width)
               let height = Int(finalImage.size.height)
-//               print("I420 buffer size = \(yuvData.count) bytes, width = \(width), height = \(height), \(yuvData.count) == \(width * height * 3 / 2)")
+//               NSLog("I420 buffer size = \(yuvData.count) bytes, width = \(width), height = \(height), \(yuvData.count) == \(width * height * 3 / 2)")
               // 🔥 Send to PortSIP
               let result = self.portSIPSDK.sendVideoStream(toRemote: self.activeSessionid,
                                                            data: yuvData,
                                                            width: Int32(width),
                                                            height: Int32(height))
-//              print("sendVideoStream result: \(result)")
+//              NSLog("sendVideoStream result: \(result)")
           }
         }
     }
@@ -481,25 +481,25 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     weak var weakSelf = self
     sessionQueue.async {
       guard let strongSelf = weakSelf else {
-        print("Self is nil!")
+        NSLog("Self is nil!")
         return
       }
       
       // Check camera permission before starting session
       guard strongSelf.hasCameraPermission() else {
-        print("❌ startSession failed: Camera permission not granted")
+        NSLog("❌ startSession failed: Camera permission not granted")
         return
       }
       
       // Prevent multiple simultaneous start attempts
       guard !strongSelf.sessionIsStarted else {
-        print("⚠️ startSession skipped: Session already starting or started")
+        NSLog("⚠️ startSession skipped: Session already starting or started")
         return
       }
       
       // Set up capture session if not already configured
       if strongSelf.captureSession.inputs.isEmpty || strongSelf.captureSession.outputs.isEmpty {
-        print("🔄 Setting up capture session...")
+        NSLog("🔄 Setting up capture session...")
         
         // Configure session
         strongSelf.captureSession.beginConfiguration()
@@ -509,9 +509,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         let preset = strongSelf.getOptimalSessionPreset()
         if strongSelf.captureSession.canSetSessionPreset(preset) {
           strongSelf.captureSession.sessionPreset = preset
-          print("✅ Session preset set to: \(preset)")
+          NSLog("✅ Session preset set to: \(preset)")
         } else {
-          print("⚠️ Cannot set session preset to \(preset), using current: \(strongSelf.captureSession.sessionPreset)")
+          NSLog("⚠️ Cannot set session preset to \(preset), using current: \(strongSelf.captureSession.sessionPreset)")
         }
         
         // Set up outputs if missing
@@ -526,9 +526,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
           
           if strongSelf.captureSession.canAddOutput(output) {
             strongSelf.captureSession.addOutput(output)
-            print("✅ Added video output to capture session")
+            NSLog("✅ Added video output to capture session")
           } else {
-            print("❌ Failed to add video output")
+            NSLog("❌ Failed to add video output")
             strongSelf.captureSession.commitConfiguration()
             return
           }
@@ -538,13 +538,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         if strongSelf.captureSession.inputs.isEmpty {
           let cameraPosition: AVCaptureDevice.Position = strongSelf.mUseFrontCamera ? .front : .back
           guard let device = strongSelf.captureDevice(forPosition: cameraPosition) else {
-            print("❌ Failed to get capture device for camera position: \(cameraPosition)")
+            NSLog("❌ Failed to get capture device for camera position: \(cameraPosition)")
             strongSelf.captureSession.commitConfiguration()
             return
           }
           
           guard device.isConnected else {
-            print("❌ Camera device not available - isConnected: \(device.isConnected)")
+            NSLog("❌ Camera device not available - isConnected: \(device.isConnected)")
             strongSelf.captureSession.commitConfiguration()
             return
           }
@@ -552,7 +552,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
           // Check isSuspended only on iOS 14+
           if #available(iOS 14.0, *) {
             guard !device.isSuspended else {
-              print("❌ Camera device suspended")
+              NSLog("❌ Camera device suspended")
               strongSelf.captureSession.commitConfiguration()
               return
             }
@@ -562,41 +562,41 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             let input = try AVCaptureDeviceInput(device: device)
             if strongSelf.captureSession.canAddInput(input) {
               strongSelf.captureSession.addInput(input)
-              print("✅ Added camera input: \(device.localizedName) (position: \(cameraPosition))")
+              NSLog("✅ Added camera input: \(device.localizedName) (position: \(cameraPosition))")
             } else {
-              print("❌ Failed to add camera input")
+              NSLog("❌ Failed to add camera input")
               strongSelf.captureSession.commitConfiguration()
               return
             }
           } catch {
-            print("❌ Failed to create capture device input: \(error.localizedDescription)")
+            NSLog("❌ Failed to create capture device input: \(error.localizedDescription)")
             strongSelf.captureSession.commitConfiguration()
             return
           }
         }
         
         strongSelf.captureSession.commitConfiguration()
-        print("✅ Capture session configured - inputs: \(strongSelf.captureSession.inputs.count), outputs: \(strongSelf.captureSession.outputs.count)")
+        NSLog("✅ Capture session configured - inputs: \(strongSelf.captureSession.inputs.count), outputs: \(strongSelf.captureSession.outputs.count)")
         
         // Ensure SIP SDK compatibility
         strongSelf.ensureSIPCompatibility()
       }
       
       if !strongSelf.captureSession.isRunning {
-        print("✅ startSession: Starting capture session with \(strongSelf.captureSession.inputs.count) inputs and \(strongSelf.captureSession.outputs.count) outputs")
+        NSLog("✅ startSession: Starting capture session with \(strongSelf.captureSession.inputs.count) inputs and \(strongSelf.captureSession.outputs.count) outputs")
         
         // Check for camera availability before starting
         guard strongSelf.isCameraDeviceReady() else {
-          print("❌ startSession failed: Camera device not ready")
+          NSLog("❌ startSession failed: Camera device not ready")
           return
         }
         
         let cameraPosition: AVCaptureDevice.Position = strongSelf.mUseFrontCamera ? .front : .back
         if let currentDevice = strongSelf.captureDevice(forPosition: cameraPosition) {
-          print("🔍 Camera device available: \(currentDevice.localizedName)")
+          NSLog("🔍 Camera device available: \(currentDevice.localizedName)")
         }
         
-        print("🔄 Starting capture session...")
+        NSLog("🔄 Starting capture session...")
         
         // Mark as starting to prevent race conditions
         strongSelf.sessionIsStarted = true
@@ -604,33 +604,33 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // Use proper error handling for startRunning
         do {
           try strongSelf.captureSession.startRunning()
-          print("✅ Capture session started successfully")
+          NSLog("✅ Capture session started successfully")
           
           // Check session state immediately after starting
           DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             if strongSelf.captureSession.isRunning {
-              print("✅ Session confirmed running immediately after start")
+              NSLog("✅ Session confirmed running immediately after start")
             } else {
-              print("⚠️ Session stopped immediately after start - likely interrupted")
+              NSLog("⚠️ Session stopped immediately after start - likely interrupted")
               if strongSelf.captureSession.isInterrupted {
-                print("⚠️ Session is marked as interrupted")
+                NSLog("⚠️ Session is marked as interrupted")
               }
             }
           }
           
         } catch {
-          print("❌ Failed to start capture session: \(error.localizedDescription)")
+          NSLog("❌ Failed to start capture session: \(error.localizedDescription)")
           strongSelf.sessionIsStarted = false
           
           // Retry after a delay on background queue (not main queue)
           DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 1.0) {
-            print("🔄 Retrying capture session start on background queue...")
+            NSLog("🔄 Retrying capture session start on background queue...")
             strongSelf.startSession()
           }
           return
         }
       } else {
-        print("ℹ️ Capture session already running")
+        NSLog("ℹ️ Capture session already running")
       }
     }
   }
@@ -639,7 +639,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     weak var weakSelf = self
     sessionQueue.async {
       guard let strongSelf = weakSelf else {
-        print("Self is nil!")
+        NSLog("Self is nil!")
         return
       }
       
@@ -647,25 +647,25 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
       strongSelf.sessionIsStarted = false
       
       if strongSelf.captureSession.isRunning {
-        print("🛑 stopSession: Stopping capture session")
+        NSLog("🛑 stopSession: Stopping capture session")
         do {
           strongSelf.captureSession.stopRunning()
-          print("✅ Capture session stopped successfully")
+          NSLog("✅ Capture session stopped successfully")
         } catch {
-          print("❌ Failed to stop capture session: \(error.localizedDescription)")
+          NSLog("❌ Failed to stop capture session: \(error.localizedDescription)")
         }
       } else {
-        print("ℹ️ stopSession: Session is not running")
+        NSLog("ℹ️ stopSession: Session is not running")
       }
     }
   }
   
   @objc private func captureSessionDidStartRunning(_ notification: Notification) {
-    print("✅ AVCaptureSessionDidStartRunning notification received")
+    NSLog("✅ AVCaptureSessionDidStartRunning notification received")
   }
   
   @objc private func captureSessionDidStopRunning(_ notification: Notification) {
-    print("⚠️ AVCaptureSessionDidStopRunning notification received")
+    NSLog("⚠️ AVCaptureSessionDidStopRunning notification received")
     sessionIsStarted = false
   }
 
@@ -709,7 +709,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   /// Ensures SIP SDK doesn't interfere with our capture session
   private func ensureSIPCompatibility() {
     let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
-    print("enableSendVideoStream result: \(sendResult)")
+    NSLog("enableSendVideoStream result: \(sendResult)")
 //      if sendResult < 0 {
 //          updateCall()
 //      }
@@ -720,12 +720,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   
   @objc private func captureSessionRuntimeError(_ notification: Notification) {
     guard let error = notification.userInfo?[AVCaptureSessionErrorKey] as? AVError else {
-      print("❌ Capture session runtime error (no error details)")
+      NSLog("❌ Capture session runtime error (no error details)")
       return
     }
     
-    print("❌ Capture session runtime error: \(error.localizedDescription)")
-    print("❌ Error code: \(error.code.rawValue)")
+    NSLog("❌ Capture session runtime error: \(error.localizedDescription)")
+    NSLog("❌ Error code: \(error.code.rawValue)")
     
     // Reset the session started flag since we're handling an error
     sessionIsStarted = false
@@ -738,17 +738,17 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
       if !self.captureSession.isRunning && 
          !self.captureSession.inputs.isEmpty && 
          !self.captureSession.outputs.isEmpty {
-        print("🔄 Attempting to restart capture session after error...")
+        NSLog("🔄 Attempting to restart capture session after error...")
         
         // Use proper error handling
         do {
           try self.captureSession.startRunning()
-          print("✅ Successfully restarted capture session after error")
+          NSLog("✅ Successfully restarted capture session after error")
         } catch {
-          print("❌ Failed to restart capture session after error: \(error.localizedDescription)")
+          NSLog("❌ Failed to restart capture session after error: \(error.localizedDescription)")
         }
       } else {
-        print("⚠️ Cannot restart session - inputs: \(self.captureSession.inputs.count), outputs: \(self.captureSession.outputs.count), running: \(self.captureSession.isRunning)")
+        NSLog("⚠️ Cannot restart session - inputs: \(self.captureSession.inputs.count), outputs: \(self.captureSession.outputs.count), running: \(self.captureSession.isRunning)")
       }
     }
   }
@@ -756,28 +756,28 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   @objc private func captureSessionWasInterrupted(_ notification: Notification) {
     guard let reasonIntegerValue = notification.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int,
           let reason = AVCaptureSession.InterruptionReason(rawValue: reasonIntegerValue) else {
-      print("⚠️ Capture session was interrupted (unknown reason)")
+      NSLog("⚠️ Capture session was interrupted (unknown reason)")
       return
     }
     
-    print("⚠️ Capture session interrupted: \(reason)")
+    NSLog("⚠️ Capture session interrupted: \(reason)")
     
     switch reason {
     case .videoDeviceNotAvailableInBackground:
-      print("⚠️ Video device not available in background")
+      NSLog("⚠️ Video device not available in background")
     case .audioDeviceInUseByAnotherClient:
-      print("⚠️ Audio device in use by another client")
+      NSLog("⚠️ Audio device in use by another client")
     case .videoDeviceInUseByAnotherClient:
-      print("⚠️ Video device in use by another client - this might be PortSIP!")
+      NSLog("⚠️ Video device in use by another client - this might be PortSIP!")
     case .videoDeviceNotAvailableWithMultipleForegroundApps:
-      print("⚠️ Video device not available with multiple foreground apps")
+      NSLog("⚠️ Video device not available with multiple foreground apps")
     @unknown default:
-      print("⚠️ Unknown interruption reason")
+      NSLog("⚠️ Unknown interruption reason")
     }
   }
   
   @objc private func captureSessionInterruptionEnded(_ notification: Notification) {
-    print("✅ Capture session interruption ended")
+    NSLog("✅ Capture session interruption ended")
     
     // Try to restart the session
     sessionQueue.async { [weak self] in
@@ -789,17 +789,17 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
       if !self.captureSession.isRunning && 
          !self.captureSession.inputs.isEmpty && 
          !self.captureSession.outputs.isEmpty {
-        print("🔄 Restarting capture session after interruption ended...")
+        NSLog("🔄 Restarting capture session after interruption ended...")
         
         // Use proper error handling
         do {
           try self.captureSession.startRunning()
-          print("✅ Successfully restarted capture session after interruption ended")
+          NSLog("✅ Successfully restarted capture session after interruption ended")
         } catch {
-          print("❌ Failed to restart capture session after interruption ended: \(error.localizedDescription)")
+          NSLog("❌ Failed to restart capture session after interruption ended: \(error.localizedDescription)")
         }
       } else {
-        print("⚠️ Cannot restart session after interruption - inputs: \(self.captureSession.inputs.count), outputs: \(self.captureSession.outputs.count), running: \(self.captureSession.isRunning)")
+        NSLog("⚠️ Cannot restart session after interruption - inputs: \(self.captureSession.inputs.count), outputs: \(self.captureSession.outputs.count), running: \(self.captureSession.isRunning)")
       }
     }
   }
@@ -865,9 +865,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // Request permission for notifications
         center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if let error = error {
-                print("Error requesting notifications permission: \(error)")
+                NSLog("Error requesting notifications permission: \(error)")
             } else {
-                print("Notifications permission granted: \(granted)")
+                NSLog("Notifications permission granted: \(granted)")
             }
         }
 
@@ -887,7 +887,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             Void
     ) {
         // This method will handle foreground notifications
-        print("Received notification in foreground: \(notification.request.content.userInfo)")
+        NSLog("Received notification in foreground: \(notification.request.content.userInfo)")
         completionHandler([.alert, .sound])
     }
 
@@ -897,7 +897,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         // This method will handle background notifications or tapped notifications
-        print("Received notification response: \(response.notification.request.content.userInfo)")
+        NSLog("Received notification response: \(response.notification.request.content.userInfo)")
         completionHandler()
     }
 
@@ -907,9 +907,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
     ) {
         if application.applicationState == UIApplication.State.active {
-            print("Foreground Notification:\(userInfo)")
+            NSLog("Foreground Notification:\(userInfo)")
         } else {
-            print("Background Notification:\(userInfo)")
+            NSLog("Background Notification:\(userInfo)")
             UIApplication.shared.applicationIconBadgeNumber = 0
         }
         completionHandler(.newData)
@@ -925,7 +925,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         
         // Get the app's bundle identifier
         guard let bundleIdentifier = Bundle.main.bundleIdentifier else {
-            print("Bundle identifier not found.")
+            NSLog("Bundle identifier not found.")
             return
         }
         
@@ -943,9 +943,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         
         // Debug output
         if enablePush {
-            print("Enable pushMessage: {\(pushMessage)}")
+            NSLog("Enable pushMessage: {\(pushMessage)}")
         } else {
-            print("Disable pushMessage: {\(pushMessage)}")
+            NSLog("Disable pushMessage: {\(pushMessage)}")
         }
         
         // Add the SIP message header for push notification support
@@ -958,7 +958,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // if you want work with other PBX, please contact your PBX Provider
 
         addPushSupportWithPortPBX(_enablePushNotification!)
-        loginViewController.refreshRegister()
+       loginViewController.refreshRegister()
     }
 
     func processPushMessageFromPortPBX(
@@ -975,118 +975,61 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
          "send_to" = "sip:105@portsip.com";
          }
          */
-
-        // 🔥 CRITICAL: Set timeout protection to ensure completion is called within 10 seconds
-        var hasCompleted = false
-        let timeout = DispatchWorkItem {
-            if !hasCompleted {
-                hasCompleted = true
-                print(
-                    "⚠️ VoIP push processing timeout - calling completion to avoid app termination")
-                completion()
-            }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0, execute: timeout)
-
-        // Wrap completion to ensure it's only called once
-        let safeCompletion = {
-            timeout.cancel()
-            if !hasCompleted {
-                hasCompleted = true
-                completion()
+        NSLog("processPushMessageFromPortPBX")
+        let parsedObject = dictionaryPayload
+        var isVideoCall = false
+        let msgType = parsedObject["msg_type"] as? String
+        if (msgType?.count ?? 0) > 0 {
+            if msgType == "video" {
+                isVideoCall = true
+            } else if msgType == "audio" {
+                isVideoCall = false
             }
         }
 
-        do {
-            let parsedObject = dictionaryPayload
-            var isVideoCall = false
-            let msgType = parsedObject["msg_type"] as? String
-            if (msgType?.count ?? 0) > 0 {
-                if msgType == "video" {
-                    isVideoCall = true
-                } else if msgType == "audio" {
-                    isVideoCall = false
-                }
-            }
+        var uuid: UUID?
+        let pushId = dictionaryPayload["X-Push-Id"]
 
-            var uuid: UUID?
-            let pushId: Any? = dictionaryPayload["X-Push-Id"]
+        if pushId != nil {
+            let uuidStr = pushId as! String
+            uuid = UUID(uuidString: uuidStr)
+            self.currentUUID = uuid
+        }
+        if uuid == nil {
+            NSLog("⚠️ Failed to parse UUID from X-Push-Id, generating new UUID")
+            uuid = UUID()
+            self.currentUUID = uuid
+        }
 
-            if let pushIdStr = pushId as? String {
-                uuid = UUID(uuidString: pushIdStr)
-                self.currentUUID = uuid
-            }
-
-            // 🔥 FIX: If UUID parsing fails, generate a new UUID instead of returning
-            if uuid == nil {
-                print("⚠️ Failed to parse UUID from X-Push-Id, generating new UUID")
-                uuid = UUID()
-                self.currentUUID = uuid
-            }
-
-            let sendFrom = parsedObject["send_from"] as? String ?? "Unknown"
+        let sendFrom = parsedObject["send_from"] as? String ?? "Unknown"
             let sendTo = parsedObject["send_to"] as? String ?? "Unknown"
 
-            print(
+        NSLog(
                 "📞 Processing VoIP push - From: \(sendFrom), IsVideo: \(isVideoCall), UUID: \(uuid!)"
             )
 
-            if !_callManager.enableCallKit {
-                // If not enable Call Kit, show the local Notification
-                print("📱 CallKit disabled - showing local notification")
-                postNotification(
-                    title: "SIPSample",
-                    body: "You receive a new call From:\(sendFrom) To:\(sendTo)",
-                    sound: UNNotificationSound.default, trigger: nil)
-                safeCompletion()
-            } else {
-                // 🔥 FIX: Create session FIRST, then report to CallKit
-                print("📱 CallKit enabled - creating session then reporting to CallKit")
-
-                // Create session first (required for CallKit reporting)
-                _callManager.incomingCall(
-                    sessionid: -1, existsVideo: true, remoteParty: self.currentRemoteName,
-                    callUUID: uuid!, completionHandle: {})
-
+        if !_callManager.enableCallKit {
+            // If not enable Call Kit, show the local Notification
+            NSLog("📱 CallKit disabled - showing local notification")
+            postNotification(
+                title: "SIPSample",
+                body: "You receive a new call From:\(sendFrom) To:\(sendTo)",
+                sound: UNNotificationSound.default, trigger: nil)
+            completion()
+        } else {
+            NSLog("📱 CallKit enabled - creating session then reporting to CallKit")
+            _callManager.incomingCall(sessionid: -1, existsVideo: true, remoteParty: self.currentRemoteName,
+                                callUUID: uuid!) {
+                NSLog("loginViewController.refreshRegister()")
+                self.loginViewController.refreshRegister()
+                self.beginBackgroundRegister()
+                
                 if #available(iOS 10.0, *) {
-                    // Add timeout protection for CallKit reporting
-                    var hasReported = false
-                    let callKitTimeout = DispatchWorkItem {
-                        if !hasReported {
-                            hasReported = true
-                            print("⚠️ CallKit reporting timeout - calling completion")
-                            safeCompletion()
-                        }
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 8.0, execute: callKitTimeout)
-                    
-                    _callManager.isHideCallkit = false
-
-                    // Report incoming call to CallKit (session must exist first)
-                    _callManager.reportInComingCall(
-                        uuid: uuid!, hasVideo: true, from: self.currentRemoteName
-                    ) { error in
-                        callKitTimeout.cancel()
-                        if !hasReported {
-                            hasReported = true
-                            if let error = error {
-                                print("❌ Error reporting incoming call to CallKit: \(error)")
-                            } else {
-                                print("✅ Successfully reported incoming call to CallKit")
-                            }
-
-                            safeCompletion()
-                        }
-                    }
-                } else {
-                    // For iOS < 10.0, fallback to non-CallKit
-                    print("📱 iOS < 10.0 - using non-CallKit flow")
-                    safeCompletion()
+                    self._callManager.isHideCallkit = false
+                    self._callManager.reportInComingCall(uuid: uuid!, hasVideo: true, from: self.currentRemoteName)
                 }
+                completion()
             }
-        } catch {
-            print("❌ Error processing VoIP push: \(error)")
-            safeCompletion()
         }
     }
 
@@ -1106,7 +1049,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             let settings = UserDefaults.standard
             settings.set(deviceTokenString, forKey: "kVoIPPushToken")
             
-            print("_VoIPPushToken updated: \(deviceTokenString)")
+            NSLog("_VoIPPushToken updated: \(deviceTokenString)")
             updatePushStatusToSipServer()
         }
     }
@@ -1114,16 +1057,16 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     public func pushRegistry(
         _: PKPushRegistry, didReceiveIncomingPushWith payload: PKPushPayload, for _: PKPushType
     ) {
-        print("didReceiveIncomingPushWith:payload=", payload.dictionaryPayload)
+        NSLog("didReceiveIncomingPushWith:payload=", payload.dictionaryPayload)
         if sipRegistered,
             UIApplication.shared.applicationState == .active || _callManager.getConnectCallNum() > 0 { // ignore push message when app is active
-            print("didReceiveIncomingPushWith:ignore push message when ApplicationStateActive or have active call. ")
+            NSLog("didReceiveIncomingPushWith:ignore push message when ApplicationStateActive or have active call. ")
 
             return
         }
 
         processPushMessageFromPortPBX(payload.dictionaryPayload, completion: {
-            self.loginViewController.refreshRegister()
+           self.loginViewController.refreshRegister()
             self.beginBackgroundRegister()
         })
     }
@@ -1132,16 +1075,16 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         _: PKPushRegistry, didReceiveIncomingPushWith payload: PKPushPayload, for _: PKPushType,
         completion: @escaping () -> Void
     ) {
-        print("didReceiveIncomingPushWith:payload=", payload.dictionaryPayload)
+        NSLog("didReceiveIncomingPushWith:payload=", payload.dictionaryPayload)
         if sipRegistered,
             UIApplication.shared.applicationState == .active || _callManager.getConnectCallNum() > 0 { // ignore push message when app is active
-            print("didReceiveIncomingPushWith:ignore push message when ApplicationStateActive or have active call. ")
+            NSLog("didReceiveIncomingPushWith:ignore push message when ApplicationStateActive or have active call. ")
 
             return
         }
 
         processPushMessageFromPortPBX(payload.dictionaryPayload, completion: {
-            self.loginViewController.refreshRegister()
+           self.loginViewController.refreshRegister()
             self.beginBackgroundRegister()
             completion()
         })
@@ -1210,7 +1153,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             let settings = UserDefaults.standard
             settings.set(deviceTokenString, forKey: "kAPNsPushToken")
             
-            print("_APNsPushToken updated: \(deviceTokenString)")
+            NSLog("_APNsPushToken updated: \(deviceTokenString)")
             updatePushStatusToSipServer()
         }
     }
@@ -1226,10 +1169,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         case NotReachable:
             NSLog("reachabilityChanged:kNotReachable")
         case ReachableViaWWAN:
-           loginViewController.refreshRegister()
+          loginViewController.refreshRegister()
             NSLog("reachabilityChanged:kReachableViaWWAN")
         case ReachableViaWiFi:
-           loginViewController.refreshRegister()
+          loginViewController.refreshRegister()
             NSLog("reachabilityChanged:kReachableViaWiFi")
         default:
             break
@@ -1258,12 +1201,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     private var backtaskTimer: DispatchSourceTimer?
 
     public func didEnterBackground() {
-        _callManager.setForeground(false)
         if _callManager.getConnectCallNum() > 0 {
             return
         }
         NSLog("applicationDidEnterBackground")
-        stopSession()
+       stopSession()
         // if _enableForceBackground! {
         //     // Disable to save battery, or when you don't need incoming calls while APP is in background.
         //     portSIPSDK.startKeepAwake()
@@ -1271,7 +1213,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // loginViewController.unRegister()
 
         // beginBackgroundRegister()
-        beginBackgroundTaskForRegister()
+       beginBackgroundTaskForRegister()
         
 
         //     beginBackgroundRegister()
@@ -1330,30 +1272,30 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // if _enableForceBackground! {
         //     portSIPSDK.stopKeepAwake()
         // } else {
-        endBackgroundRegister()
-        endBackgroundTaskForRegister()
-        if !_callManager.setForeground(true) {
-            loginViewController.refreshRegister()
-        }
+       endBackgroundRegister()
+       endBackgroundTaskForRegister()
+       if _callManager.getConnectCallNum() < 1 {
+           loginViewController.refreshRegister()
+       }
         // }
-        if let result = _callManager.findCallBySessionID(self.activeSessionid), result.session.videoState {
-            let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
-            print("enableSendVideoStream result: \(sendResult)")
+        if let result = _callManager.findCallBySessionID(self.activeSessionid), result.session.videoState == true {
+            NSLog("willEnterForeground - videoState: \(result.session.videoState)")
+            // let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
+            // NSLog("enableSendVideoStream result: \(sendResult)")
             startSession()
-//            _callManager.configureAudioSession()
+            // _callManager.configureAudioSession()
         }
     }
 
     public override func applicationWillTerminate(_: UIApplication) {
-        _callManager.setForeground(false)
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
-        print("applicationWillTerminate")
+        NSLog("applicationWillTerminate")
         if _enablePushNotification! {
             portSIPSDK.unRegisterServer(90)
 
             Thread.sleep(forTimeInterval: 1.0)
 
-            print("applicationWillTerminate")
+            NSLog("applicationWillTerminate")
         }
     }
 
@@ -1428,7 +1370,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         if portSIPSDK.getSipMessageHeaderValue(sipMessage, headerName: "Answer-Mode")
             == "Auto;require"
         {
-            print("onInviteIncoming - Outgoing call API")
+            NSLog("onInviteIncoming - Outgoing call API")
             if _callManager.enableCallKit {
                 if #available(iOS 10.0, *) {
                     _callManager.isHideCallkit = false
@@ -1443,7 +1385,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             methodChannel?.invokeMethod("callType", arguments: "OUTGOING_CALL")
             answerCall(isAutoAnswer: true)
         } else {
-            print("onInviteIncoming - Incoming call API")
+            NSLog("onInviteIncoming - Incoming call API")
             if _callManager.enableCallKit {
 //                if #available(iOS 10.0, *) {
 //                    _callManager.reportInComingCall(
@@ -1544,6 +1486,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         NSLog("🔍   result.session.sessionState: \(result.session.sessionState)")
 
         result.session.sessionState = true
+        NSLog("onInviteAnswered result.session.videoState = \(result.session.videoState), existsVideo = \(existsVideo)")
         result.session.videoState = existsVideo
         result.session.videoMuted = !existsVideo
 
@@ -1623,14 +1566,14 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
         let tempreaon = NSString(utf8String: reason)
 
-        print("Failed to call on line \(findSession(sessionid: sessionId)),\(tempreaon!),\(code)")
+        NSLog("Failed to call on line \(findSession(sessionid: sessionId)),\(tempreaon!),\(code)")
 
         if result.session.isReferCall {
             let originSession = _callManager.findCallByOrignalSessionID(
                 sessionID: result.session.originCallSessionId)
 
             if originSession != nil {
-                print(
+                NSLog(
                     "Call failure on line \(findSession(sessionid: sessionId)) , \(String(describing: tempreaon)) , \(code)"
                 )
 
@@ -1650,6 +1593,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         mSoundService.stopRingTone()
         mSoundService.stopRingBackTone()
         setLoudspeakerStatus(true)
+        _callManager.callkitIsShowing = false
 
         // Gửi trạng thái về Flutter
         sendCallStateToFlutter(.FAILED)
@@ -1663,7 +1607,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         existsAudio: Bool, existsVideo: Bool, existsScreen: Bool, sipMessage: String!
     ) {
         guard let result = _callManager.findCallBySessionID(sessionId) else {
-            print("onInviteUpdated... not found sessionId: \(sessionId)")
+            NSLog("onInviteUpdated... not found sessionId: \(sessionId)")
             return
         }
 
@@ -1673,60 +1617,62 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         )
 
         if existsVideo {
-            let strCallBack = portSIPSDK.enableVideoStreamCallback(
-                sessionId, callbackMode: DIRECTION_RECV)
-            print("enableVideoStreamCallback result: \(strCallBack)")
-            
-            if (_callManager.isHideCallkit){} else {
+             if (_callManager.isHideCallkit){} else {
                 _callManager.reportUpdateCall(
                     uuid: self.currentUUID!, hasVideo: true, from: self.currentRemoteName)
             }
-
-            let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: sessionId, state: true)
-            print("enableSendVideoStream result: \(sendResult)")
-            startSession()
+            self.stopSession()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: result.session.sessionId, state: true)
+                NSLog("enableSendVideoStream result: \(sendResult)")
+                self.startSession()
+                let strCallBack = self.portSIPSDK.enableVideoStreamCallback(result.session.sessionId, callbackMode: DIRECTION_RECV)
+                NSLog("enableVideoStreamCallback result: \(strCallBack)")
+            }
+            
         }
         
         if existsAudio {
             let audioStrCallBack = portSIPSDK.enableAudioStreamCallback(
                 sessionId, enable: true, callbackMode: DIRECTION_RECV)
-            print("enableVideoStreamCallback result: \(audioStrCallBack)")
+            NSLog("enableAudioStreamCallback result: \(audioStrCallBack)")
         }
 
         // 🔍 LOG: Check condition
-        let condition1 = result.session.videoState
-        let condition2 = !existsVideo
-        let condition3 = (videoCodecs?.isEmpty ?? true)
-        NSLog(
-            "onInviteUpdated - CHECK CONDITIONS: session.videoState - \(condition1), !existsVideo - \(condition2), videoCodecs.isEmpty - \(condition3)"
-        )
+        // let condition1 = result.session.videoState
+        // let condition2 = !existsVideo
+        // let condition3 = (videoCodecs?.isEmpty ?? true)
+        // NSLog(
+        //     "onInviteUpdated - CHECK CONDITIONS: session.videoState - \(condition1), !existsVideo - \(condition2), videoCodecs.isEmpty - \(condition3)"
+        // )
 
-        if result.session.videoState && !existsVideo && (videoCodecs?.isEmpty ?? true) {
-            NSLog("onInviteUpdated - ENTERING RE-SEND LOGIC!")
-            let sendVideoRes = portSIPSDK.sendVideo(result.session.sessionId, sendState: true)
-            NSLog("onInviteUpdated - re-sendVideo: \(sendVideoRes)")
+        // if result.session.videoState && !existsVideo && (videoCodecs?.isEmpty ?? true) {
+        //     NSLog("onInviteUpdated - ENTERING RE-SEND LOGIC!")
+        //     // let sendVideoRes = portSIPSDK.sendVideo(result.session.sessionId, sendState: true)
+        //     // NSLog("onInviteUpdated - re-sendVideo: \(sendVideoRes)")
 
-//             let updateRes = portSIPSDK.updateCall(
-//                 result.session.sessionId, enableAudio: true, enableVideo: true)
-//             NSLog("onInviteUpdated - re-updateCall: \(updateRes)")
-        } else {
-            NSLog("onInviteUpdated - CONDITIONS NOT MET, skipping re-send logic")
-        }
+        //     // let updateRes = portSIPSDK.updateCall(
+        //     //     result.session.sessionId, enableAudio: true, enableVideo: true)
+        //     // NSLog("onInviteUpdated - re-updateCall: \(updateRes)")
+        // } else {
+        //     NSLog("onInviteUpdated - CONDITIONS NOT MET, skipping re-send logic")
+        // }
 
-        // 🔍 LOG: Session state BEFORE override
-        NSLog("onInviteUpdated - BEFORE OVERRIDE: ")
-        NSLog("result.session.videoState: \(result.session.videoState)")
-        NSLog("result.session.videoMuted: \(result.session.videoMuted)")
+        // // 🔍 LOG: Session state BEFORE override
+        // NSLog("onInviteUpdated - BEFORE OVERRIDE: ")
+        // NSLog("result.session.videoState: \(result.session.videoState)")
+        // NSLog("result.session.videoMuted: \(result.session.videoMuted)")
 
         // Cập nhật trạng thái video
+        NSLog("onInviteUpdated result.session.videoState = \(result.session.videoState), existsVideo = \(existsVideo)")
         result.session.videoState = existsVideo
         result.session.videoMuted = !existsVideo
         result.session.screenShare = existsScreen
 
         // 🔍 LOG: Session state AFTER override
-        NSLog(
-            "🔍 onInviteUpdated - AFTER OVERRIDE - result.session.videoState: \(result.session.videoState) - result.session.videoMuted: \(result.session.videoMuted)"
-        )
+        // NSLog(
+        //     "🔍 onInviteUpdated - AFTER OVERRIDE - result.session.videoState: \(result.session.videoState) - result.session.videoMuted: \(result.session.videoMuted)"
+        // )
 
         // 🔥 ANDROID PATTERN: Send state notification instead of direct call
         let videoState = PortSIPVideoState(
@@ -1752,7 +1698,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // // Legacy Flutter state (keep for compatibility)
         // sendCallStateToFlutter(.UPDATED)
 
-        NSLog("onInviteUpdated - COMPLETE: The call has been updated on line \(result.index)")
+        // NSLog("onInviteUpdated - COMPLETE: The call has been updated on line \(result.index)")
     }
 
     public func onInviteConnected(_ sessionId: Int) {
@@ -1761,7 +1707,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             return
         }
 
-        print("The call is connected on line \(findSession(sessionid: sessionId))")
+        NSLog("The call is connected on line \(findSession(sessionid: sessionId))")
         // REMOVED: mUseFrontCamera = true  // ❌ Don't force reset camera setting
         
         let sessionInfo = getCurrentSessionInfo()
@@ -1790,7 +1736,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
     public func onInviteBeginingForward(_ forwardTo: String) {
         NSLog("onInviteBeginingForward...")
-        print("Call has been forward to:\(forwardTo)")
+        NSLog("Call has been forward to:\(forwardTo)")
     }
 
     public func onInviteClosed(_ sessionId: Int, sipMessage: String) {
@@ -1814,6 +1760,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         self.isRemoteVideoReceived = false
         self.mUseFrontCamera = true
         _callManager.setCallIncoming(false)
+        _callManager.callkitIsShowing = false
         stopSession()
     }
 
@@ -1821,7 +1768,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         _ BLFMonitoredUri: String!, blfDialogState BLFDialogState: String!,
         blfDialogId BLFDialogId: String!, blfDialogDirection BLFDialogDirection: String!
     ) {
-        print("onDialogStateUpdated - BLFMonitoredUri: \(BLFMonitoredUri!), BLFDialogState: \(BLFDialogState!), BLFDialogId: \(BLFDialogId!), BLFDialogDirection: \(BLFDialogDirection!)")
+        NSLog("onDialogStateUpdated - BLFMonitoredUri: \(BLFMonitoredUri!), BLFDialogState: \(BLFDialogState!), BLFDialogId: \(BLFDialogId!), BLFDialogDirection: \(BLFDialogDirection!)")
     }
 
     public func onRemoteHold(_ sessionId: Int) {
@@ -1869,6 +1816,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
             let session = Session()
             session.sessionId = referSessionId
+            NSLog("onReceivedRefer session.videoState = \(session.videoState)")
             session.videoState = true
             session.recvCallState = true
 
@@ -2116,7 +2064,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
          other code which will spend long time, you should post a message to main thread(main window) or other thread,
          let the thread to call SDK API functions or other code.
          */
-//        print("onAudioRawCallback - dataLength \(dataLength)")
+//        NSLog("onAudioRawCallback - dataLength \(dataLength)")
     }
 
     // Optimized video processing queue
@@ -2137,11 +2085,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         //       let frameData = Data(bytes: data, count: Int(dataLength))
         //
         //       // Print the first few bytes of the raw video data (hexadecimal representation)
-        //       print("Raw video data (first 16 bytes):", frameData.prefix(16).map { String(format: "%02x", $0) }.joined(separator: " "))
+        //       NSLog("Raw video data (first 16 bytes):", frameData.prefix(16).map { String(format: "%02x", $0) }.joined(separator: " "))
 
-//        print("Total data length: \(dataLength) bytes")
+//        NSLog("Total data length: \(dataLength) bytes")
         if self.isRemoteVideoReceived == false {
-            print("Total data length: \(dataLength) bytes")
+            NSLog("Total data length: \(dataLength) bytes")
             methodChannel?.invokeMethod("isRemoteVideoReceived", arguments: true)
             self.isRemoteVideoReceived = true
         }
@@ -2166,10 +2114,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
         if sessionId >= 0 {
             activeSessionid = sessionId
-            print("makeCall------------------ \(String(describing: activeSessionid))")
+            NSLog("makeCall------------------ \(String(describing: activeSessionid))")
             if (videoCall) {
                 let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: sessionId, state: true)
-                print("enableSendVideoStream result: \(sendResult)")
+                NSLog("enableSendVideoStream result: \(sendResult)")
                 startSession()
             }
             return activeSessionid
@@ -2181,7 +2129,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     func updateCall() {
         let result = portSIPSDK.updateCall(
             activeSessionid, enableAudio: true, enableVideo: isVideoCall)
-        print("update Call result: \(result) \n")
+        NSLog("update Call result: \(result) \n")
     }
 
     func hangUpCall() -> Int32 {
@@ -2269,7 +2217,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     func setLoudspeakerStatus(_ enable: Bool) {
         do {
             let setLoudRes = portSIPSDK.setLoudspeakerStatus(enable)
-            print("setLoudspeakerStatus status code: \(setLoudRes) - enable: \(enable)")
+           NSLog("setLoudspeakerStatus status code: \(setLoudRes) - enable: \(enable)")
             methodChannel?.invokeMethod(
                 "currentAudioDevice", arguments: enable ? "SPEAKER_PHONE" : "EARPIECE")
             NSLog("Speaker status changed to: \(enable ? "SPEAKER_PHONE" : "EARPIECE")")
@@ -2378,7 +2326,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
         if result != nil {
             NSLog("Found call session, videoState: \(result!.session.videoState)")
-            _callManager.configureAudioSession()
+//            _callManager.configureAudioSession()
             setLoudspeakerStatus(true)
             
             if _callManager.isHideCallkit{
@@ -2469,7 +2417,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         NSLog("onMuteCall")
         let result = _callManager.findCallBySessionID(sessionId)
         if result != nil {
-            print("onMuteCall")
+            NSLog("onMuteCall")
         }
     }
 
@@ -2488,7 +2436,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
     func createConference(_ conferenceVideoWindow: PortSIPVideoRenderView) {
-        print("\(conferenceVideoWindow)")
+        NSLog("\(conferenceVideoWindow)")
         if _callManager.createConference(
             conferenceVideoWindow: conferenceVideoWindow, videoWidth: 352, videoHeight: 288,
             displayLocalVideoInConference: true)
@@ -2511,11 +2459,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
     public override func applicationDidBecomeActive(_ application: UIApplication) {
-        debugPrint("applicationDidBecomeActive")
+        NSLog("applicationDidBecomeActive")
     }
 
     public override func applicationWillResignActive(_ application: UIApplication) {
-        debugPrint("applicationWillResignActive")
+        NSLog("applicationWillResignActive")
     }
 
     func openAppSettings() {
@@ -2527,8 +2475,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-        print("Method called: \(call.method)")
-        print("Arguments: \(String(describing: call.arguments))")
+        NSLog("Method called: \(call.method)")
+        NSLog("Arguments: \(String(describing: call.arguments))")
         switch call.method {
         case "enableFileLogging":
             guard let args = call.arguments as? [String: Any], let enabled = args["enabled"] as? Bool else {
@@ -2557,7 +2505,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             openAppSettings()
             result(true)
         case "appKilled":
-            print("appKilled called!")
+            NSLog("appKilled called!")
             self.loginViewController.offLine()
             let appKilledHangupResult = _callManager.endCall(sessionid: activeSessionid)
             NSLog("appKilled hangup result: \(appKilledHangupResult)")
@@ -2599,7 +2547,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                         loadBackgroundImage()
                     }
                 }
-                print("onMethodCall MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground), bgPath: \(String(describing: bgPath))")
+                NSLog("onMethodCall MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground), bgPath: \(String(describing: bgPath))")
             }
             result(true)
 
@@ -2633,13 +2581,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 MptCallkitPlugin.overlayText = recordLabel
                 MptCallkitPlugin.enableBlurBackground = enableBlur
                 
-                if (backgroundPath != nil) {
+                if (backgroundPath != nil && self.bgPath != backgroundPath) {
                     // Set background path and load background image
                     bgPath = backgroundPath
                     loadBackgroundImage()
                 }
                 
-                print("onMethodCall MptCallkitPlugin.overlayText: \(MptCallkitPlugin.overlayText), MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground), bgPath: \(String(describing: bgPath))")
+                NSLog("onMethodCall MptCallkitPlugin.overlayText: \(MptCallkitPlugin.overlayText), MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground), bgPath: \(String(describing: bgPath))")
 
                 // Lưu localizedCallerName vào UserDefaults và biến hiện tại
                 currentLocalizedCallerName = localizedCallerName
@@ -2850,7 +2798,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 NSLog("🔍   activeSessionid: \(activeSessionid)")
 
                 // Update video state
-                sessionResult.session.videoState = true
+                NSLog("updateVideoCall sessionResult.session.videoState = \(sessionResult.session.videoState), isVideo = \(isVideo)")
+                sessionResult.session.videoState = isVideo
 
                 // 🔍 LOG: Session state AFTER manual update
                 NSLog("🔍 updateVideoCall - AFTER setting videoState=true:")
@@ -2872,8 +2821,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 // Start capture session after SIP update to ensure it's not interfered with
                 if isVideo {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
-                        print("enableSendVideoStream result: \(sendResult)")
+                        // let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
+                        // NSLog("enableSendVideoStream result: \(sendResult)")
                         self.startSession()
                     }
                 }
@@ -2899,11 +2848,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             result(getCallkitAnsweredState())
             return
         case "refreshRegister":
-            print("refreshRegister called")
+            NSLog("refreshRegister called")
 //             loginViewController.refreshRegister()
             result(-1)
         case "refreshRegistration":
-            print("refreshRegistration called")
+            NSLog("refreshRegistration called")
 //             loginViewController.refreshRegister()
             result(-1)
         case "setResolutionMode":
@@ -3107,21 +3056,22 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     // Bật camera
                     portSIPSDK.sendVideo(activeSessionid, sendState: true)
                     result!.session.videoMuted = false  // Camera unmuted
-                    let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: activeSessionid, state: true)
-                    print("enableSendVideoStream result: \(sendResult)")
+                    // let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: activeSessionid, state: true)
+                    // NSLog("enableSendVideoStream result: \(sendResult)")
                     startSession()
-                    print("Camera turned on")
+                    NSLog("Camera turned on")
                 } else {
                     // Tắt camera - chỉ mute camera chứ không disable video hoàn toàn
                     portSIPSDK.sendVideo(activeSessionid, sendState: false)
                     result!.session.videoMuted = true  // Camera muted
                     stopSession()
-                    print("Camera turned off")
+                    NSLog("Camera turned off")
                 }
 
                 // QUAN TRỌNG: Vẫn giữ videoState = true để views không bị ẩn
                 // Chỉ thay đổi videoMuted state
-                result!.session.videoState = true
+                NSLog("toggleCamera result!.session.videoState = \(result!.session.videoState), enable = \(enable)")
+                result!.session.videoState = enable
 
                 // Cập nhật state manager với thông tin chính xác
                 let videoState = PortSIPVideoState(
@@ -3161,9 +3111,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 NSLog("🔍   result.session.sessionState: \(result!.session.sessionState)")
 
                 _callManager.waitSocketBeforeAnswer = !isAutoAnswer
-                _ = _callManager.setForeground(UIApplication.shared.applicationState == .active)
                 let answerRes = _callManager.answerCall(
-                    sessionId: activeSessionid, isVideo: result?.session.videoState ?? false)
+                    sessionId: activeSessionid, isVideo: false)
 
                 if answerRes == 0 {
                     //Notice to remote
@@ -3178,7 +3127,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     NSLog(
                         "🔍 answerCall() - SDK answer success, waiting for onInviteAnswered() callback"
                     )
-                    reInvite(self.xSessionIdRecv)
+                    // reInvite(self.xSessionIdRecv)
                 } else {
                     NSLog(
                         "❌ answerCall - Answer call failed with error code: \(String(describing: answerRes))"
@@ -3210,14 +3159,14 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             if result != nil && !result!.session.sessionState {
                 portSIPSDK.rejectCall(activeSessionid, code: 486)
                 _callManager.removeCall(call: result!.session)
-                print("Call rejected")
+                NSLog("Call rejected")
             }
         }
     }
 
     func sendCallStateToFlutter(_ state: CallState) {
         // Gửi trạng thái cơ bản
-        print("sendCallStateToFlutter: \(state)")
+        NSLog("sendCallStateToFlutter: \(state)")
         methodChannel?.invokeMethod("callState", arguments: state.rawValue)
 
         // Cập nhật state manager thay vì gọi trực tiếp UI
@@ -3330,8 +3279,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         stopSession()
         // Wait for stop to complete, then start session (which will reconfigure)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
-            print("enableSendVideoStream result: \(sendResult)")
+            // let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
+            // NSLog("enableSendVideoStream result: \(sendResult)")
             self.startSession()
         }
 
@@ -3354,10 +3303,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
     public func setCamera(useFrontCamera: Bool) {
         if useFrontCamera {
-            print("SDK-iOS: Setting front camera (ID 1)")
+            NSLog("SDK-iOS: Setting front camera (ID 1)")
             portSIPSDK.setVideoDeviceId(1)
         } else {
-            print("SDK-iOS: Setting back camera (ID 0)")
+            NSLog("SDK-iOS: Setting back camera (ID 0)")
             portSIPSDK.setVideoDeviceId(0)
         }
     }
@@ -3382,6 +3331,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // Compare with the provided sessionId
         if self.xSessionId == sessionId {
             // Update video state
+            NSLog("reinvite sessionResult.session.videoState = \(sessionResult.session.videoState), isVideo = \(true)")
             sessionResult.session.videoState = true
 
             // Send video from camera
@@ -3471,7 +3421,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             ret = false;
         }
         
-        print("getCallkitAnsweredState = \(ret)")
+        NSLog("getCallkitAnsweredState = \(ret)")
         
         return ret;
     }
@@ -3502,11 +3452,11 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     
     frameLogCount += 1
     if frameLogCount <= 5 || frameLogCount % 100 == 0 {
-      print("📹 captureOutput called - frame #\(frameLogCount)")
+      NSLog("📹 captureOutput called - frame #\(frameLogCount)")
     }
       
     guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-      print("❌ Failed to get image buffer from sample buffer.")
+      NSLog("❌ Failed to get image buffer from sample buffer.")
       return
     }
 
@@ -3547,7 +3497,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     }
     
     guard let processor = mediaPipeProcessor else {
-      print("❌ MediaPipe processor not available")
+      NSLog("❌ MediaPipe processor not available")
       return
     }
     
@@ -3568,14 +3518,14 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
   /// Supports both local file paths and internet URLs.
   private func loadBackgroundImage() {
     guard let path = bgPath, !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-      print("No background path specified, clearing bgBitmap")
+      NSLog("No background path specified, clearing bgBitmap")
       bgBitmap = nil
       return
     }
     
     // Check if it's a valid URL
     if isValidUrl(path) {
-      print("Loading background image from URL: \(path)")
+      NSLog("Loading background image from URL: \(path)")
       loadImageFromUrl(path)
     } else {
       // Local file path
@@ -3583,13 +3533,13 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         // Load the background image from local file
         if let image = UIImage(contentsOfFile: path) {
           bgBitmap = image
-          print("Successfully loaded background image: \(path) (size: \(image.size.width)x\(image.size.height))")
+          NSLog("Successfully loaded background image: \(path) (size: \(image.size.width)x\(image.size.height))")
         } else {
-          print("Failed to load background image from path: \(path)")
+          NSLog("Failed to load background image from path: \(path)")
           bgBitmap = nil
         }
       } catch {
-        print("Error loading background image from path: \(path), error: \(error)")
+        NSLog("Error loading background image from path: \(path), error: \(error)")
         bgBitmap = nil
       }
     }
@@ -3604,7 +3554,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
   /// Loads image from URL asynchronously
   private func loadImageFromUrl(_ urlString: String) {
     guard let url = URL(string: urlString) else {
-      print("Invalid URL: \(urlString)")
+      NSLog("Invalid URL: \(urlString)")
       bgBitmap = nil
       return
     }
@@ -3615,15 +3565,15 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         DispatchQueue.main.async {
           if let image = UIImage(data: data) {
             self?.bgBitmap = image
-            print("Successfully loaded background image from URL: \(urlString) (size: \(image.size.width)x\(image.size.height))")
+            NSLog("Successfully loaded background image from URL: \(urlString) (size: \(image.size.width)x\(image.size.height))")
           } else {
-            print("Failed to load background image from URL: \(urlString)")
+            NSLog("Failed to load background image from URL: \(urlString)")
             self?.bgBitmap = nil
           }
         }
       } catch {
         DispatchQueue.main.async {
-          print("Error loading background image from URL: \(urlString), error: \(error)")
+          NSLog("Error loading background image from URL: \(urlString), error: \(error)")
           self?.bgBitmap = nil
         }
       }
@@ -3642,7 +3592,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
 
         // Require even dimensions for simple 4:2:0 sampling
         guard width % 2 == 0 && height % 2 == 0 else {
-            print("Width and height must be even for I420 conversion. Got: \(width)x\(height)")
+            NSLog("Width and height must be even for I420 conversion. Got: \(width)x\(height)")
             return nil
         }
 
@@ -3972,7 +3922,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         if text.isEmpty {
             return image
         }
-//        print("drawTextOnImage \(drawTextOnImage)")
+//        NSLog("drawTextOnImage \(drawTextOnImage)")
         let imageSize = image.size
         
         // Create graphics context with same size as image

@@ -1578,7 +1578,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             int result = -1;
             try {
                 if (Engine.Instance().getEngine() != null) {
-                    result = Engine.Instance().getEngine().answerCall(currentLine.sessionID, currentLine.hasVideo);
+                    result = Engine.Instance().getEngine().answerCall(currentLine.sessionID, false);
                 }else {
                     System.out.println("SDK-Android: Answer call Engine is null");
                 }

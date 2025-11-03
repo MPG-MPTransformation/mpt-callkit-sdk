@@ -194,7 +194,7 @@ class VideoViewController: UIViewController {
     func initRemoteVideo() {
         ///Khởi tạo với isVideoCall = true
         let appDelegate = MptCallkitPlugin.shared
-        print(appDelegate.isVideoCall)
+        NSLog("initRemoteVideo appDelegate.isVideoCall: \(appDelegate.isVideoCall)")
         if (appDelegate.isVideoCall) {
             viewRemoteVideo = PortSIPVideoRenderView()
             viewRemoteVideo.translatesAutoresizingMaskIntoConstraints = false
@@ -541,7 +541,7 @@ class VideoViewController: UIViewController {
         let alert = UIAlertController(title: "Kết thúc cuộc gọi", message: "Bạn có muốn dừng cuộc gọi không?", preferredStyle: UIAlertController.Style.alert)
         // Add "Cancel" action
         let cancelAction = UIAlertAction(title: "Cancel", style: .cancel) { action in
-            print("Cancel button tapped")
+            NSLog("Cancel button tapped")
         }
         alert.addAction(cancelAction)
         

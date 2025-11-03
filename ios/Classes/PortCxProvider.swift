@@ -55,13 +55,13 @@ class PortCxProvider: NSObject, CXProviderDelegate {
 
     func providerDidReset(_: CXProvider) {
         //callManager.stopAudio()
-        print("Provider did reset")
+        NSLog("Provider did reset")
 
         callManager.clear()
     }
 
     func provider(_: CXProvider, perform action: CXPlayDTMFCallAction) {
-        print(" CXPlayDTMFCallAction \(action.callUUID) \(action.digits)")
+        NSLog(" CXPlayDTMFCallAction \(action.callUUID) \(action.digits)")
 
         var dtmf: Int32 = 0
         switch action.digits {
@@ -117,36 +117,47 @@ class PortCxProvider: NSObject, CXProviderDelegate {
 
     func performAnswerCall(uuid: UUID, completion completionHandler: @escaping (_ success: Bool) -> Void) {
         let session = callManager.findCallByUUID(uuid: uuid)
+        NSLog("performAnswerCall session = \(session)")
 
         if session != nil {
             if session!.session.sessionId <= INVALID_SESSION_ID {
+                NSLog("performAnswerCall sessionId <= INVALID_SESSION_ID")
                 // Haven't received INVITE CALL
                 session?.session.callKitAnswered = true
                 session?.session.callKitCompletionCallback = completionHandler
             } else {
+                NSLog("performAnswerCall sessionId > INVALID_SESSION_ID")
                 if (callManager.answerCallWithUUID(uuid: uuid, isVideo: session?.session.videoState ?? false) == 0) {
-                completionHandler(true)
+                    NSLog("performAnswerCall answerCallWithUUID success")
+                    completionHandler(true)
                 } else {
-                    print("Answer Call Failed!")
+                    NSLog("performAnswerCall answerCallWithUUID failed")
                     completionHandler(false)
                 }
             }
         } else {
-            print("Session not found")
+            NSLog("Session not found")
 
             completionHandler(false)
         }
     }
 
     func provider(_: CXProvider, perform action: CXAnswerCallAction) {
-        callManager.configureAudioSession()
-        performAnswerCall(uuid: action.callUUID) { success in
-            if success {
-                action.fulfill()
-                print("performAnswerCallAction success")
-            } else {
-                action.fail()
-                print("performAnswerCallAction fail")
+        NSLog("CXAnswerCallAction start ...")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            guard let strongSelf = self else {
+                return
+            }
+            strongSelf.callManager.configureAudioSession()
+            NSLog("CXAnswerCallAction configureAudioSession ...")
+            strongSelf.performAnswerCall(uuid: action.callUUID) { success in
+                if success {
+                    action.fulfill()
+                    NSLog("performAnswerCallAction success")
+                } else {
+                    action.fail()
+                    NSLog("performAnswerCallAction fail")
+                }
             }
         }
         // [action fulfill];
@@ -154,10 +165,10 @@ class PortCxProvider: NSObject, CXProviderDelegate {
     }
 
     func provider(_: CXProvider, perform action: CXStartCallAction) {
-        print("performStartCallAction uuid = \(action.callUUID)")
+        NSLog("performStartCallAction uuid = \(action.callUUID)")
         callManager.configureAudioSession()
         let sessionid = callManager.makeCallWithUUID(callee: action.handle.value, displayName: action.handle.value, videoCall: action.isVideo, uuid: action.callUUID)
-        print(sessionid)
+        NSLog("performStartCallAction sessionid: \(sessionid)")
         if sessionid >= 0 {
             action.fulfill()
         } else {
@@ -166,6 +177,9 @@ class PortCxProvider: NSObject, CXProviderDelegate {
     }
 
     func provider(_: CXProvider, perform action: CXEndCallAction) {
+        if callManager.callkitIsShowing {
+            callManager.callkitIsShowing = false
+        }
         let result = callManager.findCallByUUID(uuid: action.callUUID)
         if result != nil {
             callManager.hungUpCall(uuid: action.callUUID)

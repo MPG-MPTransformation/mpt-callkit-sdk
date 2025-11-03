@@ -10,8 +10,8 @@ import MediaPipeTasksVision
     private var statusMessage: String = "Initializing..."
     
     // Confidence thresholds (MediaPipe returns PERSON confidence, opposite of MLKit's background confidence)
-    private let confidenceThresholdHigh: Float = 0.9  // >0.9 = definitely person
-    private let confidenceThresholdLow: Float = 0.5   // <0.2 = definitely background
+    private let confidenceThresholdHigh: Float = 0.5
+    private let confidenceThresholdLow: Float = 0.3
     
     // Mask erosion radius (disabled to match MLKit)
     private var maskErosionRadius: Float = 0.0
@@ -229,8 +229,8 @@ import MediaPipeTasksVision
                 uint8Data[i] = 0    // Background = black
             } else {
                 // Transition zone: interpolate smoothly
-                // let normalized = (confidence - confidenceThresholdLow) / (confidenceThresholdHigh - confidenceThresholdLow)
-                uint8Data[i] = UInt8(confidence * 255.0)  // Higher confidence = more person
+                 let normalized = (confidence - confidenceThresholdLow) /// (confidenceThresholdHigh - confidenceThresholdLow)
+                uint8Data[i] = UInt8(normalized * 255.0)  // Higher confidence = more person
             }
         }
         

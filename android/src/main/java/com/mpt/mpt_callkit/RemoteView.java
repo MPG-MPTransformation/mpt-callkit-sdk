@@ -55,31 +55,6 @@ public class RemoteView implements PlatformView {
         updateVideo(portSipLib);
 
         setupReceiver();
-        
-        // 🔥 FIX: Start timer to continuously force scaling type
-        startScalingTimer();
-    }
-    
-    private void startScalingTimer() {
-        scalingHandler = new Handler(Looper.getMainLooper());
-        scalingRunnable = new Runnable() {
-            @Override
-            public void run() {
-                if (remoteRenderVideoView != null) {
-                    remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FILL);
-                    System.out.println("SDK-Android: RemoteView - Timer force set SCALE_ASPECT_FILL");
-                }
-                scalingHandler.postDelayed(this, 500);
-            }
-        };
-        scalingHandler.postDelayed(scalingRunnable, 500);
-    }
-    
-    private void stopScalingTimer() {
-        if (scalingHandler != null && scalingRunnable != null) {
-            scalingHandler.removeCallbacks(scalingRunnable);
-            System.out.println("SDK-Android: RemoteView - Stopped scaling timer");
-        }
     }
 
     @Override
@@ -91,8 +66,6 @@ public class RemoteView implements PlatformView {
     public void dispose() {
         // Giải phóng tài nguyên nếu cần
         try {
-            // 🔥 FIX: Stop scaling timer
-            stopScalingTimer();
             
             // Đặt cửa sổ video về null trước
             if (Engine.Instance() != null && Engine.Instance().getEngine() != null) {

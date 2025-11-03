@@ -24,6 +24,7 @@ protocol CallManagerDelegate: NSObjectProtocol {
 class CallManager: NSObject {
     weak var delegate: CallManagerDelegate?
 
+    var callkitIsShowing: Bool = false
     var isHideCallkit: Bool = false
     var _enableCallKit: Bool = false
     var enableCallKit: Bool {
@@ -51,7 +52,6 @@ class CallManager: NSObject {
     var waitSocketBeforeAnswer: Bool = true
     private var isSocketReady: Bool = false
     private var isCallIncoming: Bool = false
-    private var isForeground: Bool = false
     private var pendingAnswerBlocks: [() -> Void] = []
 
     init(portsipSdk: PortSIPSDK) {
@@ -72,9 +72,9 @@ class CallManager: NSObject {
     }
 
     func checkAndAnswerPendingCalls() -> Bool {
-        print("CallManager - checkAndAnswerPendingCalls")
-        if isForeground && isSocketReady && isCallIncoming && !pendingAnswerBlocks.isEmpty {
-            print("CallManager - checkAndAnswerPendingCalls - answer call immediately")
+        NSLog("CallManager - checkAndAnswerPendingCalls")
+        if isSocketReady && isCallIncoming && !pendingAnswerBlocks.isEmpty {
+            NSLog("CallManager - checkAndAnswerPendingCalls - answer call immediately")
             let tasks = pendingAnswerBlocks
             pendingAnswerBlocks.removeAll()
             tasks.forEach { $0() }
@@ -86,20 +86,14 @@ class CallManager: NSObject {
     // Update socket readiness status from Flutter side
     func updateSocketReady(_ ready: Bool) {
         isSocketReady = ready
-        print("CallManager - updateSocketReady \(ready)")
+        NSLog("CallManager - updateSocketReady \(ready)")
         _ = checkAndAnswerPendingCalls()
     }
 
     func setCallIncoming(_ incall: Bool) {
         isCallIncoming = incall
-        print("CallManager - setCallIncoming \(incall)")
+        NSLog("CallManager - setCallIncoming \(incall)")
         _ = checkAndAnswerPendingCalls()
-    }
-
-    func setForeground(_ foreground: Bool) -> Bool {
-        isForeground = foreground
-        print("CallManager - setForeground \(foreground)")
-        return checkAndAnswerPendingCalls()
     }
 
     func setPlayDTMFMethod(dtmfMethod: DTMF_METHOD, playDTMFTone: Bool) {
@@ -127,6 +121,11 @@ class CallManager: NSObject {
 
     func reportOutgoingCall(number: String, uuid: UUID, video: Bool = true) {
         if #available(iOS 10.0, *) {
+            if !callkitIsShowing {
+                callkitIsShowing = true
+            } else {
+                return
+            }
             
             isHideCallkit = false
             let handle = CXHandle(type: .generic, value: number)
@@ -140,9 +139,9 @@ class CallManager: NSObject {
             let callController = CXCallController()
             callController.request(transaction) { error in
                 if let err = error {
-                    print("Error requesting transaction: \(err)")
+                    NSLog("Error requesting transaction: \(err)")
                 } else {
-                    print("Requested transaction successfully")
+                    NSLog("Requested transaction successfully")
                 }
             }
             if let result = findCallByUUID(uuid: uuid), result.session.sessionState {
@@ -156,7 +155,11 @@ class CallManager: NSObject {
         guard findCallByUUID(uuid: uuid) != nil else {
             return
         }
-        
+        if !callkitIsShowing {
+            callkitIsShowing = true
+        } else {
+            return
+        }
         isHideCallkit = false
 
         let handle = CXHandle(type: .generic, value: from)
@@ -168,7 +171,8 @@ class CallManager: NSObject {
         update.supportsUngrouping = true
 
         PortCxProvider.shareInstance.cxprovider.reportNewIncomingCall(with: uuid, update: update, completion: { error in
-            print("ErrorCode: \(String(describing: error))")
+
+            NSLog("ErrorCode: \(String(describing: error))")
             completion?(error)
         })
     }
@@ -185,10 +189,10 @@ class CallManager: NSObject {
             let callController = CXCallController()
             callController.request(transaction) { [weak self] error in
                 if let error = error {
-                    print("Error requesting transaction: \(error)")
+                    NSLog("Error requesting transaction: \(error)")
                     result.session.callKitCompletionCallback?(false)
                 } else {
-                    print("Requested transaction successfully")
+                    NSLog("Requested transaction successfully")
                     // We don't call the completion callback here because it will be called
                     // after the actual answer operation is completed in answerCallWithUUID
                 }
@@ -199,7 +203,7 @@ class CallManager: NSObject {
     func reportEndCall(uuid: UUID) {
         if #available(iOS 10.0, *) {
             guard let result = findCallByUUID(uuid: uuid) else {
-                print("reportEndCall: cannot find call by uuid")
+                NSLog("reportEndCall: cannot find call by uuid")
                 return
             }
             let session = result.session as Session
@@ -209,16 +213,16 @@ class CallManager: NSObject {
             let callController = CXCallController()
             callController.request(transaction) { error in
                 if let error = error {
-                    print("Error requesting transaction: \(error)")
+                    NSLog("Error requesting transaction: \(error)")
                 } else {
-                    print("Requested transaction successfully")
+                    NSLog("Requested transaction successfully")
                 }
             }
         }
     }
 
     func reportSetHeld(uuid: UUID, onHold: Bool) {
-        print("reportSetHeld transaction successfully")
+        NSLog("reportSetHeld transaction successfully")
         if #available(iOS 10.0, *) {
             guard let result = findCallByUUID(uuid: uuid) else {
                 return
@@ -230,9 +234,9 @@ class CallManager: NSObject {
             let callController = CXCallController()
             callController.request(transaction) { error in
                 if let error = error {
-                    print("Error requesting transaction: \(error)")
+                    NSLog("Error requesting transaction: \(error)")
                 } else {
-                    print("Requested transaction successfully")
+                    NSLog("Requested transaction successfully")
                 }
             }
         }
@@ -251,9 +255,9 @@ class CallManager: NSObject {
                 let callController = CXCallController()
                 callController.request(transaction) { error in
                     if let error = error {
-                        print("Error requesting transaction: \(error)")
+                        NSLog("Error requesting transaction: \(error)")
                     } else {
-                        print("Requested transaction successfully")
+                        NSLog("Requested transaction successfully")
                     }
                 }
             }
@@ -271,9 +275,9 @@ class CallManager: NSObject {
             let callController = CXCallController()
             callController.request(transaction) { error in
                 if let error = error {
-                    print("Error requesting transaction: \(error)")
+                    NSLog("Error requesting transaction: \(error)")
                 } else {
-                    print("Requested transaction successfully")
+                    NSLog("Requested transaction successfully")
                 }
             }
         }
@@ -290,9 +294,9 @@ class CallManager: NSObject {
             let callController = CXCallController()
             callController.request(transaction) { error in
                 if let error = error {
-                    print("Error requesting transaction: \(error)")
+                    NSLog("Error requesting transaction: \(error)")
                 } else {
-                    print("Requested transaction successfully")
+                    NSLog("Requested transaction successfully")
                 }
             }
         }
@@ -317,9 +321,9 @@ class CallManager: NSObject {
             let callController = CXCallController()
             callController.request(transaction) { error in
                 if let error = error {
-                    print("Error requesting transaction: \(error)")
+                    NSLog("Error requesting transaction: \(error)")
                 } else {
-                    print("Requested transaction successfully")
+                    NSLog("Requested transaction successfully")
                 }
             }
         }
@@ -336,7 +340,7 @@ class CallManager: NSObject {
         let result = findCallBySessionID(sessionid)
         if result != nil, _enableCallKit {
             reportOutgoingCall(number: callee, uuid: result!.session.uuid, video: videoCall)
-            print("reportOutgoingCall uuid = \(result!.session.uuid))")
+            NSLog("reportOutgoingCall uuid = \(result!.session.uuid))")
         }
         return sessionid
     }
@@ -380,7 +384,7 @@ class CallManager: NSObject {
             if isHideCallkit {
                 return answerCallWithUUID(uuid: result.session.uuid, isVideo: isVideo, completion: completion)
             } else {
-                print("isHideCallkit = false")
+                NSLog("answerCall result.session.videoState = \(result.session.videoState), isVideo = \(isVideo)")
                 result.session.videoState = isVideo
                 result.session.callKitCompletionCallback = completion
                 reportAnswerCall(uuid: result.session.uuid)
@@ -580,7 +584,7 @@ class CallManager: NSObject {
         _portSIPSDK.destroyConference()
         _conferenceGroupID = nil
         isConference = false
-        print("DestoryConference")
+        NSLog("DestoryConference")
     }
 
     //    Call Manager implementation
@@ -606,6 +610,7 @@ class CallManager: NSObject {
         session.uuid = uuid
         session.sessionId = sessionid
         session.originCallSessionId = -1
+        NSLog("makeCallWithUUID session.videoState = \(session.videoState), videoCall = \(videoCall)")
         session.videoState = videoCall
         session.outgoing = true
 
@@ -630,35 +635,36 @@ class CallManager: NSObject {
         } else {
             // Execute answer once ready
             let performAnswer: () -> Void = { [weak self] in
-                DispatchQueue.main.async { [weak self] in
+//                DispatchQueue.main.asyncAfter(deadline: currentTimestamp + 0.5) { [weak self] in
                     guard let strongSelf = self else {
                         completion?(false)
                         return
                     }
-                    let nRet = strongSelf._portSIPSDK.answerCall(sessionCall!.session.sessionId, videoCall: isVideo)
+                    let nRet = strongSelf._portSIPSDK.answerCall(sessionCall!.session.sessionId, videoCall: false)
                     if nRet == 0 {
                         sessionCall!.session.sessionState = true
+                        NSLog("performAnswer sessionCall!.session.videoState = \(sessionCall!.session.videoState), isVideo = \(isVideo)")
                         sessionCall!.session.videoState = isVideo
                         if strongSelf.isConference {
                             strongSelf.joinToConference(sessionid: sessionCall!.session.sessionId)
                         }
                         strongSelf.delegate?.onAnsweredCall(sessionId: sessionCall!.session.sessionId)
-                        print("Answer Call on session \(sessionCall!.session.sessionId)")
+                        NSLog("Answer Call on session \(sessionCall!.session.sessionId)")
                         completion?(true)
                     } else {
                         strongSelf.delegate?.onCloseCall(sessionId: sessionCall!.session.sessionId)
-                        print("Answer Call on session \(sessionCall!.session.sessionId) Failed! ret = \(nRet)")
+                        NSLog("Answer Call on session \(sessionCall!.session.sessionId) Failed! ret = \(nRet)")
                         completion?(false)
                     }
-                }
+//                }
             }
 
             // If configured to wait for socket readiness and not yet ready, queue the answer
-            if waitSocketBeforeAnswer && (!isSocketReady || !isCallIncoming || !isForeground) && pendingAnswerBlocks.isEmpty{
+            if waitSocketBeforeAnswer && (!isSocketReady || !isCallIncoming) && pendingAnswerBlocks.isEmpty{
                 pendingAnswerBlocks.append(performAnswer)
-                print("Queued answer until socket is ready for session \(sessionCall!.session.sessionId)")
+                NSLog("Queued answer until socket is ready for session \(sessionCall!.session.sessionId)")
             } else {
-                print("Answer call immediately for session \(sessionCall!.session.sessionId) isSocketReady: \(isSocketReady) isCallIncoming: \(isCallIncoming) pendingAnswerBlocks: \(pendingAnswerBlocks.count) waitSocketBeforeAnswer: \(waitSocketBeforeAnswer)")
+                NSLog("Answer call immediately for session \(sessionCall!.session.sessionId) isSocketReady: \(isSocketReady) isCallIncoming: \(isCallIncoming) pendingAnswerBlocks: \(pendingAnswerBlocks.count) waitSocketBeforeAnswer: \(waitSocketBeforeAnswer)")
                 performAnswer()
             }
             return 0 // Return immediately since we're handling the answer asynchronously
@@ -678,13 +684,13 @@ class CallManager: NSObject {
         if result.session.sessionState {
             hangUpRet = Int32(_portSIPSDK.hangUp(result.session.sessionId))
             if result.session.videoState {}
-            print("Hungup call on session \(result.session.sessionId) with status: \(hangUpRet)")
+            NSLog("Hungup call on session \(result.session.sessionId) with status: \(hangUpRet)")
         } else if result.session.outgoing {
             hangUpRet = Int32(_portSIPSDK.hangUp(result.session.sessionId))
-            print("Invite call Failure on session \(result.session.sessionId) with status: \(hangUpRet)")
+            NSLog("Invite call Failure on session \(result.session.sessionId) with status: \(hangUpRet)")
         } else {
             hangUpRet = Int32(_portSIPSDK.rejectCall(result.session.sessionId, code: 486))
-            print("Rejected call on session \(result.session.sessionId) with status: \(hangUpRet)")
+            NSLog("Rejected call on session \(result.session.sessionId) with status: \(hangUpRet)")
         }
 
         delegate?.onCloseCall(sessionId: result.session.sessionId)
@@ -705,11 +711,11 @@ class CallManager: NSObject {
         if onHold {
             _portSIPSDK.hold(result.session.sessionId)
             result.session.holdState = true
-            print("Hold call on session: \(result.session.sessionId)")
+            NSLog("Hold call on session: \(result.session.sessionId)")
         } else {
             _portSIPSDK.unHold(result.session.sessionId)
             result.session.holdState = false
-            print("UnHold call on session: \(result.session.sessionId)")
+            NSLog("UnHold call on session: \(result.session.sessionId)")
         }
         delegate?.onHoldCall(sessionId: result.session.sessionId, onHold: onHold)
     }
@@ -833,6 +839,8 @@ class CallManager: NSObject {
 
     public func clear() {
         isSocketReady = false
+        callkitIsShowing = false
+        isCallIncoming = false
         for i in 0 ..< MAX_LINES {
             if sessionArray[i].hasAdd {
                 _portSIPSDK.hangUp(sessionArray[i].sessionId)
@@ -853,17 +861,17 @@ class CallManager: NSObject {
     
     func configureAudioSession() {
         _portSIPSDK.configureAudioSession()
-        print("_portSIPSDK configureAudioSession")
+        NSLog("_portSIPSDK configureAudioSession")
     }
 
     func startAudio(audioSession: AVAudioSession) {
         _portSIPSDK.startAudio(audioSession)
-        print("_portSIPSDK starxtAudio")
+        NSLog("_portSIPSDK starxtAudio")
     }
 
     func stopAudio(audioSession: AVAudioSession) {
         _portSIPSDK.stopAudio(audioSession)
-        print("_portSIPSDK stopAudio")
+        NSLog("_portSIPSDK stopAudio")
     }
 }
 

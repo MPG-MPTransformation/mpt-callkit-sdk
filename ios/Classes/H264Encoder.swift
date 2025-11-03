@@ -34,7 +34,7 @@ class H264Encoder {
         )
 
         guard status == noErr, let session = session else {
-            print("❌ Failed to create compression session, status=\(status)")
+            NSLog("❌ Failed to create compression session, status=\(status)")
             return
         }
 
@@ -59,7 +59,7 @@ class H264Encoder {
         )
 
         if status != noErr {
-            print("❌ Encode error: \(status)")
+            NSLog("❌ Encode error: \(status)")
         }
     }
 
@@ -105,7 +105,7 @@ private func compressionCallback(
 
     let statusCode = CMBlockBufferGetDataPointer(dataBuffer!, atOffset: 0, lengthAtOffsetOut: &length, totalLengthOut: &totalLength, dataPointerOut: &dataPointer)
     if statusCode != noErr {
-        print("❌ CMBlockBufferGetDataPointer error: \(statusCode)")
+        NSLog("❌ CMBlockBufferGetDataPointer error: \(statusCode)")
         return
     }
 

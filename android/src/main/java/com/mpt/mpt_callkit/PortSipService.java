@@ -969,28 +969,32 @@ public class PortSipService extends Service
             if (existsVideo) {
                 // Stop any existing camera source to avoid conflicts
                 MptCallkitPlugin.shared.stopCameraSource();
-                
-                // for receive video stream
-                Engine.Instance().getEngine().enableVideoStreamCallback(sessionId,
-                        PortSipEnumDefine.ENUM_DIRECTION_RECV);
-                int result = Engine.Instance().getEngine().enableSendVideoStreamToRemote(sessionId, true);
-                System.out.println("SDK-Android: enableSendVideoStream result: " + result);
-                
+
+                // int sendVideoRes = Engine.Instance().getEngine().sendVideo(sessionId, true);
+                // logWithTimestamp("SDK-Android: onInviteUpdated - re-sendVideo(): " + sendVideoRes);
                 // Start custom camera source after a delay to let PortSIP initialize
                 new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                    int result = Engine.Instance().getEngine().enableSendVideoStreamToRemote(sessionId, true);
+                    System.out.println("SDK-Android: enableSendVideoStream result: " + result);
                     MptCallkitPlugin.shared.startCameraSource();
+                    // for receive video stream
+                    Engine.Instance().getEngine().enableVideoStreamCallback(sessionId,
+                            PortSipEnumDefine.ENUM_DIRECTION_RECV);
                 }, 500); // 500ms delay
             }
 
-            if (session.hasVideo && !existsVideo && videoCodecs.isEmpty()) {
-                // Gửi video từ camera
-                int sendVideoRes = Engine.Instance().getEngine().sendVideo(session.sessionID, true);
-                logWithTimestamp("SDK-Android: onInviteUpdated - re-sendVideo(): " + sendVideoRes);
+            System.out.println("SDK-Android: onInviteUpdated - session.hasVideo: " + session.hasVideo);
+            System.out.println("SDK-Android: onInviteUpdated - existsVideo: " + existsVideo);
+            System.out.println("SDK-Android: onInviteUpdated - videoCodecs.isEmpty(): " + videoCodecs.isEmpty());
+            // if (session.hasVideo && !existsVideo && videoCodecs.isEmpty()) {
+            //     // Gửi video từ camera
+            //     int sendVideoRes = Engine.Instance().getEngine().sendVideo(session.sessionID, true);
+            //     logWithTimestamp("SDK-Android: onInviteUpdated - re-sendVideo(): " + sendVideoRes);
 
-                // Cập nhật cuộc gọi để thêm video stream
-                // int updateRes = Engine.Instance().getEngine().updateCall(session.sessionID, true, true);
-                // logWithTimestamp("SDK-Android: onInviteUpdated - re-updateCall(): " + updateRes);
-            }
+            //     // Cập nhật cuộc gọi để thêm video stream
+            //     int updateRes = Engine.Instance().getEngine().updateCall(session.sessionID, true, true);
+            //     logWithTimestamp("SDK-Android: onInviteUpdated - re-updateCall(): " + updateRes);
+            // }
 
             session.state = Session.CALL_STATE_FLAG.CONNECTED;
             session.hasVideo = existsVideo;
