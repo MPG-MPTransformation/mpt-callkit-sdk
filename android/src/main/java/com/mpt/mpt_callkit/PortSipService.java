@@ -722,7 +722,7 @@ public class PortSipService extends Service
         Ring.getInstance(this).startRingTone();
 
         // Gửi thông tin cuộc gọi đến đến Flutter
-        sendCallStateToFlutter("INCOMING");
+        sendCallStateToFlutter("INCOMING", (int)sessionId, existsVideo);
 
         // Gửi thêm thông tin chi tiết về người gọi
         if (Engine.Instance() != null) {
@@ -844,7 +844,7 @@ public class PortSipService extends Service
 
     @Override
     public void onInviteTrying(long l) {
-        sendCallStateToFlutter("TRYING");
+        sendCallStateToFlutter("TRYING", (int)l, null);
     }
 
     @Override
@@ -949,7 +949,7 @@ public class PortSipService extends Service
         }
 
         Ring.getInstance(this).stopRingBackTone();
-        sendCallStateToFlutter("FAILED");
+        sendCallStateToFlutter("FAILED", (int)sessionId, null);
         sendCallTypeToFlutter("ENDED");
         MptCallkitPlugin.sendToFlutter("isRemoteVideoReceived", false);
         isRemoteVideoReceived = false;
@@ -1058,7 +1058,7 @@ public class PortSipService extends Service
         //             PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
         // }
 
-        sendCallStateToFlutter("CONNECTED");
+        sendCallStateToFlutter("CONNECTED", (int)sessionId, null);
     }
 
     @Override
@@ -1085,7 +1085,7 @@ public class PortSipService extends Service
         if (mNotificationManager != null) {
             mNotificationManager.cancel(PENDINGCALL_NOTIFICATION);
         }
-        sendCallStateToFlutter("CLOSED");
+        sendCallStateToFlutter("CLOSED", (int)sessionId, null);
         sendCallTypeToFlutter("ENDED");
         MptCallkitPlugin.sendToFlutter("isRemoteVideoReceived", false);
         isRemoteVideoReceived = false;
@@ -1509,30 +1509,20 @@ public class PortSipService extends Service
         sendBroadcast(broadIntent);
     }
 
-    private void sendCallStateToFlutter(String state) {
+    private void sendCallStateToFlutter(String state, int sessionId, Boolean hasVideo) {
         if (Engine.Instance() != null) {
-            Session currentSession = CallManager.Instance().getCurrentSession();
-            if (currentSession != null && currentSession.sessionID != Session.INVALID_SESSION_ID) {
                 // Tạo Map với sessionId, hasVideo, và state giống như iOS
                 java.util.Map<String, Object> callState = new java.util.HashMap<>();
-                callState.put("sessionId", currentSession.sessionID);
-                callState.put("hasVideo", currentSession.hasVideo);
+                callState.put("sessionId", sessionId);
                 callState.put("state", state);
+
+                if (hasVideo != null) {
+                    callState.put("hasVideo", hasVideo);
+                }
                 
                 Engine.Instance().invokeMethod("callState", callState);
                 MptCallkitPlugin.sendToFlutter("callState", callState);
-                logWithTimestamp("SDK-Android: callState - " + state + " (sessionId: " + currentSession.sessionID + ", hasVideo: " + currentSession.hasVideo + ")");
-            } else {
-                // Fallback nếu không có session
-                java.util.Map<String, Object> callState = new java.util.HashMap<>();
-                callState.put("sessionId", -1);
-                callState.put("hasVideo", false);
-                callState.put("state", state);
-                
-                Engine.Instance().invokeMethod("callState", callState);
-                MptCallkitPlugin.sendToFlutter("callState", callState);
-                logWithTimestamp("SDK-Android: callState - " + state + " (no active session)");
-            }
+                logWithTimestamp("SDK-Android: callState - " + state + " (sessionId: " + sessionId + ", hasVideo: " + hasVideo + ")");
         }
     }
 

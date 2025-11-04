@@ -50,6 +50,16 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   bool isNavigatedToCallPad = false;
   final String _tokenKey = 'fcm_token';
   bool isFirstTime = true;
+  
+  // Save ScaffoldMessenger reference
+  ScaffoldMessengerState? _scaffoldMessenger;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Save ScaffoldMessenger reference for safe access after disposal
+    _scaffoldMessenger = ScaffoldMessenger.of(context);
+  }
 
   @override
   void initState() {
@@ -57,16 +67,16 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     startTime = DateTime.now();
 
     MptCallKitController().onRegisterSIP = (isOnline) {
-      if (mounted) {
+      if (mounted && _scaffoldMessenger != null) {
         if (isOnline) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          _scaffoldMessenger!.showSnackBar(
             const SnackBar(
               content: Text("SIP registration: TRUE!"),
             ),
           );
         } else {
           // doRegister();
-          ScaffoldMessenger.of(context).showSnackBar(
+          _scaffoldMessenger!.showSnackBar(
             const SnackBar(
               content: Text("SIP registration: FALSE!"),
             ),
@@ -161,13 +171,15 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       accessToken: accessToken,
       onError: (p0) {
         tokenExpired = true;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                Text("Error in initDataWhenLoginSuccess: ${p0.toString()}"),
-            backgroundColor: Colors.grey,
-          ),
-        );
+        if (_scaffoldMessenger != null) {
+          _scaffoldMessenger!.showSnackBar(
+            SnackBar(
+              content:
+                  Text("Error in initDataWhenLoginSuccess: ${p0.toString()}"),
+              backgroundColor: Colors.grey,
+            ),
+          );
+        }
       },
     );
 
@@ -192,23 +204,25 @@ class _LoginResultScreenState extends State<LoginResultScreen>
         accessToken: accessToken,
         onError: (error) {
           print("Error getting current agent status: $error");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Error getting agent status: $error"),
-              backgroundColor: Colors.orange,
-            ),
-          );
+          if (_scaffoldMessenger != null) {
+            _scaffoldMessenger!.showSnackBar(
+              SnackBar(
+                content: Text("Error getting agent status: $error"),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
         },
       );
 
-      if (agentStatus != null && mounted) {
+      if (agentStatus != null && mounted && _scaffoldMessenger != null) {
         setState(() {
           _currentAgentStatus = agentStatus;
         });
         print("Current agent status: $agentStatus");
 
         // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
+        _scaffoldMessenger!.showSnackBar(
           SnackBar(
             content: Text("Agent status loaded: $agentStatus"),
             backgroundColor: Colors.green,
@@ -225,9 +239,11 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     var extensionData = MptCallKitController().extensionData;
 
     if (extensionData == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Không có thông tin extension")),
-      );
+      if (_scaffoldMessenger != null) {
+        _scaffoldMessenger!.showSnackBar(
+          const SnackBar(content: Text("Không có thông tin extension")),
+        );
+      }
       return false;
     }
 
@@ -243,12 +259,14 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       // sipServerPort: 5063,
       transportType: 0,
       onError: (p0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error in online: ${p0.toString()}"),
-            backgroundColor: Colors.grey,
-          ),
-        );
+        if (_scaffoldMessenger != null) {
+          _scaffoldMessenger!.showSnackBar(
+            SnackBar(
+              content: Text("Error in online: ${p0.toString()}"),
+              backgroundColor: Colors.grey,
+            ),
+          );
+        }
       },
       context: context,
       pushToken: await MptCallKitController().getCurrentPushToken(),
@@ -260,12 +278,14 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   Future<bool> doUnregiter() async {
     return await MptCallKitController().offline(
       onError: (error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Lỗi: $error"),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (_scaffoldMessenger != null) {
+          _scaffoldMessenger!.showSnackBar(
+            SnackBar(
+              content: Text("Lỗi: $error"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       },
     );
   }
@@ -286,12 +306,14 @@ class _LoginResultScreenState extends State<LoginResultScreen>
 
     var result = await MptCallKitController().logout(
       onError: (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e ?? 'Logout failed'),
-            backgroundColor: Colors.grey,
-          ),
-        );
+        if (_scaffoldMessenger != null) {
+          _scaffoldMessenger!.showSnackBar(
+            SnackBar(
+              content: Text(e ?? 'Logout failed'),
+              backgroundColor: Colors.grey,
+            ),
+          );
+        }
       },
     );
 
@@ -534,14 +556,15 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                                               null) {
                                             await doRegister();
                                           } else {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                    "Không có thông tin extension"),
-                                                backgroundColor: Colors.red,
-                                              ),
-                                            );
+                                            if (_scaffoldMessenger != null) {
+                                              _scaffoldMessenger!.showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                      "Không có thông tin extension"),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
+                                            }
                                           }
                                         }
                                       },
@@ -692,7 +715,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                                     ElevatedButton(
                                       onPressed: () async {
                                         // await makeNativeCall();
-                                        await makeNativeCall();
+                                        await _makeCallOutbound();
                                       },
                                       style: ButtonStyle(
                                         backgroundColor:
@@ -747,12 +770,14 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                               queueId: "aaacb2e9-e163-4ff9-be47-44c96ea4379f",
                               enabled: true,
                             );
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    "changeAgentStatusInQueue result: $res"),
-                              ),
-                            );
+                            if (_scaffoldMessenger != null) {
+                              _scaffoldMessenger!.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      "changeAgentStatusInQueue result: $res"),
+                                ),
+                              );
+                            }
                           },
                           child: Text("enable changeAgentStatusInQueue")),
                       ElevatedButton(
@@ -762,12 +787,14 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                               queueId: "aaacb2e9-e163-4ff9-be47-44c96ea4379f",
                               enabled: false,
                             );
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    "changeAgentStatusInQueue result: $res"),
-                              ),
-                            );
+                            if (_scaffoldMessenger != null) {
+                              _scaffoldMessenger!.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      "changeAgentStatusInQueue result: $res"),
+                                ),
+                              );
+                            }
                           },
                           child: Text("disable changeAgentStatusInQueue")),
                       ElevatedButton(
@@ -776,12 +803,14 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                                 await MptCallKitController().getAgentQueues();
                             agentQueues = res;
                             print("getAgentQueues result: ${res?.length}");
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    "getAgentQueues length: ${res?.length}"),
-                              ),
-                            );
+                            if (_scaffoldMessenger != null) {
+                              _scaffoldMessenger!.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      "getAgentQueues length: ${res?.length}"),
+                                ),
+                              );
+                            }
                           },
                           child: Text("getAgentQueues")),
                       ElevatedButton(
@@ -789,12 +818,14 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                             var res =
                                 await MptCallKitController().getAllQueues();
                             print("getAllQueues result: ${res?.length}");
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content:
-                                    Text("getAllQueues length: ${res?.length}"),
-                              ),
-                            );
+                            if (_scaffoldMessenger != null) {
+                              _scaffoldMessenger!.showSnackBar(
+                                SnackBar(
+                                  content:
+                                      Text("getAllQueues length: ${res?.length}"),
+                                ),
+                              );
+                            }
                           },
                           child: Text("getAllQueues")),
                       ElevatedButton(
@@ -805,12 +836,14 @@ class _LoginResultScreenState extends State<LoginResultScreen>
                             );
                             print(
                                 "getAllAgentInQueueByQueueExtension result: ${res?.length}");
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    "getAllAgentInQueueByQueueExtension length: ${res?.length}"),
-                              ),
-                            );
+                            if (_scaffoldMessenger != null) {
+                              _scaffoldMessenger!.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      "getAllAgentInQueueByQueueExtension length: ${res?.length}"),
+                                ),
+                              );
+                            }
                           },
                           child: Text("getAllAgentInQueueByQueueExtension")),
                     ],
@@ -828,29 +861,35 @@ class _LoginResultScreenState extends State<LoginResultScreen>
     final accessToken = prefs.getString("saved_access_token");
 
     if (destination.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please enter destination number!"),
-        ),
-      );
+      if (_scaffoldMessenger != null) {
+        _scaffoldMessenger!.showSnackBar(
+          const SnackBar(
+            content: Text("Please enter destination number!"),
+          ),
+        );
+      }
       return;
     }
 
     if (MptCallKitController().isOnline == false) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("SIP server has not registered!"),
-        ),
-      );
+      if (_scaffoldMessenger != null) {
+        _scaffoldMessenger!.showSnackBar(
+          const SnackBar(
+            content: Text("SIP server has not registered!"),
+          ),
+        );
+      }
       return;
     }
 
     if (MptSocketSocketServer.instance.checkConnection() == false) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Socket server has disconnected!"),
-        ),
-      );
+      if (_scaffoldMessenger != null) {
+        _scaffoldMessenger!.showSnackBar(
+          const SnackBar(
+            content: Text("Socket server has disconnected!"),
+          ),
+        );
+      }
       return;
     }
 
@@ -866,12 +905,14 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       extraInfo: _extraInfoController.text.trim(),
       accessToken: accessToken ?? "",
       onError: (error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error ?? 'Call outbound failed!'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (_scaffoldMessenger != null) {
+          _scaffoldMessenger!.showSnackBar(
+            SnackBar(
+              content: Text(error ?? 'Call outbound failed!'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       },
     );
 

@@ -479,6 +479,13 @@ class CallManager: NSObject {
         if isConference {
             return false
         }
+        
+        // 🔍 DEBUG: Log all sessions before creating conference
+        NSLog("🔍 createConference - DEBUG: Checking all sessions:")
+        for i in 0 ..< MAX_LINES {
+            NSLog("🔍   Line[\(i)]: hasAdd=\(sessionArray[i].hasAdd), sessionId=\(sessionArray[i].sessionId), sessionState=\(sessionArray[i].sessionState), holdState=\(sessionArray[i].holdState)")
+        }
+        
         var ret = 0
         if conferenceVideoWindow != nil, videoWidth > 0, videoHeight > 0 {
             ret = Int(_portSIPSDK.createVideoConference(conferenceVideoWindow, videoWidth: Int32(videoWidth), videoHeight: Int32(videoHeight), layout: 0))
@@ -495,6 +502,7 @@ class CallManager: NSObject {
 
         for i in 0 ..< MAX_LINES {
             if sessionArray[i].hasAdd {
+                NSLog("createConference... join: sessionId=\(sessionArray[i].sessionId) - line=\(i)")
                 _portSIPSDK.setRemoteVideoWindow(sessionArray[i].sessionId, remoteVideoWindow: nil)
                 joinToConference(sessionid: sessionArray[i].sessionId)
             }
@@ -588,9 +596,11 @@ class CallManager: NSObject {
             if sessionArray[i].sessionId > INVALID_SESSION_ID {
                 let res = _portSIPSDK.hangUp(sessionArray[i].sessionId)
                 if res == 0 {
-                    NSLog("Hang up on sessionId=\(sessionArray[i].sessionId)")
+                    NSLog("Hang up on line=\(i) - sessionId=\(sessionArray[i].sessionId)")
                     reportEndCall(uuid: sessionArray[i].uuid)
                     sessionArray[i].sessionId = CLong(INVALID_SESSION_ID)
+                } else {
+                    NSLog("Hang up on sessionId=\(sessionArray[i].sessionId) failed with status: \(res)")
                 }
             }
         }
@@ -827,19 +837,28 @@ class CallManager: NSObject {
     }
 
     public func addCall(call: Session) -> (Int) {
+        NSLog("🟢 addCall - BEFORE: sessionId=\(call.sessionId), uuid=\(call.uuid)")
+        for i in 0 ..< MAX_LINES {
+            NSLog("🟢   Line[\(i)]: hasAdd=\(sessionArray[i].hasAdd), sessionId=\(sessionArray[i].sessionId)")
+        }
+        
         for i in 0 ..< MAX_LINES {
             if sessionArray[i].hasAdd == false {
                 sessionArray[i] = call
                 sessionArray[i].hasAdd = true
+                NSLog("🟢 addCall - SUCCESS: Added sessionId=\(call.sessionId) to line[\(i)]")
                 return i
             }
         }
+        NSLog("🔴 addCall - FAILED: No available line for sessionId=\(call.sessionId)")
         return -1
     }
 
     public func removeCall(call: Session) {
         for i in 0 ..< MAX_LINES {
             if sessionArray[i] === call {
+                NSLog("🔴 removeCall - Removing session: sessionId=\(sessionArray[i].sessionId), line=\(i)")
+                NSLog("🔴   Stack trace: \(Thread.callStackSymbols.joined(separator: "\n"))")
                 sessionArray[i].reset()
             }
         }

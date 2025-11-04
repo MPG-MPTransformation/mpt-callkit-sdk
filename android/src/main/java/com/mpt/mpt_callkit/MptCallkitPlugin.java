@@ -1079,9 +1079,11 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 result.success(true);
                 break;
             case "conference":
-                updateToConference();
+                Boolean isConference = call.argument("isConference");
+                updateToConference(isConference);
                 result.success(true);
                 break;
+            // This logic only for SIP makeCall API
             case "inviteToConference":
                 String destinationConf = call.argument("destination");
                 Boolean isVideoCallConf = call.argument("isVideoCall");
@@ -1098,6 +1100,12 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     result.error("INVALID_ARGUMENTS", "Missing destination or isVideoCall for inviteToConference", null);
                 }
                 break;
+            case "autoSelectAvailableLine":
+                int selectedLine = autoSelectAvailableLine();
+                System.out.println("SDK-Android: autoSelectAvailableLine - selectedLine: " + selectedLine);
+                didSelectLine(selectedLine);
+                result.success(selectedLine);
+                break;
             case "getConferenceState":
                 boolean conferenceState = Engine.Instance().mConference;
                 result.success(conferenceState);
@@ -1108,7 +1116,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     result.error("INVALID_ARGUMENTS", "Current line is null for sendSipMessage", null);
                     break;
                 }
-                Long sipSessionIdArg = call.argument("sipSessionId");
+                Number sipSessionIdArg = call.argument("sipSessionId");
                 int sipSessionId = sipSessionIdArg != null ? sipSessionIdArg.intValue() : (int) currentLine.sessionID;
                 String message = call.argument("message");
                 if (sipSessionId > 0 && message != null) {
@@ -1609,7 +1617,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         System.out.println("SDK-Android: Answer call state: " + currentLine.state);
         Ring.getInstance(MainActivity.activity).stopRingTone();
         Ring.getInstance(MainActivity.activity).stopRingBackTone();
-        if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING) {
+        if (currentLine != null && currentLine.sessionID > 0) {
             if (Engine.Instance().getEngine() == null && MptCallkitPlugin.shared.context != null) {
                 System.out.println("SDK-Android: Answer call Engine is null, setting method channel");
                 if (Engine.Instance().getMethodChannel() == null) {
@@ -2141,8 +2149,12 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         } catch (Exception ignored) {}
     }
 
-    private void updateToConference() {
-        if (!Engine.Instance().mConference) {
+    private void updateToConference(Boolean isConference) {
+        if (isConference == Engine.Instance().mConference) {
+            return;
+        }
+
+        if (isConference) {
             Engine.Instance().getEngine().createVideoConference(null, 480, 720, 0);
             CallManager.Instance().addActiveSessionToConfrence(Engine.Instance().getEngine());
             Engine.Instance().mConference = true;

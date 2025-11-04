@@ -1387,21 +1387,37 @@ class MptCallKitController {
     });
   }
 
+  // Invite to conference - Agent to Agent
   Future<void> inviteToConference({
     required String destination,
     required bool isVideoCall,
+    required String accessToken,
+    Function(String?)? onError,
   }) async {
     // make sure conference mode is active
-    final conferenceState = await getConferenceState();
-    if (!conferenceState) {
-      await updateToConference();
-    }
+    // final conferenceState = await getConferenceState();
+    // if (conferenceState) {
+    //   await updateToConference();
+    // }
 
-    // invite to conference
-    await channel.invokeMethod("inviteToConference", {
-      "destination": destination,
-      "isVideoCall": isVideoCall,
-    });
+    // // invite to conference
+    // await channel.invokeMethod("inviteToConference", {
+    //   "destination": destination,
+    //   "isVideoCall": isVideoCall,
+    // });
+
+    final selectedLine = await channel.invokeMethod("autoSelectAvailableLine");
+    print("autoSelectAvailableLine result: $selectedLine");
+    if (selectedLine > 0) {
+      await makeCallInternal(
+        destination: destination,
+        senderId: currentUserInfo!["user"]["extension"],
+        isVideoCall: isVideoCall,
+        extraInfo: "",
+        accessToken: accessToken,
+        onError: onError,
+      );
+    }
   }
 
   Future<bool> getConferenceState() async {
@@ -1492,18 +1508,21 @@ class MptCallKitController {
   Future<int> hangup() async {
     // If hangup success, return 0 - failed in others case
     try {
-      final isConference = await getConferenceState();
-      if (isConference) {
-        // hang up all calls
-        await hangUpAllCalls();
-        // // stop conference mode
-        // await updateToConference();
-        return 0;
-      } else {
-        final result = await channel.invokeMethod("hangup");
-        print("hangup result: $result");
-        return result;
-      }
+      // final isConference = await getConferenceState();
+      // if (isConference) {
+      //   // hang up all calls
+      //   await hangUpAllCalls();
+      //   // // stop conference mode
+      //   // await updateToConference();
+      //   return 0;
+      // } else {
+      //   final result = await channel.invokeMethod("hangup");
+      //   print("hangup result: $result");
+      //   return result;
+      // }
+
+      await hangUpAllCalls();
+      return 0;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'hangup' mothod: '${e.message}'.");
       return -1;
@@ -2285,7 +2304,7 @@ class MptCallKitController {
           break;
 
         case 'call_state':
-          _handleCallStateUpdate(payload);
+          _handleCallStateUpdate(payload, sipSessionId!);
           break;
 
         case SIPMessageTypeConstants.ADD_TO_CONF_REQ:
@@ -2350,6 +2369,11 @@ class MptCallKitController {
           await MptCallKitController().inviteToConference(
             destination: extension,
             isVideoCall: true,
+            accessToken: "",
+            onError: (error) {
+              if (error == null) return;
+              print("Error: $error");
+            },
           );
         }
       }
@@ -2409,7 +2433,8 @@ class MptCallKitController {
   }
 
   /// Handle call state updates
-  void _handleCallStateUpdate(Map<String, dynamic> payload) {
+  void _handleCallStateUpdate(
+      Map<String, dynamic> payload, int sipSessionId) async {
     print('Handling call state update: $payload');
 
     bool isAnswered = false;
@@ -2442,10 +2467,16 @@ class MptCallKitController {
       print(
           'Remote party send request reinvite video call state: $existsVideo');
       if (!existsVideo && isAnswered) {
-        // Update video call after 2.5 seconds in the agent side
-        Future.delayed(const Duration(milliseconds: 2500), () {
-          updateVideoCall(isVideo: true);
-        });
+        // //distroy conference if need
+        // final conferenceState = await getConferenceState();
+        // if (conferenceState) {
+        //   await updateToConference(isConference: false);
+        // }
+
+        // // Update video call after 2.5 seconds in the agent side
+        // Future.delayed(const Duration(milliseconds: 2500), () {
+        //   updateVideoCall(isVideo: true);
+        // });
       }
     }
   }
@@ -2686,8 +2717,10 @@ class MptCallKitController {
     );
   }
 
-  Future<void> updateToConference() async {
-    await channel.invokeMethod("conference");
+  Future<void> updateToConference({bool? isConference}) async {
+    await channel.invokeMethod("conference", {
+      "isConference": isConference ?? true,
+    });
   }
 
   Future<void> hangUpAllCalls() async {

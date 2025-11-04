@@ -8,6 +8,7 @@ import 'package:mpt_callkit/mpt_call_kit_constant.dart';
 import 'package:mpt_callkit/mpt_socket.dart';
 import 'package:mpt_callkit/views/local_view.dart';
 import 'package:mpt_callkit/views/remote_view.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CallPad extends StatefulWidget {
   final bool? isGuest;
@@ -35,6 +36,7 @@ class _CallPadState extends State<CallPad> {
     if (Platform.isAndroid) 'getAudioDevices',
     'updateVideoCall',
     'conference',
+    'distroyConference',
     'inviteToConference(host)',
     'inviteToConference(guest)',
     'hangup',
@@ -86,6 +88,16 @@ class _CallPadState extends State<CallPad> {
   var callStatusCode = -999;
   final TextEditingController extensionController = TextEditingController();
   final TextEditingController lineIndexController = TextEditingController();
+
+  // Save ScaffoldMessenger reference
+  ScaffoldMessengerState? _scaffoldMessenger;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Save ScaffoldMessenger reference for safe access after disposal
+    _scaffoldMessenger = ScaffoldMessenger.of(context);
+  }
 
   @override
   void initState() {
@@ -554,12 +566,15 @@ class _CallPadState extends State<CallPad> {
               : MptCallKitController().currentUserInfo?['user']?['id']);
 
           if (sessionId.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Không đủ dữ liệu: thiếu sessionId hoặc agentId'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            if (_scaffoldMessenger != null) {
+              _scaffoldMessenger!.showSnackBar(
+                const SnackBar(
+                  content:
+                      Text('Không đủ dữ liệu: thiếu sessionId hoặc agentId'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
             break;
           }
 
@@ -568,21 +583,25 @@ class _CallPadState extends State<CallPad> {
             agentId: agentId,
             onError: (err) {
               if (err == null) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(err),
-                  backgroundColor: Colors.red,
-                ),
-              );
+              if (_scaffoldMessenger != null) {
+                _scaffoldMessenger!.showSnackBar(
+                  SnackBar(
+                    content: Text(err),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
           );
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Đã gửi yêu cầu End Call API'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          if (_scaffoldMessenger != null) {
+            _scaffoldMessenger!.showSnackBar(
+              const SnackBar(
+                content: Text('Đã gửi yêu cầu End Call API'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
         }
         break;
       case 'showAndroidCallKit':
@@ -640,7 +659,10 @@ class _CallPadState extends State<CallPad> {
         MptCallKitController().updateVideoCall(isVideo: true);
         break;
       case 'conference':
-        MptCallKitController().updateToConference();
+        MptCallKitController().updateToConference(isConference: true);
+        break;
+      case 'distroyConference':
+        MptCallKitController().updateToConference(isConference: false);
         break;
       case 'inviteToConference(host)':
         _showInviteToConferenceDialog(isHost: true);
@@ -755,14 +777,18 @@ class _CallPadState extends State<CallPad> {
           ElevatedButton(
             onPressed: () async {
               final extension = extensionController.text.trim();
+              final prefs = await SharedPreferences.getInstance();
+              final accessToken = prefs.getString("saved_access_token");
 
               if (extension.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please enter an extension number'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                if (_scaffoldMessenger != null) {
+                  _scaffoldMessenger!.showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter an extension number'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
                 return;
               }
 
@@ -775,6 +801,11 @@ class _CallPadState extends State<CallPad> {
                   await MptCallKitController().inviteToConference(
                     destination: extension,
                     isVideoCall: true,
+                    accessToken: accessToken!,
+                    onError: (error) {
+                      if (error == null) return;
+                      print("Error: $error");
+                    },
                   );
                 } else {
                   await MptCallKitController().requestInviteToConference(
@@ -785,8 +816,8 @@ class _CallPadState extends State<CallPad> {
                 // Clear the text field after successful invite
                 extensionController.clear();
 
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                if (mounted && _scaffoldMessenger != null) {
+                  _scaffoldMessenger!.showSnackBar(
                     SnackBar(
                       content: Text('Inviting $extension to conference...'),
                       backgroundColor: Colors.green,
@@ -794,8 +825,8 @@ class _CallPadState extends State<CallPad> {
                   );
                 }
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                if (mounted && _scaffoldMessenger != null) {
+                  _scaffoldMessenger!.showSnackBar(
                     SnackBar(
                       content: Text('Failed to invite: $e'),
                       backgroundColor: Colors.red,
