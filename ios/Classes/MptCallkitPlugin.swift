@@ -1020,15 +1020,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             NSLog("📱 CallKit enabled - creating session then reporting to CallKit")
             _callManager.incomingCall(sessionid: -1, existsVideo: true, remoteParty: self.currentRemoteName,
                                 callUUID: uuid!) {
-                NSLog("loginViewController.refreshRegister()")
-                self.loginViewController.refreshRegister()
-                self.beginBackgroundRegister()
-                
+                completion()
                 if #available(iOS 10.0, *) {
                     self._callManager.isHideCallkit = false
                     self._callManager.reportInComingCall(uuid: uuid!, hasVideo: true, from: self.currentRemoteName)
                 }
-                completion()
             }
         }
     }
@@ -1066,7 +1062,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
 
         processPushMessageFromPortPBX(payload.dictionaryPayload, completion: {
-           self.loginViewController.refreshRegister()
+            NSLog("loginViewController.refreshRegister()")
+            self.loginViewController.refreshRegister()
             self.beginBackgroundRegister()
         })
     }
