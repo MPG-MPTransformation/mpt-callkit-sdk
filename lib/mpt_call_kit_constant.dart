@@ -132,7 +132,7 @@ class SDKPrefsKeyConstants {
 }
 
 class MptSDKCoreConstants {
-  static const String VERSION = "v0.0.38-nblur";
+  static const String VERSION = "v0.0.39-nblur";
 }
 
 class MPTSDKLogTitleConstants {
