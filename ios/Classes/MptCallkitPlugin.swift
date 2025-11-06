@@ -3478,32 +3478,9 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     isProcessingFrame = true
     // Use dedicated video processing queue to avoid priority inversion
     videoProcessingQueue.async { [weak self] in
-//        self?.processSegmentation(imageBuffer)
-        self?.processSegmentation(sampleBuffer, imageBuffer: imageBuffer)
+        self?.processSegmentation(imageBuffer)
     }
   }
-    
-    private func processSegmentation(_ sampleBuffer: CMSampleBuffer, imageBuffer: CVPixelBuffer) {
-        defer {
-          DispatchQueue.main.async { [weak self] in
-            self?.isProcessingFrame = false
-          }
-        }
-
-        guard let curProcessor = processor else {
-          NSLog("❌ Processor not available")
-          return
-        }
-        
-        curProcessor.processSampleBuffer(sampleBuffer, imageBuffer: imageBuffer, background: bgBitmap, isFrontCamera: mUseFrontCamera) { [weak self] result in
-            guard let result = result else {
-                return
-            }
-            DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
-                self?.updatePreviewOverlayViewWithImageBuffer(result)
-            }
-        }
-    }
 
   private func processSegmentation(_ imageBuffer: CVPixelBuffer) {
     // Ensure processing flag is reset even if function exits early

@@ -3,15 +3,9 @@ import UIKit
 import CoreVideo
 import CoreImage
 import MediaPipeTasksVision
-import MLImage
-import MLKitSegmentationSelfie
-import MLKitSegmentationCommon
-import MLKitVision
-import MLKitCommon
 
 @objc public class SegmentationProcessor: NSObject {
     
-    private var segmenter: Segmenter? = nil
     private var imageSegmenter: ImageSegmenter?
     private var statusMessage: String = "Initializing..."
     
@@ -40,17 +34,8 @@ import MLKitCommon
    
    @objc public override init() {
        super.init()
-//       setupImageSegmenter()
-       setupSegmenter()
+       setupImageSegmenter()
    }
-    
-    public func setupSegmenter() {
-        let options = SelfieSegmenterOptions()
-        options.segmenterMode = .stream
-        // options.shouldEnableRawSizeMask = true
-        self.segmenter = Segmenter.segmenter(options: options)
-        statusMessage = "✅ Processor initialized with default model"
-    }
    
     public func setupImageSegmenter() {
         do {
@@ -80,115 +65,6 @@ import MLKitCommon
    @objc public func getStatusMessage() -> String {
        return statusMessage
    }
-    
-    /// Process with CVPixelBuffer only (CMSampleBuffer not needed - eliminates redundant parameter)
-    /// MLKit VisionImage can work with CVPixelBuffer directly
-    public func processSampleBuffer(_ sampleBuffer: CMSampleBuffer, imageBuffer: CVPixelBuffer , background: UIImage?, isFrontCamera: Bool, completion: @escaping (CVPixelBuffer?) -> Void) {
-       guard let _segmenter = segmenter else {
-           completion(imageBuffer)
-           return
-       }
-       
-       do {
-           // Use VisionImage with imageBuffer directly (same data as sampleBuffer but without redundancy)
-           let visionImage = VisionImage(buffer: sampleBuffer)
-           let orientation = UIUtilities.imageOrientation(
-             fromDevicePosition: isFrontCamera ? .front : .back
-           )
-           visionImage.orientation = orientation
-           let mask = try _segmenter.results(in: visionImage)
-           
-           applyBackgroundImageWithMask(
-                 mask: mask,
-                 to: imageBuffer,
-                 backgroundImage: background,
-                 isFrontCamera: isFrontCamera,
-           )
-            
-            completion(imageBuffer)
-            
-        } catch {
-            completion(imageBuffer)
-        }
-    }
-    
-    /// Applies background image with segmentation mask to an image buffer
-      private func applyBackgroundImageWithMask(
-        mask: SegmentationMask,
-        to imageBuffer: CVImageBuffer,
-        backgroundImage: UIImage?,
-        isFrontCamera: Bool
-      ) {
-        guard let backgroundImage = backgroundImage else {
-         print("No background image provided, falling back to blur")
-          // Fallback to blur if no background image
-          UIUtilities.applySegmentationMask(
-            mask: mask, to: imageBuffer,
-            backgroundColor: UIColor.lightGray.withAlphaComponent(0.95),
-            foregroundColor: nil)
-          return
-        }
-          
-        let width = CVPixelBufferGetWidth(imageBuffer)
-        let height = CVPixelBufferGetHeight(imageBuffer)
-        
-        // Create pixel buffer directly from image with proper size and orientation in ONE step
-        // This eliminates: orientation metadata change → scaledImage (encode/decode) → createImageBuffer
-        guard let backgroundImageBuffer = UIUtilities.createImageBuffer(
-            from: backgroundImage, 
-            size: CGSize(width: width, height: height), 
-            shouldRotateAndMirror: isFrontCamera  // Handle orientation during rendering
-        ) else {
-          print("Failed to create image buffer from background image")
-          // Fallback to blur
-          UIUtilities.applySegmentationMask(
-            mask: mask, to: imageBuffer,
-            backgroundColor: UIColor.lightGray.withAlphaComponent(0.95),
-            foregroundColor: nil)
-          return
-        }
-        
-        // Apply the mask to composite person from camera image onto background
-        applyMaskToCompositeImages(
-          mask: mask,
-          cameraImageBuffer: imageBuffer,
-          backgroundImageBuffer: backgroundImageBuffer
-        )
-      }
-      
-      /// Applies mask to composite person from camera image onto background image (in-place)
-      private func applyMaskToCompositeImages(
-        mask: SegmentationMask,
-        cameraImageBuffer: CVImageBuffer,
-        backgroundImageBuffer: CVImageBuffer
-      ) {
-        let width = CVPixelBufferGetWidth(mask.buffer)
-        let height = CVPixelBufferGetHeight(mask.buffer)
-        
-        assert(CVPixelBufferGetWidth(cameraImageBuffer) == width, "Width must match")
-        assert(CVPixelBufferGetHeight(cameraImageBuffer) == height, "Height must match")
-        assert(CVPixelBufferGetWidth(backgroundImageBuffer) == width, "Background width must match")
-        assert(CVPixelBufferGetHeight(backgroundImageBuffer) == height, "Background height must match")
-        
-        // Lock the mask buffer to get direct access
-        CVPixelBufferLockBaseAddress(mask.buffer, CVPixelBufferLockFlags.readOnly)
-        defer { CVPixelBufferUnlockBaseAddress(mask.buffer, CVPixelBufferLockFlags.readOnly) }
-        
-        let maskBytesPerRow = CVPixelBufferGetBytesPerRow(mask.buffer)
-        let maskAddress = CVPixelBufferGetBaseAddress(mask.buffer)!.bindMemory(
-          to: Float32.self, capacity: maskBytesPerRow * height)
-        
-        // Use shared utility for compositing (writes to camera buffer in-place)
-        UIUtilities.compositeBuffers(
-          personBuffer: cameraImageBuffer,
-          backgroundBuffer: backgroundImageBuffer,
-          outputBuffer: cameraImageBuffer,
-          maskData: maskAddress,
-          maskWidth: width,
-          maskHeight: height,
-          confidenceThresholds: (low: 0.0, high: 1.0) // No thresholding for MLKit masks
-        )
-      }
     
     public func processSampleBuffer(_ sampleBuffer: CVPixelBuffer, background: UIImage?, completion: @escaping (CVPixelBuffer?) -> Void) {
        
