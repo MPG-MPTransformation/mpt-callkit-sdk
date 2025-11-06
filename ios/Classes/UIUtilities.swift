@@ -20,11 +20,125 @@ import UIKit
 import CoreImage
 import CoreML
 import Vision
+import MLKitSegmentationCommon
+import MLKitSegmentationSelfie
 
 /// Defines UI-related utilitiy methods for vision detection.
 public class UIUtilities {
 
   // MARK: - Public
+    
+  /// Applies a segmentation mask to an image buffer by replacing colors in the segmented regions.
+  ///
+  /// @param The mask output from a segmentation operation.
+  /// @param imageBuffer The image buffer on which segmentation was performed. Must have pixel
+  ///     format type `kCVPixelFormatType_32BGRA`.
+  /// @param backgroundColor Optional color to render into the background region (i.e. outside of
+  ///    the segmented region of interest).
+  /// @param foregroundColor Optional color to render into the foreground region (i.e. inside the
+  ///     segmented region of interest).
+  public static func applySegmentationMask(
+    mask: SegmentationMask, to imageBuffer: CVImageBuffer,
+    backgroundColor: UIColor?, foregroundColor: UIColor?
+  ) {
+    assert(
+      CVPixelBufferGetPixelFormatType(imageBuffer) == kCVPixelFormatType_32BGRA,
+      "Image buffer must have 32BGRA pixel format type")
+
+    let width = CVPixelBufferGetWidth(mask.buffer)
+    let height = CVPixelBufferGetHeight(mask.buffer)
+    assert(CVPixelBufferGetWidth(imageBuffer) == width, "Width must match")
+    assert(CVPixelBufferGetHeight(imageBuffer) == height, "Height must match")
+
+    if backgroundColor == nil && foregroundColor == nil {
+      return
+    }
+
+    let writeFlags = CVPixelBufferLockFlags(rawValue: 0)
+    CVPixelBufferLockBaseAddress(imageBuffer, writeFlags)
+    CVPixelBufferLockBaseAddress(mask.buffer, CVPixelBufferLockFlags.readOnly)
+
+    let maskBytesPerRow = CVPixelBufferGetBytesPerRow(mask.buffer)
+    var maskAddress =
+      CVPixelBufferGetBaseAddress(mask.buffer)!.bindMemory(
+        to: Float32.self, capacity: maskBytesPerRow * height)
+
+    let imageBytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer)
+    var imageAddress = CVPixelBufferGetBaseAddress(imageBuffer)!.bindMemory(
+      to: UInt8.self, capacity: imageBytesPerRow * height)
+
+    var redFG: CGFloat = 0.0
+    var greenFG: CGFloat = 0.0
+    var blueFG: CGFloat = 0.0
+    var alphaFG: CGFloat = 0.0
+    var redBG: CGFloat = 0.0
+    var greenBG: CGFloat = 0.0
+    var blueBG: CGFloat = 0.0
+    var alphaBG: CGFloat = 0.0
+
+    let backgroundColor = backgroundColor != nil ? backgroundColor : .clear
+    let foregroundColor = foregroundColor != nil ? foregroundColor : .clear
+    backgroundColor!.getRed(&redBG, green: &greenBG, blue: &blueBG, alpha: &alphaBG)
+    foregroundColor!.getRed(&redFG, green: &greenFG, blue: &blueFG, alpha: &alphaFG)
+
+    for _ in 0...(height - 1) {
+      for col in 0...(width - 1) {
+        let pixelOffset = col * Constants.bgraBytesPerPixel
+        let blueOffset = pixelOffset
+        let greenOffset = pixelOffset + 1
+        let redOffset = pixelOffset + 2
+        let alphaOffset = pixelOffset + 3
+
+        let maskValue: CGFloat = CGFloat(maskAddress[col])
+        let backgroundRegionRatio: CGFloat = 1.0 - maskValue
+        let foregroundRegionRatio = maskValue
+
+        let originalPixelRed: CGFloat =
+          CGFloat(imageAddress[redOffset]) / Constants.maxColorComponentValue
+        let originalPixelGreen: CGFloat =
+          CGFloat(imageAddress[greenOffset]) / Constants.maxColorComponentValue
+        let originalPixelBlue: CGFloat =
+          CGFloat(imageAddress[blueOffset]) / Constants.maxColorComponentValue
+        let originalPixelAlpha: CGFloat =
+          CGFloat(imageAddress[alphaOffset]) / Constants.maxColorComponentValue
+
+        let redOverlay = redBG * backgroundRegionRatio + redFG * foregroundRegionRatio
+        let greenOverlay = greenBG * backgroundRegionRatio + greenFG * foregroundRegionRatio
+        let blueOverlay = blueBG * backgroundRegionRatio + blueFG * foregroundRegionRatio
+        let alphaOverlay = alphaBG * backgroundRegionRatio + alphaFG * foregroundRegionRatio
+
+        // Calculate composite color component values.
+        // Derived from https://en.wikipedia.org/wiki/Alpha_compositing#Alpha_blending
+        let compositeAlpha: CGFloat = ((1.0 - alphaOverlay) * originalPixelAlpha) + alphaOverlay
+        var compositeRed: CGFloat = 0.0
+        var compositeGreen: CGFloat = 0.0
+        var compositeBlue: CGFloat = 0.0
+        // Only perform rgb blending calculations if the output alpha is > 0. A zero-value alpha
+        // means none of the color channels actually matter, and would introduce division by 0.
+        if abs(compositeAlpha) > CGFloat(Float.ulpOfOne) {
+          compositeRed =
+            (((1.0 - alphaOverlay) * originalPixelAlpha * originalPixelRed)
+              + (alphaOverlay * redOverlay)) / compositeAlpha
+          compositeGreen =
+            (((1.0 - alphaOverlay) * originalPixelAlpha * originalPixelGreen)
+              + (alphaOverlay * greenOverlay)) / compositeAlpha
+          compositeBlue =
+            (((1.0 - alphaOverlay) * originalPixelAlpha * originalPixelBlue)
+              + (alphaOverlay * blueOverlay)) / compositeAlpha
+        }
+
+        imageAddress[redOffset] = UInt8(compositeRed * Constants.maxColorComponentValue)
+        imageAddress[greenOffset] = UInt8(compositeGreen * Constants.maxColorComponentValue)
+        imageAddress[blueOffset] = UInt8(compositeBlue * Constants.maxColorComponentValue)
+      }
+
+      imageAddress += imageBytesPerRow / MemoryLayout<UInt8>.size
+      maskAddress += maskBytesPerRow / MemoryLayout<Float32>.size
+    }
+
+    CVPixelBufferUnlockBaseAddress(imageBuffer, writeFlags)
+    CVPixelBufferUnlockBaseAddress(mask.buffer, CVPixelBufferLockFlags.readOnly)
+  }
 
   public static func addCircle(
     atPoint point: CGPoint,
@@ -177,6 +291,126 @@ public class UIUtilities {
     } else {
       CVPixelBufferUnlockBaseAddress(imageBuffer, flags)
       return nil
+    }
+  }
+
+  /// Creates a pixel buffer from an image with optional transformation
+  ///
+  /// @param image The source image
+  /// @param size The target size for the pixel buffer
+  /// @param shouldRotateAndMirror Whether to apply rotation and mirroring transformations
+  /// @return The created pixel buffer or nil if creation fails
+  public static func createImageBuffer(from image: UIImage, size: CGSize, shouldRotateAndMirror: Bool = false) -> CVPixelBuffer? {
+    let pixelBufferAttrs: CFDictionary = [
+      kCVPixelBufferCGImageCompatibilityKey: kCFBooleanTrue!,
+      kCVPixelBufferCGBitmapContextCompatibilityKey: kCFBooleanTrue!,
+      kCVPixelBufferMetalCompatibilityKey: kCFBooleanTrue!
+    ] as CFDictionary
+    
+    var pixelBuffer: CVPixelBuffer?
+    let status = CVPixelBufferCreate(kCFAllocatorDefault, Int(size.width), Int(size.height), kCVPixelFormatType_32BGRA, pixelBufferAttrs, &pixelBuffer)
+    
+    guard status == kCVReturnSuccess, let buffer = pixelBuffer, let cgImage = image.cgImage else { return nil }
+    
+    CVPixelBufferLockBaseAddress(buffer, CVPixelBufferLockFlags(rawValue: 0))
+    defer { CVPixelBufferUnlockBaseAddress(buffer, CVPixelBufferLockFlags(rawValue: 0)) }
+    
+    let context = CGContext(data: CVPixelBufferGetBaseAddress(buffer),
+                           width: Int(size.width),
+                           height: Int(size.height),
+                           bitsPerComponent: 8,
+                           bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
+                           space: CGColorSpaceCreateDeviceRGB(),
+                           bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
+    
+    if shouldRotateAndMirror {
+      context?.saveGState()
+      context?.translateBy(x: size.width / 2, y: size.height / 2)
+      context?.rotate(by: .pi / 2)
+      context?.scaleBy(x: -1.0, y: 1.0)
+      
+      let drawRect = CGRect(x: -size.height / 2, y: -size.width / 2, width: size.height, height: size.width)
+      context?.draw(cgImage, in: drawRect)
+      context?.restoreGState()
+    } else {
+      let drawRect = CGRect(x: 0, y: 0, width: size.width, height: size.height)
+      context?.draw(cgImage, in: drawRect)
+    }
+    
+    return buffer
+  }
+
+  /// Performs pixel-by-pixel compositing of two buffers using a mask
+  ///
+  /// @param personBuffer The foreground buffer
+  /// @param backgroundBuffer The background buffer
+  /// @param outputBuffer The output buffer to write results
+  /// @param maskData The mask confidence values (Float32)
+  /// @param maskWidth The width of the mask
+  /// @param maskHeight The height of the mask
+  /// @param confidenceThresholds Tuple of (low, high) confidence thresholds for smooth blending
+  public static func compositeBuffers(
+    personBuffer: CVPixelBuffer,
+    backgroundBuffer: CVPixelBuffer,
+    outputBuffer: CVPixelBuffer,
+    maskData: UnsafePointer<Float32>,
+    maskWidth: Int,
+    maskHeight: Int,
+    confidenceThresholds: (low: Float, high: Float) = (0.3, 0.5)
+  ) {
+    let width = CVPixelBufferGetWidth(personBuffer)
+    let height = CVPixelBufferGetHeight(personBuffer)
+    
+    CVPixelBufferLockBaseAddress(personBuffer, CVPixelBufferLockFlags.readOnly)
+    CVPixelBufferLockBaseAddress(backgroundBuffer, CVPixelBufferLockFlags.readOnly)
+    CVPixelBufferLockBaseAddress(outputBuffer, CVPixelBufferLockFlags(rawValue: 0))
+    
+    defer {
+      CVPixelBufferUnlockBaseAddress(personBuffer, CVPixelBufferLockFlags.readOnly)
+      CVPixelBufferUnlockBaseAddress(backgroundBuffer, CVPixelBufferLockFlags.readOnly)
+      CVPixelBufferUnlockBaseAddress(outputBuffer, CVPixelBufferLockFlags(rawValue: 0))
+    }
+    
+    let personBytesPerRow = CVPixelBufferGetBytesPerRow(personBuffer)
+    var personAddress = CVPixelBufferGetBaseAddress(personBuffer)!.bindMemory(to: UInt8.self, capacity: personBytesPerRow * height)
+    
+    let backgroundBytesPerRow = CVPixelBufferGetBytesPerRow(backgroundBuffer)
+    var backgroundAddress = CVPixelBufferGetBaseAddress(backgroundBuffer)!.bindMemory(to: UInt8.self, capacity: backgroundBytesPerRow * height)
+    
+    let outputBytesPerRow = CVPixelBufferGetBytesPerRow(outputBuffer)
+    var outputAddress = CVPixelBufferGetBaseAddress(outputBuffer)!.bindMemory(to: UInt8.self, capacity: outputBytesPerRow * height)
+    
+    let scaleX = CGFloat(maskWidth) / CGFloat(width)
+    let scaleY = CGFloat(maskHeight) / CGFloat(height)
+    
+    for y in 0..<height {
+      for x in 0..<width {
+        let pixelOffset = x * 4
+        
+        let maskX = Int(CGFloat(x) * scaleX)
+        let maskY = Int(CGFloat(y) * scaleY)
+        let maskIndex = min(maskY * maskWidth + maskX, maskWidth * maskHeight - 1)
+        let confidence = CGFloat(maskData[maskIndex])
+        
+        let personRatio: CGFloat
+        if confidence > CGFloat(confidenceThresholds.high) {
+          personRatio = 1.0
+        } else if confidence < CGFloat(confidenceThresholds.low) {
+          personRatio = 0.0
+        } else {
+          personRatio = (confidence - CGFloat(confidenceThresholds.low)) / CGFloat(confidenceThresholds.high - confidenceThresholds.low)
+        }
+        let backgroundRatio = 1.0 - personRatio
+        
+        outputAddress[pixelOffset] = UInt8(CGFloat(personAddress[pixelOffset]) * personRatio + CGFloat(backgroundAddress[pixelOffset]) * backgroundRatio)
+        outputAddress[pixelOffset + 1] = UInt8(CGFloat(personAddress[pixelOffset + 1]) * personRatio + CGFloat(backgroundAddress[pixelOffset + 1]) * backgroundRatio)
+        outputAddress[pixelOffset + 2] = UInt8(CGFloat(personAddress[pixelOffset + 2]) * personRatio + CGFloat(backgroundAddress[pixelOffset + 2]) * backgroundRatio)
+        outputAddress[pixelOffset + 3] = UInt8(CGFloat(personAddress[pixelOffset + 3]) * personRatio + CGFloat(backgroundAddress[pixelOffset + 3]) * backgroundRatio)
+      }
+      
+      personAddress += personBytesPerRow / MemoryLayout<UInt8>.size
+      backgroundAddress += backgroundBytesPerRow / MemoryLayout<UInt8>.size
+      outputAddress += outputBytesPerRow / MemoryLayout<UInt8>.size
     }
   }
 

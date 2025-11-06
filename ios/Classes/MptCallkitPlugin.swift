@@ -7,7 +7,6 @@ import Darwin
 import AVFoundation
 import CoreVideo
 import CoreImage
-import MediaPipeTasksVision
 import VideoToolbox
 import Accelerate
 import Accelerate.vImage
@@ -273,7 +272,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
     var mUseFrontCamera: Bool = true
 
-    private var mediaPipeProcessor: MediaPipeSegmentationProcessor? = nil
+    private var processor: SegmentationProcessor? = nil
     private var frameCounter: Int = 0
     private static var enableBlurBackground: Bool = false
     
@@ -398,9 +397,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         setupNotificationHandling()
         // setupViewLifecycleObservers() // REMOVED - Views manage themselves
 
-        // Initialize MediaPipe segmentation processor (iOS 13+ compatible)
-        mediaPipeProcessor = MediaPipeSegmentationProcessor()
-        NSLog("MediaPipe Segmentation Status: \(mediaPipeProcessor?.getStatusMessage() ?? "Not available")")
+        processor = SegmentationProcessor()
+        NSLog("Processor Segmentation Status: \(processor?.getStatusMessage() ?? "Not available")")
         // Initialize resolution system
         updateRequestedResolution()
         
@@ -3480,12 +3478,34 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     isProcessingFrame = true
     // Use dedicated video processing queue to avoid priority inversion
     videoProcessingQueue.async { [weak self] in
-        self?.processSegmentationWithMediaPipe(imageBuffer)
+//        self?.processSegmentation(imageBuffer)
+        self?.processSegmentation(sampleBuffer, imageBuffer: imageBuffer)
     }
   }
+    
+    private func processSegmentation(_ sampleBuffer: CMSampleBuffer, imageBuffer: CVPixelBuffer) {
+        defer {
+          DispatchQueue.main.async { [weak self] in
+            self?.isProcessingFrame = false
+          }
+        }
 
-  /// Process segmentation using MediaPipe (iOS 13+ compatible)
-  private func processSegmentationWithMediaPipe(_ imageBuffer: CVPixelBuffer) {
+        guard let curProcessor = processor else {
+          NSLog("❌ Processor not available")
+          return
+        }
+        
+        curProcessor.processSampleBuffer(sampleBuffer, imageBuffer: imageBuffer, background: bgBitmap, isFrontCamera: mUseFrontCamera) { [weak self] result in
+            guard let result = result else {
+                return
+            }
+            DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
+                self?.updatePreviewOverlayViewWithImageBuffer(result)
+            }
+        }
+    }
+
+  private func processSegmentation(_ imageBuffer: CVPixelBuffer) {
     // Ensure processing flag is reset even if function exits early
     defer {
       DispatchQueue.main.async { [weak self] in
@@ -3493,12 +3513,12 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
       }
     }
     
-    guard let processor = mediaPipeProcessor else {
-      NSLog("❌ MediaPipe processor not available")
+    guard let curProcessor = processor else {
+      NSLog("❌ Processor not available")
       return
     }
     
-    processor.processSampleBuffer(imageBuffer, background: bgBitmap) { [weak self] result in
+    curProcessor.processSampleBuffer(imageBuffer, background: bgBitmap) { [weak self] result in
       guard let result = result else {
           DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
               self?.updatePreviewOverlayViewWithImageBuffer(imageBuffer)

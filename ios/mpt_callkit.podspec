@@ -17,7 +17,8 @@ A new Flutter plugin project.
   s.resources    = ['Assets/**.*']
   s.dependency 'Flutter'
   s.dependency 'MediaPipeTasksVision'
-  s.platform         = :ios, '13.0'
+  s.dependency 'GoogleMLKit/SegmentationSelfie', '9.0.0' # For blurring background
+  s.platform         = :ios, '15.5'
   s.static_framework = true
 
   # System frameworks - these are frameworks provided by Apple that you want to link with
