@@ -71,6 +71,7 @@ public class MainActivity extends Activity {
             filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
             filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
             filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
+            filter.addAction(PortSipService.CONFERENCE_STATE_CHANGE_ACTION);
             System.out.println("SDK-Android: MainActivity - Registering broadcast receiver (using Engine's receiver)");
 
             try {
@@ -155,6 +156,7 @@ public class MainActivity extends Activity {
             filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
             filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
             filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
+            filter.addAction(PortSipService.CONFERENCE_STATE_CHANGE_ACTION);
 
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

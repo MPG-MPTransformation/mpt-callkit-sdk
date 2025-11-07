@@ -129,6 +129,7 @@ class SDKPrefsKeyConstants {
   static const String RECORD_LABEL = "record_label";
   static const String ENABLE_BLUR_BACKGROUND = "enable_blur_background";
   static const String BG_PATH = "bg_path";
+  static const String ACCESS_TOKEN = "access_token";
 }
 
 class MptSDKCoreConstants {
@@ -147,4 +148,5 @@ class SIPMessageTypeConstants {
   static const String AGENT_INFO = "agentInfo";
   static const String ADD_TO_CONF_REQ = "add_to_conf";
   static const String ADD_TO_CONF_RESP = "add_conf_res";
+  static const String CREATE_CONFERENCE = "create_conference";
 }

@@ -89,6 +89,8 @@ public class PortSipService extends Service
     public static final String ACTION_KEEP_ALIVE = "PortSip.AndroidSample.Test.KEEP_ALIVE";
     public static final String EXTRA_CALL_DESCRIPTION = "Description";
     public static final String ACTION_SIP_AUDIODEVICE = "PortSip.AndroidSample.Test.AudioDeviceUpdate";
+    public static final String CONFERENCE_STATE_CHANGE_ACTION = "PortSip.AndroidSample.Test.ConferenceStateChange";
+    public static final String EXTRA_CONFERENCE_STATE = "ConferenceState";
     public static final String EXTRA_CALL_SEESIONID = "SessionID";
     public static final int PENDINGCALL_NOTIFICATION = SERVICE_NOTIFICATION + 1;
     public static final String STUN_HOST = "stun host";
@@ -974,18 +976,18 @@ public class PortSipService extends Service
 
             if (existsVideo) {
                 // Stop any existing camera source to avoid conflicts
-                MptCallkitPlugin.shared.stopCameraSource();
+                // MptCallkitPlugin.shared.stopCameraSource();
                 
                 // for receive video stream
                 Engine.Instance().getEngine().enableVideoStreamCallback(sessionId,
                         PortSipEnumDefine.ENUM_DIRECTION_RECV);
-                int result = Engine.Instance().getEngine().enableSendVideoStreamToRemote(sessionId, true);
-                System.out.println("SDK-Android: enableSendVideoStream result: " + result);
+                // int result = Engine.Instance().getEngine().enableSendVideoStreamToRemote(sessionId, true);
+                // System.out.println("SDK-Android: enableSendVideoStream result: " + result);
                 
-                // Start custom camera source after a delay to let PortSIP initialize
-                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                    MptCallkitPlugin.shared.startCameraSource();
-                }, 500); // 500ms delay
+                // // Start custom camera source after a delay to let PortSIP initialize
+                // new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                //     MptCallkitPlugin.shared.startCameraSource();
+                // }, 500); // 500ms delay
             }
 
             if (session.hasVideo && !existsVideo && videoCodecs.isEmpty()) {
@@ -1068,7 +1070,7 @@ public class PortSipService extends Service
     @Override
     public void onInviteClosed(long sessionId, String sipMessage) {
         logWithTimestamp("SDK-Android: onInviteClosed");
-        MptCallkitPlugin.shared.stopCameraSource();
+        // MptCallkitPlugin.shared.stopCameraSource();
         Session session = CallManager.Instance().findSessionBySessionID(sessionId);
         if (session != null) {
             session.state = Session.CALL_STATE_FLAG.CLOSED;

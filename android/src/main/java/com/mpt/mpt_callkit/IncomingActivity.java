@@ -65,6 +65,7 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
             filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
             filter.addAction(PortSipService.CALL_CHANGE_ACTION);
             filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
+            filter.addAction(PortSipService.CONFERENCE_STATE_CHANGE_ACTION);
             System.out.println(
                     "SDK-Android: IncomingActivity - Registering broadcast receiver (using Engine's receiver)");
 
@@ -135,6 +136,7 @@ public class IncomingActivity extends Activity implements PortMessageReceiver.Br
             filter.addAction(PortSipService.REGISTER_CHANGE_ACTION);
             filter.addAction(PortSipService.CALL_CHANGE_ACTION);
             filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
+            filter.addAction(PortSipService.CONFERENCE_STATE_CHANGE_ACTION);
 
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

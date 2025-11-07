@@ -198,8 +198,17 @@ public class RemoteView implements PlatformView {
                 } else {
                     System.out.println("SDK-Android: handleBroadcastReceiver - session null");
                 }
+            } else if (PortSipService.CONFERENCE_STATE_CHANGE_ACTION.equals(action)) {
+                // Xử lý khi conference state thay đổi
+                boolean isConference = intent.getBooleanExtra(PortSipService.EXTRA_CONFERENCE_STATE, false);
+                System.out.println("SDK-Android: RemoteView - Conference state changed to: " + isConference);
+                
+                if (remoteRenderVideoView != null) {
+                    updateVideo(Engine.Instance().getEngine());
+                }
             } else {
                 System.out.println("SDK-Android: handleBroadcastReceiver - action not match");
+                System.out.println("SDK-Android: handleBroadcastReceiver - action: " + action);
             }
         } catch (Exception e) {
             System.out.println("Error in handleBroadcastReceiver: " + e.getMessage());

@@ -7,18 +7,19 @@ class LocalViewController: UIViewController {
    var viewLocalVideo: PortSIPVideoRenderView!
    var portSIPSDK: PortSIPSDK!
    var isVideoInitialized: Bool = false
-    public lazy var previewOverlayView: UIImageView = {
-
-        precondition(isViewLoaded)
-        let previewOverlayView = UIImageView(frame: .zero)
-        previewOverlayView.contentMode = UIView.ContentMode.scaleAspectFill
-       previewOverlayView.clipsToBounds = true
-        previewOverlayView.translatesAutoresizingMaskIntoConstraints = false
-        return previewOverlayView
-      }()
-    public func setImage(image: UIImage?) {
-        self.previewOverlayView.image = image
-    }
+    var isConferenceMode: Bool = false
+//    public lazy var previewOverlayView: UIImageView = {
+//
+//        precondition(isViewLoaded)
+//        let previewOverlayView = UIImageView(frame: .zero)
+//        previewOverlayView.contentMode = UIView.ContentMode.scaleAspectFill
+//       previewOverlayView.clipsToBounds = true
+//        previewOverlayView.translatesAutoresizingMaskIntoConstraints = false
+//        return previewOverlayView
+//      }()
+//    public func setImage(image: UIImage?) {
+//        self.previewOverlayView.image = image
+//    }
   
    override func viewDidLoad() {
        super.viewDidLoad()
@@ -105,11 +106,16 @@ class LocalViewController: UIViewController {
              let isVideoEnabled = userInfo["isVideoEnabled"] as? Bool else {
            return
        }
+       
+       let isConference = userInfo["conference"] as? Bool ?? false
       
        print("LocalViewController - handleVideoStateChange - video enabled: \(isVideoEnabled)")
       
        DispatchQueue.main.async { [weak self] in
            guard let self = self else { return }
+           
+           // Handle conference mode change
+           self.handleConferenceModeChange(isConference: isConference)
           
            if isVideoEnabled && !self.isVideoInitialized {
                self.initializeLocalVideo()
@@ -117,6 +123,31 @@ class LocalViewController: UIViewController {
            self.updateVideoVisibility(isVisible: true)
        }
    }
+    /// Handles conference mode changes (switching between normal call and conference call)
+    private func handleConferenceModeChange(isConference: Bool) {
+        guard isConferenceMode != isConference else {
+            print("LocalViewController - same action")
+            return
+        }
+       
+        print("LocalViewController - Conference mode changed from \(isConferenceMode) to \(isConference)")
+        isConferenceMode = isConference
+        // Get the SDK instance from the plugin
+        let appDelegate = MptCallkitPlugin.shared
+        let sessionId = appDelegate.activeSessionid ?? 0
+       
+        if isConference {
+            // Entered conference mode
+            print("LocalViewController - Entering CONFERENCE mode")
+//            previewOverlayView.isHidden = true
+//            viewLocalVideo.isHidden = false
+        } else {
+            // Exited conference mode (back to normal call)
+            print("LocalViewController - Exiting CONFERENCE mode (back to normal)")
+//            previewOverlayView.isHidden = false
+//            viewLocalVideo.isHidden = true
+        }
+    }
   
    @objc private func handleCameraStateChange(_ notification: Notification) {
        guard let userInfo = notification.userInfo,
@@ -164,7 +195,8 @@ class LocalViewController: UIViewController {
        DispatchQueue.main.async {
            if isOn {
                // Bật camera - hiển thị video
-               let result = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
+               let shouldMirror = self.mCameraDeviceId == 1
+               let result = sdk.displayLocalVideo(true, mirror: shouldMirror, localVideoWindow: localVideo)
                print("[Debug] LocalViewController - Enable camera display result: \(result)")
               
                // Đảm bảo view hiển thị và xóa placeholder
@@ -172,7 +204,7 @@ class LocalViewController: UIViewController {
                localVideo.backgroundColor = UIColor.clear
                self.removeCameraOffPlaceholder()
            } else {
-               // Tắt camera - dừng video nhưng vẫn hiển thị view với background
+               // Tắt camera - dừng video
                let result = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
                print("[Debug] LocalViewController - Disable camera display result: \(result)")
               
@@ -258,25 +290,25 @@ class LocalViewController: UIViewController {
        viewLocalVideo = PortSIPVideoRenderView()
        viewLocalVideo.translatesAutoresizingMaskIntoConstraints = false
        viewLocalVideo.backgroundColor = .black
-//       viewLocalVideo.contentMode = .scaleToFill // Sử dụng scaleAspectFill để lấp đầy view
-//       viewLocalVideo.clipsToBounds = true // Cắt phần thừa để không bị tràn ra ngoài
-//       self.view.addSubview(viewLocalVideo)
-       self.view.addSubview(previewOverlayView)
-       NSLayoutConstraint.activate([
-         previewOverlayView.topAnchor.constraint(equalTo: view.topAnchor),
-         previewOverlayView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-         previewOverlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-         previewOverlayView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-
-       ])
+       viewLocalVideo.contentMode = .scaleToFill // Sử dụng scaleAspectFill để lấp đầy view
+       viewLocalVideo.clipsToBounds = true // Cắt phần thừa để không bị tràn ra ngoài
+       self.view.addSubview(viewLocalVideo)
+//       self.view.addSubview(previewOverlayView)
+//       NSLayoutConstraint.activate([
+//         previewOverlayView.topAnchor.constraint(equalTo: view.topAnchor),
+//         previewOverlayView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+//         previewOverlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+//         previewOverlayView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+//
+//       ])
       
        // Đặt constraints để lấp đầy toàn bộ view controller
-//       NSLayoutConstraint.activate([
-//           viewLocalVideo.topAnchor.constraint(equalTo: view.topAnchor),
-//           viewLocalVideo.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-//           viewLocalVideo.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-//           viewLocalVideo.trailingAnchor.constraint(equalTo: view.trailingAnchor)
-//       ])
+       NSLayoutConstraint.activate([
+           viewLocalVideo.topAnchor.constraint(equalTo: view.topAnchor),
+           viewLocalVideo.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+           viewLocalVideo.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+           viewLocalVideo.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+       ])
       
        // Set a clear background for easy debugging
        self.view.backgroundColor = .black
@@ -292,7 +324,9 @@ class LocalViewController: UIViewController {
            print("LocalViewController - Initializing video render")
            viewLocalVideo.initVideoRender()
            // Display local video with mirror enabled for front camera
-           let result = portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
+           // 🔥 CRITICAL FIX: Pass viewLocalVideo to localVideoWindow parameter
+           let shouldMirror = mCameraDeviceId == 1 // Mirror only for front camera
+           let result = portSIPSDK.displayLocalVideo(true, mirror: shouldMirror, localVideoWindow: viewLocalVideo)
            print("LocalViewController - displayLocalVideo result: \(result)")
            isVideoInitialized = true
           
@@ -342,7 +376,7 @@ class LocalViewController: UIViewController {
            let shouldMirror = mCameraDeviceId == 1
           
            // Additional safety check before calling displayLocalVideo
-           let displayResult = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
+           let displayResult = sdk.displayLocalVideo(true, mirror: shouldMirror, localVideoWindow: localVideo)
            if displayResult == 0 {
                print("LocalViewController - Switched to \(shouldMirror ? "front" : "back") camera with mirror \(shouldMirror ? "enabled" : "disabled")")
               
@@ -381,10 +415,11 @@ class LocalViewController: UIViewController {
        let cameraId: Int32 = useFrontCamera ? 1 : 0
        let setVideoResult = sdk.setVideoDeviceId(cameraId)
        if setVideoResult == 0 {
+           mCameraDeviceId = cameraId
            // Enable mirror only for front camera
            let shouldMirror = useFrontCamera
           
-           let displayResult = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
+           let displayResult = sdk.displayLocalVideo(true, mirror: shouldMirror, localVideoWindow: localVideo)
            if displayResult == 0 {
                print("LocalViewController - Set to \(shouldMirror ? "front" : "back") camera with mirror \(shouldMirror ? "enabled" : "disabled")")
               
@@ -453,10 +488,11 @@ class LocalViewController: UIViewController {
            // Process video display
            if isVisible {
                // Display video with mirror depending on the camera
-               let result = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
+               let shouldMirror = self.mCameraDeviceId == 1
+               let result = sdk.displayLocalVideo(true, mirror: shouldMirror, localVideoWindow: localVideo)
                print("[Debug] LocalViewController - Display local video result: \(result)")
            } else {
-               // Hide video but not release
+               // Hide video
                let result = sdk.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
                print("[Debug] LocalViewController - Hide local video result: \(result)")
            }
@@ -471,8 +507,10 @@ class LocalViewController: UIViewController {
    func cleanupVideo() {
        print("LocalViewController - cleanupVideo")
        if isVideoInitialized {
-           portSIPSDK.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
-           viewLocalVideo.releaseVideoRender()
+           // Stop displaying local video
+           portSIPSDK?.displayLocalVideo(false, mirror: false, localVideoWindow: nil)
+           // Release the video render
+           viewLocalVideo?.releaseVideoRender()
            isVideoInitialized = false
        }
    }

@@ -12,9 +12,9 @@ class LocalViewFactory: NSObject, FlutterPlatformViewFactory {
        super.init()
    }
 
-     public func setImage(image: UIImage?) {
-         LocalViewFactory.localView?.localViewController?.setImage(image: image)
-     }
+//     public func setImage(image: UIImage?) {
+//         LocalViewFactory.localView?.localViewController?.setImage(image: image)
+//     }
   
    func create(
        withFrame frame: CGRect,

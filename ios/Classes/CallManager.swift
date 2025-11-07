@@ -592,16 +592,11 @@ class CallManager: NSObject {
     }
     
     func hangUpAllCalls(){
+        NSLog("hangUpAllCalls...")
         for i in 0 ..< MAX_LINES {
             if sessionArray[i].sessionId > INVALID_SESSION_ID {
-                let res = _portSIPSDK.hangUp(sessionArray[i].sessionId)
-                if res == 0 {
-                    NSLog("Hang up on line=\(i) - sessionId=\(sessionArray[i].sessionId)")
-                    reportEndCall(uuid: sessionArray[i].uuid)
-                    sessionArray[i].sessionId = CLong(INVALID_SESSION_ID)
-                } else {
-                    NSLog("Hang up on sessionId=\(sessionArray[i].sessionId) failed with status: \(res)")
-                }
+                let res = endCall(sessionid: sessionArray[i].sessionId)
+                NSLog("Hang up on line=\(i) - sessionId=\(sessionArray[i].sessionId)")
             }
         }
     }
@@ -838,9 +833,6 @@ class CallManager: NSObject {
 
     public func addCall(call: Session) -> (Int) {
         NSLog("🟢 addCall - BEFORE: sessionId=\(call.sessionId), uuid=\(call.uuid)")
-        for i in 0 ..< MAX_LINES {
-            NSLog("🟢   Line[\(i)]: hasAdd=\(sessionArray[i].hasAdd), sessionId=\(sessionArray[i].sessionId)")
-        }
         
         for i in 0 ..< MAX_LINES {
             if sessionArray[i].hasAdd == false {

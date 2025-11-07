@@ -34,6 +34,10 @@ class MptCallKitController {
   //hard code until have correct
   String localizedCallerName = "";
   String recordLabel = "";
+  final bool _isHostConference = false;
+  int? _currentHostConferenceId;
+
+  String? _userAccessToken;
   // file logging
   File? _logFile;
   bool _fileLoggingEnabled = false;
@@ -517,6 +521,7 @@ class MptCallKitController {
       await prefs.remove(SDKPrefsKeyConstants.DEVICE_INFO);
       await prefs.remove(SDKPrefsKeyConstants.RECORD_LABEL);
       await prefs.remove(SDKPrefsKeyConstants.ENABLE_BLUR_BACKGROUND);
+      await prefs.remove(SDKPrefsKeyConstants.ACCESS_TOKEN);
     } catch (e) {
       debugPrint('Failed to clear initSdk params: $e');
     }
@@ -531,6 +536,18 @@ class MptCallKitController {
   //     token: userToken,
   //   );
   // }
+
+  Future<void> _setUserAccessToken(String? accessToken) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(SDKPrefsKeyConstants.ACCESS_TOKEN, accessToken ?? "");
+    _userAccessToken = accessToken;
+  }
+
+  Future<String?> _getUserAccessToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    _userAccessToken = prefs.getString(SDKPrefsKeyConstants.ACCESS_TOKEN);
+    return _userAccessToken;
+  }
 
   Future<bool> loginRequest({
     required String username,
@@ -548,6 +565,7 @@ class MptCallKitController {
       onError: onError,
       data: (e) {
         accessTokenResponse?.call(e["result"]["accessToken"]);
+        _setUserAccessToken(e["result"]["accessToken"]);
       },
     );
     if (result) {
@@ -571,6 +589,7 @@ class MptCallKitController {
       onError: onError,
       data: (e) {
         accessTokenResponse?.call(e["result"]["accessToken"]);
+        _setUserAccessToken(e["result"]["accessToken"]);
       },
     );
     if (result) {
@@ -1351,6 +1370,12 @@ class MptCallKitController {
     );
   }
 
+  Future<int> _autoSelectAvailableLine() async {
+    final selectedLine = await channel.invokeMethod("autoSelectAvailableLine");
+    print("selected active line: $selectedLine");
+    return selectedLine;
+  }
+
   // Make call internal : agent extension to agent extension
   Future<bool> makeCallInternal({
     String? senderId,
@@ -1360,6 +1385,12 @@ class MptCallKitController {
     Function(String?)? onError,
     required String accessToken,
   }) async {
+    final selectedLine = await _autoSelectAvailableLine();
+    if (selectedLine < 0) {
+      onError?.call("No available line left");
+      return false;
+    }
+
     var extraInfoResult = {
       "type": isVideoCall == true ? CallType.VIDEO : CallType.VOICE,
       "extraInfo": extraInfo,
@@ -1377,6 +1408,8 @@ class MptCallKitController {
     );
   }
 
+  bool _isConference = false;
+
   Future<void> makeNativeCall({
     required String destination,
     required bool isVideoCall,
@@ -1391,33 +1424,48 @@ class MptCallKitController {
   Future<void> inviteToConference({
     required String destination,
     required bool isVideoCall,
-    required String accessToken,
+    required String extraInfo,
+    required String? accessToken,
     Function(String?)? onError,
   }) async {
+    /* these logic code use for native video call
     // make sure conference mode is active
-    // final conferenceState = await getConferenceState();
-    // if (conferenceState) {
-    //   await updateToConference();
-    // }
-
-    // // invite to conference
-    // await channel.invokeMethod("inviteToConference", {
-    //   "destination": destination,
-    //   "isVideoCall": isVideoCall,
-    // });
-
-    final selectedLine = await channel.invokeMethod("autoSelectAvailableLine");
-    print("autoSelectAvailableLine result: $selectedLine");
-    if (selectedLine > 0) {
-      await makeCallInternal(
-        destination: destination,
-        senderId: currentUserInfo!["user"]["extension"],
-        isVideoCall: isVideoCall,
-        extraInfo: "",
-        accessToken: accessToken,
-        onError: onError,
-      );
+    final conferenceState = await getConferenceState();
+    if (conferenceState) {
+      await updateToConference();
     }
+
+    // invite to conference
+    await channel.invokeMethod("inviteToConference", {
+      "destination": destination,
+      "isVideoCall": isVideoCall,
+    });
+    */
+
+    //destroy conference if need
+    _isConference = await getConferenceState();
+    print("conferenceState: $_isConference");
+    if (_isConference) {
+      await updateToConference(isConference: false);
+    }
+
+    await Future.delayed(const Duration(milliseconds: 2000));
+
+    final selectedLine = await _autoSelectAvailableLine();
+
+    if (selectedLine < 0) {
+      onError?.call("No available line left");
+      return;
+    }
+
+    await makeCallInternal(
+      destination: destination,
+      senderId: currentUserInfo!["user"]["extension"],
+      isVideoCall: isVideoCall,
+      extraInfo: extraInfo,
+      accessToken: accessToken ?? "",
+      onError: onError,
+    );
   }
 
   Future<bool> getConferenceState() async {
@@ -1520,6 +1568,10 @@ class MptCallKitController {
       //   print("hangup result: $result");
       //   return result;
       // }
+
+      await updateToConference(isConference: false);
+
+      _isConference = false;
 
       await hangUpAllCalls();
       return 0;
@@ -2038,6 +2090,7 @@ class MptCallKitController {
             print('Received isRemoteVideoReceived from native: $data');
             // updateVideoCall(isVideo: true);
             _isRemoteVideoReceived.add(data as bool);
+            // }
             break;
           // case "releaseExtension":
           //   if (isMakeCallByGuest) {
@@ -2369,7 +2422,8 @@ class MptCallKitController {
           await MptCallKitController().inviteToConference(
             destination: extension,
             isVideoCall: true,
-            accessToken: "",
+            extraInfo: "extraInfo",
+            accessToken: await _getUserAccessToken(),
             onError: (error) {
               if (error == null) return;
               print("Error: $error");
@@ -2467,16 +2521,23 @@ class MptCallKitController {
       print(
           'Remote party send request reinvite video call state: $existsVideo');
       if (!existsVideo && isAnswered) {
-        // //distroy conference if need
-        // final conferenceState = await getConferenceState();
-        // if (conferenceState) {
-        //   await updateToConference(isConference: false);
-        // }
+        // Update video call after 2.5 seconds in the agent side
+        await Future.delayed(const Duration(milliseconds: 2500), () {
+          updateVideoCall(isVideo: true);
+        });
 
-        // // Update video call after 2.5 seconds in the agent side
-        // Future.delayed(const Duration(milliseconds: 2500), () {
-        //   updateVideoCall(isVideo: true);
-        // });
+        if (_isConference) {
+          await Future.delayed(const Duration(milliseconds: 2000));
+          await updateToConference(isConference: true);
+
+          // if agent is host, send message noti to new user
+          if (_isHostConference) {
+            sendConferenceMessage(
+              sipSessionId: sipSessionId,
+              status: true,
+            );
+          }
+        }
       }
     }
   }
@@ -2725,5 +2786,21 @@ class MptCallKitController {
 
   Future<void> hangUpAllCalls() async {
     await channel.invokeMethod("hangUpAllCalls");
+  }
+
+// only host conference send this method
+  Future<void> sendConferenceMessage({
+    required int? sipSessionId,
+    required bool status,
+  }) async {
+    final message = jsonEncode({
+      "type": SIPMessageTypeConstants.CREATE_CONFERENCE,
+      "agentId": currentUserInfo?["user"]["id"],
+      "payload": {
+        "createdBy": currentUserInfo?["user"]["extension"],
+        "status": status,
+      },
+    });
+    await sendSipMessage(sipSessionId, message);
   }
 }

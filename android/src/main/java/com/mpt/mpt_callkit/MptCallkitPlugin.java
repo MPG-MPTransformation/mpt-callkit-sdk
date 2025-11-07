@@ -11,11 +11,6 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
-import android.graphics.Bitmap;
-import com.mpt.mpt_callkit.segmentation.VisionImageProcessorCallback;
-import com.mpt.mpt_callkit.segmentation.Camera2Source;
-import com.mpt.mpt_callkit.segmentation.CameraSource;
-import com.mpt.mpt_callkit.segmentation.SegmenterProcessor;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONException;
@@ -69,7 +64,7 @@ import java.io.InputStreamReader;
 import java.lang.Process;
 import java.lang.ProcessBuilder;
 
-public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware, VisionImageProcessorCallback {
+public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
 
     /// The MethodChannel that will the communication between Flutter and native
     /// Android
@@ -147,13 +142,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private static final int CALL_CHECK_TIMEOUT = 10000; // Stop after 8 seconds
     private long callCheckStartTime = 0;
 
-    private Object cameraSource = null; // Can be Camera2Source or CameraSource
-    private boolean isStartCameraSource = false;
-    private static String recordLabel = "Agent";
-    private static boolean enableBlurBackground = false;
-    private static String bgPath = null;
-    private SegmenterProcessor segmenterProcessor;
-
     public MptCallkitPlugin() {
         System.out.println("SDK-Android: MptCallkitPlugin constructor");
     }
@@ -206,225 +194,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 });
         MptCallkitPlugin.shared = this;
         System.out.println("SDK-Android: onAttachedToEngine done");
-    }
-
-    private byte[] bitmapToYUVData(Bitmap bitmap) {
-        int width = bitmap.getWidth();
-        int height = bitmap.getHeight();
-        
-        // Require even dimensions for simple 4:2:0 sampling (matching iOS validation)
-        if (width % 2 != 0 || height % 2 != 0) {
-            throw new IllegalArgumentException("Width and height must be even for I420 conversion. Got: " + width + "x" + height);
-        }
-        
-        // Get ARGB pixels from bitmap
-        int[] argbPixels = new int[width * height];
-        bitmap.getPixels(argbPixels, 0, width, 0, 0, width, height);
-        
-        // YUV420 (I420) format: Y plane + U plane + V plane
-        int ySize = width * height;
-        int uvWidth = width / 2;
-        int uvHeight = height / 2;
-        int uvSize = uvWidth * uvHeight;
-        byte[] yuvData = new byte[ySize + uvSize * 2];
-        
-        // Plane pointers
-        int yPlaneOffset = 0;
-        int uPlaneOffset = ySize;
-        int vPlaneOffset = ySize + uvSize;
-        
-        // Fill Y plane (full resolution) - BT.601 limited-range conversion
-        for (int y = 0; y < height; y++) {
-            int rowY = y * width;
-            for (int x = 0; x < width; x++) {
-                int argb = argbPixels[rowY + x];
-                
-                // Extract RGBA components with proper alpha handling
-                int r = (argb >> 16) & 0xFF;
-                int g = (argb >> 8) & 0xFF;
-                int b = argb & 0xFF;
-                int a = (argb >> 24) & 0xFF;
-                
-                // Handle premultiplied alpha (optimized like iOS)
-                int actualR, actualG, actualB;
-                if (a == 255) {
-                    actualR = r;
-                    actualG = g;
-                    actualB = b;
-                } else if (a > 0) {
-                    actualR = Math.min(255, (r * 255) / a);
-                    actualG = Math.min(255, (g * 255) / a);
-                    actualB = Math.min(255, (b * 255) / a);
-                } else {
-                    actualR = 0;
-                    actualG = 0;
-                    actualB = 0;
-                }
-                
-                // BT.601 limited-range Y conversion (matching iOS)
-                int yValue = (66 * actualR + 129 * actualG + 25 * actualB + 128) >> 8;
-                yuvData[yPlaneOffset + rowY + x] = (byte) Math.max(16, Math.min(235, yValue + 16));
-            }
-        }
-        
-        // Fill U and V planes (4:2:0, average 2x2 blocks) - optimized like iOS
-        for (int j = 0; j < uvHeight; j++) {
-            int uvRowIndex = j * uvWidth;
-            for (int i = 0; i < uvWidth; i++) {
-                int rSum = 0, gSum = 0, bSum = 0;
-                int baseX = i * 2;
-                int baseY = j * 2;
-                
-                // Average 2x2 block (unrolled for performance)
-                for (int dy = 0; dy < 2; dy++) {
-                    int rowOffset = (baseY + dy) * width;
-                    for (int dx = 0; dx < 2; dx++) {
-                        int argb = argbPixels[rowOffset + baseX + dx];
-                        
-                        int r = (argb >> 16) & 0xFF;
-                        int g = (argb >> 8) & 0xFF;
-                        int b = argb & 0xFF;
-                        int a = (argb >> 24) & 0xFF;
-                        
-                        // Optimized alpha handling
-                        if (a == 255) {
-                            rSum += r;
-                            gSum += g;
-                            bSum += b;
-                        } else if (a > 0) {
-                            rSum += Math.min(255, (r * 255) / a);
-                            gSum += Math.min(255, (g * 255) / a);
-                            bSum += Math.min(255, (b * 255) / a);
-                        }
-                    }
-                }
-                
-                // Average the 2x2 block (divide by 4 using bit shift)
-                rSum >>= 2;
-                gSum >>= 2;
-                bSum >>= 2;
-                
-                // BT.601 limited-range U and V conversion (matching iOS)
-                int uVal = ((-38 * rSum - 74 * gSum + 112 * bSum + 128) >> 8) + 128;
-                int vVal = ((112 * rSum - 94 * gSum - 18 * bSum + 128) >> 8) + 128;
-                
-                int uvIndex = uvRowIndex + i;
-                yuvData[uPlaneOffset + uvIndex] = (byte) Math.max(16, Math.min(240, uVal));
-                yuvData[vPlaneOffset + uvIndex] = (byte) Math.max(16, Math.min(240, vVal));
-            }
-        }
-        
-        return yuvData;
-    }
-
-    @Override
-    public void onDetectionSuccess(Bitmap bitmap, long frameStartMs) {
-        if (MptCallkitPlugin.localViewFactory != null) {
-            MptCallkitPlugin.localViewFactory.setImage(bitmap);
-        }
-
-        Session currentLine = CallManager.Instance().getCurrentSession();
-        if (currentLine != null && currentLine.sessionID > 0 && currentLine.hasVideo) {
-            // convert bitmap to yuv data
-            byte[] yuvData = bitmapToYUVData(bitmap);
-            int width = bitmap.getWidth();
-            int height = bitmap.getHeight();
-            int result = Engine.Instance().getEngine().sendVideoStreamToRemote(currentLine.sessionID, yuvData, yuvData.length, width, height);
-        }
-    }
-
-    @Override
-    public void onDetectionFailure(Exception e) {
-        System.out.println("SDK-Android: MptCallkitPlugin - onDetectionFailure called with exception: " + e.getMessage());
-    }
-
-    private void createCameraSource() {
-        // If there's no existing cameraSource, create one.
-        if (cameraSource == null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                // Use Camera2 API for better resource management on API 21+
-                cameraSource = new Camera2Source(activity, Engine.Instance().mUseFrontCamera);
-                System.out.println("SDK-Android: Using Camera2 API");
-            } else {
-                // Fallback to Camera1 API for older devices
-                cameraSource = new CameraSource(activity, Engine.Instance().mUseFrontCamera);
-                System.out.println("SDK-Android: Using Camera1 API (fallback)");
-            }
-        }
-        if (segmenterProcessor == null) {
-            segmenterProcessor = new SegmenterProcessor(activity, this, MptCallkitPlugin.recordLabel, MptCallkitPlugin.enableBlurBackground, MptCallkitPlugin.bgPath);
-            if (cameraSource instanceof Camera2Source) {
-                ((Camera2Source) cameraSource).setMachineLearningFrameProcessor(segmenterProcessor);
-            } else if (cameraSource instanceof CameraSource) {
-                ((CameraSource) cameraSource).setMachineLearningFrameProcessor(segmenterProcessor);
-            }
-        }
-    }
-
-    public void startCameraSource() {
-        createCameraSource();
-        if (cameraSource != null && !isStartCameraSource) {
-            try {
-                System.out.println("SDK-Android: startCameraSource");
-                if (cameraSource instanceof Camera2Source) {
-                    ((Camera2Source) cameraSource).start();
-                } else if (cameraSource instanceof CameraSource) {
-                    ((CameraSource) cameraSource).start();
-                }
-                isStartCameraSource = true;
-            } catch (Exception e) {
-                System.out.println("SDK-Android: startCameraSource error: " + e.getMessage());
-                // Retry after a delay for camera conflicts
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    retryCameraStart();
-                }, 1000);
-            }
-        }
-    }
-    
-    private void retryCameraStart() {
-        if (cameraSource != null && !isStartCameraSource) {
-            try {
-                System.out.println("SDK-Android: retryCameraStart");
-                if (cameraSource instanceof Camera2Source) {
-                    ((Camera2Source) cameraSource).start();
-                } else if (cameraSource instanceof CameraSource) {
-                    ((CameraSource) cameraSource).start();
-                }
-                isStartCameraSource = true;
-            } catch (Exception e) {
-                System.out.println("SDK-Android: retryCameraStart failed: " + e.getMessage());
-            }
-        }
-    }
-
-    public void stopCameraSource() {
-        if (cameraSource != null && isStartCameraSource) {
-            if (cameraSource instanceof Camera2Source) {
-                ((Camera2Source) cameraSource).stop();
-            } else if (cameraSource instanceof CameraSource) {
-                ((CameraSource) cameraSource).stop();
-            }
-            isStartCameraSource = false;
-            cameraSource = null;
-            if (segmenterProcessor != null) {
-                segmenterProcessor.stop();
-                segmenterProcessor = null;
-            }
-        }
-    }
-
-    public void releaseCameraSource() {
-        if (cameraSource != null) {
-            if (cameraSource instanceof Camera2Source) {
-                ((Camera2Source) cameraSource).release();
-            } else if (cameraSource instanceof CameraSource) {
-                ((CameraSource) cameraSource).release();
-            }
-            cameraSource = null;
-            segmenterProcessor = null;
-            isStartCameraSource = false;
-        }
     }
 
     public static void sendToFlutter(String message) {
@@ -480,9 +249,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
             String resolution = preferences.getString("resolution", "720P");
             int bitrate = preferences.getInt("bitrate", 1024);
             int frameRate = preferences.getInt("frameRate", 30);
-            String recordLabel = preferences.getString("recordLabel", "Agent");
-            Boolean enableBlurBackground = preferences.getBoolean("enableBlurBackground", false);
-            String bgPath = preferences.getString("bgPath", null);
             Boolean autoLogin = preferences.getBoolean("autoLogin", false);
             int agentId = preferences.getInt("agentId", -1);
             int tenantId = preferences.getInt("tenantId", -1);
@@ -493,10 +259,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 this.agentId = agentId;
                 this.tenantId = tenantId;
                 System.out.println("SDK-Android: loginIfNeeded - Restored agentId: " + this.agentId + ", tenantId: " + this.tenantId);
-
-                MptCallkitPlugin.recordLabel = recordLabel;
-                MptCallkitPlugin.enableBlurBackground = enableBlurBackground;
-                MptCallkitPlugin.bgPath = bgPath;
                 Intent onLineIntent = new Intent(ctx, PortSipService.class);
                 onLineIntent.setAction(PortSipService.ACTION_SIP_REGIEST);
                 onLineIntent.putExtra("username", username);
@@ -568,10 +330,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         System.out.println("SDK-Android: MptCallkitPlugin - onResume called");
         this.activity = activity;
         loginIfNeeded(activity);
-        Session currentLine = CallManager.Instance().getCurrentSession();
-        if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.CONNECTED && currentLine.hasVideo) {
-            startCameraSource();
-        }
         CallManager.Instance().answeredWithCallKit = this.isCallIsAcceptedFromCallkit();
         // if (currentLine != null && currentLine.sessionID > 0 && currentLine.state == Session.CALL_STATE_FLAG.INCOMING && CallManager.Instance().answeredWithCallKit) {
         //     startCallCheckJob();
@@ -591,7 +349,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     public void onStop()   {
         System.out.println("SDK-Android: MptCallkitPlugin - onStop called");
-        stopCameraSource();
         unregisterIfNeeded();
         stopCallCheckJob();
     }
@@ -599,7 +356,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     public void onDestroy()   {
         System.out.println("SDK-Android: MptCallkitPlugin - onDestroy called");
         unregisterIfNeeded();
-        releaseCameraSource();
         stopCallCheckJob();
     }
 
@@ -868,21 +624,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     editor.putBoolean("enableDebugLog", call.argument("enableDebugLog"));
                     editor.apply();
                 }
-                if (call.argument("recordLabel") != null) {
-                    MptCallkitPlugin.recordLabel = call.argument("recordLabel");
-                    editor.putString("recordLabel", MptCallkitPlugin.recordLabel);
-                    editor.apply();
-                }
-                if (call.argument("enableBlurBackground") != null) {
-                    MptCallkitPlugin.enableBlurBackground = call.argument("enableBlurBackground");
-                    editor.putBoolean("enableBlurBackground", MptCallkitPlugin.enableBlurBackground);
-                    editor.apply();
-                }
-                if (call.argument("bgPath") != null) {
-                    MptCallkitPlugin.bgPath = call.argument("bgPath");
-                    editor.putString("bgPath", MptCallkitPlugin.bgPath);
-                    editor.apply();
-                }
 
                 System.out.println("SDK-Android: Initialize called with appId: " + appId);
                 result.success(true);
@@ -903,36 +644,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 this.tenantId = call.argument("tenantId");
                 System.out.println("SDK-Android: Login - agentId: " + this.agentId + ", tenantId: " + this.tenantId);
                 Boolean enableDebugLog = call.argument("enableDebugLog");
-                String recordLabel = call.argument("recordLabel");
-                Boolean enableBlurBackground = call.argument("enableBlurBackground");
-                String bgPath = call.argument("bgPath");
                 Boolean autoLogin = call.argument("autoLogin");
-
-                System.out.println("SDK-Android: Login called with enableDebugLog: " + enableDebugLog + ", recordLabel: " + recordLabel + ", enableBlurBackground: " + enableBlurBackground + ", bgPath: " + bgPath + ", autoLogin: " + autoLogin);
-                
-                if (recordLabel != null) {
-                    MptCallkitPlugin.recordLabel = recordLabel;
-                }
-
-                if (segmenterProcessor != null) {
-                    segmenterProcessor.setText(recordLabel);
-                }
-
-                if (enableBlurBackground != null) {
-                    MptCallkitPlugin.enableBlurBackground = enableBlurBackground;
-                }
-
-                if (segmenterProcessor != null) {
-                    segmenterProcessor.setEnableBlurBackground(enableBlurBackground);
-                }
-
-                if (bgPath != null) {
-                    MptCallkitPlugin.bgPath = bgPath;
-                }
-
-                if (bgPath != null && segmenterProcessor != null) {
-                    segmenterProcessor.setBgPath(bgPath);
-                }
 
                 // Video quality parameters
                 String resolution = call.argument("resolution");
@@ -985,10 +697,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     editor.putString("resolution", resolution);
                     editor.putInt("bitrate", bitrate);
                     editor.putInt("frameRate", frameRate);
-                    editor.putString("recordLabel", MptCallkitPlugin.recordLabel);
                     editor.putBoolean("autoLogin", autoLogin);
-                    editor.putBoolean("enableBlurBackground", MptCallkitPlugin.enableBlurBackground);
-                    editor.putString("bgPath", MptCallkitPlugin.bgPath);
                     editor.putInt("agentId", this.agentId);
                     editor.putInt("tenantId", this.tenantId);
                     editor.commit();
@@ -1187,6 +896,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         filter.addAction(PortSipService.PRESENCE_CHANGE_ACTION);
         filter.addAction(PortSipService.ACTION_SIP_AUDIODEVICE);
         filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
+        filter.addAction(PortSipService.CONFERENCE_STATE_CHANGE_ACTION);
         filter.addAction("CAMERA_SWITCH_ACTION");
         System.out.println("SDK-Android: Registering broadcast receiver for call actions");
 
@@ -1495,7 +1205,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                     case TRYING:
                         statusCode = engine.hangUp(currentLine.sessionID);
                         System.out.println("SDK-Android: hangUp status code: " + statusCode);
-                        MptCallkitPlugin.shared.stopCameraSource();
 
                         if (Engine.Instance() != null) {
                             if (MainActivity.activity != null) {
@@ -1588,12 +1297,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     public static void toggleCameraOn(boolean enable) {
         Session currentLine = CallManager.Instance().getCurrentSession();
         if (currentLine != null && currentLine.sessionID > 0) {
-
-            if (enable) {
-                MptCallkitPlugin.shared.startCameraSource();
-            } else {
-                MptCallkitPlugin.shared.stopCameraSource();
-            }
             currentLine.bMuteVideo = !enable;
             Engine.Instance().getEngine().muteSession(
                     currentLine.sessionID,
@@ -1753,8 +1456,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         boolean value = !Engine.Instance().mUseFrontCamera;
         setCamera(Engine.Instance().getEngine(), value);
         Engine.Instance().mUseFrontCamera = value;
-        MptCallkitPlugin.shared.stopCameraSource();
-        MptCallkitPlugin.shared.startCameraSource();
 
         // Gửi broadcast để thông báo LocalView cập nhật mirror
         // Camera trước: mirror = true, Camera sau: mirror = false
@@ -2150,17 +1851,39 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     }
 
     private void updateToConference(Boolean isConference) {
+        System.out.println("SDK-Android: updateToConference called - isConference: " + isConference + ", current state: " + Engine.Instance().mConference);
+        
         if (isConference == Engine.Instance().mConference) {
+            System.out.println("SDK-Android: Conference state unchanged, skipping");
             return;
         }
 
         if (isConference) {
-            Engine.Instance().getEngine().createVideoConference(null, 480, 720, 0);
+            System.out.println("SDK-Android: Enabling conference mode");
+            Engine.Instance().getEngine().createVideoConference(null, 320, 240, 0);
             CallManager.Instance().addActiveSessionToConfrence(Engine.Instance().getEngine());
             Engine.Instance().mConference = true;
         }else {
+            System.out.println("SDK-Android: Disabling conference mode");
             Engine.Instance().getEngine().destroyConference();
             Engine.Instance().mConference = false;
+        }
+        
+        // Gửi broadcast để thông báo conference state đã thay đổi
+        sendConferenceStateBroadcast(isConference);
+    }
+    
+    private void sendConferenceStateBroadcast(boolean isConference) {
+        try {
+            Intent intent = new Intent();
+            intent.setAction(PortSipService.CONFERENCE_STATE_CHANGE_ACTION);
+            intent.putExtra(PortSipService.EXTRA_CONFERENCE_STATE, isConference);
+            if (activity != null) {
+                activity.sendBroadcast(intent);
+                System.out.println("SDK-Android: Conference state broadcast sent - isConference: " + isConference);
+            }
+        } catch (Exception e) {
+            System.out.println("SDK-Android: Error sending conference state broadcast: " + e.getMessage());
         }
     }
 

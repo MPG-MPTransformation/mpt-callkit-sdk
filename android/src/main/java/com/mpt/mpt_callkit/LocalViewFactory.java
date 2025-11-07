@@ -10,11 +10,11 @@ public class LocalViewFactory extends PlatformViewFactory {
     private final Context context;
     public static LocalView localView;
 
-    public void setImage(Bitmap bitmap) {
-        if (LocalViewFactory.localView != null) {
-            LocalViewFactory.localView.setImage(bitmap);
-        }
-    }
+    // public void setImage(Bitmap bitmap) {
+    //     if (LocalViewFactory.localView != null) {
+    //         LocalViewFactory.localView.setImage(bitmap);
+    //     }
+    // }
 
     public LocalViewFactory(Context context) {
         super(StandardMessageCodec.INSTANCE);

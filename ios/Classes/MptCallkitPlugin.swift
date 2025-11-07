@@ -7,7 +7,6 @@ import Darwin
 import AVFoundation
 import CoreVideo
 import CoreImage
-import MediaPipeTasksVision
 import VideoToolbox
 import Accelerate
 import Accelerate.vImage
@@ -276,14 +275,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     var _enableForceBackground: Bool?
 
     var mUseFrontCamera: Bool = true
-
-    private var mediaPipeProcessor: MediaPipeSegmentationProcessor? = nil
-    private var frameCounter: Int = 0
-    private static var enableBlurBackground: Bool = false
-    
-    // Background image variables
-    private var bgPath: String? = nil
-    private var bgBitmap: UIImage? = nil
     
     // MARK: - Camera Resolution Configuration
     
@@ -403,9 +394,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         setupNotificationHandling()
         // setupViewLifecycleObservers() // REMOVED - Views manage themselves
 
-        // Initialize MediaPipe segmentation processor (iOS 13+ compatible)
-        mediaPipeProcessor = MediaPipeSegmentationProcessor()
-        print("MediaPipe Segmentation Status: \(mediaPipeProcessor?.getStatusMessage() ?? "Not available")")
         // Initialize resolution system
         updateRequestedResolution()
         
@@ -459,8 +447,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // Draw text on the segmented image (matching Android SegmenterProcessor logic)
         let finalImage = drawTextOnImage(image, text: MptCallkitPlugin.overlayText) ?? image
         
-        // Set image in localFactory for UI display
-        MptCallkitPlugin.localFactory?.setImage(image: finalImage)
+//        // Set image in localFactory for UI display
+//        MptCallkitPlugin.localFactory?.setImage(image: finalImage)
         
         // Send to video stream if remote video is received and session is active
         // Apply rotation and flip transformations for correct orientation
@@ -630,7 +618,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
           // Retry after a delay on background queue (not main queue)
           DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 1.0) {
             print("🔄 Retrying capture session start on background queue...")
-            strongSelf.startSession()
+//            strongSelf.startSession()
           }
           return
         }
@@ -641,28 +629,28 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
   }
 
   private func stopSession() {
-    weak var weakSelf = self
-    sessionQueue.async {
-      guard let strongSelf = weakSelf else {
-        print("Self is nil!")
-        return
-      }
-      
-      // Reset the session started flag
-      strongSelf.sessionIsStarted = false
-      
-      if strongSelf.captureSession.isRunning {
-        print("🛑 stopSession: Stopping capture session")
-        do {
-          strongSelf.captureSession.stopRunning()
-          print("✅ Capture session stopped successfully")
-        } catch {
-          print("❌ Failed to stop capture session: \(error.localizedDescription)")
-        }
-      } else {
-        print("ℹ️ stopSession: Session is not running")
-      }
-    }
+//    weak var weakSelf = self
+//    sessionQueue.async {
+//      guard let strongSelf = weakSelf else {
+//        print("Self is nil!")
+//        return
+//      }
+//      
+//      // Reset the session started flag
+//      strongSelf.sessionIsStarted = false
+//      
+//      if strongSelf.captureSession.isRunning {
+//        print("🛑 stopSession: Stopping capture session")
+//        do {
+//          strongSelf.captureSession.stopRunning()
+//          print("✅ Capture session stopped successfully")
+//        } catch {
+//          print("❌ Failed to stop capture session: \(error.localizedDescription)")
+//        }
+//      } else {
+//        print("ℹ️ stopSession: Session is not running")
+//      }
+//    }
   }
   
   @objc private func captureSessionDidStartRunning(_ notification: Notification) {
@@ -1341,12 +1329,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             loginViewController.refreshRegister()
         }
         // }
-        if let result = _callManager.findCallBySessionID(self.activeSessionid), result.session.videoState {
-            let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
-            print("enableSendVideoStream result: \(sendResult)")
-            startSession()
-//            _callManager.configureAudioSession()
-        }
+//        if let result = _callManager.findCallBySessionID(self.activeSessionid), result.session.videoState {
+//            let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
+//            print("enableSendVideoStream result: \(sendResult)")
+//            startSession()
+////            _callManager.configureAudioSession()
+//        }
     }
 
     public override func applicationWillTerminate(_: UIApplication) {
@@ -1704,9 +1692,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     uuid: self.currentUUID!, hasVideo: true, from: self.currentRemoteName)
             }
 
-            let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: sessionId, state: true)
-            print("enableSendVideoStream result: \(sendResult)")
-            startSession()
+//            let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: sessionId, state: true)
+//            print("enableSendVideoStream result: \(sendResult)")
+//            startSession()
         }
         
         if existsAudio {
@@ -2659,16 +2647,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 if let recordLabel = args["recordLabel"] as? String {
                     MptCallkitPlugin.overlayText = recordLabel
                 }
-                if let enableBlurBackground = args["enableBlurBackground"] as? Bool {
-                    MptCallkitPlugin.enableBlurBackground = enableBlurBackground
-                }
-                if let bgPath = args["bgPath"] as? String {
-                    if !bgPath.isEmpty && self.bgPath != bgPath{
-                        self.bgPath = bgPath
-                        loadBackgroundImage()
-                    }
-                }
-                print("onMethodCall MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground), bgPath: \(String(describing: bgPath))")
             }
             result(true)
 
@@ -2690,8 +2668,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 let frameRate = (args["frameRate"] as? Int) ?? 30
                 let recordLabel = (args["recordLabel"] as? String) ?? "Customer"
                 let autoLogin = (args["autoLogin"] as? Bool) ?? false
-                let enableBlur = (args["enableBlurBackground"] as? Bool) ?? false
-                let backgroundPath = (args["bgPath"] as? String) ?? nil
                 let agentId = (args["agentId"] as? Int32) ?? -1
                 let tenantId = (args["tenantId"] as? Int32) ?? -1
 
@@ -2700,15 +2676,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 self.currentAgentId = agentId
                 self.currentTenantId = tenantId
                 MptCallkitPlugin.overlayText = recordLabel
-                MptCallkitPlugin.enableBlurBackground = enableBlur
                 
-                if (backgroundPath != nil) {
-                    // Set background path and load background image
-                    bgPath = backgroundPath
-                    loadBackgroundImage()
-                }
-                
-                print("onMethodCall MptCallkitPlugin.overlayText: \(MptCallkitPlugin.overlayText), MptCallkitPlugin.enableBlurBackground: \(MptCallkitPlugin.enableBlurBackground), bgPath: \(String(describing: bgPath))")
+                print("onMethodCall MptCallkitPlugin.overlayText: \(MptCallkitPlugin.overlayText)")
 
                 // Lưu localizedCallerName vào UserDefaults và biến hiện tại
                 currentLocalizedCallerName = localizedCallerName
@@ -2789,8 +2758,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     UserDefaults.standard.removeObject(forKey: "frameRate")
                     UserDefaults.standard.removeObject(forKey: "recordLabel")
                     UserDefaults.standard.removeObject(forKey: "autoLogin")
-                    UserDefaults.standard.removeObject(forKey: "enableBlurBackground")
-                    UserDefaults.standard.removeObject(forKey: "bgPath")
                     UserDefaults.standard.synchronize()
                 }
             }
@@ -2939,14 +2906,14 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     sessionResult.session.sessionId, enableAudio: true, enableVideo: isVideo)
                 NSLog("🔍 updateVideoCall - updateCall(audio=true, video=\(isVideo)): \(updateRes)")
 
-                // Start capture session after SIP update to ensure it's not interfered with
-                if isVideo {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
-                        print("enableSendVideoStream result: \(sendResult)")
-                        self.startSession()
-                    }
-                }
+//                // Start capture session after SIP update to ensure it's not interfered with
+//                if isVideo {
+//                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+//                        let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
+//                        print("enableSendVideoStream result: \(sendResult)")
+//                        self.startSession()
+//                    }
+//                }
 
                 // 🔥 SIMPLE: Just send notification, let views handle themselves
                 let videoState = PortSIPVideoState(
@@ -3236,9 +3203,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     // Bật camera
                     portSIPSDK.sendVideo(activeSessionid, sendState: true)
                     result!.session.videoMuted = false  // Camera unmuted
-                    let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: activeSessionid, state: true)
-                    print("enableSendVideoStream result: \(sendResult)")
-                    startSession()
+//                    let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: activeSessionid, state: true)
+//                    print("enableSendVideoStream result: \(sendResult)")
+//                    startSession()
                     print("Camera turned on")
                 } else {
                     // Tắt camera - chỉ mute camera chứ không disable video hoàn toàn
@@ -3455,11 +3422,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         mUseFrontCamera = newUseFrontCamera
         stopSession()
         // Wait for stop to complete, then start session (which will reconfigure)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
-            print("enableSendVideoStream result: \(sendResult)")
-            self.startSession()
-        }
+//        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+//            let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
+//            print("enableSendVideoStream result: \(sendResult)")
+//            self.startSession()
+//        }
 
         // Send state notification - views will handle themselves
         let videoState = PortSIPVideoState(
@@ -3694,21 +3661,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         
         return ret;
     }
-    private var frameCount = 0
-    // Add debug logging to verify this method is being called
     var frameLogCount = 0
-  private var isProcessingFrame = false
-  
-  // FPS Control: 1 = process every frame, 2 = every 2nd frame, 3 = every 3rd frame, etc.
-  private let frameSkipInterval =  1 // Change this to adjust FPS vs Performance balance
-  
-  // Dedicated queue for video processing to avoid priority inversion
-  private let videoProcessingQueue = DispatchQueue(
-    label: "com.mpt.videoprocessing", 
-    qos: .utility,
-    attributes: [],
-    autoreleaseFrequency: .workItem
-  )
 }
 
 extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
@@ -3729,126 +3682,13 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
       return
     }
 
-    if !MptCallkitPlugin.enableBlurBackground {
-        DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
-            self?.updatePreviewOverlayViewWithImageBuffer(imageBuffer)
-        }
-      return
-    }
-    
-    frameCount += 1
-    
-    // Skip processing if previous frame is still being processed
-    guard !isProcessingFrame else {
-      return
-    }
-    
-    // Apply frame skip interval for FPS control
-    if frameSkipInterval > 1 && frameCount % frameSkipInterval != 0 {
-      return
-    }
-    
-    // Set processing flag and use async processing
-    isProcessingFrame = true
-    // Use dedicated video processing queue to avoid priority inversion
-    videoProcessingQueue.async { [weak self] in
-        self?.processSegmentationWithMediaPipe(imageBuffer)
+    // Directly process the frame without segmentation
+    DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
+        self?.updatePreviewOverlayViewWithImageBuffer(imageBuffer)
     }
   }
 
-  /// Process segmentation using MediaPipe (iOS 13+ compatible)
-  private func processSegmentationWithMediaPipe(_ imageBuffer: CVPixelBuffer) {
-    // Ensure processing flag is reset even if function exits early
-    defer {
-      DispatchQueue.main.async { [weak self] in
-        self?.isProcessingFrame = false
-      }
-    }
-    
-    guard let processor = mediaPipeProcessor else {
-      print("❌ MediaPipe processor not available")
-      return
-    }
-    
-    processor.processSampleBuffer(imageBuffer, background: bgBitmap) { [weak self] result in
-      guard let result = result else {
-          DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
-              self?.updatePreviewOverlayViewWithImageBuffer(imageBuffer)
-          }
-        return
-      }
-        DispatchQueue.main.async(qos: .userInteractive) { [weak self] in
-            self?.updatePreviewOverlayViewWithImageBuffer(result)
-        }
-    }
-  }
-
-  /// Loads the background image from the specified path into bgBitmap.
-  /// Supports both local file paths and internet URLs.
-  private func loadBackgroundImage() {
-    guard let path = bgPath, !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-      print("No background path specified, clearing bgBitmap")
-      bgBitmap = nil
-      return
-    }
-    
-    // Check if it's a valid URL
-    if isValidUrl(path) {
-      print("Loading background image from URL: \(path)")
-      loadImageFromUrl(path)
-    } else {
-      // Local file path
-      do {
-        // Load the background image from local file
-        if let image = UIImage(contentsOfFile: path) {
-          bgBitmap = image
-          print("Successfully loaded background image: \(path) (size: \(image.size.width)x\(image.size.height))")
-        } else {
-          print("Failed to load background image from path: \(path)")
-          bgBitmap = nil
-        }
-      } catch {
-        print("Error loading background image from path: \(path), error: \(error)")
-        bgBitmap = nil
-      }
-    }
-  }
   
-  /// Checks if the given string is a valid URL
-  private func isValidUrl(_ string: String) -> Bool {
-    guard let url = URL(string: string) else { return false }
-    return url.scheme != nil && (url.scheme == "http" || url.scheme == "https")
-  }
-  
-  /// Loads image from URL asynchronously
-  private func loadImageFromUrl(_ urlString: String) {
-    guard let url = URL(string: urlString) else {
-      print("Invalid URL: \(urlString)")
-      bgBitmap = nil
-      return
-    }
-    
-    DispatchQueue.global(qos: .background).async { [weak self] in
-      do {
-        let data = try Data(contentsOf: url)
-        DispatchQueue.main.async {
-          if let image = UIImage(data: data) {
-            self?.bgBitmap = image
-            print("Successfully loaded background image from URL: \(urlString) (size: \(image.size.width)x\(image.size.height))")
-          } else {
-            print("Failed to load background image from URL: \(urlString)")
-            self?.bgBitmap = nil
-          }
-        }
-      } catch {
-        DispatchQueue.main.async {
-          print("Error loading background image from URL: \(urlString), error: \(error)")
-          self?.bgBitmap = nil
-        }
-      }
-    }
-  }
-    
     /// Convert UIImage -> I420 contiguous Data ([Y][U][V]).
     /// Applies 180-degree rotation + horizontal flip for correct video orientation.
     /// - Parameters:
@@ -4253,15 +4093,17 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
     }
 
     private func updateToConference(isConference: Bool) {
-        // Check if we're already in the desired state
-        if isConference == self.isConference {
-            return
-        }
+//        // Check if we're already in the desired state
+//        if isConference == self.isConference {
+//            return
+//        }
         
         guard let result = _callManager.findCallBySessionID(activeSessionid) else {
             NSLog("updateToConference - Not exist this SessionId = \(activeSessionid)")
             return
         }
+        
+        NSLog("updateToConference - isConference=\(isConference)")
         
         if isConference {
             let videoState = PortSIPVideoState(
@@ -4286,5 +4128,3 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         }
     }
 }
-
-

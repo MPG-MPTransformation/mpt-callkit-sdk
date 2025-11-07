@@ -802,6 +802,7 @@ class _CallPadState extends State<CallPad> {
                     destination: extension,
                     isVideoCall: true,
                     accessToken: accessToken!,
+                    extraInfo: "extraInfo",
                     onError: (error) {
                       if (error == null) return;
                       print("Error: $error");
