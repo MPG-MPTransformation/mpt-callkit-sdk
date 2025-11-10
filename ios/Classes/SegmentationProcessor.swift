@@ -102,7 +102,7 @@ import MLKitCommon
                  mask: mask,
                  to: imageBuffer,
                  backgroundImage: background,
-                 isFrontCamera: isFrontCamera,
+                 isFrontCamera: isFrontCamera
            )
             
             completion(imageBuffer)

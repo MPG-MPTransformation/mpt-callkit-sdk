@@ -6,6 +6,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:mpt_callkit/controller/mpt_client_logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -460,6 +461,23 @@ class MptCallKitController {
 
     _appEvent.add(AppEventConstants.READY);
     _currentAppEvent = AppEventConstants.READY;
+
+    Map<String, dynamic> values = {
+      "apiKey": apiKey,
+      "baseUrl": baseUrl,
+      "pushToken": pushToken,
+      "appId": appId,
+      "enableDebugLog": enableDebugLog,
+      "localizedCallerName": localizedCallerName,
+      "deviceInfo": deviceInfo,
+      "recordLabel": recordLabel,
+      "enableBlurBackground": enableBlurBackground,
+      "bgPath": bgPath,
+    };
+    sendLog(
+      values: values,
+      title: MPTSDKLogTitleConstants.SDK_INIT,
+    );
   }
 
   /// Restore previously saved SDK initialization params from SharedPreferences.
@@ -521,6 +539,7 @@ class MptCallKitController {
     Function(String?)? accessTokenResponse,
     Function(String?)? onError,
   }) async {
+    var accessToken = "";
     var result = await MptCallkitAuthMethod().login(
       username: username,
       password: password,
@@ -529,12 +548,28 @@ class MptCallKitController {
       onError: onError,
       data: (e) {
         accessTokenResponse?.call(e["result"]["accessToken"]);
+        accessToken = e["result"]["accessToken"];
       },
     );
     if (result) {
       _appEvent.add(AppEventConstants.LOGGED_IN);
       _currentAppEvent = AppEventConstants.LOGGED_IN;
     }
+
+    Map<String, dynamic> values = {
+      "type": "username_password",
+      "username": username,
+      "password": password,
+      "tenantId": tenantId,
+      "baseUrl": baseUrl ?? await getCurrentBaseUrl(),
+      "accessToken": accessToken,
+      "result": result,
+    };
+    sendLog(
+      values: values,
+      title: MPTSDKLogTitleConstants.AGENT_LOGIN,
+      tenantId: tenantId,
+    );
     return result;
   }
 
@@ -545,6 +580,7 @@ class MptCallKitController {
     Function(String?)? onError,
     Function(String?)? accessTokenResponse,
   }) async {
+    var accessToken = "";
     var result = await MptCallkitAuthMethod().loginSSO(
       ssoToken: ssoToken,
       organization: organization,
@@ -552,12 +588,25 @@ class MptCallKitController {
       onError: onError,
       data: (e) {
         accessTokenResponse?.call(e["result"]["accessToken"]);
+        accessToken = e["result"]["accessToken"];
       },
     );
     if (result) {
       _appEvent.add(AppEventConstants.LOGGED_IN);
       _currentAppEvent = AppEventConstants.LOGGED_IN;
     }
+    Map<String, dynamic> values = {
+      "type": "sso",
+      "ssoToken": ssoToken,
+      "organization": organization,
+      "baseUrl": baseUrl ?? await getCurrentBaseUrl(),
+      "accessToken": accessToken,
+      "result": result,
+    };
+    sendLog(
+      values: values,
+      title: MPTSDKLogTitleConstants.AGENT_LOGIN,
+    );
     return result;
   }
 
@@ -877,6 +926,19 @@ class MptCallKitController {
 
     isLogoutAccountSuccess = await offline(disablePushNoti: true);
 
+    Map<String, dynamic> values = {
+      "type": "logout",
+      "tenantId": currentUserInfo!["tenant"]["id"] ?? 0,
+      "agentId": currentUserInfo!["user"]["id"] ?? 0,
+      "result": isLogoutAccountSuccess,
+    };
+    sendLog(
+      values: values,
+      title: MPTSDKLogTitleConstants.AGENT_LOGOUT,
+      isGuest: false,
+      tenantId: currentUserInfo!["tenant"]["id"] ?? 0,
+    );
+
     if (currentUserInfo != null &&
         currentUserInfo!["user"] != null &&
         currentUserInfo!["tenant"] != null) {
@@ -958,6 +1020,17 @@ class MptCallKitController {
 
       print("extension result: $result");
 
+      sendLog(
+          values: {
+            "extension": result?.username ?? "",
+            "destination": destination,
+            "extraInfo": extraInfo,
+            "isVideoCall": isVideoCall,
+          },
+          title: MPTSDKLogTitleConstants.GUEST_MAKE_CALL,
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
+
       if (result != null) {
         // Set extension data for guest call (needed for SIP ping)
         extensionData = result;
@@ -1016,10 +1089,24 @@ class MptCallKitController {
             );
           } else {
             print('SIP Registration has failed');
+            sendLog(
+                values: {
+                  "message": "SIP Registration failed",
+                },
+                title: MPTSDKLogTitleConstants.GUEST_MAKE_CALL,
+                tenantId: getLoggedTenantId(),
+                agentId: getLoggedAgentId());
             onError?.call('SIP Registration failed');
           }
         } catch (e) {
           print('Registration timeout or error: $e');
+          sendLog(
+              values: {
+                "message": "Registration timeout",
+              },
+              title: MPTSDKLogTitleConstants.GUEST_MAKE_CALL,
+              tenantId: getLoggedTenantId(),
+              agentId: getLoggedAgentId());
           onError?.call('Registration timeout');
 
           // 🔧 FIX: Use helper method to cleanup state properly
@@ -1035,9 +1122,23 @@ class MptCallKitController {
       } else {
         onError?.call('Cannot get extension data');
         print("Cannot get extension data");
+        sendLog(
+            values: {
+              "message": "Cannot get extension data",
+            },
+            title: MPTSDKLogTitleConstants.GUEST_MAKE_CALL,
+            tenantId: getLoggedTenantId(),
+            agentId: getLoggedAgentId());
       }
     } on Exception catch (e) {
       onError?.call(e.toString());
+      sendLog(
+          values: {
+            "message": "Failed to call: '${e.toString()}'.",
+          },
+          title: MPTSDKLogTitleConstants.GUEST_MAKE_CALL,
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       debugPrint("Failed to call: '${e.toString()}'.");
       // if (Platform.isIOS) Navigator.pop(context);
     }
@@ -1071,12 +1172,27 @@ class MptCallKitController {
 
       // Check if response is successful
       if (response.statusCode != 200) {
+        sendLog(
+            values: {
+              "message":
+                  "Get extension failed: Server returned ${response.statusCode}: ${response.body}",
+            },
+            title: MPTSDKLogTitleConstants.GUEST_MAKE_CALL,
+            tenantId: getLoggedTenantId(),
+            agentId: getLoggedAgentId());
         throw Exception(
             'Server returned ${response.statusCode}: ${response.body}');
       }
 
       // Check if response body is not empty
       if (response.body.isEmpty) {
+        sendLog(
+            values: {
+              "message": "Get extension failed: Server returned empty response",
+            },
+            title: MPTSDKLogTitleConstants.GUEST_MAKE_CALL,
+            tenantId: getLoggedTenantId(),
+            agentId: getLoggedAgentId());
         throw Exception('Server returned empty response');
       }
 
@@ -1087,6 +1203,14 @@ class MptCallKitController {
       } catch (e) {
         print("getExtension - JSON parsing error: $e");
         print("getExtension - Raw response body: '${response.body}'");
+        sendLog(
+            values: {
+              "message":
+                  "Get extension failed: Invalid JSON response from server: $e",
+            },
+            title: MPTSDKLogTitleConstants.GUEST_MAKE_CALL,
+            tenantId: getLoggedTenantId(),
+            agentId: getLoggedAgentId());
         throw Exception('Invalid JSON response from server: $e');
       }
 
@@ -1100,6 +1224,13 @@ class MptCallKitController {
         return result.data;
       } else {
         if (retryCount > 2) {
+          sendLog(
+              values: {
+                "message": "Get extension failed: $message",
+              },
+              title: MPTSDKLogTitleConstants.GUEST_MAKE_CALL,
+              tenantId: getLoggedTenantId(),
+              agentId: getLoggedAgentId());
           throw Exception(message);
         }
         retryCount += 1;
@@ -1110,6 +1241,13 @@ class MptCallKitController {
       }
     } on Exception catch (e) {
       debugPrint("Error in getExtension: $e");
+      sendLog(
+          values: {
+            "message": "Get extension failed: ${e.toString()}",
+          },
+          title: MPTSDKLogTitleConstants.GUEST_MAKE_CALL,
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return null;
     }
   }
@@ -1136,6 +1274,14 @@ class MptCallKitController {
 
       // Check if response is successful
       if (response.statusCode != 200) {
+        sendLog(
+            values: {
+              "message":
+                  "Release extension failed: Server returned ${response.statusCode}: ${response.body}",
+            },
+            title: MPTSDKLogTitleConstants.GUEST_MAKE_CALL,
+            tenantId: getLoggedTenantId(),
+            agentId: getLoggedAgentId());
         throw Exception(
             'Server returned ${response.statusCode}: ${response.body}');
       }
@@ -1159,13 +1305,34 @@ class MptCallKitController {
       extension = '';
       if (result.success ?? false) {
         print("Release extension has done");
+        sendLog(
+            values: {
+              "message": "Release extension has done",
+            },
+            title: MPTSDKLogTitleConstants.GUEST_MAKE_CALL,
+            tenantId: getLoggedTenantId(),
+            agentId: getLoggedAgentId());
         return true;
       } else {
         print("Release extension has failed: ${result.message}");
+        sendLog(
+            values: {
+              "message": "Release extension failed: ${result.message}",
+            },
+            title: MPTSDKLogTitleConstants.GUEST_MAKE_CALL,
+            tenantId: getLoggedTenantId(),
+            agentId: getLoggedAgentId());
         throw Exception(result.message ?? '');
       }
     } on Exception catch (e) {
       debugPrint("Error in releaseExtension: $e");
+      sendLog(
+          values: {
+            "message": "Release extension failed: ${e.toString()}",
+          },
+          title: MPTSDKLogTitleConstants.GUEST_MAKE_CALL,
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       throw Exception(e);
     }
   }
@@ -1264,6 +1431,9 @@ class MptCallKitController {
 
     startSipPing(sipServer);
 
+    setLoggedAgentId(agentId);
+    setLoggedTenantId(tenantId);
+
     try {
       final hasPermission = await requestPermission(context);
       if (!hasPermission) {
@@ -1300,6 +1470,20 @@ class MptCallKitController {
         },
       );
 
+      sendLog(
+          values: {
+            "username": username,
+            "displayName": displayName,
+            "authName": authName,
+            "password": password,
+            "userDomain": userDomain,
+            "sipServer": sipServer,
+            "sipServerPort": sipServerPort,
+          },
+          title: MPTSDKLogTitleConstants.SIP_REGISTER,
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
+
       print("login result: $result");
 
       return result;
@@ -1307,6 +1491,25 @@ class MptCallKitController {
       debugPrint("Login failed: ${e.message}");
       return false;
     }
+  }
+
+  var loggedAgentId = DEFAULT_AGENT_ID;
+  var loggedTenantId = DEFAULT_TENANT_ID;
+
+  void setLoggedAgentId(int? agent) {
+    loggedAgentId = agent ?? DEFAULT_AGENT_ID;
+  }
+
+  void setLoggedTenantId(int? tenant) {
+    loggedTenantId = tenant ?? DEFAULT_TENANT_ID;
+  }
+
+  int getLoggedAgentId() {
+    return loggedAgentId;
+  }
+
+  int getLoggedTenantId() {
+    return loggedTenantId;
   }
 
 // Call to a destination number
@@ -1323,7 +1526,7 @@ class MptCallKitController {
       "type": isVideoCall == true ? CallType.VIDEO : CallType.VOICE,
       "extraInfo": extraInfo,
     };
-    return await MptCallKitControllerRepo().makeCall(
+    var result = await MptCallKitControllerRepo().makeCall(
       baseUrl: await getCurrentBaseUrl(),
       tenantId: currentUserInfo!["tenant"]["id"],
       applicationId: outboundNumber,
@@ -1333,6 +1536,21 @@ class MptCallKitController {
       authToken: accessToken,
       onError: onError,
     );
+
+    sendLog(
+        values: {
+          "makeCallMethod": "makeCall",
+          "destination": destination,
+          "outboundNumber": outboundNumber,
+          "extraInfo": extraInfo,
+          "isVideoCall": isVideoCall,
+          "result": result,
+        },
+        title: MPTSDKLogTitleConstants.MAKE_CALL_API,
+        tenantId: getLoggedTenantId(),
+        agentId: getLoggedAgentId());
+
+    return result;
   }
 
   // Make call internal : agent extension to agent extension
@@ -1350,7 +1568,7 @@ class MptCallKitController {
       "extraInfo": extraInfo,
     };
 
-    return await MptCallKitControllerRepo().makeCallInternal(
+    var result = await MptCallKitControllerRepo().makeCallInternal(
       baseUrl: await getCurrentBaseUrl(),
       tenantId: currentUserInfo!["tenant"]["id"],
       applicationId: destination,
@@ -1360,6 +1578,20 @@ class MptCallKitController {
       authToken: accessToken,
       onError: onError,
     );
+
+    sendLog(
+        values: {
+          "makeCallMethod": "makeCallInternal",
+          "destination": destination,
+          "extraInfo": extraInfo,
+          "isVideoCall": isVideoCall,
+          "result": result,
+        },
+        title: MPTSDKLogTitleConstants.MAKE_CALL_API,
+        tenantId: getLoggedTenantId(),
+        agentId: getLoggedAgentId());
+
+    return result;
   }
 
   Future<bool> changeAgentStatus({
@@ -1369,7 +1601,7 @@ class MptCallKitController {
     required String accessToken,
   }) async {
     if (currentUserInfo != null) {
-      return await MptCallKitControllerRepo().changeAgentStatus(
+      var result = await MptCallKitControllerRepo().changeAgentStatus(
         cloudAgentId: currentUserInfo!["user"]["id"],
         cloudTenantId: currentUserInfo!["tenant"]["id"],
         cloudAgentName: currentUserInfo!["user"]["fullName"] ?? "",
@@ -1380,7 +1612,35 @@ class MptCallKitController {
         onError: onError,
         deviceInfo: await getCurrentDeviceInfo(),
       );
+
+      sendLog(
+          values: {
+            "cloudAgentId": currentUserInfo!["user"]["id"],
+            "cloudTenantId": currentUserInfo!["tenant"]["id"],
+            "cloudAgentName": currentUserInfo!["user"]["fullName"] ?? "",
+            "reasonCodeId": reasonCodeId,
+            "statusName": statusName,
+            "result": result,
+          },
+          title: MPTSDKLogTitleConstants.CHANGE_AGENT_STATUS,
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
+
+      return result;
     } else {
+      sendLog(
+          values: {
+            "message":
+                "changeAgentStatus: current user info is null - currentUserInfo: $currentUserInfo",
+            "reasonCodeId": reasonCodeId,
+            "statusName": statusName,
+            "cloudAgentId": currentUserInfo!["user"]["id"],
+            "cloudTenantId": currentUserInfo!["tenant"]["id"],
+            "cloudAgentName": currentUserInfo!["user"]["fullName"] ?? "",
+          },
+          title: MPTSDKLogTitleConstants.CHANGE_AGENT_STATUS,
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       onError?.call(
           "changeAgentStatus: current user info is null - currentUserInfo: $currentUserInfo");
       return false;
@@ -1394,6 +1654,14 @@ class MptCallKitController {
   }) async {
     if (currentUserInfo == null) {
       onError?.call("getCurrentAgentStatus: current user info is null");
+      sendLog(
+          values: {
+            "method": "getCurrentAgentStatus()",
+            "message": "getCurrentAgentStatus: current user info is null",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return null;
     }
 
@@ -1403,10 +1671,18 @@ class MptCallKitController {
 
     if (cloudAgentId == null || cloudTenantId == null) {
       onError?.call("getCurrentAgentStatus: missing required user info");
+      sendLog(
+          values: {
+            "method": "getCurrentAgentStatus()",
+            "message": "getCurrentAgentStatus: missing required user info",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return null;
     }
 
-    return await MptCallKitControllerRepo().getCurrentAgentStatus(
+    var result = await MptCallKitControllerRepo().getCurrentAgentStatus(
       cloudAgentId: cloudAgentId,
       cloudTenantId: cloudTenantId,
       cloudAgentName: cloudAgentName,
@@ -1414,6 +1690,16 @@ class MptCallKitController {
       accessToken: accessToken,
       onError: onError,
     );
+
+    sendLog(
+        values: {
+          "method": "getCurrentAgentStatus()",
+          "message": "getCurrentAgentStatus: $result",
+        },
+        title: MPTSDKLogTitleConstants.METHOD_CALLED,
+        tenantId: getLoggedTenantId(),
+        agentId: getLoggedAgentId());
+    return result;
   }
 
   // Method do unregister from SIP server
@@ -1434,10 +1720,25 @@ class MptCallKitController {
       var result = await channel.invokeMethod(MptCallKitConstants.offline, {
         "disablePushNoti": disablePushNoti,
       });
+      sendLog(
+          values: {
+            "disablePushNoti": disablePushNoti,
+            "message": "offline: $result",
+          },
+          title: MPTSDKLogTitleConstants.SIP_UNREGISTER,
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return result;
       // }
     } on PlatformException catch (e) {
       debugPrint("Failed to go offline: '${e.message}'.");
+      sendLog(
+          values: {
+            "message": "Failed to go offline: '${e.message}'.",
+          },
+          title: MPTSDKLogTitleConstants.SIP_UNREGISTER,
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return false;
     }
   }
@@ -1447,9 +1748,27 @@ class MptCallKitController {
     try {
       final result = await channel.invokeMethod("hangup");
       print("hangup result: $result");
+      sendLog(
+          values: {
+            "method": "hangup()",
+            "message": "hangup result: $result",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'hangup' mothod: '${e.message}'.");
+      sendLog(
+          values: {
+            "method": "hangup()",
+            "message": "Failed in 'hangup' mothod: '${e.message}'.",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return -1;
     }
   }
@@ -1457,9 +1776,27 @@ class MptCallKitController {
   Future<bool> hold() async {
     try {
       final result = await channel.invokeMethod("hold");
+      sendLog(
+          values: {
+            "method": "hold()",
+            "message": "hold result: $result",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'hold' mothod: '${e.message}'.");
+      sendLog(
+          values: {
+            "method": "hold()",
+            "message": "Failed in 'hold' mothod: '${e.message}'.",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return false;
     }
   }
@@ -1467,9 +1804,27 @@ class MptCallKitController {
   Future<bool> unhold() async {
     try {
       final result = await channel.invokeMethod("unhold");
+      sendLog(
+          values: {
+            "method": "unhold()",
+            "message": "unhold result: $result",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'unhold' mothod: '${e.message}'.");
+      sendLog(
+          values: {
+            "method": "unhold()",
+            "message": "Failed in 'unhold' mothod: '${e.message}'.",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return false;
     }
   }
@@ -1477,9 +1832,27 @@ class MptCallKitController {
   Future<bool> mute() async {
     try {
       final result = await channel.invokeMethod("mute");
+      sendLog(
+          values: {
+            "method": "mute()",
+            "message": "mute result: $result",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'mute' mothod: '${e.message}'.");
+      sendLog(
+          values: {
+            "method": "mute()",
+            "message": "Failed in 'mute' mothod: '${e.message}'.",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return false;
     }
   }
@@ -1487,9 +1860,27 @@ class MptCallKitController {
   Future<bool> unmute() async {
     try {
       final result = await channel.invokeMethod("unmute");
+      sendLog(
+          values: {
+            "method": "unmute()",
+            "message": "unmute result: $result",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'unmute' mothod: '${e.message}'.");
+      sendLog(
+          values: {
+            "method": "unmute()",
+            "message": "Failed in 'unmute' mothod: '${e.message}'.",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return false;
     }
   }
@@ -1497,9 +1888,27 @@ class MptCallKitController {
   Future<bool> cameraOn() async {
     try {
       final result = await channel.invokeMethod("cameraOn");
+      sendLog(
+          values: {
+            "method": "cameraOn()",
+            "message": "cameraOn result: $result",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'cameraOn' mothod: '${e.message}'.");
+      sendLog(
+          values: {
+            "method": "cameraOn()",
+            "message": "Failed in 'cameraOn' mothod: '${e.message}'.",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return false;
     }
   }
@@ -1507,9 +1916,27 @@ class MptCallKitController {
   Future<bool> cameraOff() async {
     try {
       final result = await channel.invokeMethod("cameraOff");
+      sendLog(
+          values: {
+            "method": "cameraOff()",
+            "message": "cameraOff result: $result",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'cameraOff' mothod: '${e.message}'.");
+      sendLog(
+          values: {
+            "method": "cameraOff()",
+            "message": "Failed in 'cameraOff' mothod: '${e.message}'.",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return false;
     }
   }
@@ -1517,9 +1944,27 @@ class MptCallKitController {
   Future<bool> rejectCall() async {
     try {
       final result = await channel.invokeMethod("reject");
+      sendLog(
+          values: {
+            "method": "reject()",
+            "message": "reject result: $result",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'reject' mothod: '${e.message}'.");
+      sendLog(
+          values: {
+            "method": "reject()",
+            "message": "Failed in 'reject' mothod: '${e.message}'.",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return false;
     }
   }
@@ -1527,9 +1972,27 @@ class MptCallKitController {
   Future<int> answerCall() async {
     try {
       final result = await channel.invokeMethod("answer");
+      sendLog(
+          values: {
+            "method": "answer()",
+            "message": "answer result: $result",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'answer' mothod: '${e.message}'.");
+      sendLog(
+          values: {
+            "method": "answer()",
+            "message": "Failed in 'answer' mothod: '${e.message}'.",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return -10;
     }
   }
@@ -1537,9 +2000,27 @@ class MptCallKitController {
   Future<bool> switchCamera() async {
     try {
       final result = await channel.invokeMethod('switchCamera');
+      sendLog(
+          values: {
+            "method": "switchCamera()",
+            "message": "switchCamera result: $result",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return result ?? false;
     } catch (e) {
       print('Error switching camera: $e');
+      sendLog(
+          values: {
+            "method": "switchCamera()",
+            "message": "Failed in 'switchCamera' mothod: '${e.toString()}'.",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return false;
     }
   }
@@ -1549,9 +2030,27 @@ class MptCallKitController {
       final result = await channel.invokeMethod('setSpeaker', {
         'state': state,
       });
+      sendLog(
+          values: {
+            "method": "setSpeaker()",
+            "message": "setSpeaker result: $result",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return result ?? false;
     } catch (e) {
       print('Error setting speaker: $e');
+      sendLog(
+          values: {
+            "method": "setSpeaker()",
+            "message": "Failed in 'setSpeaker' mothod: '${e.toString()}'.",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return false;
     }
   }
@@ -1561,8 +2060,26 @@ class MptCallKitController {
     try {
       final result = await channel.invokeMethod('getAudioDevices');
       print('Audio devices: ${result.toString()}');
+      sendLog(
+          values: {
+            "method": "getAudioDevices()",
+            "message": "getAudioDevices result: $result",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
     } catch (e) {
       print('Error getting audio devices: $e');
+      sendLog(
+          values: {
+            "method": "getAudioDevices()",
+            "message": "Failed in 'getAudioDevices' mothod: '${e.toString()}'.",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
     }
   }
 
@@ -1571,9 +2088,29 @@ class MptCallKitController {
       final result = await channel.invokeMethod("transfer", {
         "destination": destination,
       });
+      sendLog(
+          values: {
+            "method": "transfer()",
+            "destination": destination,
+            "message": "transfer result: $result",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'transfer' mothod: '${e.message}'.");
+      sendLog(
+          values: {
+            "method": "transfer()",
+            "destination": destination,
+            "message": "Failed in 'transfer' mothod: '${e.toString()}'.",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return false;
     }
   }
@@ -1584,9 +2121,29 @@ class MptCallKitController {
       final result = await channel.invokeMethod("updateVideoCall", {
         "isVideo": isVideo,
       });
-      return result;
+      sendLog(
+          values: {
+            "method": "updateVideoCall()",
+            "isVideo": isVideo,
+            "message": "updateVideoCall result: $result",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
+      return result ?? false;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'updateVideoCall' mothod: '${e.message}'.");
+      sendLog(
+          values: {
+            "method": "updateVideoCall()",
+            "isVideo": isVideo,
+            "message": "Failed in 'updateVideoCall' mothod: '${e.toString()}'.",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: await getCurrentCallSessionId(),
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return false;
     }
   }
@@ -1773,6 +2330,15 @@ class MptCallKitController {
 
   void _handleCallStateChanged(String state) async {
     print("handleCallStateChanged: $state");
+
+    sendLog(
+        values: {
+          "sipCallState": state,
+        },
+        title: MPTSDKLogTitleConstants.SIP_CALL_STATE,
+        sessionId: await getCurrentCallSessionId(),
+        tenantId: getLoggedTenantId(),
+        agentId: getLoggedAgentId());
 
     // Reset remote states when call ends
     if (state == CallStateConstants.CLOSED ||
@@ -1967,9 +2533,25 @@ class MptCallKitController {
       if (data == true) {
         print('SIP Registration successful for guest');
         _guestRegistrationCompleter!.complete(true);
+        sendLog(
+            values: {
+              "method": "handleGuestRegistrationState()",
+              "message": "SIP Registration successful for guest",
+            },
+            title: MPTSDKLogTitleConstants.METHOD_CALLED,
+            tenantId: getLoggedTenantId(),
+            agentId: getLoggedAgentId());
       } else {
         print('SIP Registration has failed for guest');
         _guestRegistrationCompleter!.complete(false);
+        sendLog(
+            values: {
+              "method": "handleGuestRegistrationState()",
+              "message": "SIP Registration has failed for guest",
+            },
+            title: MPTSDKLogTitleConstants.METHOD_CALLED,
+            tenantId: getLoggedTenantId(),
+            agentId: getLoggedAgentId());
       }
     } else {
       print(
@@ -1986,6 +2568,15 @@ class MptCallKitController {
       if (_guestRegistrationCompleter != null &&
           !_guestRegistrationCompleter!.isCompleted) {
         _guestRegistrationCompleter!.complete(false);
+        sendLog(
+            values: {
+              "method": "cleanupGuestRegistrationState()",
+              "message":
+                  "Guest registration completer is null or already completed",
+            },
+            title: MPTSDKLogTitleConstants.METHOD_CALLED,
+            tenantId: getLoggedTenantId(),
+            agentId: getLoggedAgentId());
       }
       _guestRegistrationCompleter = null;
 
@@ -1998,15 +2589,40 @@ class MptCallKitController {
 
       // Small delay to ensure cleanup is complete
       await Future.delayed(const Duration(milliseconds: 500));
+      sendLog(
+          values: {
+            "method": "cleanupGuestRegistrationState()",
+            "message": "Guest registration state cleanup completed",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
 
       print('Guest registration state cleanup completed');
     } catch (e) {
       print('Error during guest registration cleanup: $e');
+      sendLog(
+          values: {
+            "method": "cleanupGuestRegistrationState()",
+            "message": "Error during guest registration cleanup: $e",
+            "error": e.toString(),
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
     }
   }
 
   // Dispose method to clean up resources
   void dispose() {
+    sendLog(
+        values: {
+          "method": "dispose()",
+          "message": "Dispose method called",
+        },
+        title: MPTSDKLogTitleConstants.METHOD_CALLED,
+        tenantId: getLoggedTenantId(),
+        agentId: getLoggedAgentId());
     _eventChannelSubscription?.cancel();
 
     // 🔧 FIX: Use helper method for consistent cleanup
@@ -2255,7 +2871,7 @@ class MptCallKitController {
             print('Remote party answered the call');
             _calleeAnsweredStream.add(true);
 
-            if (this.isVideoCall) {
+            if (isVideoCall) {
               Future.delayed(const Duration(seconds: 1), () {
                 updateVideoCall(isVideo: true);
               });
@@ -2326,6 +2942,17 @@ class MptCallKitController {
         agentId: agentId,
         onError: onError,
       );
+      sendLog(
+          values: {
+            "method": "endCallAPI()",
+            "sessionId": sessionId,
+            "agentId": agentId,
+            "message": "End call API result: $isSuccess",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          tenantId: getLoggedTenantId(),
+          sessionId: sessionId,
+          agentId: getLoggedAgentId());
       if (isSuccess) {
         print("End call API success");
       } else {
@@ -2410,12 +3037,23 @@ class MptCallKitController {
     String? baseUrl,
     Function(String?)? onError,
   }) async {
-    return await MptCallKitControllerRepo().deleteRegistration(
+    final result = await MptCallKitControllerRepo().deleteRegistration(
       baseUrl: baseUrl,
       onError: onError,
       tenantId: tenantId,
       agentId: agentId,
     );
+    sendLog(
+        values: {
+          "method": "deleteRegistration()",
+          "tenantId": tenantId,
+          "agentId": agentId,
+          "message": "Delete registration result: $result",
+        },
+        title: MPTSDKLogTitleConstants.METHOD_CALLED,
+        tenantId: getLoggedTenantId(),
+        agentId: getLoggedAgentId());
+    return result;
   }
 
   // Change agent status in queue
@@ -2424,7 +3062,7 @@ class MptCallKitController {
     required bool enabled,
     Function(String?)? onError,
   }) async {
-    return await MptCallKitControllerRepo().putAgentQueues(
+    final result = await MptCallKitControllerRepo().putAgentQueues(
       baseUrl: await getCurrentBaseUrl(),
       agentId: currentUserInfo?["user"]["id"] ?? 0,
       tenantId: currentUserInfo?["tenant"]["id"] ?? 0,
@@ -2432,30 +3070,59 @@ class MptCallKitController {
       enabled: enabled,
       onError: onError,
     );
+    sendLog(
+        values: {
+          "method": "changeAgentStatusInQueue()",
+          "queueId": queueId,
+          "enabled": enabled,
+          "message": "Change agent status in queue result: $result",
+        },
+        title: MPTSDKLogTitleConstants.METHOD_CALLED,
+        tenantId: getLoggedTenantId(),
+        agentId: getLoggedAgentId());
+    return result;
   }
 
   // Get all agent's queues
   Future<List<QueueDataByAgent>?> getAgentQueues({
     Function(String?)? onError,
   }) async {
-    return await MptCallKitControllerRepo().getAgentQueues(
+    final result = await MptCallKitControllerRepo().getAgentQueues(
       baseUrl: await getCurrentBaseUrl(),
       agentId: currentUserInfo?["user"]["id"] ?? 0,
       tenantId: currentUserInfo?["tenant"]["id"] ?? 0,
       onError: onError,
     );
+    sendLog(
+        values: {
+          "method": "getAgentQueues()",
+          "message": "Get agent queues result: $result",
+        },
+        title: MPTSDKLogTitleConstants.METHOD_CALLED,
+        tenantId: getLoggedTenantId(),
+        agentId: getLoggedAgentId());
+    return result;
   }
 
   // Get all queues
   Future<List<QueueData>?> getAllQueues({
     Function(String?)? onError,
   }) async {
-    return await MptCallKitControllerRepo().getAllQueues(
+    final result = await MptCallKitControllerRepo().getAllQueues(
       agentId: currentUserInfo?["user"]["id"] ?? 0,
       tenantId: currentUserInfo?["tenant"]["id"] ?? 0,
       baseUrl: await getCurrentBaseUrl(),
       onError: onError,
     );
+    sendLog(
+        values: {
+          "method": "getAllQueues()",
+          "message": "Get all queues result: $result",
+        },
+        title: MPTSDKLogTitleConstants.METHOD_CALLED,
+        tenantId: getLoggedTenantId(),
+        agentId: getLoggedAgentId());
+    return result;
   }
 
   // Get all agents in queue by extension
@@ -2463,12 +3130,23 @@ class MptCallKitController {
     required String extension,
     Function(String?)? onError,
   }) async {
-    return await MptCallKitControllerRepo().getAllAgentInQueueByQueueExtension(
+    final result =
+        await MptCallKitControllerRepo().getAllAgentInQueueByQueueExtension(
       extension: extension,
       tenantId: currentUserInfo?["tenant"]["id"] ?? 0,
       baseUrl: await getCurrentBaseUrl(),
       onError: onError,
     );
+    sendLog(
+        values: {
+          "method": "getAllAgentInQueueByQueueExtension()",
+          "extension": extension,
+          "message": "Get all agents in queue by extension result: $result",
+        },
+        title: MPTSDKLogTitleConstants.METHOD_CALLED,
+        tenantId: getLoggedTenantId(),
+        agentId: getLoggedAgentId());
+    return result;
   }
 
   Future<AgentData?> getCurrentAgentData(String accessToken) async {
@@ -2487,9 +3165,28 @@ class MptCallKitController {
     try {
       final result = await channel.invokeMethod("getCurrentCallSessionId");
       print("getCurrentCallSessionId result: $result");
+      sendLog(
+          values: {
+            "method": "getCurrentCallSessionId()",
+            "message": "Get current call session id result: $result",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: result,
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'getCurrentCallSessionId' mothod: '${e.message}'.");
+      sendLog(
+          values: {
+            "method": "getCurrentCallSessionId()",
+            "message":
+                "Failed in 'getCurrentCallSessionId' mothod: '${e.toString()}'.",
+          },
+          title: MPTSDKLogTitleConstants.METHOD_CALLED,
+          sessionId: null,
+          tenantId: getLoggedTenantId(),
+          agentId: getLoggedAgentId());
       return null;
     }
   }
@@ -2547,6 +3244,27 @@ class MptCallKitController {
       timeStamp: timeStamp,
       payload: jsonEncode(payload),
       onError: onError,
+    );
+  }
+
+  Future<void> sendLog({
+    required Map<String, dynamic>? values,
+    String? sessionId,
+    required String title,
+    bool? isGuest = false,
+    int? tenantId,
+    int? agentId,
+  }) async {
+    MptClientLogger().sendLog(
+      baseUrl: await getCurrentBaseUrl(),
+      title: title,
+      values: values,
+      isGuest: isGuest ?? isMakeCallByGuest,
+      extension: int.parse(lastesExtensionData?.username ?? "0"),
+      tenantId: tenantId ?? 0,
+      agentId: agentId ?? 0,
+      sessionId: sessionId ?? "",
+      onError: (error) => print("sendLog error: $error"),
     );
   }
 }
