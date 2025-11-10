@@ -35,10 +35,7 @@ class _CallPadState extends State<CallPad> {
     if (Platform.isAndroid) 'speakerBluetooth',
     if (Platform.isAndroid) 'getAudioDevices',
     'updateVideoCall',
-    'conference',
-    'distroyConference',
-    'inviteToConference(host)',
-    'inviteToConference(guest)',
+    'inviteToConference',
     'hangup',
     'endCallAPI',
   ];
@@ -664,12 +661,10 @@ class _CallPadState extends State<CallPad> {
       case 'distroyConference':
         MptCallKitController().updateToConference(isConference: false);
         break;
-      case 'inviteToConference(host)':
-        _showInviteToConferenceDialog(isHost: true);
+      case 'inviteToConference':
+        _showInviteToConferenceDialog();
         break;
-      case 'inviteToConference(guest)':
-        _showInviteToConferenceDialog(isHost: false);
-        break;
+
       default:
         print('Function $functionName not implemented');
     }
@@ -744,7 +739,7 @@ class _CallPadState extends State<CallPad> {
     );
   }
 
-  void _showInviteToConferenceDialog({required bool isHost}) {
+  void _showInviteToConferenceDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -797,22 +792,17 @@ class _CallPadState extends State<CallPad> {
 
               try {
                 // Invite to conference
-                if (isHost) {
-                  await MptCallKitController().inviteToConference(
-                    destination: extension,
-                    isVideoCall: true,
-                    accessToken: accessToken!,
-                    extraInfo: "extraInfo",
-                    onError: (error) {
-                      if (error == null) return;
-                      print("Error: $error");
-                    },
-                  );
-                } else {
-                  await MptCallKitController().requestInviteToConference(
-                    desExtension: extension,
-                  );
-                }
+                // inviteToConference() tự động xử lý: host mời trực tiếp, guest gửi request đến host
+                await MptCallKitController().inviteToConference(
+                  destination: extension,
+                  isVideoCall: true,
+                  accessToken: accessToken!,
+                  extraInfo: "extraInfo",
+                  onError: (error) {
+                    if (error == null) return;
+                    print("Error: $error");
+                  },
+                );
 
                 // Clear the text field after successful invite
                 extensionController.clear();

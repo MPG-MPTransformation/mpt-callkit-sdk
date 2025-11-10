@@ -34,15 +34,15 @@ class MptCallKitController {
   //hard code until have correct
   String localizedCallerName = "";
   String recordLabel = "";
-  final bool _isHostConference = false;
-  int? _currentHostConferenceId;
+  bool _isHostConference = false;
+  String? _hostExtension;
 
   String? _userAccessToken;
   // file logging
   File? _logFile;
   bool _fileLoggingEnabled = false;
   void Function(String? message, {int? wrapWidth})? _originalDebugPrint;
-  final List<AgentDataOnConf> _agentDataOnConferenceList = <AgentDataOnConf>[];
+  final List<AgentDataOnConf> _connectedAgents = <AgentDataOnConf>[];
 
   static const MethodChannel channel = MethodChannel('mpt_callkit');
   static const eventChannel = EventChannel('native_events');
@@ -254,9 +254,10 @@ class MptCallKitController {
           print('callStateData from flutter: $callStateData');
 
           final String state = callStateData['state'] as String;
+          final int sessionId = callStateData['sessionId'] as int;
           _currentCallState = state;
           _callEvent.add(state);
-          _handleCallStateChanged(state);
+          _handleCallStateChanged(state, sessionId);
 
           // Handle guest call specific logic
           if (isMakeCallByGuest) {
@@ -942,6 +943,12 @@ class MptCallKitController {
 
     currentUserInfo = null;
 
+    // Reset conference state khi logout
+    if (_hostExtension != null) {
+      _resetHostRole();
+    }
+    _connectedAgents.clear();
+
     if (isDeleteRegistrationSuccess && isUnregistered) {
       _appEvent.add(AppEventConstants.LOGGED_OUT);
       _currentAppEvent = AppEventConstants.LOGGED_OUT;
@@ -1421,6 +1428,9 @@ class MptCallKitController {
   }
 
   // Invite to conference - Agent to Agent
+  /// Mời agent khác vào conference
+  /// - Nếu là host: thực hiện mời trực tiếp
+  /// - Nếu không phải host: gửi request đến host để mời
   Future<void> inviteToConference({
     required String destination,
     required bool isVideoCall,
@@ -1428,23 +1438,38 @@ class MptCallKitController {
     required String? accessToken,
     Function(String?)? onError,
   }) async {
-    /* these logic code use for native video call
-    // make sure conference mode is active
-    final conferenceState = await getConferenceState();
-    if (conferenceState) {
-      await updateToConference();
+    print(
+        "inviteToConference - destination: $destination, isHost: $_isHostConference");
+
+    // Nếu chưa có conference, người mời sẽ trở thành host
+    if (_hostExtension == null) {
+      _becomeHost();
+      print("Becoming host of conference - Extension: $_hostExtension");
     }
 
-    // invite to conference
-    await channel.invokeMethod("inviteToConference", {
-      "destination": destination,
-      "isVideoCall": isVideoCall,
-    });
-    */
+    // Nếu KHÔNG phải host, gửi request đến host
+    if (!_isHostConference) {
+      print("Not host - sending request to host to invite: $destination");
+      final uuid = const Uuid().v4();
+      final message = jsonEncode({
+        "type": SIPMessageTypeConstants.ADD_TO_CONF_REQ,
+        "agentId": currentUserInfo?["user"]["id"],
+        "payload": {
+          "extension": destination,
+          "uuid": uuid,
+        },
+      });
+      await sendSipMessage(null, message);
+      return;
+    }
+
+    // Nếu là HOST, thực hiện mời trực tiếp
+    print("Is host - inviting directly: $destination");
 
     //destroy conference if need
     _isConference = await getConferenceState();
     print("conferenceState: $_isConference");
+
     if (_isConference) {
       await updateToConference(isConference: false);
     }
@@ -1569,11 +1594,22 @@ class MptCallKitController {
       //   return result;
       // }
 
-      await updateToConference(isConference: false);
+      // Nếu là host, broadcast destroy conference trước khi hangup
+      if (_isHostConference) {
+        await updateToConference(isConference: false);
+      }
 
       _isConference = false;
 
       await hangUpAllCalls();
+
+      // Reset host role và clear connected agents sau khi hangup tất cả
+      if (_hostExtension != null) {
+        _resetHostRole();
+        print("Hangup all - reset host role");
+      }
+      _connectedAgents.clear();
+
       return 0;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'hangup' mothod: '${e.message}'.");
@@ -1898,13 +1934,24 @@ class MptCallKitController {
     }
   }
 
-  void _handleCallStateChanged(String state) async {
+  void _handleCallStateChanged(String state, int sessionId) async {
     print("handleCallStateChanged: $state");
 
     // Reset remote states when call ends
     if (state == CallStateConstants.CLOSED ||
         state == CallStateConstants.FAILED) {
       _resetRemoteStates();
+
+      // Remove agent khỏi connected list nếu có sessionId hợp lệ
+      if (sessionId != INVALID_SESSION_ID) {
+        _removeConnectedAgent(sessionId);
+      }
+
+      // Reset host role khi không còn agent nào connected
+      if (_hostExtension != null && _connectedAgents.isEmpty) {
+        _resetHostRole();
+        print("All agents disconnected - reset host role");
+      }
     }
 
     if ((_currentSessionId!.isNotEmpty || _currentSessionId != null) &&
@@ -2030,9 +2077,10 @@ class MptCallKitController {
             print('callStateData from native: $callStateData');
 
             final String state = callStateData['state'] as String;
+            final int sessionId = callStateData['sessionId'] as int;
             _currentCallState = state;
             _callEvent.add(state);
-            _handleCallStateChanged(state);
+            _handleCallStateChanged(state, sessionId);
 
             // Handle guest call specific logic
             if (isMakeCallByGuest) {
@@ -2163,6 +2211,12 @@ class MptCallKitController {
       _guestRegistrationCompleter!.complete(false);
     }
     _guestRegistrationCompleter = null;
+
+    // Reset conference state
+    if (_hostExtension != null) {
+      _resetHostRole();
+    }
+    _connectedAgents.clear();
 
     // Stop SIP connectivity check
     stopSipPing();
@@ -2364,6 +2418,10 @@ class MptCallKitController {
           _handleAddToConf(sipSessionId!, message);
           break;
 
+        case SIPMessageTypeConstants.CREATE_CONFERENCE:
+          _handleCreateConferenceMessage(payload);
+          break;
+
         default:
           print('Unknown message type: $type');
           break;
@@ -2448,17 +2506,6 @@ class MptCallKitController {
         }
       }
     }
-
-    var contain =
-        _agentDataOnConferenceList.where((e) => e.sipSessionId == sipSessionId);
-    if (contain.isEmpty) {
-      _agentDataOnConferenceList.add(agentDataOnConf);
-      print(
-          'Agent data on conference list: ${_agentDataOnConferenceList.toList().toString()}');
-    } else {
-      print(
-          "Agent data on conference list already contains this sipSessionId: $sipSessionId");
-    }
   }
 
   Future<int> sendSipMessage(int? sipSessionId, String message) async {
@@ -2471,30 +2518,17 @@ class MptCallKitController {
     return result;
   }
 
-  Future<void> requestInviteToConference({
-    required String desExtension,
-  }) async {
-    final uuid = const Uuid().v4();
-    final message = jsonEncode({
-      "type": SIPMessageTypeConstants.ADD_TO_CONF_REQ,
-      "agentId": currentUserInfo?["user"]["id"],
-      "payload": {
-        "extension": desExtension,
-        "uuid": uuid,
-      },
-    });
-    await sendSipMessage(null, message);
-  }
-
   /// Handle call state updates
   void _handleCallStateUpdate(
       Map<String, dynamic> payload, int sipSessionId) async {
     print('Handling call state update: $payload');
 
     bool isAnswered = false;
+    int? agentId;
 
     if (payload.containsKey(SIPMessageTypeConstants.ANSWERED)) {
-      isAnswered = payload[SIPMessageTypeConstants.ANSWERED] as bool ?? false;
+      isAnswered =
+          (payload[SIPMessageTypeConstants.ANSWERED] as bool?) ?? false;
       print('Call answered state: $isAnswered');
       if (isAnswered) {
         _calleeAnsweredStream.add(true);
@@ -2505,7 +2539,7 @@ class MptCallKitController {
       final Map<String, dynamic> agentInfo =
           payload[SIPMessageTypeConstants.AGENT_INFO] as Map<String, dynamic>;
       print('Agent info: $agentInfo');
-      final int agentId = agentInfo['agentId'] as int;
+      agentId = agentInfo['agentId'] as int;
       final int tenantId = agentInfo['tenantId'] as int;
       print('Agent ID: $agentId');
       print('Tenant ID: $tenantId');
@@ -2514,6 +2548,11 @@ class MptCallKitController {
           isMakeCallByGuest) {
         reportMediaDeviceStatus(tenantId: tenantId, agentId: agentId);
       }
+    }
+
+    // Thêm agent vào connected list khi answered
+    if (isAnswered && agentId != null) {
+      _addConnectedAgent(sipSessionId, agentId);
     }
 
     if (payload.containsKey("existsVideo")) {
@@ -2527,15 +2566,26 @@ class MptCallKitController {
         });
 
         if (_isConference) {
+          print("update to conference _isConference=$_isConference");
           await Future.delayed(const Duration(milliseconds: 2000));
           await updateToConference(isConference: true);
 
           // if agent is host, send message noti to new user
           if (_isHostConference) {
-            sendConferenceMessage(
+            print("update to conference - isHostConference=$_isHostConference");
+            await sendConferenceMessage(
               sipSessionId: sipSessionId,
               status: true,
             );
+          }
+        } else {
+          print("update to conference _isConference=$_isConference");
+          if (_connectedAgents.length >= 2) {
+            print("update to conference");
+            await updateToConference(isConference: true);
+          } else {
+            print(
+                "update to conference _connectedAgents.length=${_connectedAgents.length}, _hostExtension=$_hostExtension");
           }
         }
       }
@@ -2779,9 +2829,24 @@ class MptCallKitController {
   }
 
   Future<void> updateToConference({bool? isConference}) async {
+    final bool confStatus = isConference ?? true;
+
     await channel.invokeMethod("conference", {
-      "isConference": isConference ?? true,
+      "isConference": confStatus,
     });
+
+    // Nếu là host, broadcast conference status
+    if (_isHostConference) {
+      if (confStatus) {
+        // Conference được tạo lần đầu
+        print("Conference created - broadcasting to all lines");
+        await _broadcastConferenceStatus(true);
+      } else {
+        // Conference bị destroy
+        print("Conference destroyed - broadcasting to all lines");
+        await _broadcastConferenceStatus(false);
+      }
+    }
   }
 
   Future<void> hangUpAllCalls() async {
@@ -2802,5 +2867,109 @@ class MptCallKitController {
       },
     });
     await sendSipMessage(sipSessionId, message);
+  }
+
+  /// Trở thành host của conference
+  void _becomeHost() {
+    if (!isMakeCallByGuest) {
+      _isHostConference = true;
+      _hostExtension = currentUserInfo?["user"]["extension"];
+      print("Became host - Extension: $_hostExtension");
+    }
+  }
+
+  /// Reset vai trò host
+  void _resetHostRole() {
+    print("Resetting host role - was host: $_isHostConference");
+    _isHostConference = false;
+    _hostExtension = null;
+  }
+
+  /// Thêm agent vào danh sách connected agents
+  void _addConnectedAgent(int sipSessionId, int agentId) {
+    // Kiểm tra xem agent đã tồn tại chưa
+    final exists = _connectedAgents.any((e) => e.sipSessionId == sipSessionId);
+    if (!exists) {
+      final agentData = AgentDataOnConf(
+        sipSessionId: sipSessionId,
+        agentId: agentId,
+        uuid: null,
+      );
+      _connectedAgents.add(agentData);
+      print(
+          'Added agent to connected list: sipSessionId=$sipSessionId, agentId=$agentId');
+      print('Total connected agents: ${_connectedAgents.length}');
+    } else {
+      print('Agent already in connected list: sipSessionId=$sipSessionId');
+    }
+  }
+
+  /// Xóa agent khỏi danh sách connected agents
+  void _removeConnectedAgent(int sipSessionId) {
+    final initialLength = _connectedAgents.length;
+    _connectedAgents.removeWhere((e) => e.sipSessionId == sipSessionId);
+    final removed = initialLength - _connectedAgents.length;
+
+    if (removed > 0) {
+      print('Removed agent from connected list: sipSessionId=$sipSessionId');
+      print('Remaining connected agents: ${_connectedAgents.length}');
+    } else {
+      print('Agent not found in connected list: sipSessionId=$sipSessionId');
+    }
+  }
+
+  /// Broadcast conference status tới tất cả các line đang kết nối
+  Future<void> _broadcastConferenceStatus(bool status) async {
+    if (!_isHostConference) {
+      print("Only host can broadcast conference status");
+      return;
+    }
+
+    print("Broadcasting conference status: $status to all connected lines");
+
+    // Gửi message tới tất cả các line trong conference
+    for (var agentData in _connectedAgents) {
+      try {
+        await sendConferenceMessage(
+          sipSessionId: agentData.sipSessionId,
+          status: status,
+        );
+        print(
+            "Sent conference status to sipSessionId: ${agentData.sipSessionId}");
+      } catch (e) {
+        print(
+            "Failed to send conference status to sipSessionId: ${agentData.sipSessionId}, error: $e");
+      }
+    }
+  }
+
+  /// Xử lý khi nhận message create_conf
+  void _handleCreateConferenceMessage(Map<String, dynamic> payload) {
+    try {
+      final String? createdBy = payload['createdBy'];
+      final bool? status = payload['status'];
+
+      print(
+          "Received create_conf message - createdBy: $createdBy, status: $status");
+
+      if (createdBy == null || status == null) {
+        print("Invalid create_conf message: missing required fields");
+        return;
+      }
+
+      if (status) {
+        // Conference được tạo/active
+        _hostExtension = createdBy;
+        print("Conference created by: $createdBy");
+      } else {
+        // Conference bị destroy
+        print("Conference destroyed by: $createdBy");
+        if (_hostExtension == createdBy) {
+          _resetHostRole();
+        }
+      }
+    } catch (e) {
+      print("Error handling create_conf message: $e");
+    }
   }
 }
