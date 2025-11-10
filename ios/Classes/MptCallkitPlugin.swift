@@ -2245,6 +2245,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         _callManager.hangUpAllCalls()
         self.isConference = false
     }
+    
+    func holdAllCalls(isHold: Bool){
+        _callManager.holdAllCall(onHold: isHold)
+    }
 
     func holdCall() {
         NSLog("holdCall")
@@ -3043,6 +3047,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             result(sendMsgRes)
         case "hangUpAllCalls":
             self.hangUpAllCalls()
+            result(true)
+        case "holdAllCalls":
+            if let args = call.arguments as? [String: Any],
+               let isHold = args["isHold"] as? Bool {
+                holdAllCalls(isHold: isHold)
+            }
             result(true)
         default:
             result(FlutterMethodNotImplemented)

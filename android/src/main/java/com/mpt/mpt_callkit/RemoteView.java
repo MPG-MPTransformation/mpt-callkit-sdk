@@ -67,7 +67,6 @@ public class RemoteView implements PlatformView {
             public void run() {
                 if (remoteRenderVideoView != null) {
                     remoteRenderVideoView.setScalingType(PortSIPVideoRenderer.ScalingType.SCALE_ASPECT_FILL);
-                    System.out.println("SDK-Android: RemoteView - Timer force set SCALE_ASPECT_FILL");
                 }
                 scalingHandler.postDelayed(this, 500);
             }

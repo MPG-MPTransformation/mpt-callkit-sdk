@@ -34,6 +34,7 @@ public class Session {
 	}
 
 	public void Reset() {
+		System.out.println("SDK-Android: Reset session");
 		remote = null;
 		displayName = null;
 		hasVideo = false;

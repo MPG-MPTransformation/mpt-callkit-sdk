@@ -595,8 +595,8 @@ class CallManager: NSObject {
         NSLog("hangUpAllCalls...")
         for i in 0 ..< MAX_LINES {
             if sessionArray[i].sessionId > INVALID_SESSION_ID {
-                let res = endCall(sessionid: sessionArray[i].sessionId)
                 NSLog("Hang up on line=\(i) - sessionId=\(sessionArray[i].sessionId)")
+                let res = endCall(sessionid: sessionArray[i].sessionId)
             }
         }
     }

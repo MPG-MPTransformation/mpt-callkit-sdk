@@ -839,6 +839,12 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 CallManager.Instance().hangupAllCalls(Engine.Instance().getEngine());
                 result.success(true);
                 break;
+            case "holdAllCalls":
+                Boolean isHoldArg = call.argument("isHold");
+                boolean isHoldVal = isHoldArg != null ? isHoldArg : true;
+                CallManager.Instance().holdAllCalls(isHoldVal);
+                result.success(true);
+                break;
             default:
                 result.notImplemented();
         }
@@ -1315,6 +1321,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
     public static int answerCall(boolean isAutoAnswer) {
         Session currentLine = CallManager.Instance().getCurrentSession();
+        System.out.println("SDK-Android: Answer call CurrentLine index: " + CallManager.Instance().CurrentLine);
         System.out.println("SDK-Android: Answer call currentLine: " + currentLine);
         System.out.println("SDK-Android: Answer call sessionID: " + currentLine.sessionID);
         System.out.println("SDK-Android: Answer call state: " + currentLine.state);

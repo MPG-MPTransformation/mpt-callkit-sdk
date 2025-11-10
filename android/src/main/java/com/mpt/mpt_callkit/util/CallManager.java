@@ -78,6 +78,27 @@ public class CallManager {
 		}
 	}
 
+	public void holdAllCalls(boolean onHold) {
+
+		if (Engine.Instance().mConference) {
+			System.out.println("holdAllCalls: in conference");
+			return;
+		}
+
+		System.out.println("holdAllCalls: onHold: " + onHold);
+
+		for (Session session : sessions) {
+			if (session.sessionID > Session.INVALID_SESSION_ID && session.state == Session.CALL_STATE_FLAG.CONNECTED) {
+				session.bHold = onHold;
+				if (onHold) {
+					Engine.Instance().getEngine().hold(session.sessionID);
+				} else {
+					Engine.Instance().getEngine().unHold(session.sessionID);
+				}
+			}
+		}
+	}
+
 	public boolean hasActiveSession() {
 
 		for (Session session : sessions) {
@@ -99,13 +120,24 @@ public class CallManager {
 	}
 
 	public Session findIdleSession() {
-		for (Session session : sessions) {
-			if (session.IsIdle()) {
-				session.Reset();
-				return session;
+		for (int i = 0; i < sessions.length; i++) {
+			if (sessions[i].IsIdle()) {
+				sessions[i].Reset();
+				CurrentLine = i;
+				System.out.println("SDK-Android: findIdleSession - Set CurrentLine to: " + i);
+				return sessions[i];
 			}
 		}
 		return null;
+	}
+	
+	public int getSessionIndex(Session session) {
+		for (int i = 0; i < sessions.length; i++) {
+			if (sessions[i] == session) {
+				return i;
+			}
+		}
+		return -1;
 	}
 
 	public Session getCurrentSession() {

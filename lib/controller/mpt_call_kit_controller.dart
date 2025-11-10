@@ -1476,6 +1476,9 @@ class MptCallKitController {
 
     await Future.delayed(const Duration(milliseconds: 2000));
 
+    // hold all lines
+    await holdAllCalls(isHold: true);
+
     final selectedLine = await _autoSelectAvailableLine();
 
     if (selectedLine < 0) {
@@ -1581,34 +1584,29 @@ class MptCallKitController {
   Future<int> hangup() async {
     // If hangup success, return 0 - failed in others case
     try {
-      // final isConference = await getConferenceState();
-      // if (isConference) {
-      //   // hang up all calls
-      //   await hangUpAllCalls();
-      //   // // stop conference mode
-      //   // await updateToConference();
-      //   return 0;
-      // } else {
-      //   final result = await channel.invokeMethod("hangup");
-      //   print("hangup result: $result");
-      //   return result;
-      // }
+      final isConference = await getConferenceState();
+      if (isConference) {
+        // Nếu là host, broadcast destroy conference trước khi hangup
+        if (_isHostConference) {
+          await updateToConference(isConference: false);
+        }
 
-      // Nếu là host, broadcast destroy conference trước khi hangup
-      if (_isHostConference) {
-        await updateToConference(isConference: false);
+        _isConference = false;
+
+        await hangUpAllCalls();
+
+        // Reset host role và clear connected agents sau khi hangup tất cả
+        if (_hostExtension != null) {
+          _resetHostRole();
+          print("Hangup all - reset host role");
+        }
+        _connectedAgents.clear();
+        return 0;
+      } else {
+        final result = await channel.invokeMethod("hangup");
+        print("hangup result: $result");
+        return result;
       }
-
-      _isConference = false;
-
-      await hangUpAllCalls();
-
-      // Reset host role và clear connected agents sau khi hangup tất cả
-      if (_hostExtension != null) {
-        _resetHostRole();
-        print("Hangup all - reset host role");
-      }
-      _connectedAgents.clear();
 
       return 0;
     } on PlatformException catch (e) {
@@ -1633,6 +1631,19 @@ class MptCallKitController {
       return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'unhold' mothod: '${e.message}'.");
+      return false;
+    }
+  }
+
+  Future<bool> holdAllCalls({required bool isHold}) async {
+    try {
+      final result = await channel.invokeMethod("holdAllCalls", {
+        "isHold": isHold,
+      });
+      print("holdAllCalls result: $result");
+      return result;
+    } on PlatformException catch (e) {
+      debugPrint("Failed in 'holdAllCalls' mothod: '${e.message}'.");
       return false;
     }
   }
@@ -1941,6 +1952,19 @@ class MptCallKitController {
     if (state == CallStateConstants.CLOSED ||
         state == CallStateConstants.FAILED) {
       _resetRemoteStates();
+
+      bool result = await getConferenceState();
+      print("getConferenceState result: $result");
+
+      if (_isConference) {
+        print("handleCallStateChanged: In conference");
+        if (!result) {
+          await updateToConference(isConference: true);
+        }
+      } else {
+        await holdAllCalls(isHold: false);
+        print("handleCallStateChanged: Not in conference");
+      }
 
       // Remove agent khỏi connected list nếu có sessionId hợp lệ
       if (sessionId != INVALID_SESSION_ID) {
@@ -2858,6 +2882,8 @@ class MptCallKitController {
     required int? sipSessionId,
     required bool status,
   }) async {
+    print(
+        "sendConferenceMessage - sipSessionId: $sipSessionId, status: $status");
     final message = jsonEncode({
       "type": SIPMessageTypeConstants.CREATE_CONFERENCE,
       "agentId": currentUserInfo?["user"]["id"],
