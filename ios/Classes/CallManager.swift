@@ -178,6 +178,7 @@ class CallManager: NSObject {
             return
         }
         if #available(iOS 10.0, *) {
+            NSLog("reportAnswerCall... uuid=\(uuid)")
             let answerAction = CXAnswerCallAction(call: result.session.uuid)
 
             let transaction = CXTransaction()
@@ -402,7 +403,7 @@ class CallManager: NSObject {
             } else {
                 let sesion = result.session as Session
                 reportEndCall(uuid: sesion.uuid)
-                statusCode = 0 // CallKit operations assume success
+                statusCode = 3 // CallKit operations assume success
             }
 
         } else {
@@ -511,51 +512,43 @@ class CallManager: NSObject {
     }
 
     func joinToConference(sessionid: CLong) {
-        guard let result = findCallBySessionID(sessionid) else {
-            return
-        }
-        if !result.session.sessionState || !isConference {
-            return
-        }
+            guard let result = findCallBySessionID(sessionid) else {
+                return
+            }
+            if !result.session.sessionState || !isConference {
+                return
+            }
 
-        if _enableCallKit {
-            if isHideCallkit {
+//            if _enableCallKit {
+//                if(_conferenceGroupID==nil){
+//                    _conferenceGroupID = result.session.uuid
+//                }else{
+//                    var groupWith = findCallByUUID(uuid:_conferenceGroupID)
+//                    if(groupWith==nil){
+//                        groupWith =  findAnotherCall(result.session.sessionId)
+//                    }
+//                    
+//                    if(groupWith==nil){
+//                        _conferenceGroupID = result.session.uuid
+//                    }else{
+//                        _conferenceGroupID = groupWith?.session.uuid
+//                    }
+//                }
+//                
+//                if(_conferenceGroupID == result.session.uuid){
+//                    joinToConference(uuid: result.session.uuid)
+//                }else{
+//                    reportRemoveFromConference(uuid:result.session.uuid);
+//                    reportJoninConference(uuid:result.session.uuid);
+//                }
+//            }else{
                 joinToConference(uuid: result.session.uuid)
                 if(result.session.holdState){
                     holdCall(uuid: result.session.uuid, onHold: false);
                 }
-            } else {
-                if(_conferenceGroupID==nil){
-                    _conferenceGroupID = result.session.uuid
-                }else{
-                    var groupWith = findCallByUUID(uuid:_conferenceGroupID)
-                    if(groupWith==nil){
-                        groupWith =  findAnotherCall(result.session.sessionId)
-                    }
-                    
-                    if(groupWith==nil){
-                        _conferenceGroupID = result.session.uuid
-                    }else{
-                        _conferenceGroupID = groupWith?.session.uuid
-                    }
-                }
-                
-                if(_conferenceGroupID == result.session.uuid){
-                    joinToConference(uuid: result.session.uuid)
-                }else{
-                    reportRemoveFromConference(uuid:result.session.uuid);
-                    reportJoninConference(uuid:result.session.uuid);
-                }
-            }
-           
-        }else{
-            joinToConference(uuid: result.session.uuid)
-            if(result.session.holdState){
-                holdCall(uuid: result.session.uuid, onHold: false);
-            }
+//            }
+            
         }
-        
-    }
 
     func removeFromConference(sessionid: CLong) {
         guard let result = findCallBySessionID(sessionid) else {
@@ -595,8 +588,12 @@ class CallManager: NSObject {
         NSLog("hangUpAllCalls...")
         for i in 0 ..< MAX_LINES {
             if sessionArray[i].sessionId > INVALID_SESSION_ID {
-                NSLog("Hang up on line=\(i) - sessionId=\(sessionArray[i].sessionId)")
                 let res = endCall(sessionid: sessionArray[i].sessionId)
+                NSLog("Hang up on line=\(i) - sessionId=\(sessionArray[i].sessionId) res=\(res)")
+                
+                if (res == 3){
+                    _portSIPSDK.hangUp(sessionArray[i].sessionId)
+                }
             }
         }
     }
@@ -692,6 +689,8 @@ class CallManager: NSObject {
         if isConference {
             removeFromConference(sessionid: result.session.sessionId)
         }
+        
+        NSLog("hungUpCall... sessionState=\(result.session.sessionState)")
 
         if result.session.sessionState {
             hangUpRet = Int32(_portSIPSDK.hangUp(result.session.sessionId))

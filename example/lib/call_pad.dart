@@ -795,7 +795,6 @@ class _CallPadState extends State<CallPad> {
                 // inviteToConference() tự động xử lý: host mời trực tiếp, guest gửi request đến host
                 await MptCallKitController().inviteToConference(
                   destination: extension,
-                  isVideoCall: true,
                   accessToken: accessToken!,
                   extraInfo: "extraInfo",
                   onError: (error) {

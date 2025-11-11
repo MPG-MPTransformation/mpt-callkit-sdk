@@ -1433,7 +1433,6 @@ class MptCallKitController {
   /// - Nếu không phải host: gửi request đến host để mời
   Future<void> inviteToConference({
     required String destination,
-    required bool isVideoCall,
     required String extraInfo,
     required String? accessToken,
     Function(String?)? onError,
@@ -1489,7 +1488,7 @@ class MptCallKitController {
     await makeCallInternal(
       destination: destination,
       senderId: currentUserInfo!["user"]["extension"],
-      isVideoCall: isVideoCall,
+      isVideoCall: true,
       extraInfo: extraInfo,
       accessToken: accessToken ?? "",
       onError: onError,
@@ -2503,7 +2502,6 @@ class MptCallKitController {
         if (extension.isNotEmpty) {
           await MptCallKitController().inviteToConference(
             destination: extension,
-            isVideoCall: true,
             extraInfo: "extraInfo",
             accessToken: await _getUserAccessToken(),
             onError: (error) {

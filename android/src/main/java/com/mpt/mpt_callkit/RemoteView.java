@@ -188,10 +188,10 @@ public class RemoteView implements PlatformView {
                             break;
                         case FAILED:
                             // Tắt cuộc gọi nếu người dùng cúp máy không nghe
-                            if (currentLine != null && currentLine.sessionID > 0) {
-                                MptCallkitPlugin.hangup();
-                                currentLine.Reset();
-                            }
+                            // if (currentLine != null && currentLine.sessionID > 0) {
+                            //     MptCallkitPlugin.hangup();
+                            //     currentLine.Reset();
+                            // }
                             break;
                     }
                 } else {

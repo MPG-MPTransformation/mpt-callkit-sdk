@@ -1438,9 +1438,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             print("onInviteIncoming - Outgoing call API")
             if _callManager.enableCallKit {
                 if #available(iOS 10.0, *) {
-                    _callManager.isHideCallkit = false
-                    _callManager.reportOutgoingCall(
-                        number: self.currentRemoteName, uuid: self.currentUUID!, video: existsVideo)
+                    _callManager.isHideCallkit = true
+                    _callManager.delegate?.onIncomingCallWithoutCallKit(sessionId, existsVideo: existsVideo, remoteParty: remoteParty!, remoteDisplayName: remoteDisplayName!)
+//                    _callManager.reportOutgoingCall(
+//                        number: self.currentRemoteName, uuid: self.currentUUID!, video: existsVideo)
                 }
             } else {
                 //               _callManager.delegate?.onIncomingCallWithoutCallKit(sessionId, existsVideo: existsVideo, remoteParty: remoteParty!, remoteDisplayName: remoteDisplayName!)
@@ -3268,6 +3269,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 NSLog("🔍   result.session.videoState: \(result!.session.videoState)")
                 NSLog("🔍   result.session.videoMuted: \(result!.session.videoMuted)")
                 NSLog("🔍   result.session.sessionState: \(result!.session.sessionState)")
+                NSLog("🔍   result.session.sessionState: \(result!.session.uuid)")
 
                 _callManager.waitSocketBeforeAnswer = !isAutoAnswer
                 _ = _callManager.setForeground(UIApplication.shared.applicationState == .active)
