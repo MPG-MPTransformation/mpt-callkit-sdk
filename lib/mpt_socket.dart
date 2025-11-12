@@ -390,6 +390,15 @@ class MptSocketSocketServer {
       _listenEventChannels();
       // Rejoin all subscribed rooms after reconnection
       _rejoinSubscribedRooms();
+      MptCallKitController().sendLog(
+        title: MPTSDKLogTitleConstants.SOCKET_CONNECTED,
+        values: {
+          "callBack": "onConnect",
+        },
+        isGuest: false,
+        tenantId: MptCallKitController().getLoggedTenantId(),
+        agentId: MptCallKitController().getLoggedAgentId(),
+      );
     });
 
     socket!.onReconnect((data) {
@@ -403,6 +412,29 @@ class MptSocketSocketServer {
       _listenEventChannels();
       // Rejoin all subscribed rooms after reconnection
       _rejoinSubscribedRooms();
+      MptCallKitController().sendLog(
+        title: MPTSDKLogTitleConstants.SOCKET_RECONNECTED,
+        values: {
+          "callBack": "onReconnect",
+        },
+        isGuest: false,
+        tenantId: MptCallKitController().getLoggedTenantId(),
+        agentId: MptCallKitController().getLoggedAgentId(),
+      );
+    });
+
+    socket!.onReconnectFailed((error) {
+      print("Socket.IO reconnect failed: $error");
+      isConnecting = false;
+      MptCallKitController().sendLog(
+        title: MPTSDKLogTitleConstants.SOCKET_RECONNECT_FAILED,
+        values: {
+          "callBack": "onReconnectFailed",
+        },
+        isGuest: false,
+        tenantId: MptCallKitController().getLoggedTenantId(),
+        agentId: MptCallKitController().getLoggedAgentId(),
+      );
     });
 
     socket!.onDisconnect((_) {
@@ -413,6 +445,15 @@ class MptSocketSocketServer {
       }
       // Disconnected -> rooms not joined
       _initialRoomsJoined = false;
+      MptCallKitController().sendLog(
+        title: MPTSDKLogTitleConstants.SOCKET_DISCONNECTED,
+        values: {
+          "callBack": "onDisconnect",
+        },
+        isGuest: false,
+        tenantId: MptCallKitController().getLoggedTenantId(),
+        agentId: MptCallKitController().getLoggedAgentId(),
+      );
     });
 
     socket!.onConnectError((error) {
@@ -421,10 +462,28 @@ class MptSocketSocketServer {
       if (!_connectionStatusController.isClosed) {
         _connectionStatusController.add(false);
       }
+      MptCallKitController().sendLog(
+        title: MPTSDKLogTitleConstants.SOCKET_ERROR,
+        values: {
+          "callBack": "onConnectError",
+        },
+        isGuest: false,
+        tenantId: MptCallKitController().getLoggedTenantId(),
+        agentId: MptCallKitController().getLoggedAgentId(),
+      );
     });
 
     socket!.onError((error) {
       print("Socket.IO error: $error");
+      MptCallKitController().sendLog(
+        title: MPTSDKLogTitleConstants.SOCKET_ERROR,
+        values: {
+          "callBack": "onError",
+        },
+        isGuest: false,
+        tenantId: MptCallKitController().getLoggedTenantId(),
+        agentId: MptCallKitController().getLoggedAgentId(),
+      );
     });
 
     socket!.emitWithAck("agent_initialize", {
@@ -517,6 +576,18 @@ class MptSocketSocketServer {
               _callEventController.add(
                   CallEventSocketRecv.fromJson(data as Map<String, dynamic>));
               _currentCallEventSocketData = CallEventSocketRecv.fromJson(data);
+
+              MptCallKitController().sendLog(
+                values: {
+                  "event": "CALL_EVENT",
+                  "data": data.toString(),
+                },
+                title: MPTSDKLogTitleConstants.SOCKET_CALL_EVENT,
+                tenantId: tenantId,
+                agentId: agentId,
+                sessionId: sessionId,
+                isGuest: false,
+              );
             } else {
               print(
                   "Socket server - CALL_EVENT - callEventController is closed");
