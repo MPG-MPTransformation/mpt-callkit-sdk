@@ -616,7 +616,7 @@ class MptCallKitControllerRepo {
     return null;
   }
 
-  Future<void> reportDynamicClientLog({
+  Future<int> reportDynamicClientLog({
     String? baseUrl,
     required int tenantId,
     required int agentId,
@@ -637,8 +637,6 @@ class MptCallKitControllerRepo {
       "payload": payload,
     };
 
-    print("[Mpt_API] - reportDynamicClientLog - body: ${jsonEncode(body)}");
-
     final response = await http.post(
       Uri.parse(
           "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$_dynamicClientLogAPI"),
@@ -647,12 +645,11 @@ class MptCallKitControllerRepo {
     );
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      print("[Mpt_API] - reportDynamicClientLog - success!");
+      return response.statusCode;
     } else {
-      print(
-          "[Mpt_API] - reportDynamicClientLog - failed with status code: ${response.statusCode}");
       onError?.call(
           "[Mpt_API] - reportDynamicClientLog - failed with status code: ${response.statusCode}");
+      return -1;
     }
   }
 }
