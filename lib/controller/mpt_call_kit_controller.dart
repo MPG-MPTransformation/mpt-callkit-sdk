@@ -1468,7 +1468,6 @@ class MptCallKitController {
             "username": username,
             "displayName": displayName,
             "authName": authName,
-            "password": password,
             "userDomain": userDomain,
             "sipServer": sipServer,
             "sipServerPort": sipServerPort,
