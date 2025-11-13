@@ -132,9 +132,25 @@ class SDKPrefsKeyConstants {
 }
 
 class MptSDKCoreConstants {
-  static const String VERSION = "v0.0.34";
+  static const String VERSION = "v0.0.39-nblur";
 }
 
 class MPTSDKLogTitleConstants {
   static const String MEDIA_DEVICE_STATUS = "m_mediaDeviceStatus";
+  static const String SIP_CALL_STATE = "m_sipCallState";
+  static const String SIP_REGISTER = "m_sipRegister";
+  static const String SIP_UNREGISTER = "m_sipUnregister";
+  static const String METHOD_CALLED = "m_methodCalled";
+  static const String GUEST_MAKE_CALL = "m_guestMakeCall";
+  static const String MAKE_CALL_API = "m_makeCallApi";
+  static const String SDK_INIT = "m_sdkInit";
+  static const String AGENT_LOGIN = "m_agentLogin";
+  static const String AGENT_LOGOUT = "m_agentLogout";
+  static const String CHANGE_AGENT_STATUS = "m_changeAgentStatus";
+  static const String SOCKET_CALL_EVENT = "m_socketCallEvent";
+  static const String SOCKET_CONNECTED = "m_socketConnected";
+  static const String SOCKET_DISCONNECTED = "m_socketDisconnected";
+  static const String SOCKET_RECONNECTED = "m_socketReconnected";
+  static const String SOCKET_ERROR = "m_socketError";
+  static const String SOCKET_RECONNECT_FAILED = "m_socketReconnectFailed";
 }
