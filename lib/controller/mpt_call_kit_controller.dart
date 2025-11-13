@@ -539,7 +539,6 @@ class MptCallKitController {
     Function(String?)? accessTokenResponse,
     Function(String?)? onError,
   }) async {
-    var accessToken = "";
     var result = await MptCallkitAuthMethod().login(
       username: username,
       password: password,
@@ -548,7 +547,6 @@ class MptCallKitController {
       onError: onError,
       data: (e) {
         accessTokenResponse?.call(e["result"]["accessToken"]);
-        accessToken = e["result"]["accessToken"];
       },
     );
     if (result) {
@@ -559,16 +557,15 @@ class MptCallKitController {
     Map<String, dynamic> values = {
       "type": "username_password",
       "username": username,
-      "password": password,
       "tenantId": tenantId,
       "baseUrl": baseUrl ?? await getCurrentBaseUrl(),
-      "accessToken": accessToken,
       "result": result,
     };
     sendLog(
       values: values,
       title: MPTSDKLogTitleConstants.AGENT_LOGIN,
       tenantId: tenantId,
+      isGuest: false,
     );
     return result;
   }
@@ -580,7 +577,6 @@ class MptCallKitController {
     Function(String?)? onError,
     Function(String?)? accessTokenResponse,
   }) async {
-    var accessToken = "";
     var result = await MptCallkitAuthMethod().loginSSO(
       ssoToken: ssoToken,
       organization: organization,
@@ -588,7 +584,6 @@ class MptCallKitController {
       onError: onError,
       data: (e) {
         accessTokenResponse?.call(e["result"]["accessToken"]);
-        accessToken = e["result"]["accessToken"];
       },
     );
     if (result) {
@@ -597,15 +592,13 @@ class MptCallKitController {
     }
     Map<String, dynamic> values = {
       "type": "sso",
-      "ssoToken": ssoToken,
-      "organization": organization,
       "baseUrl": baseUrl ?? await getCurrentBaseUrl(),
-      "accessToken": accessToken,
       "result": result,
     };
     sendLog(
       values: values,
       title: MPTSDKLogTitleConstants.AGENT_LOGIN,
+      isGuest: false,
     );
     return result;
   }
