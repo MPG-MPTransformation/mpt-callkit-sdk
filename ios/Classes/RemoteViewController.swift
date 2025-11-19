@@ -87,8 +87,8 @@ class RemoteViewController: UIViewController {
            if hasVideo {
                if !self.isVideoInitialized {
                    self.initializeRemoteVideo()
+                   self.onStartVideo(sessionId)
                }
-               self.onStartVideo(sessionId)
                self.updateVideoVisibility(isVisible: true)
            } else {
                self.updateVideoVisibility(isVisible: true)
@@ -124,9 +124,9 @@ class RemoteViewController: UIViewController {
            if isVideoEnabled {
                if !self.isVideoInitialized {
                    self.initializeRemoteVideo()
+                   self.onStartVideo(sessionId)
                }
-               self.onStartVideo(sessionId)
-              
+               
                // Cập nhật hiển thị dựa trên camera state
                self.updateRemoteVideoDisplay(hasCameraOn: isCameraOn)
            } else {
@@ -452,8 +452,15 @@ class RemoteViewController: UIViewController {
           
            if isVisible && self.isVideoInitialized && self.sessionId != 0 {
                // Đảm bảo video được hiển thị
-               let result = sdk.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: remoteVideo)
-               print("RemoteViewController - setRemoteVideoWindow result: \(result)")
+               if self.isConferenceMode {
+                   let result1 = self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: nil)
+                   let result2 = self.portSIPSDK.setConferenceVideoWindow(self.viewRemoteVideo)
+                   print("RemoteViewController - setRemoteVideoWindow result=\(result1) - setConferenceVideoWindow result=\(result2)")
+               } else {
+                   let result1 = self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: self.viewRemoteVideo)
+                   let result2 = self.portSIPSDK.setConferenceVideoWindow(nil)
+                   print("RemoteViewController - setRemoteVideoWindow result=\(result1) - setConferenceVideoWindow result=\(result2)")
+               }
            } else if !isVisible && self.isVideoInitialized && self.sessionId != 0 {
                // Ẩn video
                sdk.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: nil)
@@ -462,8 +469,15 @@ class RemoteViewController: UIViewController {
                print("[Info] RemoteViewController - Attempting to initialize video for display")
                self.initializeRemoteVideo()
                if self.sessionId != 0 {
-                   let result = sdk.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: remoteVideo)
-                   print("RemoteViewController - setRemoteVideoWindow after init result: \(result)")
+                   if self.isConferenceMode {
+                       let result1 = self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: nil)
+                       let result2 = self.portSIPSDK.setConferenceVideoWindow(self.viewRemoteVideo)
+                       print("RemoteViewController - setRemoteVideoWindow result=\(result1) - setConferenceVideoWindow result=\(result2)")
+                   } else {
+                       let result1 = self.portSIPSDK.setRemoteVideoWindow(self.sessionId, remoteVideoWindow: self.viewRemoteVideo)
+                       let result2 = self.portSIPSDK.setConferenceVideoWindow(nil)
+                       print("RemoteViewController - setRemoteVideoWindow result=\(result1) - setConferenceVideoWindow result=\(result2)")
+                   }
                }
            }
        }

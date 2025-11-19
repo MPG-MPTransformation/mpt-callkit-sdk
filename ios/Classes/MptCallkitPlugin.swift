@@ -1367,7 +1367,20 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         self.activeSessionid = sessionId
         self.activeSessionidHasVideo = existsVideo
         self.activeSessionidHasAudio = existsAudio
-        sendCallStateToFlutter(.INCOMING, sessionId, existsVideo)
+        
+        // Gửi tất cả thông tin của onInviteIncoming qua Flutter
+        let incomingData: [String: Any] = [
+            "callerDisplayName": callerDisplayName ?? "",
+            "caller": caller ?? "",
+            "calleeDisplayName": calleeDisplayName ?? "",
+            "callee": callee ?? "",
+            "audioCodecNames": audioCodecs ?? "",
+            "videoCodecNames": videoCodecs ?? "",
+            "existsAudio": existsAudio,
+            "existsVideo": existsVideo,
+            "sipMessage": sipMessage ?? ""
+        ]
+        sendCallStateToFlutter(.INCOMING, sessionId, additionalData: incomingData)
         let num = _callManager.getConnectCallNum()
         let index = findIdleLine()
         // if num >= MAX_LINES || index < 0 {
@@ -1479,14 +1492,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             methodChannel?.invokeMethod("callType", arguments: "INCOMING_CALL")
             _callManager.setCallIncoming(true)
         }
-
-        // Setting speakers for sound output (The system default behavior)
-        setLoudspeakerStatus(true)
     }
 
     public func onInviteTrying(_ sessionId: Int) {
         NSLog("onInviteTrying...")
-        sendCallStateToFlutter(.TRYING, sessionId)
+        let tryingData: [String: Any] = [:]
+        sendCallStateToFlutter(.TRYING, sessionId, additionalData: tryingData)
         let index = findSession(sessionid: sessionId)
         // Gửi trạng thái về Flutter
         if index == -1 {
@@ -1612,8 +1623,19 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         mSoundService.stopRingBackTone()
         mSoundService.stopRingTone()
 
-        // Legacy Flutter state (keep for compatibility)
-        sendCallStateToFlutter(.ANSWERED, sessionId, existsVideo)
+        // Gửi tất cả thông tin của onInviteAnswered qua Flutter
+        let answeredData: [String: Any] = [
+            "callerDisplayName": callerDisplayName ?? "",
+            "caller": caller ?? "",
+            "calleeDisplayName": calleeDisplayName ?? "",
+            "callee": callee ?? "",
+            "audioCodecs": audioCodecs ?? "",
+            "videoCodecs": videoCodecs ?? "",
+            "existsAudio": existsAudio,
+            "existsVideo": existsVideo,
+            "sipMessage": sipMessage ?? ""
+        ]
+        sendCallStateToFlutter(.ANSWERED, sessionId, additionalData: answeredData)
     }
 
     public func onInviteFailure(
@@ -1662,8 +1684,17 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         mSoundService.stopRingBackTone()
         setLoudspeakerStatus(true)
 
-        // Gửi trạng thái về Flutter
-        sendCallStateToFlutter(.FAILED, sessionId)
+        // Gửi tất cả thông tin của onInviteFailure qua Flutter
+        let failureData: [String: Any] = [
+            "callerDisplayName": callerDisplayName ?? "",
+            "caller": caller ?? "",
+            "calleeDisplayName": calleeDisplayName ?? "",
+            "callee": callee ?? "",
+            "reason": reason ?? "",
+            "code": code,
+            "sipMessage": sipMessage ?? ""
+        ]
+        sendCallStateToFlutter(.FAILED, sessionId, additionalData: failureData)
         methodChannel?.invokeMethod("callType", arguments: "ENDED")
         methodChannel?.invokeMethod("isRemoteVideoReceived", arguments: false)
         self.isRemoteVideoReceived = false
@@ -1797,7 +1828,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
 
         // Gửi trạng thái về Flutter
-        sendCallStateToFlutter(.CONNECTED, sessionId)
+        let connectedData: [String: Any] = [
+            "videoState": result.session.videoState,
+            "videoMuted": result.session.videoMuted
+        ]
+        sendCallStateToFlutter(.CONNECTED, sessionId, additionalData: connectedData)
     }
 
     public func onInviteBeginingForward(_ forwardTo: String) {
@@ -1815,8 +1850,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         _ = mSoundService.stopRingBackTone()
         setLoudspeakerStatus(true)
         
-        // Gửi trạng thái về Flutter
-        sendCallStateToFlutter(.CLOSED, sessionId)
+        // Gửi thông tin của onInviteClosed qua Flutter
+        let closedData: [String: Any] = [
+            "sipMessage": sipMessage ?? ""
+        ]
+        sendCallStateToFlutter(.CLOSED, sessionId, additionalData: closedData)
 
         if activeSessionid == sessionId {
             activeSessionid = CLong(INVALID_SESSION_ID)
@@ -1939,7 +1977,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // Transfer has success, hangup call.
         portSIPSDK.hangUp(sessionId)
         // Gửi trạng thái về Flutter
-        sendCallStateToFlutter(.CLOSED, sessionId)
+        let transferData: [String: Any] = [
+            "transferSuccess": true
+        ]
+        sendCallStateToFlutter(.CLOSED, sessionId, additionalData: transferData)
     }
 
     public func onACTVTransferFailure(_ sessionId: Int, reason: String!, code: Int32) {
@@ -2427,7 +2468,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
     func onNewOutgoingCall(sessionid: CLong) {
         NSLog("onNewOutgoingCall")
-        lineSessions[_activeLine] = sessionid
+        lineSessions[_activeLine] = sessionid       
     }
 
     func onAnsweredCall(sessionId: CLong) {
@@ -2492,7 +2533,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 type: "call_state", 
                 payload: payload)
 
-            sendCallStateToFlutter(.ANSWERED, sessionId)
+            let answeredCallData: [String: Any] = [
+                "videoState": result!.session.videoState,
+                "existsVideo": self.activeSessionidHasVideo ?? false,
+                "existsAudio": self.activeSessionidHasAudio ?? false
+            ]
+            sendCallStateToFlutter(.ANSWERED, sessionId, additionalData: answeredCallData)
         }
 
         _ = mSoundService.stopRingTone()
@@ -2517,7 +2563,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             activeSessionid = CLong(INVALID_SESSION_ID)
         }
 
-        sendCallStateToFlutter(.CLOSED, sessionId)
+        let closeCallData: [String: Any] = [:]
+        sendCallStateToFlutter(.CLOSED, sessionId, additionalData: closeCallData)
 
         _ = mSoundService.stopRingTone()
         _ = mSoundService.stopRingBackTone()
@@ -2882,15 +2929,6 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                     return
                 }
 
-                // 🔍 LOG: Session state BEFORE update
-                NSLog("🔍 updateVideoCall - BEFORE:")
-                NSLog("🔍   sessionId: \(sessionResult.session.sessionId)")
-                NSLog("🔍   videoState: \(sessionResult.session.videoState)")
-                NSLog("🔍   videoMuted: \(sessionResult.session.videoMuted)")
-                NSLog("🔍   sessionState: \(sessionResult.session.sessionState)")
-                NSLog("🔍   activeSessionid: \(String(describing: activeSessionid))")
-                NSLog("🔍   currentLine=\(findSession(sessionid: sessionResult.session.sessionId))")
-
                 // Update video state
                 sessionResult.session.videoState = true
 
@@ -2899,26 +2937,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 NSLog("🔍   videoState: \(sessionResult.session.videoState)")
                 NSLog("🔍   videoMuted: \(sessionResult.session.videoMuted)")
 
-                // Send video from camera
-                //                setCamera(useFrontCamera: mUseFrontCamera)
-                
-//                let sendVideoRes = portSIPSDK.sendVideo(
-//                    sessionResult.session.sessionId, sendState: isVideo)
-//                NSLog("🔍 updateVideoCall - sendVideo(\(isVideo)): \(sendVideoRes)")
 
                 // Update call to add video stream
                 let updateRes = portSIPSDK.updateCall(
                     sessionResult.session.sessionId, enableAudio: true, enableVideo: isVideo)
                 NSLog("🔍 updateVideoCall - updateCall(audio=true, video=\(isVideo)): \(updateRes)")
-
-//                // Start capture session after SIP update to ensure it's not interfered with
-//                if isVideo {
-//                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-//                        let sendResult = self.portSIPSDK.enableSendVideoStream(toRemote: self.activeSessionid, state: true)
-//                        print("enableSendVideoStream result: \(sendResult)")
-//                        self.startSession()
-//                    }
-//                }
 
                 // 🔥 SIMPLE: Just send notification, let views handle themselves
                 let videoState = PortSIPVideoState(
@@ -3326,27 +3349,29 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
     }
 
-    func sendCallStateToFlutter(_ state: CallState, _ sessionId: CLong, _ hasVideo: Bool? = nil) {
-        // Cập nhật state manager thay vì gọi trực tiếp UI
+    /// Gửi call state tới Flutter với các tham số linh hoạt
+    /// - Parameters:
+    ///   - state: Trạng thái cuộc gọi
+    ///   - sessionId: Session ID
+    ///   - additionalData: Dictionary chứa các thông tin bổ sung
+    func sendCallStateToFlutter(_ state: CallState, _ sessionId: CLong, additionalData: [String: Any]? = nil) {
         if sessionId != CLong(INVALID_SESSION_ID) {
-                var callState: [String: Any] = [
-                    "sessionId": sessionId,
-                    "state": state.rawValue,
-                ]
-                
-                if let hasVideo = hasVideo {
-                    callState["hasVideo"] = hasVideo
-                }
-                
-                // Gửi trạng thái cơ bản
-                print("sendCallStateToFlutter: \(callState)")
-                methodChannel?.invokeMethod("callState", arguments: callState)
-
-//            else {
-//                NSLog("sendCallStateToFlutter - cannot find sessionId=\(activeSessionid)")
-//            }
+            var callState: [String: Any] = [
+                "sessionId": sessionId,
+                "state": state.rawValue,
+            ]
+            
+            // Merge additional data if provided
+            if let additionalData = additionalData {
+                callState.merge(additionalData) { (_, new) in new }
+            }
+            
+            // Gửi trạng thái
+            print("sendCallStateToFlutter: \(callState)")
+            methodChannel?.invokeMethod("callState", arguments: callState)
+        } else {
+            NSLog("sendCallStateToFlutter - INVALID_SESSION_ID")
         }
-        else {NSLog("sendCallStateToFlutter - INVALID_SESSION_ID")}
     }
 
     // Helper method để map CallState sang PortSIPCallState.CallStateType

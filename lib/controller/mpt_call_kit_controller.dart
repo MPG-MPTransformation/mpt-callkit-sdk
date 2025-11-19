@@ -6,6 +6,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:mpt_callkit/controller/sdk_call_services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -258,6 +259,8 @@ class MptCallKitController {
           _currentCallState = state;
           _callEvent.add(state);
           _handleCallStateChanged(state, sessionId);
+
+          SDKCallServices.setCallStateCallBack(callStateData);
 
           // Handle guest call specific logic
           if (isMakeCallByGuest) {
@@ -1606,8 +1609,6 @@ class MptCallKitController {
         print("hangup result: $result");
         return result;
       }
-
-      return 0;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'hangup' mothod: '${e.message}'.");
       return -1;
@@ -2105,6 +2106,8 @@ class MptCallKitController {
             _callEvent.add(state);
             _handleCallStateChanged(state, sessionId);
 
+            SDKCallServices.setCallStateCallBack(callStateData);
+
             // Handle guest call specific logic
             if (isMakeCallByGuest) {
               if (state == CallStateConstants.FAILED) {
@@ -2589,7 +2592,7 @@ class MptCallKitController {
 
         if (_isConference) {
           print("update to conference _isConference=$_isConference");
-          await Future.delayed(const Duration(milliseconds: 2000));
+          await Future.delayed(const Duration(milliseconds: 500));
           await updateToConference(isConference: true);
 
           // if agent is host, send message noti to new user

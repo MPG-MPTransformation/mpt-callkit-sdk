@@ -723,10 +723,21 @@ public class PortSipService extends Service
 
         Ring.getInstance(this).startRingTone();
 
-        // Gửi thông tin cuộc gọi đến đến Flutter
-        sendCallStateToFlutter("INCOMING", (int)sessionId, existsVideo);
+        // Gửi tất cả thông tin của onInviteIncoming qua Flutter
+        java.util.Map<String, Object> incomingData = new java.util.HashMap<>();
+        incomingData.put("callerDisplayName", callerDisplayName != null ? callerDisplayName : "");
+        incomingData.put("caller", caller != null ? caller : "");
+        incomingData.put("calleeDisplayName", calleeDisplayName != null ? calleeDisplayName : "");
+        incomingData.put("callee", callee != null ? callee : "");
+        incomingData.put("audioCodecNames", audioCodecNames != null ? audioCodecNames : "");
+        incomingData.put("videoCodecNames", videoCodecNames != null ? videoCodecNames : "");
+        incomingData.put("existsAudio", existsAudio);
+        incomingData.put("existsVideo", existsVideo);
+        incomingData.put("sipMessage", sipMessage != null ? sipMessage : "");
+        
+        sendCallStateToFlutter("INCOMING", (int)sessionId, incomingData);
 
-        // Gửi thêm thông tin chi tiết về người gọi
+        // Gửi thêm thông tin chi tiết về người gọi (legacy support)
         if (Engine.Instance() != null) {
             try {
                 // Tạo đối tượng chứa thông tin cuộc gọi để gửi về Flutter
@@ -845,8 +856,9 @@ public class PortSipService extends Service
     }
 
     @Override
-    public void onInviteTrying(long l) {
-        sendCallStateToFlutter("TRYING", (int)l, null);
+    public void onInviteTrying(long sessionId) {
+        java.util.Map<String, Object> tryingData = new java.util.HashMap<>();
+        sendCallStateToFlutter("TRYING", (int)sessionId, tryingData);
     }
 
     @Override
@@ -925,6 +937,20 @@ public class PortSipService extends Service
         }
 
         Ring.getInstance(this).stopRingBackTone();
+        
+        // Gửi tất cả thông tin của onInviteAnswered qua Flutter
+        java.util.Map<String, Object> answeredData = new java.util.HashMap<>();
+        answeredData.put("callerDisplayName", callerDisplayName != null ? callerDisplayName : "");
+        answeredData.put("caller", caller != null ? caller : "");
+        answeredData.put("calleeDisplayName", calleeDisplayName != null ? calleeDisplayName : "");
+        answeredData.put("callee", callee != null ? callee : "");
+        answeredData.put("audioCodecs", audioCodecNames != null ? audioCodecNames : "");
+        answeredData.put("videoCodecs", videoCodecNames != null ? videoCodecNames : "");
+        answeredData.put("existsAudio", existsAudio);
+        answeredData.put("existsVideo", existsVideo);
+        answeredData.put("sipMessage", sipMessage != null ? sipMessage : "");
+        
+        sendCallStateToFlutter("ANSWERED", (int)sessionId, answeredData);
     }
 
     @Override
@@ -951,7 +977,18 @@ public class PortSipService extends Service
         }
 
         Ring.getInstance(this).stopRingBackTone();
-        sendCallStateToFlutter("FAILED", (int)sessionId, null);
+        
+        // Gửi tất cả thông tin của onInviteFailure qua Flutter
+        java.util.Map<String, Object> failureData = new java.util.HashMap<>();
+        failureData.put("callerDisplayName", callerDisplayName != null ? callerDisplayName : "");
+        failureData.put("caller", caller != null ? caller : "");
+        failureData.put("calleeDisplayName", calleeDisplayName != null ? calleeDisplayName : "");
+        failureData.put("callee", callee != null ? callee : "");
+        failureData.put("reason", reason != null ? reason : "");
+        failureData.put("code", code);
+        failureData.put("sipMessage", sipMessage != null ? sipMessage : "");
+        
+        sendCallStateToFlutter("FAILED", (int)sessionId, failureData);
         sendCallTypeToFlutter("ENDED");
         MptCallkitPlugin.sendToFlutter("isRemoteVideoReceived", false);
         isRemoteVideoReceived = false;
@@ -1060,7 +1097,12 @@ public class PortSipService extends Service
         //             PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
         // }
 
-        sendCallStateToFlutter("CONNECTED", (int)sessionId, null);
+        java.util.Map<String, Object> connectedData = new java.util.HashMap<>();
+        if (session != null) {
+            connectedData.put("videoState", session.videoState);
+            connectedData.put("hasVideo", session.hasVideo);
+        }
+        sendCallStateToFlutter("CONNECTED", (int)sessionId, connectedData);
     }
 
     @Override
@@ -1087,7 +1129,12 @@ public class PortSipService extends Service
         if (mNotificationManager != null) {
             mNotificationManager.cancel(PENDINGCALL_NOTIFICATION);
         }
-        sendCallStateToFlutter("CLOSED", (int)sessionId, null);
+        
+        // Gửi thông tin của onInviteClosed qua Flutter
+        java.util.Map<String, Object> closedData = new java.util.HashMap<>();
+        closedData.put("sipMessage", sipMessage != null ? sipMessage : "");
+        
+        sendCallStateToFlutter("CLOSED", (int)sessionId, closedData);
         sendCallTypeToFlutter("ENDED");
         MptCallkitPlugin.sendToFlutter("isRemoteVideoReceived", false);
         isRemoteVideoReceived = false;
@@ -1511,20 +1558,27 @@ public class PortSipService extends Service
         sendBroadcast(broadIntent);
     }
 
-    private void sendCallStateToFlutter(String state, int sessionId, Boolean hasVideo) {
+    /**
+     * Gửi call state tới Flutter với các tham số linh hoạt
+     * @param state Trạng thái cuộc gọi
+     * @param sessionId Session ID
+     * @param additionalData Map chứa các thông tin bổ sung (có thể null)
+     */
+    private void sendCallStateToFlutter(String state, int sessionId, java.util.Map<String, Object> additionalData) {
         if (Engine.Instance() != null) {
-                // Tạo Map với sessionId, hasVideo, và state giống như iOS
+                // Tạo Map với sessionId và state
                 java.util.Map<String, Object> callState = new java.util.HashMap<>();
                 callState.put("sessionId", sessionId);
                 callState.put("state", state);
 
-                if (hasVideo != null) {
-                    callState.put("hasVideo", hasVideo);
+                // Merge additional data if provided
+                if (additionalData != null) {
+                    callState.putAll(additionalData);
                 }
                 
                 Engine.Instance().invokeMethod("callState", callState);
                 MptCallkitPlugin.sendToFlutter("callState", callState);
-                logWithTimestamp("SDK-Android: callState - " + state + " (sessionId: " + sessionId + ", hasVideo: " + hasVideo + ")");
+                logWithTimestamp("SDK-Android: callState - " + state + " (sessionId: " + sessionId + ", data: " + callState + ")");
         }
     }
 

@@ -1860,10 +1860,6 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
     private void updateToConference(Boolean isConference) {
         System.out.println("SDK-Android: updateToConference called - isConference: " + isConference + ", current state: " + Engine.Instance().mConference);
         
-        if (isConference == Engine.Instance().mConference) {
-            System.out.println("SDK-Android: Conference state unchanged, skipping");
-            return;
-        }
 
         if (isConference) {
             System.out.println("SDK-Android: Enabling conference mode");
