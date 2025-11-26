@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:example/call_pad.dart';
+import 'package:example/login_res_tabviews/video_view.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -108,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           Navigator.push(context, MaterialPageRoute(builder: (context) {
-            return const CallPad(
+            return const VideoView(
               isGuest: true,
             );
           }));

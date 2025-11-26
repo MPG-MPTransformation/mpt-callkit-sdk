@@ -1097,12 +1097,7 @@ public class PortSipService extends Service
         //             PortSipEnumDefine.AudioDevice.SPEAKER_PHONE.toString());
         // }
 
-        java.util.Map<String, Object> connectedData = new java.util.HashMap<>();
-        if (session != null) {
-            connectedData.put("videoState", session.videoState);
-            connectedData.put("hasVideo", session.hasVideo);
-        }
-        sendCallStateToFlutter("CONNECTED", (int)sessionId, connectedData);
+        sendCallStateToFlutter("CONNECTED", (int)sessionId, null);
     }
 
     @Override

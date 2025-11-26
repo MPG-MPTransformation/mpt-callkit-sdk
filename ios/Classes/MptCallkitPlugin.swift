@@ -1826,13 +1826,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             )
             PortSIPStateManager.shared.updateVideoState(videoState)
         }
-
-        // Gửi trạng thái về Flutter
-        let connectedData: [String: Any] = [
-            "videoState": result.session.videoState,
-            "videoMuted": result.session.videoMuted
-        ]
-        sendCallStateToFlutter(.CONNECTED, sessionId, additionalData: connectedData)
+        sendCallStateToFlutter(.CONNECTED, sessionId, additionalData: nil)
     }
 
     public func onInviteBeginingForward(_ forwardTo: String) {
@@ -3076,6 +3070,12 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             if let args = call.arguments as? [String: Any],
                let isHold = args["isHold"] as? Bool {
                 holdAllCalls(isHold: isHold)
+            }
+            result(true)
+        case "joinToConference":
+            if let args = call.arguments as? [String: Any],
+                let sipSessionId = args["sipSessionId"] as? CLong {
+                _callManager.joinToConference(sessionid: sipSessionId)
             }
             result(true)
         default:

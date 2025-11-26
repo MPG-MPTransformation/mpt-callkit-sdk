@@ -845,6 +845,11 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 CallManager.Instance().holdAllCalls(isHoldVal);
                 result.success(true);
                 break;
+            case "joinToConference":
+                int conferenceSessionId = call.argument("sipSessionId");
+                Engine.Instance().getEngine().joinToConference(conferenceSessionId);
+                result.success(true);
+                break;
             default:
                 result.notImplemented();
         }

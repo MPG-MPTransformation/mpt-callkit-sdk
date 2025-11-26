@@ -1418,8 +1418,6 @@ class MptCallKitController {
     );
   }
 
-  bool _isConference = false;
-
   Future<void> makeNativeCall({
     required String destination,
     required bool isVideoCall,
@@ -1445,13 +1443,16 @@ class MptCallKitController {
 
     // Nếu chưa có conference, người mời sẽ trở thành host
     if (_hostExtension == null) {
+      if (_connectedAgents.length == 1) {}
+      await updateToConference(isConference: true);
       _becomeHost();
       print("Becoming host of conference - Extension: $_hostExtension");
     }
 
     // Nếu KHÔNG phải host, gửi request đến host
     if (!_isHostConference) {
-      print("Not host - sending request to host to invite: $destination");
+      print(
+          "Not host - sending request to host: $_hostExtension to invite: $destination");
       final uuid = const Uuid().v4();
       final message = jsonEncode({
         "type": SIPMessageTypeConstants.ADD_TO_CONF_REQ,
@@ -1467,19 +1468,6 @@ class MptCallKitController {
 
     // Nếu là HOST, thực hiện mời trực tiếp
     print("Is host - inviting directly: $destination");
-
-    //destroy conference if need
-    _isConference = await getConferenceState();
-    print("conferenceState: $_isConference");
-
-    if (_isConference) {
-      await updateToConference(isConference: false);
-    }
-
-    await Future.delayed(const Duration(milliseconds: 2000));
-
-    // hold all lines
-    await holdAllCalls(isHold: true);
 
     final selectedLine = await _autoSelectAvailableLine();
 
@@ -1593,8 +1581,6 @@ class MptCallKitController {
           await updateToConference(isConference: false);
         }
 
-        _isConference = false;
-
         await hangUpAllCalls();
 
         // Reset host role và clear connected agents sau khi hangup tất cả
@@ -1605,9 +1591,8 @@ class MptCallKitController {
         _connectedAgents.clear();
         return 0;
       } else {
-        final result = await channel.invokeMethod("hangup");
-        print("hangup result: $result");
-        return result;
+        await hangUpAllCalls();
+        return 0;
       }
     } on PlatformException catch (e) {
       debugPrint("Failed in 'hangup' mothod: '${e.message}'.");
@@ -1946,30 +1931,24 @@ class MptCallKitController {
   }
 
   void _handleCallStateChanged(String state, int sessionId) async {
-    print("handleCallStateChanged: $state");
+    print("handleCallStateChanged: state=$state, sessionId=$sessionId");
 
     // Reset remote states when call ends
     if (state == CallStateConstants.CLOSED ||
         state == CallStateConstants.FAILED) {
       _resetRemoteStates();
 
-      bool result = await getConferenceState();
-      print("getConferenceState result: $result");
-
-      if (_isConference) {
-        print("handleCallStateChanged: In conference");
-        if (!result) {
-          await updateToConference(isConference: true);
-        }
-      } else {
-        await holdAllCalls(isHold: false);
-        print("handleCallStateChanged: Not in conference");
-      }
-
       // Remove agent khỏi connected list nếu có sessionId hợp lệ
       if (sessionId != INVALID_SESSION_ID) {
         _removeConnectedAgent(sessionId);
       }
+
+      bool result = await getConferenceState();
+      print(
+          "getConferenceState result: $result , connectedAgents.length=${_connectedAgents.length}");
+      // if (result && _connectedAgents.length == 1) {
+      //   await updateToConference(isConference: false, sessionId: sessionId);
+      // }
 
       // Reset host role khi không còn agent nào connected
       if (_hostExtension != null && _connectedAgents.isEmpty) {
@@ -2533,6 +2512,8 @@ class MptCallKitController {
     }
   }
 
+  /// Send SIP message to native
+  /// sipSessionId=null -> send message to current session
   Future<int> sendSipMessage(int? sipSessionId, String message) async {
     final result = await channel.invokeMethod("sendSipMessage", {
       "sipSessionId": sipSessionId,
@@ -2590,28 +2571,15 @@ class MptCallKitController {
           updateVideoCall(isVideo: true);
         });
 
-        if (_isConference) {
-          print("update to conference _isConference=$_isConference");
-          await Future.delayed(const Duration(milliseconds: 500));
-          await updateToConference(isConference: true);
+        final isConferenceMode = await getConferenceState();
 
-          // if agent is host, send message noti to new user
-          if (_isHostConference) {
-            print("update to conference - isHostConference=$_isHostConference");
-            await sendConferenceMessage(
-              sipSessionId: sipSessionId,
-              status: true,
-            );
-          }
-        } else {
-          print("update to conference _isConference=$_isConference");
-          if (_connectedAgents.length >= 2) {
-            print("update to conference");
-            await updateToConference(isConference: true);
-          } else {
-            print(
-                "update to conference _connectedAgents.length=${_connectedAgents.length}, _hostExtension=$_hostExtension");
-          }
+        if (isConferenceMode) {
+          await joinToConference(sipSessionId: sipSessionId);
+          // isConferenceMode = true -> agent is host
+          await sendConferenceMessage(
+            sipSessionId: sipSessionId,
+            status: true,
+          );
         }
       }
     }
@@ -2939,7 +2907,7 @@ class MptCallKitController {
 
     if (removed > 0) {
       print('Removed agent from connected list: sipSessionId=$sipSessionId');
-      print('Remaining connected agents: ${_connectedAgents.length}');
+      print('Total connected agents: ${_connectedAgents.length}');
     } else {
       print('Agent not found in connected list: sipSessionId=$sipSessionId');
     }
@@ -2968,6 +2936,13 @@ class MptCallKitController {
             "Failed to send conference status to sipSessionId: ${agentData.sipSessionId}, error: $e");
       }
     }
+  }
+
+  joinToConference({required int sipSessionId}) async {
+    print("joinToConference - sipSessionId: $sipSessionId");
+    await channel.invokeMethod("joinToConference", {
+      "sipSessionId": sipSessionId,
+    });
   }
 
   /// Xử lý khi nhận message create_conf
