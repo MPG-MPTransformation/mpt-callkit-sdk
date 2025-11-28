@@ -217,12 +217,12 @@ class MptCallKitController {
       _setupEventChannelListener();
     } else {
       channel.setMethodCallHandler((call) async {
-        print("Received event from native: ${call.method}");
+        debugPrint("Received event from native: ${call.method}");
         if (call.method == 'onlineStatus') {
           _isOnline = call.arguments as bool;
           _onlineStatuslistener.add(call.arguments as bool);
           onRegisterSIP?.call(call.arguments as bool);
-          print("onlineStatus: ${call.arguments}");
+          debugPrint("onlineStatus: ${call.arguments}");
 
           // Handle SIP ping based on registration status
           if (call.arguments as bool) {
@@ -239,13 +239,13 @@ class MptCallKitController {
           // Handle guest call specific logic
           if (isMakeCallByGuest) {
             if (call.arguments == CallStateConstants.FAILED) {
-              print("makeCallByGuest() - Call failed!");
+              debugPrint("makeCallByGuest() - Call failed!");
               offline(disablePushNoti: true);
               releaseExtension();
             }
 
             if (call.arguments == CallStateConstants.CLOSED) {
-              print("makeCallByGuest() - Call ended!");
+              debugPrint("makeCallByGuest() - Call ended!");
               offline(disablePushNoti: true);
               releaseExtension();
             }
@@ -290,21 +290,22 @@ class MptCallKitController {
         }
 
         if (call.method == 'callKitAnswerReceived') {
-          print(
+          debugPrint(
               'Received callKitAnswerReceived event from native: ${call.arguments}');
         }
 
         if (call.method == 'recvCallMessage') {
-          print('Received call message from native: ${call.arguments}');
+          debugPrint('Received call message from native: ${call.arguments}');
           handleRecvCallMessage(call.arguments);
         }
 
         if (call.method == 'onVideoRawCallback') {
-          print('Received onVideoRawCallback from native: ${call.arguments}');
+          debugPrint(
+              'Received onVideoRawCallback from native: ${call.arguments}');
         }
 
         if (call.method == 'isRemoteVideoReceived') {
-          print(
+          debugPrint(
               'Received isRemoteVideoReceived from native: ${call.arguments}');
           _isRemoteVideoReceived.add(call.arguments as bool);
         }
@@ -341,7 +342,7 @@ class MptCallKitController {
     final String filePath = '${logsDir.path}/mpt_callkit_$ts.log';
     _logFile = File(filePath);
 
-    print("record log to filePath: $filePath");
+    debugPrint("record log to filePath: $filePath");
 
     if (!_fileLoggingEnabled) {
       _originalDebugPrint = debugPrint;
@@ -372,7 +373,7 @@ class MptCallKitController {
   }
 
   Future<void> disableFileLogging() async {
-    print("disableFileLogging");
+    debugPrint("disableFileLogging");
     try {
       await channel.invokeMethod('enableFileLogging', <String, dynamic>{
         'enabled': false,
@@ -409,7 +410,7 @@ class MptCallKitController {
     final bool resolvedEnableDebug = enableDebugLog ?? false;
     final String resolvedCallerName = localizedCallerName ?? "Omicx call";
     final String resolvedDeviceInfo = deviceInfo ?? "";
-    print(
+    debugPrint(
         "initSDK: apiKey: $apiKey, baseUrl: $baseUrl, pushToken: $pushToken, appId: $appId, enableDebugLog: $enableDebugLog, localizedCallerName: $localizedCallerName, deviceInfo: $deviceInfo");
 
     this.enableDebugLog = resolvedEnableDebug;
@@ -631,22 +632,22 @@ class MptCallKitController {
             _appEvent.add(AppEventConstants.ERROR);
             onError?.call("Timeout waiting to join initial rooms");
             _currentAppEvent = AppEventConstants.ERROR;
-            print("Timeout waiting to join initial rooms");
+            debugPrint("Timeout waiting to join initial rooms");
           }
         } else {
           _appEvent.add(AppEventConstants.ERROR);
           onError?.call("Failed to connect to socket server");
           _currentAppEvent = AppEventConstants.ERROR;
-          print("Failed to connect to socket server");
+          debugPrint("Failed to connect to socket server");
         }
       } else {
         _appEvent.add(AppEventConstants.TOKEN_EXPIRED);
         onError?.call("Access token is expired");
-        print("Access token is expired");
+        debugPrint("Access token is expired");
         _currentAppEvent = AppEventConstants.TOKEN_EXPIRED;
       }
     } else {
-      print("Access token is null");
+      debugPrint("Access token is null");
       _appEvent.add(AppEventConstants.TOKEN_EXPIRED);
       onError?.call("Access token is null");
       _currentAppEvent = AppEventConstants.TOKEN_EXPIRED;
@@ -675,7 +676,7 @@ class MptCallKitController {
       Future.delayed(const Duration(milliseconds: 500), () async {
         {
           if (regResult == 0 && _isOnline == true) {
-            print("SIP already online");
+            debugPrint("SIP already online");
             return;
           }
 
@@ -696,7 +697,7 @@ class MptCallKitController {
               pushToken: await getCurrentPushToken(),
               appId: await getCurrentAppId(),
               onError: (p0) {
-                print("Error in register to sip server: ${p0.toString()}");
+                debugPrint("Error in register to sip server: ${p0.toString()}");
               },
               context: context,
               resolution: extensionData?.resolution,
@@ -727,7 +728,7 @@ class MptCallKitController {
       baseUrl: await getCurrentBaseUrl(),
       accessToken: accessToken,
       onError: (p0) {
-        print("Error in get current user info: ${p0.toString()}");
+        debugPrint("Error in get current user info: ${p0.toString()}");
       },
     );
     if (currentUserInfo != null &&
@@ -735,7 +736,7 @@ class MptCallKitController {
         currentUserInfo!["tenant"] == null) {
       _appEvent.add(AppEventConstants.TOKEN_EXPIRED);
       _currentAppEvent = AppEventConstants.TOKEN_EXPIRED;
-      print("Access token is expired");
+      debugPrint("Access token is expired");
     }
 
     if (currentUserInfo != null &&
@@ -743,27 +744,28 @@ class MptCallKitController {
         currentUserInfo!["tenant"] != null) {
       _appEvent.add(AppEventConstants.LOGGED_IN);
       _currentAppEvent = AppEventConstants.LOGGED_IN;
-      print("Get current user info success, ready to connect to socket server");
+      debugPrint(
+          "Get current user info success, ready to connect to socket server");
     }
   }
 
   Future<bool> connectToSocketServer(String accessToken) async {
-    print("connectToSocketServer");
+    debugPrint("connectToSocketServer");
 
     // Prevent multiple simultaneous connection attempts
     if (_isConnectingToSocket && _socketConnectionCompleter != null) {
-      print(
+      debugPrint(
           "Socket connection already in progress, waiting for existing attempt...");
       return await _socketConnectionCompleter!.future;
     }
 
     // Check if already connected
     if (MptSocketSocketServer.getCurrentConnectionState()) {
-      print("Socket server already connected");
+      debugPrint("Socket server already connected");
       try {
         await channel.invokeMethod('socketStatus', {'ready': true});
       } catch (e) {
-        print('Failed to notify iOS about socket status: $e');
+        debugPrint('Failed to notify iOS about socket status: $e');
       }
       return true;
     }
@@ -785,7 +787,7 @@ class MptCallKitController {
           configuration: _configuration!,
           currentUserInfo: currentUserInfo!,
           onMessageReceivedParam: (p0) {
-            print("Message received in callback: $p0");
+            debugPrint("Message received in callback: $p0");
           },
         );
 
@@ -798,7 +800,7 @@ class MptCallKitController {
               'ready': isConnected,
             });
           } catch (e) {
-            print('Failed to notify iOS about socket status: $e');
+            debugPrint('Failed to notify iOS about socket status: $e');
           }
         });
 
@@ -807,7 +809,7 @@ class MptCallKitController {
           _tempSocketStatusSubscription?.cancel();
           if (!_socketConnectionCompleter!.isCompleted) {
             _socketConnectionCompleter!.complete(false);
-            print("Socket connection timeout after 10 seconds");
+            debugPrint("Socket connection timeout after 10 seconds");
           }
           _isConnectingToSocket = false;
         });
@@ -820,7 +822,7 @@ class MptCallKitController {
             _tempSocketStatusSubscription?.cancel();
             _socketConnectionCompleter!.complete(true);
             _isConnectingToSocket = false;
-            print("Socket server connected successfully");
+            debugPrint("Socket server connected successfully");
           }
         });
 
@@ -831,13 +833,13 @@ class MptCallKitController {
               'ready': true,
             });
           } catch (e) {
-            print('Failed to notify iOS about socket status: $e');
+            debugPrint('Failed to notify iOS about socket status: $e');
           }
           _socketConnectionTimer?.cancel();
           _tempSocketStatusSubscription?.cancel();
           if (!_socketConnectionCompleter!.isCompleted) {
             _socketConnectionCompleter!.complete(true);
-            print("Socket server already connected (race condition)");
+            debugPrint("Socket server already connected (race condition)");
           }
           _isConnectingToSocket = false;
         }
@@ -846,7 +848,7 @@ class MptCallKitController {
         _socketConnectionCompleter = null;
         return result;
       } catch (e) {
-        print("Error in connect to socket server: ${e.toString()}");
+        debugPrint("Error in connect to socket server: ${e.toString()}");
         _isConnectingToSocket = false;
         _socketConnectionCompleter = null;
         _tempSocketStatusSubscription?.cancel();
@@ -854,7 +856,8 @@ class MptCallKitController {
         return false;
       }
     } else {
-      print("Cannot connect agent to socket server - configuration is null");
+      debugPrint(
+          "Cannot connect agent to socket server - configuration is null");
       return false;
     }
   }
@@ -865,7 +868,7 @@ class MptCallKitController {
       baseUrl: await getCurrentBaseUrl(),
       accessToken: accessToken,
       onError: (p0) {
-        print("Error in get configuration: ${p0.toString()}");
+        debugPrint("Error in get configuration: ${p0.toString()}");
       },
     );
   }
@@ -914,7 +917,7 @@ class MptCallKitController {
 
       await channel.invokeMethod('socketStatus', {'ready': false});
     } catch (e) {
-      print('Failed to notify iOS about socket disconnect: $e');
+      debugPrint('Failed to notify iOS about socket disconnect: $e');
     }
 
     isLogoutAccountSuccess = await offline(disablePushNoti: true);
@@ -963,6 +966,8 @@ class MptCallKitController {
     if (isDeleteRegistrationSuccess && isUnregistered) {
       _appEvent.add(AppEventConstants.LOGGED_OUT);
       _currentAppEvent = AppEventConstants.LOGGED_OUT;
+      setLoggedAgentId(DEFAULT_AGENT_ID);
+      setLoggedTenantId(DEFAULT_TENANT_ID);
       return true;
     } else {
       _appEvent.add(AppEventConstants.ERROR);
@@ -1011,7 +1016,7 @@ class MptCallKitController {
         "extraInfo": extraInfo,
       };
 
-      print("extension result: $result");
+      debugPrint("extension result: $result");
 
       sendLog(
           values: {
@@ -1058,7 +1063,7 @@ class MptCallKitController {
         // 🔧 FIX: Ensure no previous completer is pending
         if (_guestRegistrationCompleter != null &&
             !_guestRegistrationCompleter!.isCompleted) {
-          print('Cancelling previous guest registration attempt...');
+          debugPrint('Cancelling previous guest registration attempt...');
           _guestRegistrationCompleter!.complete(false);
         }
 
@@ -1081,7 +1086,7 @@ class MptCallKitController {
               onError: onError,
             );
           } else {
-            print('SIP Registration has failed');
+            debugPrint('SIP Registration has failed');
             sendLog(
                 values: {
                   "message": "SIP Registration failed",
@@ -1092,7 +1097,7 @@ class MptCallKitController {
             onError?.call('SIP Registration failed');
           }
         } catch (e) {
-          print('Registration timeout or error: $e');
+          debugPrint('Registration timeout or error: $e');
           sendLog(
               values: {
                 "message": "Registration timeout",
@@ -1114,7 +1119,7 @@ class MptCallKitController {
         }
       } else {
         onError?.call('Cannot get extension data');
-        print("Cannot get extension data");
+        debugPrint("Cannot get extension data");
         sendLog(
             values: {
               "message": "Cannot get extension data",
@@ -1140,7 +1145,7 @@ class MptCallKitController {
   Future<ExtensionData?> getExtension(
       {int retryTime = 0, required String phoneNumber}) async {
     try {
-      print("getExtension");
+      debugPrint("getExtension");
       int retryCount = retryTime;
       final String base = await getCurrentBaseUrl();
       final url = Uri.parse("$base/integration/extension/request");
@@ -1159,9 +1164,9 @@ class MptCallKitController {
           .timeout(const Duration(seconds: 10));
 
       // Log response details for debugging
-      print("getExtension - Response status code: ${response.statusCode}");
-      print("getExtension - Response headers: ${response.headers}");
-      print("getExtension - Response body: ${response.body}");
+      debugPrint("getExtension - Response status code: ${response.statusCode}");
+      debugPrint("getExtension - Response headers: ${response.headers}");
+      debugPrint("getExtension - Response body: ${response.body}");
 
       // Check if response is successful
       if (response.statusCode != 200) {
@@ -1194,8 +1199,8 @@ class MptCallKitController {
       try {
         data = json.decode(response.body);
       } catch (e) {
-        print("getExtension - JSON parsing error: $e");
-        print("getExtension - Raw response body: '${response.body}'");
+        debugPrint("getExtension - JSON parsing error: $e");
+        debugPrint("getExtension - Raw response body: '${response.body}'");
         sendLog(
             values: {
               "message":
@@ -1262,8 +1267,9 @@ class MptCallKitController {
       );
 
       // Log response details for debugging
-      print("releaseExtension - Response status code: ${response.statusCode}");
-      print("releaseExtension - Response body: ${response.body}");
+      debugPrint(
+          "releaseExtension - Response status code: ${response.statusCode}");
+      debugPrint("releaseExtension - Response body: ${response.body}");
 
       // Check if response is successful
       if (response.statusCode != 200) {
@@ -1289,15 +1295,15 @@ class MptCallKitController {
       try {
         data = json.decode(response.body);
       } catch (e) {
-        print("releaseExtension - JSON parsing error: $e");
-        print("releaseExtension - Raw response body: '${response.body}'");
+        debugPrint("releaseExtension - JSON parsing error: $e");
+        debugPrint("releaseExtension - Raw response body: '${response.body}'");
         throw Exception('Invalid JSON response from server: $e');
       }
 
       final result = ReleaseExtensionModel.fromJson(data);
       extension = '';
       if (result.success ?? false) {
-        print("Release extension has done");
+        debugPrint("Release extension has done");
         sendLog(
             values: {
               "message": "Release extension has done",
@@ -1307,7 +1313,7 @@ class MptCallKitController {
             agentId: getLoggedAgentId());
         return true;
       } else {
-        print("Release extension has failed: ${result.message}");
+        debugPrint("Release extension has failed: ${result.message}");
         sendLog(
             values: {
               "message": "Release extension failed: ${result.message}",
@@ -1418,9 +1424,9 @@ class MptCallKitController {
     // required String localizedCallerName,
   }) async {
     this.isMakeCallByGuest = isMakeCallByGuest ?? false;
-    print("isMakeCallByGuest: $isMakeCallByGuest");
+    debugPrint("isMakeCallByGuest: $isMakeCallByGuest");
 
-    print("sipServer: $sipServer");
+    debugPrint("sipServer: $sipServer");
 
     startSipPing(sipServer);
 
@@ -1431,10 +1437,10 @@ class MptCallKitController {
       final hasPermission = await requestPermission(context);
       if (!hasPermission) {
         onError?.call('Permission denied');
-        print("Permission denied");
+        debugPrint("Permission denied");
         return false;
       }
-      print("login");
+      debugPrint("login");
       final bool result = await channel.invokeMethod(
         MptCallKitConstants.login,
         {
@@ -1476,7 +1482,7 @@ class MptCallKitController {
           tenantId: getLoggedTenantId(),
           agentId: getLoggedAgentId());
 
-      print("login result: $result");
+      debugPrint("login result: $result");
 
       return result;
     } on PlatformException catch (e) {
@@ -1739,7 +1745,7 @@ class MptCallKitController {
     // If hangup success, return 0 - failed in others case
     try {
       final result = await channel.invokeMethod("hangup");
-      print("hangup result: $result");
+      debugPrint("hangup result: $result");
       sendLog(
           values: {
             "method": "hangup()",
@@ -2003,7 +2009,7 @@ class MptCallKitController {
           agentId: getLoggedAgentId());
       return result ?? false;
     } catch (e) {
-      print('Error switching camera: $e');
+      debugPrint('Error switching camera: $e');
       sendLog(
           values: {
             "method": "switchCamera()",
@@ -2033,7 +2039,7 @@ class MptCallKitController {
           agentId: getLoggedAgentId());
       return result ?? false;
     } catch (e) {
-      print('Error setting speaker: $e');
+      debugPrint('Error setting speaker: $e');
       sendLog(
           values: {
             "method": "setSpeaker()",
@@ -2051,7 +2057,7 @@ class MptCallKitController {
   Future<void> getAudioDevices() async {
     try {
       final result = await channel.invokeMethod('getAudioDevices');
-      print('Audio devices: ${result.toString()}');
+      debugPrint('Audio devices: ${result.toString()}');
       sendLog(
           values: {
             "method": "getAudioDevices()",
@@ -2062,7 +2068,7 @@ class MptCallKitController {
           tenantId: getLoggedTenantId(),
           agentId: getLoggedAgentId());
     } catch (e) {
-      print('Error getting audio devices: $e');
+      debugPrint('Error getting audio devices: $e');
       sendLog(
           values: {
             "method": "getAudioDevices()",
@@ -2107,8 +2113,8 @@ class MptCallKitController {
     }
   }
 
-  Future<bool> updateVideoCall({required bool isVideo}) async {
-    print("updateVideoCall: $isVideo");
+  Future<int> updateVideoCall({required bool isVideo}) async {
+    debugPrint("updateVideoCall: $isVideo");
     try {
       final result = await channel.invokeMethod("updateVideoCall", {
         "isVideo": isVideo,
@@ -2123,7 +2129,7 @@ class MptCallKitController {
           sessionId: await getCurrentCallSessionId(),
           tenantId: getLoggedTenantId(),
           agentId: getLoggedAgentId());
-      return result ?? false;
+      return result;
     } on PlatformException catch (e) {
       debugPrint("Failed in 'updateVideoCall' mothod: '${e.message}'.");
       sendLog(
@@ -2136,7 +2142,7 @@ class MptCallKitController {
           sessionId: await getCurrentCallSessionId(),
           tenantId: getLoggedTenantId(),
           agentId: getLoggedAgentId());
-      return false;
+      return -10;
     }
   }
 
@@ -2145,35 +2151,35 @@ class MptCallKitController {
     try {
       // Get session ID
       if (_currentSessionId != null && _currentSessionId!.isNotEmpty) {
-        print('Subscribing to event with sessionId: $_currentSessionId');
+        debugPrint('Subscribing to event with sessionId: $_currentSessionId');
 
         // Subscribe to the socket event
         MptSocketSocketServer.subscribeToMediaStatusChannel(_currentSessionId!,
             (data) {
-          print('Received media status message: $data');
+          debugPrint('Received media status message: $data');
           handleMediaStatusMessage(data);
         });
       } else {
-        print(
+        debugPrint(
             'Cannot subscribe to media status event: sessionId is null or empty');
 
         // If there's no sessionId, wait 1s and check again
         await Future.delayed(const Duration(seconds: 1));
 
         if (_currentSessionId != null && _currentSessionId!.isNotEmpty) {
-          print(
+          debugPrint(
               'Retrying subscribe to event with sessionId: $_currentSessionId');
           MptSocketSocketServer.subscribeToMediaStatusChannel(
               _currentSessionId!, (data) {
-            print('Received media status message: $data');
+            debugPrint('Received media status message: $data');
             handleMediaStatusMessage(data);
           });
         } else {
-          print('Still cannot get sessionId after retry');
+          debugPrint('Still cannot get sessionId after retry');
         }
       }
     } catch (e) {
-      print('Error subscribing to media status event: $e');
+      debugPrint('Error subscribing to media status event: $e');
     }
   }
 
@@ -2190,7 +2196,7 @@ class MptCallKitController {
 
       if (data != null) {
         // Process media status message based on your app's requirements
-        print('Media status data: $data');
+        debugPrint('Media status data: $data');
 
         // Check if message has the expected format with agentId, cameraState, and mircroState
         if (data.containsKey('agentId') &&
@@ -2212,7 +2218,8 @@ class MptCallKitController {
             _localCamStateController.add(cameraState);
             _localMicStateController.add(micState);
 
-            print('Updated local status: camera=$cameraState, mic=$micState');
+            debugPrint(
+                'Updated local status: camera=$cameraState, mic=$micState');
           } else {
             // Message from remote user, update their status
             _remoteCamState = cameraState;
@@ -2222,22 +2229,22 @@ class MptCallKitController {
             _remoteCamStateController.add(cameraState);
             _remoteMicStateController.add(micState);
 
-            print(
+            debugPrint(
                 'Updated remote media status: camera=$cameraState, mic=$micState');
           }
         } else {
-          print('Cannot recognize media message format');
+          debugPrint('Cannot recognize media message format');
         }
       }
     } catch (e) {
-      print('Error processing media status message: $e');
+      debugPrint('Error processing media status message: $e');
     }
   }
 
   // Send media status to socket event
   Future<void> sendMediaStatus() async {
     if (_currentSessionId == null || _currentSessionId!.isEmpty) {
-      print('Cannot send media status: sessionId is null or empty');
+      debugPrint('Cannot send media status: sessionId is null or empty');
       return;
     }
 
@@ -2270,12 +2277,12 @@ class MptCallKitController {
         // Save sent status
         _lastSentMediaStatus = Map<String, dynamic>.from(mediaStatus);
 
-        print('Updated media status: $mediaStatus');
+        debugPrint('Updated media status: $mediaStatus');
       } else {
-        print('Skipping media status update: $mediaStatus');
+        debugPrint('Skipping media status update: $mediaStatus');
       }
     } catch (e) {
-      print('Error sending media status: $e');
+      debugPrint('Error sending media status: $e');
     }
   }
 
@@ -2314,14 +2321,14 @@ class MptCallKitController {
       // Reset the last sent media status
       _lastSentMediaStatus = null;
 
-      print('Reset all media states after leaving call channel');
+      debugPrint('Reset all media states after leaving call channel');
     } else {
-      print('Session ID is null or empty');
+      debugPrint('Session ID is null or empty');
     }
   }
 
   void _handleCallStateChanged(String state) async {
-    print("handleCallStateChanged: $state");
+    debugPrint("handleCallStateChanged: $state");
 
     sendLog(
         values: {
@@ -2361,7 +2368,7 @@ class MptCallKitController {
         // }
       }
     } else {
-      print(
+      debugPrint(
           "Cannot send agent state: sessionId is null or empty or Socket server is not connected");
     }
 
@@ -2371,12 +2378,12 @@ class MptCallKitController {
     //     AgentStateConstants.IDLE,
     //   );
     // } else {
-    //   print("Cannot send agent state: sessionId is null or empty");
+    //  debugPrint("Cannot send agent state: sessionId is null or empty");
     // }
 
     if (state == CallStateConstants.CONNECTED) {
       // if (Platform.isAndroid) {
-      //   print("showAndroidCallKit");
+      //  debugPrint("showAndroidCallKit");
       //   showAndroidCallKit();
       // } else {
       //   //show ios callkit
@@ -2397,7 +2404,7 @@ class MptCallKitController {
 
   /// Reset remote states when call ends
   void _resetRemoteStates() {
-    print('Resetting remote states after call ended');
+    debugPrint('Resetting remote states after call ended');
 
     // Reset remote camera and microphone states to default (true)
     _remoteCamState = true;
@@ -2408,11 +2415,11 @@ class MptCallKitController {
     _remoteMicStateController.add(true);
     _calleeAnsweredStream.add(false);
 
-    print('Remote states reset: camera=true, microphone=true');
+    debugPrint('Remote states reset: camera=true, microphone=true');
   }
 
   Future<void> showAndroidCallKit() async {
-    // print("showAndroidCallKit");
+    //debugPrint("showAndroidCallKit");
     // await channel.invokeMethod("startActivity");
   }
 
@@ -2423,7 +2430,7 @@ class MptCallKitController {
 
     _eventChannelSubscription =
         eventChannel.receiveBroadcastStream().listen((event) async {
-      print('Received event from native 1212: $event');
+      debugPrint('Received event from native 1212: $event');
       if (event is Map) {
         // Handle map events with message and data
         final String message = event['message'];
@@ -2431,7 +2438,7 @@ class MptCallKitController {
 
         switch (message) {
           case 'onlineStatus':
-            print('onlineStatus from native: $data');
+            debugPrint('onlineStatus from native: $data');
             _isOnline = data as bool;
             _onlineStatuslistener.add(data);
             onRegisterSIP?.call(data);
@@ -2451,13 +2458,13 @@ class MptCallKitController {
             // Handle guest call specific logic
             if (isMakeCallByGuest) {
               if (data == CallStateConstants.FAILED) {
-                print("makeCallByGuest() - Call failed!");
+                debugPrint("makeCallByGuest() - Call failed!");
                 offline(disablePushNoti: true);
                 releaseExtension();
               }
 
               if (data == CallStateConstants.CLOSED) {
-                print("makeCallByGuest() - Call ended!");
+                debugPrint("makeCallByGuest() - Call ended!");
                 offline(disablePushNoti: true);
                 releaseExtension();
               }
@@ -2494,22 +2501,22 @@ class MptCallKitController {
             }
             break;
           case 'recvCallMessage':
-            print('Received call message from native: $data');
+            debugPrint('Received call message from native: $data');
             handleRecvCallMessage(data);
             break;
           case 'onVideoRawCallback':
-            print('Received onVideoRawCallback from native: $data');
+            debugPrint('Received onVideoRawCallback from native: $data');
             break;
           case 'isRemoteVideoReceived':
-            print('Received isRemoteVideoReceived from native: $data');
+            debugPrint('Received isRemoteVideoReceived from native: $data');
             // updateVideoCall(isVideo: true);
             _isRemoteVideoReceived.add(data as bool);
             break;
           // case "releaseExtension":
           //   if (isMakeCallByGuest) {
-          //     print('Release extension has started');
+          //    debugPrint('Release extension has started');
           //     await releaseExtension();
-          //     print('Release extension has done');
+          //    debugPrint('Release extension has done');
           //   }
           //   break;
         }
@@ -2523,7 +2530,7 @@ class MptCallKitController {
 
     if (!_guestRegistrationCompleter!.isCompleted) {
       if (data == true) {
-        print('SIP Registration successful for guest');
+        debugPrint('SIP Registration successful for guest');
         _guestRegistrationCompleter!.complete(true);
         sendLog(
             values: {
@@ -2534,7 +2541,7 @@ class MptCallKitController {
             tenantId: getLoggedTenantId(),
             agentId: getLoggedAgentId());
       } else {
-        print('SIP Registration has failed for guest');
+        debugPrint('SIP Registration has failed for guest');
         _guestRegistrationCompleter!.complete(false);
         sendLog(
             values: {
@@ -2546,7 +2553,7 @@ class MptCallKitController {
             agentId: getLoggedAgentId());
       }
     } else {
-      print(
+      debugPrint(
           'Guest registration completer is null or already completed - ignoring state: $data');
     }
   }
@@ -2554,7 +2561,7 @@ class MptCallKitController {
   // 🔧 FIX: Helper method to cleanup guest registration state safely
   Future<void> _cleanupGuestRegistrationState() async {
     try {
-      print('Cleaning up guest registration state...');
+      debugPrint('Cleaning up guest registration state...');
 
       // Complete any pending completer
       if (_guestRegistrationCompleter != null &&
@@ -2590,9 +2597,9 @@ class MptCallKitController {
           tenantId: getLoggedTenantId(),
           agentId: getLoggedAgentId());
 
-      print('Guest registration state cleanup completed');
+      debugPrint('Guest registration state cleanup completed');
     } catch (e) {
-      print('Error during guest registration cleanup: $e');
+      debugPrint('Error during guest registration cleanup: $e');
       sendLog(
           values: {
             "method": "cleanupGuestRegistrationState()",
@@ -2654,10 +2661,10 @@ class MptCallKitController {
     try {
       if (Platform.isAndroid) {
         await channel.invokeMethod('ensureViewListenersRegistered');
-        print('Ensured view listeners are registered');
+        debugPrint('Ensured view listeners are registered');
       }
     } catch (e) {
-      print('Error ensuring view listeners registered: $e');
+      debugPrint('Error ensuring view listeners registered: $e');
     }
   }
 
@@ -2669,7 +2676,7 @@ class MptCallKitController {
     _sipServerUrl = sipServerUrl;
     _isPinging = true;
 
-    print('Starting SIP connectivity check to: $sipServerUrl');
+    debugPrint('Starting SIP connectivity check to: $sipServerUrl');
 
     _pingTimer = Timer.periodic(interval, (timer) async {
       if (!_isPinging) {
@@ -2689,7 +2696,7 @@ class MptCallKitController {
     _isPinging = false;
     _pingTimer?.cancel();
     _pingTimer = null;
-    print('Stopped SIP connectivity check');
+    debugPrint('Stopped SIP connectivity check');
   }
 
   /// Perform a single ping to SIP server using TCP socket connection
@@ -2733,18 +2740,19 @@ class MptCallKitController {
       await socket.close();
 
       _sipPingStream.add(pingTime);
-      // print(
+      //debugPrint(
       //     'SIP connectivity check to $host:$port: ${pingTime}ms (TCP connection successful)');
     } on SocketException catch (e) {
       _sipPingStream.add(null);
       if (e.message.contains('timed out')) {
-        print('SIP connectivity check to $_sipServerUrl timed out');
+        debugPrint('SIP connectivity check to $_sipServerUrl timed out');
       } else {
-        print('SIP connectivity check to $_sipServerUrl failed: ${e.message}');
+        debugPrint(
+            'SIP connectivity check to $_sipServerUrl failed: ${e.message}');
       }
     } catch (e) {
       _sipPingStream.add(null);
-      print('SIP connectivity check to $_sipServerUrl error: $e');
+      debugPrint('SIP connectivity check to $_sipServerUrl error: $e');
     }
   }
 
@@ -2752,12 +2760,13 @@ class MptCallKitController {
     try {
       // Parse JSON data
       if (data is! String) {
-        print('Invalid data type for recvCallMessage: ${data.runtimeType}');
+        debugPrint(
+            'Invalid data type for recvCallMessage: ${data.runtimeType}');
         return;
       }
 
       final Map<String, dynamic> message = jsonDecode(data);
-      print('Parsed message: $message');
+      debugPrint('Parsed message: $message');
 
       // Extract message components
       final String? receivedSessionId = message['sessionId'];
@@ -2770,36 +2779,36 @@ class MptCallKitController {
           extension == null ||
           type == null ||
           payload == null) {
-        print('Invalid message format: missing required fields');
+        debugPrint('Invalid message format: missing required fields');
         return;
       }
 
       // Check if received sessionId matches current sessionId
       if (_currentSessionId == null || _currentSessionId!.isEmpty) {
-        print('Current session ID is null or empty, ignoring message');
+        debugPrint('Current session ID is null or empty, ignoring message');
         return;
       }
 
       if (receivedSessionId != _currentSessionId) {
-        print(
+        debugPrint(
             'Session ID mismatch: received=$receivedSessionId, current=$_currentSessionId');
         return;
       }
 
       // // Check if extension is different from current user extension
       // if (this.extension.isEmpty) {
-      //   print('Current extension is empty, ignoring message');
+      //  debugPrint('Current extension is empty, ignoring message');
       //   return;
       // }
 
       // if (extension == this.extension ||
       //     extension == currentUserInfo!["user"]["extension"]) {
-      //   print(
+      //  debugPrint(
       //       'Extension matches current user ($extension), ignoring message from self');
       //   return;
       // }
 
-      print(
+      debugPrint(
           'Processing message for session: $receivedSessionId, type: $type, from extension: $extension');
 
       // Handle different message types
@@ -2813,37 +2822,37 @@ class MptCallKitController {
           break;
 
         default:
-          print('Unknown message type: $type');
+          debugPrint('Unknown message type: $type');
           break;
       }
     } catch (e) {
-      print('Error parsing recvCallMessage: $e');
-      print('Raw data: $data');
+      debugPrint('Error parsing recvCallMessage: $e');
+      debugPrint('Raw data: $data');
     }
   }
 
   /// Handle media state updates (camera, microphone)
   void _handleUpdateMediaState(Map<String, dynamic> payload) {
-    print('Handling media state update: $payload');
+    debugPrint('Handling media state update: $payload');
 
     payload.forEach((key, value) {
       switch (key) {
         case 'microphone':
           final bool micState = value as bool;
-          print('Remote microphone state: $micState');
+          debugPrint('Remote microphone state: $micState');
           _remoteMicState = micState;
           _remoteMicStateController.add(micState);
           break;
 
         case 'camera':
           final bool camState = value as bool;
-          print('Remote camera state: $camState');
+          debugPrint('Remote camera state: $camState');
           _remoteCamState = camState;
           _remoteCamStateController.add(camState);
           break;
 
         default:
-          print('Unknown media state key: $key');
+          debugPrint('Unknown media state key: $key');
           break;
       }
     });
@@ -2851,20 +2860,20 @@ class MptCallKitController {
 
   /// Handle call state updates
   void _handleCallStateUpdate(Map<String, dynamic> payload) {
-    print('Handling call state update: $payload');
+    debugPrint('Handling call state update: $payload');
 
     payload.forEach((key, value) {
       switch (key) {
         case 'answered':
           final bool isAnswered = value as bool;
-          print('Call answered state: $isAnswered');
+          debugPrint('Call answered state: $isAnswered');
           if (isAnswered) {
             // Handle call answered logic
-            print('Remote party answered the call');
+            debugPrint('Remote party answered the call');
             _calleeAnsweredStream.add(true);
 
             if (isVideoCall) {
-              Future.delayed(const Duration(seconds: 1), () {
+              Future.delayed(const Duration(milliseconds: 2500), () {
                 updateVideoCall(isVideo: true);
               });
             }
@@ -2883,17 +2892,17 @@ class MptCallKitController {
               // If it's already a Map, use it directly
               agentInfo = Map<String, dynamic>.from(value);
             } else {
-              print('Invalid agentInfo type: ${value.runtimeType}');
+              debugPrint('Invalid agentInfo type: ${value.runtimeType}');
               break;
             }
 
-            print("Agent Info received: ${agentInfo.toString()}");
+            debugPrint("Agent Info received: ${agentInfo.toString()}");
 
             final int agentId = agentInfo["agentId"] as int;
             final int tenantId = agentInfo["tenantId"] as int;
 
-            print('Agent ID received: $agentId');
-            print('Tenant ID received: $tenantId');
+            debugPrint('Agent ID received: $agentId');
+            debugPrint('Tenant ID received: $tenantId');
 
             if (agentId != DEFAULT_AGENT_ID &&
                 tenantId != DEFAULT_TENANT_ID &&
@@ -2901,14 +2910,14 @@ class MptCallKitController {
               reportMediaDeviceStatus(tenantId: tenantId, agentId: agentId);
             }
           } catch (e) {
-            print('Error parsing agentInfo: $e');
-            print('agentInfo value: $value (type: ${value.runtimeType})');
+            debugPrint('Error parsing agentInfo: $e');
+            debugPrint('agentInfo value: $value (type: ${value.runtimeType})');
           }
           break;
 
         // case "isVideo":
         //   final bool isVideo = value as bool;
-        //   print(
+        //  debugPrint(
         //       'Remote party send request reinvite video call state: $isVideo');
         //   if (isVideo) {
         //     updateVideoCall(isVideo: isVideo);
@@ -2916,7 +2925,7 @@ class MptCallKitController {
         //   break;
 
         default:
-          print('Unknown call state key: $key');
+          debugPrint('Unknown call state key: $key');
           break;
       }
     });
@@ -2946,12 +2955,12 @@ class MptCallKitController {
           sessionId: sessionId,
           agentId: getLoggedAgentId());
       if (isSuccess) {
-        print("End call API success");
+        debugPrint("End call API success");
       } else {
-        print("End call API failed");
+        debugPrint("End call API failed");
       }
     } catch (e) {
-      print("End call API error: $e");
+      debugPrint("End call API error: $e");
       onError?.call("End call API error: $e");
     }
   }
@@ -3006,7 +3015,7 @@ class MptCallKitController {
 
   Future<int> refreshRegistration() async {
     final result = await channel.invokeMethod("refreshRegister");
-    print("refreshRegistration result code: $result");
+    debugPrint("refreshRegistration result code: $result");
     return result;
   }
 
@@ -3156,7 +3165,7 @@ class MptCallKitController {
   Future<String?> getCurrentCallSessionId() async {
     try {
       final result = await channel.invokeMethod("getCurrentCallSessionId");
-      print("getCurrentCallSessionId result: $result");
+      debugPrint("getCurrentCallSessionId result: $result");
       sendLog(
           values: {
             "method": "getCurrentCallSessionId()",
@@ -3199,7 +3208,7 @@ class MptCallKitController {
       "deviceType": "mobile",
       "devicePermissions": hasPermission,
       "extension": int.parse(lastesExtensionData?.username ?? "0"),
-      "extensionRole": isMakeCallByGuest ? "caller" : "callee",
+      "extensionRole": isMakeCallByGuest ? "guest" : "agent",
       "mptSDKVersion": MptSDKCoreConstants.VERSION,
     };
 
@@ -3225,7 +3234,7 @@ class MptCallKitController {
       "date": date,
     };
 
-    print("reportMediaDeviceStatus - payload: ${jsonEncode(payload)}");
+    debugPrint("reportMediaDeviceStatus - payload: ${jsonEncode(payload)}");
 
     await MptCallKitControllerRepo().reportDynamicClientLog(
       baseUrl: await getCurrentBaseUrl(),
@@ -3251,12 +3260,12 @@ class MptCallKitController {
       baseUrl: await getCurrentBaseUrl(),
       title: title,
       values: values,
-      isGuest: isGuest ?? isMakeCallByGuest,
+      isGuest: isGuest ?? getLoggedAgentId() == DEFAULT_AGENT_ID,
       extension: int.parse(lastesExtensionData?.username ?? "0"),
-      tenantId: tenantId ?? 0,
-      agentId: agentId ?? 0,
+      tenantId: tenantId ?? getLoggedTenantId(),
+      agentId: agentId ?? getLoggedAgentId(),
       sessionId: sessionId ?? "",
-      onError: (error) => print("sendLog error: $error"),
+      onError: (error) => debugPrint("sendLog error: $error"),
     );
   }
 }

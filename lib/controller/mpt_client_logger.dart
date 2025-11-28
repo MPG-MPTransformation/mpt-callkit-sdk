@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mpt_callkit/controller/mpt_call_kit_controller_repo.dart';
 import 'package:mpt_callkit/mpt_call_kit_constant.dart';
@@ -32,7 +33,7 @@ class MptClientLogger {
     var data = <String, dynamic>{
       "deviceType": "mobile",
       "extension": extension,
-      "extensionRole": isGuest ? "caller" : "callee",
+      "extensionRole": isGuest ? "guest" : "agent",
       "mptSDKVersion": MptSDKCoreConstants.VERSION,
       "values": jsonEncode(values)
     };
@@ -59,7 +60,7 @@ class MptClientLogger {
       "date": date,
     };
 
-    print(payload);
+    debugPrint("sendLog - payload: ${jsonEncode(payload)}");
 
     await MptCallKitControllerRepo().reportDynamicClientLog(
       baseUrl: baseUrl,
