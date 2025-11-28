@@ -1035,7 +1035,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 int updateCallRes = Engine.Instance().getEngine().updateCall(currentLine.sessionID, true, isVideo);
                 System.out.println("SDK-Android: reinviteSession - updateCall(): " + updateCallRes);
 
-                result.success(updateCallRes == 0);
+                result.success(updateCallRes);
                 break;
             case "refreshRegister":
                 // result.success(Engine.Instance().getEngine().refreshRegistration(0));
