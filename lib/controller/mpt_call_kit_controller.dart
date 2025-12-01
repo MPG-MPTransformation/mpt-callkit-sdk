@@ -3097,7 +3097,7 @@ class MptCallKitController {
     sendLog(
         values: {
           "method": "getAgentQueues()",
-          "message": "Get agent queues result: $result",
+          "message": "Get agent queues result: ${result?.toList().toString()}",
         },
         title: MPTSDKLogTitleConstants.METHOD_CALLED,
         tenantId: getLoggedTenantId(),
@@ -3118,7 +3118,7 @@ class MptCallKitController {
     sendLog(
         values: {
           "method": "getAllQueues()",
-          "message": "Get all queues result: $result",
+          "message": "Get all queues result: ${result?.toList().toString()}",
         },
         title: MPTSDKLogTitleConstants.METHOD_CALLED,
         tenantId: getLoggedTenantId(),
@@ -3142,7 +3142,8 @@ class MptCallKitController {
         values: {
           "method": "getAllAgentInQueueByQueueExtension()",
           "extension": extension,
-          "message": "Get all agents in queue by extension result: $result",
+          "message":
+              "Get all agents in queue by extension result: ${result?.toList().toString()}",
         },
         title: MPTSDKLogTitleConstants.METHOD_CALLED,
         tenantId: getLoggedTenantId(),

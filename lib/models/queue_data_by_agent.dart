@@ -46,4 +46,8 @@ class QueueDataByAgent {
         "queue_extension": queueExtension,
         "agent_active": agentActive,
       };
+
+  @override
+  String toString() =>
+      "QueueDataByAgent(id: $id, queueName: $queueName, tenantId: $tenantId, queueExtension: $queueExtension, agentActive: $agentActive)";
 }
