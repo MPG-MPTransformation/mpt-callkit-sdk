@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:convert' as convert;
 
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:mpt_callkit/mpt_aes_helper.dart';
 
@@ -30,8 +31,8 @@ class MptCallkitAuthMethod {
 
     bool status = false;
 
-    print("[Mpt_API_Auth] Login body: ${jsonEncode(body)}");
-    print(
+    debugPrint("[Mpt_API_Auth] Login body: ${jsonEncode(body)}");
+    debugPrint(
         "[Mpt_API_Auth] Login API: ${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$loginAPI");
     try {
       final response = await http.post(
@@ -44,18 +45,18 @@ class MptCallkitAuthMethod {
         final responseData = jsonDecode(response.body);
 
         data?.call(responseData);
-        print('[Mpt_API_Auth] Login Response data: $responseData');
+        debugPrint('[Mpt_API_Auth] Login Response data: $responseData');
         if (responseData != null) {
           if (responseData["success"]) {
             var result = responseData["result"];
             if (result != null) {
               status = result["status"];
-              print("[Mpt_API_Auth] Login status: $status");
+              debugPrint("[Mpt_API_Auth] Login status: $status");
               if (!status) {
                 onError?.call(
                     "[Mpt_API_Auth] Username or password is incorrect. Message: [${result["message"]}]");
               } else {
-                print("[Mpt_API_Auth] Login successfully");
+                debugPrint("[Mpt_API_Auth] Login successfully");
               }
               return status;
             }
@@ -69,14 +70,14 @@ class MptCallkitAuthMethod {
         onError?.call("[Mpt_API_Auth] Login failed, cannot get data response");
         return false;
       } else {
-        print(
+        debugPrint(
             '[Mpt_API_Auth] Failed to post data. Status code: ${response.statusCode}');
         onError?.call(
             "[Mpt_API_Auth] Login failed, please check your internet connection");
         return false;
       }
     } catch (e) {
-      print("[Mpt_API_Auth] Error in login: $e");
+      debugPrint("[Mpt_API_Auth] Error in login: $e");
       onError?.call("[Mpt_API_Auth] Login failed with error: $e");
       return false;
     }
@@ -96,8 +97,8 @@ class MptCallkitAuthMethod {
       "partner_tenant": organization,
     };
 
-    print("Login SSO body: ${jsonEncode(body)}");
-    print(
+    debugPrint("Login SSO body: ${jsonEncode(body)}");
+    debugPrint(
         "Login SSO API: ${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$loginSSOAPI");
 
     try {
@@ -111,18 +112,18 @@ class MptCallkitAuthMethod {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
         data?.call(responseData);
-        print('Login SSOResponse data: $responseData');
+        debugPrint('Login SSOResponse data: $responseData');
         if (responseData != null) {
           if (responseData["success"]) {
             var result = responseData["result"];
             if (result != null) {
               status = result["status"];
-              print("[Mpt_API_Auth] Login SSO status: $status");
+              debugPrint("[Mpt_API_Auth] Login SSO status: $status");
               if (!status) {
                 onError?.call(
                     "[Mpt_API_Auth] Incorrect credentials. Message: [${result["message"]}]");
               } else {
-                print("[Mpt_API_Auth] Login successfully");
+                debugPrint("[Mpt_API_Auth] Login successfully");
               }
               return status;
             }
@@ -136,14 +137,14 @@ class MptCallkitAuthMethod {
         onError?.call("[Mpt_API_Auth] Login failed, cannot get data response");
         return false;
       } else {
-        print(
+        debugPrint(
             '[Mpt_API_Auth] Failed to post data. Status code: ${response.statusCode}');
         onError?.call(
             "[Mpt_API_Auth] Login failed, please check your internet connection");
         return false;
       }
     } catch (e) {
-      print("[Mpt_API_Auth] Error in login SSO: $e");
+      debugPrint("[Mpt_API_Auth] Error in login SSO: $e");
       onError?.call("[Mpt_API_Auth] Login SSO failed with error: $e");
       return false;
     }
@@ -171,7 +172,7 @@ class MptCallkitAuthMethod {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
-        print('Logout Response data: $responseData');
+        debugPrint('Logout Response data: $responseData');
         if (responseData != null) {
           if (responseData["success"] && responseData["status"]) {
             return true;
@@ -180,14 +181,14 @@ class MptCallkitAuthMethod {
         }
         return false;
       } else {
-        print(
+        debugPrint(
             '[Mpt_API_Auth] Failed to post data. Status code: ${response.statusCode}');
         onError?.call(
             "[Mpt_API_Auth] Logout failed, please check your internet connection");
         return false;
       }
     } catch (e) {
-      print("[Mpt_API_Auth] Error in logout: $e");
+      debugPrint("[Mpt_API_Auth] Error in logout: $e");
       onError?.call("[Mpt_API_Auth] Logout failed with error: $e");
       return false;
     }
@@ -219,21 +220,21 @@ class MptCallkitAuthMethod {
           if (responseData["success"]) {
             var result =
                 convert.jsonDecode(decryptText(responseData["result"]));
-            print("CurrentUserInfo: $result");
+            debugPrint("CurrentUserInfo: $result");
             return result;
           }
           return null;
         }
         return null;
       } else {
-        print(
+        debugPrint(
             '[Mpt_API] Failed to get data. Status code: ${response.statusCode}');
         onError?.call(
             '[Mpt_API] Failed to get data. Status code: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print("[Mpt_API] Error in get current user info: $e");
+      debugPrint("[Mpt_API] Error in get current user info: $e");
       onError?.call("[Mpt_API] Get current user info with error: $e");
       return null;
     }
@@ -261,7 +262,7 @@ class MptCallkitAuthMethod {
         final responseData = convert.jsonDecode(response.body);
         if (responseData["success"]) {
           var result = convert.jsonDecode(decryptText(responseData["result"]));
-          print("[Mpt_API] GetAll: ${result.isNotEmpty}");
+          debugPrint("[Mpt_API] GetAll: ${result.isNotEmpty}");
           return result;
         }
         onError?.call("[Mpt_API] Failed to get data");
@@ -271,7 +272,7 @@ class MptCallkitAuthMethod {
           "[Mpt_API] Failed to get data with status code: ${response.statusCode}");
       return null;
     } catch (e) {
-      print("[Mpt_API] Error in getConfiguration: $e");
+      debugPrint("[Mpt_API] Error in getConfiguration: $e");
       onError?.call("[Mpt_API] Get all conversation with error: $e");
       return null;
     }

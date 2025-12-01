@@ -2774,13 +2774,13 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 // Check if we have an active session
                 if activeSessionid <= CLong(INVALID_SESSION_ID) {
                     NSLog("❌ updateVideoCall - Cannot reinvite - no active session")
-                    result(false)
+                    result(-1)
                     return
                 }
 
                 guard let sessionResult = _callManager.findCallBySessionID(activeSessionid) else {
                     NSLog("❌ updateVideoCall - Cannot find session with ID: \(activeSessionid)")
-                    result(false)
+                    result(-2)
                     return
                 }
 
@@ -2831,7 +2831,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 )
                 PortSIPStateManager.shared.updateVideoState(videoState)
 
-                result(updateRes == 0)
+                result(updateRes)
             } else {
                 result(
                     FlutterError(
