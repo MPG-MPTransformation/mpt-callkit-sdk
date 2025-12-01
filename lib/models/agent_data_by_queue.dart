@@ -80,4 +80,8 @@ class AgentDataByQueue {
         "agent_name": agentName,
         "enabled": enabled,
       };
+
+  @override
+  String toString() =>
+      "AgentDataByQueue(id: $id, tenantId: $tenantId, agentId: $agentId, reasonCodeId: $reasonCodeId, reasonId: $reasonId, reasonCode: $reasonCode, reasonName: $reasonName, extension: $extension, username: $username, agentName: $agentName, enabled: $enabled)";
 }

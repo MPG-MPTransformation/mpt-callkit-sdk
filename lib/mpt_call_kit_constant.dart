@@ -132,7 +132,7 @@ class SDKPrefsKeyConstants {
 }
 
 class MptSDKCoreConstants {
-  static const String VERSION = "v0.0.39";
+  static const String VERSION = "v0.0.40";
 }
 
 class MPTSDKLogTitleConstants {
