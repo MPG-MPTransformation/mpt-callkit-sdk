@@ -43,4 +43,8 @@ class QueueData {
         "queue_extension": queueExtension,
         "enabled": enabled,
       };
+
+  @override
+  String toString() =>
+      "QueueData(id: $id, queueName: $queueName, tenantId: $tenantId, queueExtension: $queueExtension, enabled: $enabled)";
 }

@@ -1,4 +1,5 @@
 import 'package:encrypt/encrypt.dart';
+import 'package:flutter/material.dart' show debugPrint;
 
 class MptAESHelper {
   static const String key = '01234567896868686868012345678968';
@@ -13,8 +14,8 @@ class MptAESHelper {
 
   static String decryptAesB64(String encrypted) {
     try {
-      print("Attempting to decrypt: $encrypted");
-      print("Input length: ${encrypted.length}");
+      debugPrint("Attempting to decrypt: $encrypted");
+      debugPrint("Input length: ${encrypted.length}");
 
       final key = Key.fromUtf8(MptAESHelper.key);
       final iv = IV.allZerosOfLength(16);
@@ -22,11 +23,11 @@ class MptAESHelper {
           Encrypter(AES(key, mode: AESMode.cbc, padding: 'PKCS7'));
       final decrypted =
           encrypter.decrypt(Encrypted.fromBase64(encrypted), iv: iv);
-      print("Decrypted successfully: $decrypted");
+      debugPrint("Decrypted successfully: $decrypted");
       return decrypted;
     } catch (e) {
-      print("Error in AES decryption: $e");
-      print("Input data: $encrypted");
+      debugPrint("Error in AES decryption: $e");
+      debugPrint("Input data: $encrypted");
       // Return original string if decryption fails
       // This might be a temporary workaround
       throw Exception("AES decryption failed: $e");
