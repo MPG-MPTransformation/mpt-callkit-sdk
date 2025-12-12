@@ -135,7 +135,7 @@ class MptSocketLiveConnect {
             var data = responseData["data"];
             if (data != null) {
               token = data["token"];
-              debugPrint("Token: $token");
+              print("Token: $token");
             }
           }
         }
@@ -467,7 +467,7 @@ class MptSocketSocketServer {
 
   void sendAgentState(String sessionId, String state) {
     // if (socket == null || !socket!.connected) {
-    //   print(
+    //    print(
     //       "Socket server - sendAgentState - Cannot send message: socket is null or not connected");
     //   return;
     // }
@@ -477,10 +477,10 @@ class MptSocketSocketServer {
     //     "sessionId": sessionId,
     //     "state": state,
     //   }, ack: (data) {
-    //     print("Socket server - sendAgentState - Sent agent state: $data");
+    //      print("Socket server - sendAgentState - Sent agent state: $data");
     //   });
     // } catch (e) {
-    //   print("Socket server - sendAgentState - Error sending agent state: $e");
+    //    print("Socket server - sendAgentState - Error sending agent state: $e");
     // }
   }
 
@@ -490,6 +490,8 @@ class MptSocketSocketServer {
     socket!.off("CALL_EVENT");
     socket!.off("message");
     socket!.off("AGENT_STATUS_CHANGED");
+
+    var isAgentAnswered = false;
 
     socket!.on("agent_status_chat", (data) {
       print("Socket server - AGENT_STATUS_CHAT - Received message: $data");
@@ -503,6 +505,70 @@ class MptSocketSocketServer {
       if (data is Map) {
         var sessionId = data['sessionId'];
         print("Socket server - CALL_EVENT - Received sessionId - $sessionId");
+
+        // process add agent to conf requests
+        if (data.containsKey('ani') && data.containsKey('dnis')) {
+          var ani = data['ani'] as String?;
+          var dnis = data['dnis'] as String?;
+
+          if (ani ==
+              MptCallKitController().currentUserInfo?["user"]["extension"]) {
+            var listAddAgentToConfRequests = MptCallKitController()
+                .listAddAgentToConfRequests
+                .where((element) => element.destExt == dnis)
+                .toList();
+
+            if (data['state'] == CallEventSocketConstants.ANSWER_CALL ||
+                data['state'] == CallEventSocketConstants.REJECT_CALL) {
+              isAgentAnswered =
+                  data['state'] == CallEventSocketConstants.ANSWER_CALL;
+              for (var addAgentToConfRequest in listAddAgentToConfRequests) {
+                await MptCallKitController().sendSipMessage(
+                    addAgentToConfRequest.sipSessionId,
+                    jsonEncode({
+                      "type": SIPMessageTypeConstants.ADD_TO_CONF_RESP,
+                      "agentId": addAgentToConfRequest.agentId,
+                      "payload": {
+                        "uuid": addAgentToConfRequest.uuid,
+                        "success": data['state'] ==
+                                CallEventSocketConstants.ANSWER_CALL
+                            ? true
+                            : false,
+                      },
+                    }));
+                MptCallKitController()
+                    .listAddAgentToConfRequests
+                    .remove(addAgentToConfRequest);
+
+                print(
+                    "Socket server - CALL_EVENT - add agent, state=${data['state']}, request removed: $addAgentToConfRequest");
+              }
+            }
+
+            if (data['state'] == CallEventSocketConstants.END_CALL &&
+                !isAgentAnswered) {
+              for (var addAgentToConfRequest in listAddAgentToConfRequests) {
+                await MptCallKitController().sendSipMessage(
+                    addAgentToConfRequest.sipSessionId,
+                    jsonEncode({
+                      "type": SIPMessageTypeConstants.ADD_TO_CONF_RESP,
+                      "agentId": addAgentToConfRequest.agentId,
+                      "payload": {
+                        "uuid": addAgentToConfRequest.uuid,
+                        "success": false,
+                      }
+                    }));
+
+                MptCallKitController()
+                    .listAddAgentToConfRequests
+                    .remove(addAgentToConfRequest);
+
+                print(
+                    "Socket server - CALL_EVENT - add agent, state=${data['state']}, request removed: $addAgentToConfRequest");
+              }
+            }
+          }
+        }
 
         if (data.containsKey('agentId')) {
           var agentId = data['agentId'];
@@ -557,10 +623,10 @@ class MptSocketSocketServer {
                     //     'sessionId': sessionId.toString(),
                     //   });
 
-                    //   print(
+                    //    print(
                     //       "Socket server - CALL_EVENT - currentSessionId: $sessionId");
                     // } catch (e) {
-                    //   print(
+                    //    print(
                     //       "Socket server - CALL_EVENT - Error invoking reinvite method: $e");
                     // }
 
@@ -583,8 +649,8 @@ class MptSocketSocketServer {
                         "sessionId": sessionId,
                         "extension": currentUserInfo?["user"]["extension"],
                       };
-                      await MptCallKitController.channel
-                          .invokeMethod('isInternal', payload);
+                      // await MptCallKitController.channel
+                      //     .invokeMethod('isInternal', payload);
 
                       print(
                           "Socket server - CALL_EVENT - currentSessionId: $sessionId");
@@ -609,18 +675,18 @@ class MptSocketSocketServer {
             //       data['state'] != CallEventSocketConstants.OFFER_CALL) {
             //     // handle msg when call out going (agent logged in)
             //     if (!_callEventController.isClosed) {
-            //       print(
+            //        print(
             //           "Socket server - CALL_EVENT - call out going with sessionId: $sessionId");
             //       _callEventController.add(
             //           CallEventSocketRecv.fromJson(data as Map<String, dynamic>));
             //       _currentCallEventSocketData =
             //           CallEventSocketRecv.fromJson(data);
             //     } else {
-            //       print(
+            //        print(
             //           "Socket server - CALL_EVENT - callEventController is closed");
             //     }
             //   }
-            //   print("Socket server - CALL_EVENT - data has no extraInfo");
+            //    print("Socket server - CALL_EVENT - data has no extraInfo");
           }
         } else {
           print("Socket server - CALL_EVENT - data has no agentId");

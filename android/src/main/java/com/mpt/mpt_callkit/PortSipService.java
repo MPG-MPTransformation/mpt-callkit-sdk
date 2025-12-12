@@ -91,6 +91,7 @@ public class PortSipService extends Service
     public static final String ACTION_SIP_AUDIODEVICE = "PortSip.AndroidSample.Test.AudioDeviceUpdate";
     public static final String CONFERENCE_STATE_CHANGE_ACTION = "PortSip.AndroidSample.Test.ConferenceStateChange";
     public static final String EXTRA_CONFERENCE_STATE = "ConferenceState";
+    public static final String EXTRA_CONFERENCE_SESSIONID = "ConferenceSessionID";
     public static final String EXTRA_CALL_SEESIONID = "SessionID";
     public static final int PENDINGCALL_NOTIFICATION = SERVICE_NOTIFICATION + 1;
     public static final String STUN_HOST = "stun host";

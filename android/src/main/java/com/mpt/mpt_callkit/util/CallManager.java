@@ -161,12 +161,11 @@ public class CallManager {
 	public void addActiveSessionToConfrence(PortSipSdk sdk) {
 		for (Session session : sessions) {
 			if (session.state == Session.CALL_STATE_FLAG.CONNECTED) {
+				sdk.unHold(session.sessionID);
 				sdk.setRemoteScreenWindow(session.sessionID, null);
 				sdk.setRemoteVideoWindow(session.sessionID, null);
 				sdk.joinToConference(session.sessionID);
 				sdk.sendVideo(session.sessionID, true);
-				sdk.unHold(session.sessionID);
-
 			}
 		}
 	}

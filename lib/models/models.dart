@@ -7,3 +7,4 @@ export 'queue_data.dart';
 export 'agent_data.dart';
 export 'agent_data_on_conf.dart';
 export 'session.dart';
+export 'add_agent_to_conf_req.dart';

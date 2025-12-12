@@ -789,7 +789,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 break;
             case "conference":
                 Boolean isConference = call.argument("isConference");
-                updateToConference(isConference);
+                int cSessionID = call.argument("sessionId");
+                updateToConference(isConference, cSessionID);
                 result.success(true);
                 break;
             // This logic only for SIP makeCall API
@@ -836,7 +837,13 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 }
                 break;
             case "hangUpAllCalls":
+                currentLine = CallManager.Instance().getCurrentSession();
                 CallManager.Instance().hangupAllCalls(Engine.Instance().getEngine());
+                java.util.Map<String, Object> _m_callState = new java.util.HashMap<>();
+                _m_callState.put("sessionId", (int) currentLine.sessionID);
+                _m_callState.put("state", "CLOSED");
+                Engine.Instance().invokeMethod("callState", _m_callState);
+                MptCallkitPlugin.sendToFlutter("callState", _m_callState);
                 result.success(true);
                 break;
             case "holdAllCalls":
@@ -1376,6 +1383,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 
                 java.util.Map<String, Object> payload = new java.util.HashMap<>();
                 payload.put("answered", true);
+                payload.put("isInternal", true);
                 payload.put("agentInfo", agentInfo);
                 payload.put("existsVideo", currentLine.hasVideo);
                 payload.put("existsAudio", true);
@@ -1862,47 +1870,55 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         } catch (Exception ignored) {}
     }
 
-    private void updateToConference(Boolean isConference) {
+    private void updateToConference(Boolean isConference, int cSessionID) {
         System.out.println("SDK-Android: updateToConference called - isConference: " + isConference + ", current state: " + Engine.Instance().mConference);
         
 
         if (isConference) {
-            System.out.println("SDK-Android: Enabling conference mode");
-            Engine.Instance().getEngine().createVideoConference(null, 320, 240, 0);
+
+            int result = Engine.Instance().getEngine().createVideoConference(null, 320, 240, 0);
+            System.out.println("SDK-Android: Enabling conference mode - result: " + result);
             CallManager.Instance().addActiveSessionToConfrence(Engine.Instance().getEngine());
             Engine.Instance().mConference = true;
         }else {
-            System.out.println("SDK-Android: Disabling conference mode");
             Engine.Instance().getEngine().destroyConference();
+            System.out.println("SDK-Android: Disabling conference mode");
             Engine.Instance().mConference = false;
         }
         
         // Gửi broadcast để thông báo conference state đã thay đổi
-        sendConferenceStateBroadcast(isConference);
+        sendConferenceStateBroadcast(isConference, cSessionID);
     }
     
-    private void sendConferenceStateBroadcast(boolean isConference) {
+    private void sendConferenceStateBroadcast(boolean isConference, int cSessionID) {
         try {
             Intent intent = new Intent();
             intent.setAction(PortSipService.CONFERENCE_STATE_CHANGE_ACTION);
             intent.putExtra(PortSipService.EXTRA_CONFERENCE_STATE, isConference);
-            if (activity != null) {
-                activity.sendBroadcast(intent);
-                System.out.println("SDK-Android: Conference state broadcast sent - isConference: " + isConference);
+            intent.putExtra(PortSipService.EXTRA_CONFERENCE_SESSIONID, cSessionID);
+
+            // Try activity first, fallback to context
+            Context ctx = activity != null ? activity : context;
+            if (ctx != null) {
+                ctx.sendBroadcast(intent);
+                System.out.println("SDK-Android: Conference state broadcast sent - isConference: " + isConference + ", from context: " + ctx.getClass().getSimpleName());
+            } else {
+                System.out.println("SDK-Android: Cannot send conference state broadcast - both activity and context are null");
             }
         } catch (Exception e) {
             System.out.println("SDK-Android: Error sending conference state broadcast: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
     public void didSelectLine(int activedLine){
         // To switch the line, must hold currently line first
         Session currentLine = CallManager.Instance().getCurrentSession();
-        if (!Engine.Instance().mConference && currentLine.state == Session.CALL_STATE_FLAG.CONNECTED && !currentLine.bHold) {
-            Engine.Instance().getEngine().hold(currentLine.sessionID);
-            currentLine.bHold = true;
-            Log.d(TAG, currentLine.lineName + ": Hold");
-        }
+        // if (!Engine.Instance().mConference && currentLine.state == Session.CALL_STATE_FLAG.CONNECTED && !currentLine.bHold) {
+        //     Engine.Instance().getEngine().hold(currentLine.sessionID);
+        //     currentLine.bHold = true;
+        //     Log.d(TAG, currentLine.lineName + ": Hold");
+        // }
 
         CallManager.Instance().CurrentLine = activedLine;
         currentLine = CallManager.Instance().getCurrentSession();

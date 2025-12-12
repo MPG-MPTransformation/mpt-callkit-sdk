@@ -328,7 +328,8 @@ class LocalViewController: UIViewController {
            let shouldMirror = mCameraDeviceId == 1 // Mirror only for front camera
            let result = portSIPSDK.displayLocalVideo(true, mirror: shouldMirror, localVideoWindow: viewLocalVideo)
            print("LocalViewController - displayLocalVideo result: \(result)")
-           isVideoInitialized = true
+           
+           isVideoInitialized = result == 0
           
            // Make sure the view is visible
            viewLocalVideo.isHidden = false

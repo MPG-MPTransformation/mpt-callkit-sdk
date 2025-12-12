@@ -53,6 +53,9 @@ class _LoginResultScreenState extends State<LoginResultScreen>
 
   String? _sipCallEvent;
 
+  // Track if incoming call dialog is showing
+  bool _isIncomingDialogShowing = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -103,6 +106,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
       if (mounted) {
         setState(() {
           _sipCallEvent = type ?? "";
+          _currentTabIndex = 2;
         });
       }
     });
@@ -126,6 +130,19 @@ class _LoginResultScreenState extends State<LoginResultScreen>
           _showCallIncomingDialog();
         }
 
+        // Dismiss incoming call dialog when ANSWER state is received
+        if (callEvent.state == CallEventSocketConstants.ANSWER_CALL) {
+          if (_isIncomingDialogShowing) {
+            _isIncomingDialogShowing = false;
+            Navigator.of(context).pop();
+            if (mounted) {
+              setState(() {
+                _currentTabIndex = 2; // Switch to Video Call tab
+              });
+            }
+          }
+        }
+
         if (callEvent.state == CallEventSocketConstants.REJECT_CALL ||
             callEvent.state == CallEventSocketConstants.END_CALL) {
           if (Platform.isAndroid) {
@@ -146,6 +163,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
   }
 
   void _showCallIncomingDialog() {
+    _isIncomingDialogShowing = true;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -160,6 +178,7 @@ class _LoginResultScreenState extends State<LoginResultScreen>
             TextButton(
               onPressed: () {
                 // Hangup - Reject the call
+                _isIncomingDialogShowing = false;
                 Navigator.of(context).pop();
                 MptCallKitController().hangup();
               },
@@ -172,8 +191,9 @@ class _LoginResultScreenState extends State<LoginResultScreen>
             TextButton(
               onPressed: () async {
                 // Answer - Accept the call
+                _isIncomingDialogShowing = false;
                 Navigator.of(context).pop();
-                MptCallKitController().answerCall();
+                await MptCallKitController().answerCall();
                 if (mounted && !isNavigatedToCallPad) {
                   isNavigatedToCallPad = true;
                   // Navigate to call pad or video view
@@ -191,7 +211,10 @@ class _LoginResultScreenState extends State<LoginResultScreen>
           ],
         );
       },
-    );
+    ).then((_) {
+      // Dialog closed by any means
+      _isIncomingDialogShowing = false;
+    });
   }
 
   @override

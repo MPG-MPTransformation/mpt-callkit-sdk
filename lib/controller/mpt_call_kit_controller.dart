@@ -44,6 +44,8 @@ class MptCallKitController {
   bool _fileLoggingEnabled = false;
   void Function(String? message, {int? wrapWidth})? _originalDebugPrint;
   final List<AgentDataOnConf> _connectedAgents = <AgentDataOnConf>[];
+  final List<AddAgentToConfReq> listAddAgentToConfRequests =
+      <AddAgentToConfReq>[];
 
   static const MethodChannel channel = MethodChannel('mpt_callkit');
   static const eventChannel = EventChannel('native_events');
@@ -455,7 +457,7 @@ class MptCallKitController {
         'bgPath': bgPath,
       });
     } on PlatformException catch (e) {
-      debugPrint("Failed to initialize SDK: '${e.message}'.");
+      print("Failed to initialize SDK: '${e.message}'.");
     }
 
     // Persist initialization params to SharedPreferences
@@ -482,7 +484,7 @@ class MptCallKitController {
         await prefs.setString(SDKPrefsKeyConstants.BG_PATH, bgPath);
       }
     } catch (e) {
-      debugPrint('Failed to persist initSdk params: $e');
+      print('Failed to persist initSdk params: $e');
     }
 
     _appEvent.add(AppEventConstants.READY);
@@ -511,7 +513,7 @@ class MptCallKitController {
       }
       // deviceInfo is stored for potential future use; no runtime field to restore
     } catch (e) {
-      debugPrint('Failed to restore initSdk params: $e');
+      print('Failed to restore initSdk params: $e');
     }
   }
 
@@ -527,7 +529,7 @@ class MptCallKitController {
       await prefs.remove(SDKPrefsKeyConstants.ENABLE_BLUR_BACKGROUND);
       await prefs.remove(SDKPrefsKeyConstants.ACCESS_TOKEN);
     } catch (e) {
-      debugPrint('Failed to clear initSdk params: $e');
+      print('Failed to clear initSdk params: $e');
     }
   }
 
@@ -706,7 +708,8 @@ class MptCallKitController {
               autoLogin: true,
               enableBlurBackground: true,
               bgPath: await getCurrentBgPath(),
-              tenantId: currentUserInfo!["tenant"]["id"] ?? DEFAULT_TENANT_ID,
+              tenantId: (currentUserInfo!["tenant"]["id"] as int? ??
+                  DEFAULT_TENANT_ID),
               agentId: currentUserInfo!["user"]["id"] ?? DEFAULT_AGENT_ID,
             );
           } else {
@@ -1084,7 +1087,7 @@ class MptCallKitController {
       }
     } on Exception catch (e) {
       onError?.call(e.toString());
-      debugPrint("Failed to call: '${e.toString()}'.");
+      print("Failed to call: '${e.toString()}'.");
       // if (Platform.isIOS) Navigator.pop(context);
     }
   }
@@ -1155,7 +1158,7 @@ class MptCallKitController {
             retryTime: retryCount, phoneNumber: phoneNumber);
       }
     } on Exception catch (e) {
-      debugPrint("Error in getExtension: $e");
+      print("Error in getExtension: $e");
       return null;
     }
   }
@@ -1211,7 +1214,7 @@ class MptCallKitController {
         throw Exception(result.message ?? '');
       }
     } on Exception catch (e) {
-      debugPrint("Error in releaseExtension: $e");
+      print("Error in releaseExtension: $e");
       throw Exception(e);
     }
   }
@@ -1350,7 +1353,7 @@ class MptCallKitController {
 
       return result;
     } on PlatformException catch (e) {
-      debugPrint("Login failed: ${e.message}");
+      print("Login failed: ${e.message}");
       return false;
     }
   }
@@ -1443,10 +1446,15 @@ class MptCallKitController {
 
     // Nếu chưa có conference, người mời sẽ trở thành host
     if (_hostExtension == null) {
-      if (_connectedAgents.length == 1) {}
-      await updateToConference(isConference: true);
-      _becomeHost();
-      print("Becoming host of conference - Extension: $_hostExtension");
+      if (_connectedAgents.isNotEmpty) {
+        await updateToConference(isConference: true);
+        _becomeHost();
+        print("Becoming host of conference - Extension: $_hostExtension");
+      } else {
+        print("No agents in connected list - cannot update to conf");
+      }
+    } else {
+      print("Already have host - Extension: $_hostExtension");
     }
 
     // Nếu KHÔNG phải host, gửi request đến host
@@ -1566,7 +1574,7 @@ class MptCallKitController {
       return result;
       // }
     } on PlatformException catch (e) {
-      debugPrint("Failed to go offline: '${e.message}'.");
+      print("Failed to go offline: '${e.message}'.");
       return false;
     }
   }
@@ -1595,7 +1603,7 @@ class MptCallKitController {
         return 0;
       }
     } on PlatformException catch (e) {
-      debugPrint("Failed in 'hangup' mothod: '${e.message}'.");
+      print("Failed in 'hangup' mothod: '${e.message}'.");
       return -1;
     }
   }
@@ -1605,7 +1613,7 @@ class MptCallKitController {
       final result = await channel.invokeMethod("hold");
       return result;
     } on PlatformException catch (e) {
-      debugPrint("Failed in 'hold' mothod: '${e.message}'.");
+      print("Failed in 'hold' mothod: '${e.message}'.");
       return false;
     }
   }
@@ -1615,7 +1623,7 @@ class MptCallKitController {
       final result = await channel.invokeMethod("unhold");
       return result;
     } on PlatformException catch (e) {
-      debugPrint("Failed in 'unhold' mothod: '${e.message}'.");
+      print("Failed in 'unhold' mothod: '${e.message}'.");
       return false;
     }
   }
@@ -1628,7 +1636,7 @@ class MptCallKitController {
       print("holdAllCalls result: $result");
       return result;
     } on PlatformException catch (e) {
-      debugPrint("Failed in 'holdAllCalls' mothod: '${e.message}'.");
+      print("Failed in 'holdAllCalls' mothod: '${e.message}'.");
       return false;
     }
   }
@@ -1638,7 +1646,7 @@ class MptCallKitController {
       final result = await channel.invokeMethod("mute");
       return result;
     } on PlatformException catch (e) {
-      debugPrint("Failed in 'mute' mothod: '${e.message}'.");
+      print("Failed in 'mute' mothod: '${e.message}'.");
       return false;
     }
   }
@@ -1648,7 +1656,7 @@ class MptCallKitController {
       final result = await channel.invokeMethod("unmute");
       return result;
     } on PlatformException catch (e) {
-      debugPrint("Failed in 'unmute' mothod: '${e.message}'.");
+      print("Failed in 'unmute' mothod: '${e.message}'.");
       return false;
     }
   }
@@ -1658,7 +1666,7 @@ class MptCallKitController {
       final result = await channel.invokeMethod("cameraOn");
       return result;
     } on PlatformException catch (e) {
-      debugPrint("Failed in 'cameraOn' mothod: '${e.message}'.");
+      print("Failed in 'cameraOn' mothod: '${e.message}'.");
       return false;
     }
   }
@@ -1668,7 +1676,7 @@ class MptCallKitController {
       final result = await channel.invokeMethod("cameraOff");
       return result;
     } on PlatformException catch (e) {
-      debugPrint("Failed in 'cameraOff' mothod: '${e.message}'.");
+      print("Failed in 'cameraOff' mothod: '${e.message}'.");
       return false;
     }
   }
@@ -1678,7 +1686,7 @@ class MptCallKitController {
       final result = await channel.invokeMethod("reject");
       return result;
     } on PlatformException catch (e) {
-      debugPrint("Failed in 'reject' mothod: '${e.message}'.");
+      print("Failed in 'reject' mothod: '${e.message}'.");
       return false;
     }
   }
@@ -1688,7 +1696,7 @@ class MptCallKitController {
       final result = await channel.invokeMethod("answer");
       return result;
     } on PlatformException catch (e) {
-      debugPrint("Failed in 'answer' mothod: '${e.message}'.");
+      print("Failed in 'answer' mothod: '${e.message}'.");
       return -10;
     }
   }
@@ -1732,7 +1740,7 @@ class MptCallKitController {
       });
       return result;
     } on PlatformException catch (e) {
-      debugPrint("Failed in 'transfer' mothod: '${e.message}'.");
+      print("Failed in 'transfer' mothod: '${e.message}'.");
       return false;
     }
   }
@@ -1745,7 +1753,7 @@ class MptCallKitController {
       });
       return result;
     } on PlatformException catch (e) {
-      debugPrint("Failed in 'updateVideoCall' mothod: '${e.message}'.");
+      print("Failed in 'updateVideoCall' mothod: '${e.message}'.");
       return false;
     }
   }
@@ -1943,17 +1951,19 @@ class MptCallKitController {
         _removeConnectedAgent(sessionId);
       }
 
+      //if only one agent in connected list, destroy conference and reset host role
       bool result = await getConferenceState();
       print(
           "getConferenceState result: $result , connectedAgents.length=${_connectedAgents.length}");
-      // if (result && _connectedAgents.length == 1) {
-      //   await updateToConference(isConference: false, sessionId: sessionId);
-      // }
+      if (result && _connectedAgents.length == 1) {
+        await updateToConference(isConference: false);
+        print("Conference destroyed - only have 1 agent in connected list");
 
-      // Reset host role khi không còn agent nào connected
-      if (_hostExtension != null && _connectedAgents.isEmpty) {
-        _resetHostRole();
-        print("All agents disconnected - reset host role");
+        // Reset host role when conference is destroyed
+        if (_hostExtension != null) {
+          _resetHostRole();
+          print("All agents disconnected - reset host role");
+        }
       }
     }
 
@@ -2471,11 +2481,11 @@ class MptCallKitController {
     final int? agentId = message['agentId'];
     final Map<String, dynamic>? payload = message['payload'];
 
-    var agentDataOnConf = AgentDataOnConf(
-      sipSessionId: sipSessionId,
-      agentId: agentId,
-      uuid: null,
-    );
+    // var agentDataOnConf = AgentDataOnConf(
+    //   sipSessionId: sipSessionId,
+    //   agentId: agentId,
+    //   uuid: null,
+    // );
 
     if (payload != null) {
       if (payload.containsKey('extension')) {
@@ -2491,24 +2501,31 @@ class MptCallKitController {
               print("Error: $error");
             },
           );
+
+          listAddAgentToConfRequests.add(AddAgentToConfReq(
+            agentId: agentId,
+            destExt: extension,
+            uuid: payload['uuid'] as String? ?? "",
+            sipSessionId: sipSessionId,
+          ));
         }
       }
-      if (payload.containsKey('uuid')) {
-        final String uuid = payload['uuid'] as String;
-        print('Invite uuid: $uuid from $agentId');
-        if (uuid.isNotEmpty) {
-          await sendSipMessage(
-              agentDataOnConf.sipSessionId,
-              jsonEncode({
-                "type": SIPMessageTypeConstants.ADD_TO_CONF_RESP,
-                "agentId": currentUserInfo?["user"]["id"],
-                "payload": {
-                  "uuid": uuid,
-                  "success": true,
-                },
-              }));
-        }
-      }
+      // if (payload.containsKey('uuid')) {
+      //   final String uuid = payload['uuid'] as String;
+      //    print('Invite uuid: $uuid from $agentId');
+      //   if (uuid.isNotEmpty) {
+      //     await sendSipMessage(
+      //         agentDataOnConf.sipSessionId,
+      //         jsonEncode({
+      //           "type": SIPMessageTypeConstants.ADD_TO_CONF_RESP,
+      //           "agentId": currentUserInfo?["user"]["id"],
+      //           "payload": {
+      //             "uuid": uuid,
+      //             "success": true,
+      //           },
+      //         }));
+      //   }
+      // }
     }
   }
 
@@ -2520,6 +2537,8 @@ class MptCallKitController {
       "message": message,
     });
 
+    print(
+        "sendSipMessage message: ${"sipSessionId: $sipSessionId, message: $message"}");
     print("sendSipMessage result: $result");
     return result;
   }
@@ -2760,7 +2779,7 @@ class MptCallKitController {
       print("getCurrentCallSessionId result: $result");
       return result;
     } on PlatformException catch (e) {
-      debugPrint("Failed in 'getCurrentCallSessionId' mothod: '${e.message}'.");
+      print("Failed in 'getCurrentCallSessionId' mothod: '${e.message}'.");
       return null;
     }
   }
@@ -2824,8 +2843,18 @@ class MptCallKitController {
   Future<void> updateToConference({bool? isConference}) async {
     final bool confStatus = isConference ?? true;
 
+    if (_connectedAgents.isEmpty) {
+      print("No agents in connected list - cannot update to conference");
+      return;
+    }
+
+    print(
+        "Updating to conference - total connected agents: ${_connectedAgents.length}");
+    final sipConfSessionId = _connectedAgents.first.sipSessionId;
+
     await channel.invokeMethod("conference", {
       "isConference": confStatus,
+      "sessionId": sipConfSessionId,
     });
 
     // Nếu là host, broadcast conference status
@@ -2878,6 +2907,8 @@ class MptCallKitController {
     print("Resetting host role - was host: $_isHostConference");
     _isHostConference = false;
     _hostExtension = null;
+
+    listAddAgentToConfRequests.clear();
   }
 
   /// Thêm agent vào danh sách connected agents

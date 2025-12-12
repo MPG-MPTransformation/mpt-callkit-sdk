@@ -52,7 +52,7 @@ public class RemoteView implements PlatformView {
 
         callManager.setRemoteVideoWindow(portSipLib, cur.sessionID, remoteRenderVideoView);
 
-        updateVideo(portSipLib);
+        updateVideo(portSipLib, (int) cur.sessionID);
 
         setupReceiver();
         
@@ -148,23 +148,25 @@ public class RemoteView implements PlatformView {
     }
 
     private void handleBroadcastReceiver(Intent intent) {
-        System.out.println("SDK-Android: handleBroadcastReceiver");
+        System.out.println("SDK-Android: RemoteView - handleBroadcastReceiver");
         try {
             if (intent == null) {
-                System.out.println("SDK-Android: handleBroadcastReceiver - intent null");
+                System.out.println("SDK-Android: RemoteView - handleBroadcastReceiver - intent null");
                 return;
             }
 
             PortSipSdk portSipLib = Engine.Instance().getEngine();
             if (portSipLib == null) {
-                System.out.println("SDK-Android: handleBroadcastReceiver - portSipLib null");
+                System.out.println("SDK-Android: RemoteView - handleBroadcastReceiver - portSipLib null");
                 return;
             }
 
             Session currentLine = CallManager.Instance().getCurrentSession();
             String action = intent.getAction();
+            System.out.println("SDK-Android: RemoteView - handleBroadcastReceiver - Received action: '" + action + "'");
+            
             if (action == null) {
-                System.out.println("SDK-Android: handleBroadcastReceiver - action null");
+                System.out.println("SDK-Android: RemoteView - handleBroadcastReceiver - action null");
                 return;
             }
 
@@ -183,7 +185,7 @@ public class RemoteView implements PlatformView {
                         case CONNECTED:
                             // Cập nhật trạng thái video khi kết nối
                             if (remoteRenderVideoView != null) {
-                                updateVideo(Engine.Instance().getEngine());
+                                updateVideo(Engine.Instance().getEngine(), (int) session.sessionID);
                             }
                             break;
                         case FAILED:
@@ -200,26 +202,30 @@ public class RemoteView implements PlatformView {
             } else if (PortSipService.CONFERENCE_STATE_CHANGE_ACTION.equals(action)) {
                 // Xử lý khi conference state thay đổi
                 boolean isConference = intent.getBooleanExtra(PortSipService.EXTRA_CONFERENCE_STATE, false);
-                System.out.println("SDK-Android: RemoteView - Conference state changed to: " + isConference);
+                int cSessionID = intent.getIntExtra(PortSipService.EXTRA_CONFERENCE_SESSIONID, -1);
+                System.out.println("SDK-Android: RemoteView - Conference state changed to: " + isConference + " - cSessionID=" + cSessionID);
                 
                 if (remoteRenderVideoView != null) {
-                    updateVideo(Engine.Instance().getEngine());
+                    updateVideo(Engine.Instance().getEngine(), cSessionID);
                 }
             } else {
-                System.out.println("SDK-Android: handleBroadcastReceiver - action not match");
-                System.out.println("SDK-Android: handleBroadcastReceiver - action: " + action);
+                System.out.println("SDK-Android: RemoteView - handleBroadcastReceiver - action not match");
+                System.out.println("SDK-Android: RemoteView - handleBroadcastReceiver - received action: '" + action + "'");
+                System.out.println("SDK-Android: RemoteView - handleBroadcastReceiver - expected CALL_CHANGE_ACTION: '" + PortSipService.CALL_CHANGE_ACTION + "'");
+                System.out.println("SDK-Android: RemoteView - handleBroadcastReceiver - expected CONFERENCE_STATE_CHANGE_ACTION: '" + PortSipService.CONFERENCE_STATE_CHANGE_ACTION + "'");
             }
         } catch (Exception e) {
             System.out.println("Error in handleBroadcastReceiver: " + e.getMessage());
         }
     }
 
-    private void updateVideo(PortSipSdk portSipLib) {
+    private void updateVideo(PortSipSdk portSipLib, int sessionID) {
         CallManager callManager = CallManager.Instance();
-        Session cur = CallManager.Instance().getCurrentSession();
+        Session cur = callManager.findSessionBySessionID(sessionID);
 
         if (Engine.Instance().mConference) {
             System.out.println("SDK-Android: application.mConference = true && setConferenceVideoWindow");
+            callManager.setRemoteVideoWindow(portSipLib, sessionID, null);
             callManager.setConferenceVideoWindow(portSipLib, remoteRenderVideoView);
         } else {
             System.out.println("SDK-Android: application.mConference = false");

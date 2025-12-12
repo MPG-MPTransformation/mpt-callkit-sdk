@@ -119,7 +119,7 @@ class RemoteViewController: UIViewController {
            guard let self = self else { return }
           
            // Handle conference mode change
-           self.handleConferenceModeChange(isConference: isConference)
+           self.handleConferenceModeChange(isConference: isConference, cSessionId: sessionId)
           
            if isVideoEnabled {
                if !self.isVideoInitialized {
@@ -137,7 +137,7 @@ class RemoteViewController: UIViewController {
    }
 
    /// Handles conference mode changes (switching between normal call and conference call)
-   private func handleConferenceModeChange(isConference: Bool) {
+    private func handleConferenceModeChange(isConference: Bool, cSessionId: Int) {
        guard isConferenceMode != isConference else {
            print("RemoteViewController - same action")
            return
@@ -147,7 +147,7 @@ class RemoteViewController: UIViewController {
        isConferenceMode = isConference
        // Get the SDK instance from the plugin
        let appDelegate = MptCallkitPlugin.shared
-       let sessionId = appDelegate.activeSessionid ?? 0
+//       let sessionId = appDelegate.activeSessionid ?? 0
       
        if isConference {
            // Entered conference mode
@@ -158,7 +158,7 @@ class RemoteViewController: UIViewController {
            // Exited conference mode (back to normal call)
            print("RemoteViewController - Exiting CONFERENCE mode (back to normal)")
            appDelegate.destoryConference(viewRemoteVideo)
-           portSIPSDK.setRemoteVideoWindow(sessionId, remoteVideoWindow: viewRemoteVideo)
+           portSIPSDK.setRemoteVideoWindow(cSessionId, remoteVideoWindow: viewRemoteVideo)
        }
    }
     

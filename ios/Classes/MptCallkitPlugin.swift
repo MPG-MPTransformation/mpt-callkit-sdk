@@ -2517,6 +2517,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             ]
             let payload: [String: Any] = [
                 "answered": true,
+                "isInternal": true,
                 "agentInfo": agentInfo,
                 "existsVideo": self.activeSessionidHasVideo ?? false,
                 "existsAudio": self.activeSessionidHasAudio ?? false
@@ -3010,8 +3011,9 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                 type: "call_state", payloadKey: "isInternal", payloadValue: isInternal ?? true)
         case "conference":
             if let args = call.arguments as? [String: Any],
-                let isConference = args["isConference"] as? Bool {
-                updateToConference(isConference: isConference)
+                let isConference = args["isConference"] as? Bool,
+               let _cSessionId = args["sessionId"] as? Int {
+                updateToConference(isConference: isConference, cSessionId: _cSessionId)
             }
             result(true)
         // This logic only for SIP makeCall API
@@ -4129,14 +4131,14 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         return UIImage(cgImage: cgImage, scale: image.scale, orientation: orientation)
     }
 
-    private func updateToConference(isConference: Bool) {
+    private func updateToConference(isConference: Bool, cSessionId: Int) {
 //        // Check if we're already in the desired state
 //        if isConference == self.isConference {
 //            return
 //        }
         
-        guard let result = _callManager.findCallBySessionID(activeSessionid) else {
-            NSLog("updateToConference - Not exist this SessionId = \(activeSessionid)")
+        guard let result = _callManager.findCallBySessionID(cSessionId) else {
+            NSLog("updateToConference - Not exist this SessionId = \(cSessionId)")
             return
         }
         
@@ -4144,7 +4146,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
         
         if isConference {
             let videoState = PortSIPVideoState(
-                sessionId: Int64(activeSessionid),
+                sessionId: Int64(cSessionId),
                 isVideoEnabled: result.session.videoState,
                 isCameraOn: result.session.videoState && !result.session.videoMuted,
                 useFrontCamera: mUseFrontCamera,
@@ -4154,7 +4156,7 @@ extension MptCallkitPlugin : AVCaptureVideoDataOutputSampleBufferDelegate{
             self.isConference = true
         }else {
             let videoState = PortSIPVideoState(
-                sessionId: Int64(activeSessionid),
+                sessionId: Int64(cSessionId),
                 isVideoEnabled: result.session.videoState,
                 isCameraOn: result.session.videoState && !result.session.videoMuted,
                 useFrontCamera: mUseFrontCamera,
