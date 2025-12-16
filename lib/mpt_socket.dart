@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:mpt_callkit/logger/mpt_callkit_logger.dart';
 import 'package:mpt_callkit/models/models.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
@@ -13,6 +14,8 @@ import 'mpt_call_kit_constant.dart';
 
 // SocketIO
 class MptSocketLiveConnect {
+  final _logger = MptCallkitLogger.instance;
+
   static late IO.Socket socket;
 
   static final _connectionStatusController = StreamController<bool>.broadcast();
@@ -43,32 +46,34 @@ class MptSocketLiveConnect {
 
   static void _listenSocket() {
     socket.onConnect((_) {
-      print('SocketIO connection established!');
+      MptCallkitLogger.instance.logMessage('SocketIO connection established!');
       _connectionStatusController.add(true);
     });
-    socket.onError((error) => print(error.toString()));
-    socket.onConnectError((error) => print(error.toString()));
+    socket.onError(
+        (error) => MptCallkitLogger.instance.logMessage(error.toString()));
+    socket.onConnectError(
+        (error) => MptCallkitLogger.instance.logMessage(error.toString()));
     socket.onDisconnect(
       (_) {
-        print('SocketIO disconnected!');
+        MptCallkitLogger.instance.logMessage('SocketIO disconnected!');
         _connectionStatusController.add(false);
       },
     );
 
     socket.onReconnect((_) {
-      print('Reconnected');
+      MptCallkitLogger.instance.logMessage('Reconnected');
       _connectionStatusController.add(true);
     });
 
     socket.onReconnectFailed((_) {
-      print('Reconnect failed!');
+      MptCallkitLogger.instance.logMessage('Reconnect failed!');
       _connectionStatusController.add(false);
     });
   }
 
   static void onDisconnect(VoidCallback callback) {
     socket.onDisconnect((_) {
-      print('SocketIO disconnected!');
+      MptCallkitLogger.instance.logMessage('SocketIO disconnected!');
       callback();
     });
   }
@@ -79,7 +84,7 @@ class MptSocketLiveConnect {
 
   static sendMessage(String? msg, List<dynamic>? files) {
     if ((msg == null || msg.isEmpty) && (files == null || files.isEmpty)) {
-      print("Message and files are empty!");
+      MptCallkitLogger.instance.logMessage("Message and files are empty!");
       return;
     }
 
@@ -94,7 +99,7 @@ class MptSocketLiveConnect {
 
   static void onReceiveMessage(Function(dynamic) callback) {
     socket.on("msg", (data) {
-      print('Data received: $data');
+      MptCallkitLogger.instance.logMessage('Data received: $data');
       callback(data);
     });
   }
@@ -129,21 +134,22 @@ class MptSocketLiveConnect {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
-        print('Response data: $responseData');
+        MptCallkitLogger.instance.logMessage('Response data: $responseData');
         if (responseData != null) {
           if (responseData["success"]) {
             var data = responseData["data"];
             if (data != null) {
               token = data["token"];
-              print("Token: $token");
+              MptCallkitLogger.instance.logMessage("Token: $token");
             }
           }
         }
       } else {
-        print('Failed to post data. Status code: ${response.statusCode}');
+        MptCallkitLogger.instance.logMessage(
+            'Failed to post data. Status code: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error: $e');
+      MptCallkitLogger.instance.logMessage('Error: $e');
     }
 
     return token;
@@ -185,6 +191,7 @@ class MptSocketLiveConnect {
 
 ///SocketAbly class - socket server
 class MptSocketSocketServer {
+  final _logger = MptCallkitLogger.instance;
   static MptSocketSocketServer? _instance;
   // Add a Set to store subscribed rooms
   final Set<String> _subscribedRooms = {};
@@ -294,15 +301,15 @@ class MptSocketSocketServer {
         tenantId == null ||
         userId == null ||
         userName == null) {
-      print("ERROR: Required parameters are null in _initSocket");
-      print(
+      _logger.logMessage("ERROR: Required parameters are null in _initSocket");
+      _logger.logMessage(
           "serverUrl: $serverUrl, token: $token, tenantId: $tenantId, userId: $userId, userName: $userName");
       return;
     }
 
     // Clean up existing socket before creating a new one
     if (socket != null) {
-      print("Cleaning up existing socket before creating new one");
+      _logger.logMessage("Cleaning up existing socket before creating new one");
       socket!.clearListeners();
       if (socket!.connected) {
         socket!.disconnect();
@@ -310,7 +317,7 @@ class MptSocketSocketServer {
       socket!.dispose();
     }
 
-    print(
+    _logger.logMessage(
         "Initializing Socket.IO with clientId: ${tenantId}_${userId}_$userName");
 
     final _serverUrl = configuration!["socketIoCallConfig"]["url"];
@@ -354,7 +361,7 @@ class MptSocketSocketServer {
       socketOptionsBuilder.enableAutoConnect();
     }
 
-    print(
+    _logger.logMessage(
         "socketUrl: $_serverUrl, path: $_path, timeout: $_timeout, transports: $_transports, reconnectionAttempts: $_reconnectionAttempts, reconnectionDelay: $_reconnectionDelay, forceNew: $_forceNew, reconnection: $_reconnection, autoConnect: $_autoConnect");
 
     // Create Socket.IO instance
@@ -369,7 +376,7 @@ class MptSocketSocketServer {
 
   /// Set up socket event listeners
   void _setupSocketListeners() {
-    print("Socket server - _setupSocketListeners");
+    _logger.logMessage("Socket server - _setupSocketListeners");
 
     // Remove any existing listeners to prevent duplicates
     socket!.off("connect");
@@ -379,10 +386,11 @@ class MptSocketSocketServer {
     socket!.off("error");
 
     socket!.onConnect((_) {
-      print("Socket server connected");
+      _logger.logMessage("Socket server connected");
       isConnecting = true;
       if (!_connectionStatusController.isClosed) {
-        print("Socket server - _connectionStatusController.add(true)");
+        _logger.logMessage(
+            "Socket server - _connectionStatusController.add(true)");
         _connectionStatusController.add(true);
       }
       // Reset initial rooms joined flag on fresh connection
@@ -393,7 +401,7 @@ class MptSocketSocketServer {
     });
 
     socket!.onReconnect((data) {
-      print("Socket.IO reconnected");
+      _logger.logMessage("Socket.IO reconnected");
       isConnecting = true;
       if (!_connectionStatusController.isClosed) {
         _connectionStatusController.add(true);
@@ -406,7 +414,7 @@ class MptSocketSocketServer {
     });
 
     socket!.onDisconnect((_) {
-      print("Socket.IO disconnected");
+      _logger.logMessage("Socket.IO disconnected");
       isConnecting = false;
       if (!_connectionStatusController.isClosed) {
         _connectionStatusController.add(false);
@@ -416,7 +424,7 @@ class MptSocketSocketServer {
     });
 
     socket!.onConnectError((error) {
-      print("Socket.IO connection error: $error");
+      _logger.logMessage("Socket.IO connection error: $error");
       isConnecting = false;
       if (!_connectionStatusController.isClosed) {
         _connectionStatusController.add(false);
@@ -424,7 +432,7 @@ class MptSocketSocketServer {
     });
 
     socket!.onError((error) {
-      print("Socket.IO error: $error");
+      _logger.logMessage("Socket.IO error: $error");
     });
 
     socket!.emitWithAck("agent_initialize", {
@@ -454,7 +462,7 @@ class MptSocketSocketServer {
           "rooms": initialRooms,
         },
         ack: (data) {
-          print("Agent initialized: $data");
+          _logger.logMessage("Agent initialized: $data");
           // Mark initial rooms joined
           _initialRoomsJoined = true;
           if (!_initialRoomsJoinedController.isClosed) {
@@ -467,7 +475,7 @@ class MptSocketSocketServer {
 
   void sendAgentState(String sessionId, String state) {
     // if (socket == null || !socket!.connected) {
-    //    print(
+    //   _logger.logMessage(
     //       "Socket server - sendAgentState - Cannot send message: socket is null or not connected");
     //   return;
     // }
@@ -477,10 +485,10 @@ class MptSocketSocketServer {
     //     "sessionId": sessionId,
     //     "state": state,
     //   }, ack: (data) {
-    //      print("Socket server - sendAgentState - Sent agent state: $data");
+    //     _logger.logMessage("Socket server - sendAgentState - Sent agent state: $data");
     //   });
     // } catch (e) {
-    //    print("Socket server - sendAgentState - Error sending agent state: $e");
+    //   _logger.logMessage("Socket server - sendAgentState - Error sending agent state: $e");
     // }
   }
 
@@ -494,17 +502,20 @@ class MptSocketSocketServer {
     var isAgentAnswered = false;
 
     socket!.on("agent_status_chat", (data) {
-      print("Socket server - AGENT_STATUS_CHAT - Received message: $data");
+      _logger.logMessage(
+          "Socket server - AGENT_STATUS_CHAT - Received message: $data");
       _handleAgentStatusMessage(data);
     });
 
     // Listen for call events
     socket!.on("CALL_EVENT", (data) async {
-      print("Socket server - CALL_EVENT - Received message: $data");
+      _logger
+          .logMessage("Socket server - CALL_EVENT - Received message: $data");
 
       if (data is Map) {
         var sessionId = data['sessionId'];
-        print("Socket server - CALL_EVENT - Received sessionId - $sessionId");
+        _logger.logMessage(
+            "Socket server - CALL_EVENT - Received sessionId - $sessionId");
 
         // process add agent to conf requests
         if (data.containsKey('ani') && data.containsKey('dnis')) {
@@ -540,7 +551,7 @@ class MptSocketSocketServer {
                     .listAddAgentToConfRequests
                     .remove(addAgentToConfRequest);
 
-                print(
+                _logger.logMessage(
                     "Socket server - CALL_EVENT - add agent, state=${data['state']}, request removed: $addAgentToConfRequest");
               }
             }
@@ -563,7 +574,7 @@ class MptSocketSocketServer {
                     .listAddAgentToConfRequests
                     .remove(addAgentToConfRequest);
 
-                print(
+                _logger.logMessage(
                     "Socket server - CALL_EVENT - add agent, state=${data['state']}, request removed: $addAgentToConfRequest");
               }
             }
@@ -576,7 +587,7 @@ class MptSocketSocketServer {
           if (agentId ==
               MptCallKitController().currentUserInfo?["user"]["id"]) {
             currentCallEventSessionId = sessionId;
-            print(
+            _logger.logMessage(
                 "Socket server - CALL_EVENT - agentId is equal to the current user id");
             // save call event info if agent is callee
             if (!_callEventController.isClosed) {
@@ -584,7 +595,7 @@ class MptSocketSocketServer {
                   CallEventSocketRecv.fromJson(data as Map<String, dynamic>));
               _currentCallEventSocketData = CallEventSocketRecv.fromJson(data);
             } else {
-              print(
+              _logger.logMessage(
                   "Socket server - CALL_EVENT - callEventController is closed");
             }
 
@@ -598,18 +609,21 @@ class MptSocketSocketServer {
                     if (extraInfoStr.isNotEmpty) {
                       extraInfo = jsonDecode(extraInfoStr);
                     } else {
-                      print(
+                      _logger.logMessage(
                           "Socket server - CALL_EVENT - extraInfo is an empty string");
                       return;
                     }
                   } catch (e) {
-                    print(
+                    _logger.logMessage(
                         "Socket server - CALL_EVENT - Error parsing extraInfo JSON: $e");
                     return;
                   }
                 } else {
                   extraInfo = data['extraInfo'];
                 }
+
+                MptCallKitController().addConnectedAgent(
+                    MptCallKitController().currentSipActiveSessionId, agentId);
 
                 if (extraInfo != null && extraInfo.containsKey('type')) {
                   if (extraInfo['type'].toString() ==
@@ -623,48 +637,48 @@ class MptSocketSocketServer {
                     //     'sessionId': sessionId.toString(),
                     //   });
 
-                    //    print(
+                    //   _logger.logMessage(
                     //       "Socket server - CALL_EVENT - currentSessionId: $sessionId");
                     // } catch (e) {
-                    //    print(
+                    //   _logger.logMessage(
                     //       "Socket server - CALL_EVENT - Error invoking reinvite method: $e");
                     // }
 
-                    var isInternal = false;
+                    // var isInternal = false;
 
-                    if (data["dnis"] == currentUserInfo?["user"]["extension"]) {
-                      print(
-                          "[Socket server] - CALL_EVENT - call to agent extension");
-                      // Handle video call
-                      isInternal = true;
-                    } else {
-                      print(
-                          "[Socket server] - CALL_EVENT - call to queue agent");
-                      isInternal = false;
-                    }
+                    // if (data["dnis"] == currentUserInfo?["user"]["extension"]) {
+                    //   _logger.logMessage(
+                    //       "[Socket server] - CALL_EVENT - call to agent extension");
+                    //   // Handle video call
+                    //   isInternal = true;
+                    // } else {
+                    //   _logger.logMessage(
+                    //       "[Socket server] - CALL_EVENT - call to queue agent");
+                    //   isInternal = false;
+                    // }
 
-                    try {
-                      var payload = {
-                        "isInternal": isInternal,
-                        "sessionId": sessionId,
-                        "extension": currentUserInfo?["user"]["extension"],
-                      };
-                      // await MptCallKitController.channel
-                      //     .invokeMethod('isInternal', payload);
+                    // try {
+                    //   var payload = {
+                    //     "isInternal": isInternal,
+                    //     "sessionId": sessionId,
+                    //     "extension": currentUserInfo?["user"]["extension"],
+                    //   };
+                    //   // await MptCallKitController.channel
+                    //   //     .invokeMethod('isInternal', payload);
 
-                      print(
-                          "Socket server - CALL_EVENT - currentSessionId: $sessionId");
-                    } catch (e) {
-                      print(
-                          "Socket server - CALL_EVENT - Error invoking reinvite method: $e");
-                    }
+                    //   _logger.logMessage(
+                    //       "Socket server - CALL_EVENT - currentSessionId: $sessionId");
+                    // } catch (e) {
+                    //   _logger.logMessage(
+                    //       "Socket server - CALL_EVENT - Error invoking reinvite method: $e");
+                    // }
                   }
                 } else {
-                  print(
+                  _logger.logMessage(
                       "Socket server - CALL_EVENT - extraInfo has no type field");
                 }
               } else {
-                print(
+                _logger.logMessage(
                     "Socket server - CALL_EVENT - data has no extraInfo field");
               }
             }
@@ -675,21 +689,22 @@ class MptSocketSocketServer {
             //       data['state'] != CallEventSocketConstants.OFFER_CALL) {
             //     // handle msg when call out going (agent logged in)
             //     if (!_callEventController.isClosed) {
-            //        print(
+            //       _logger.logMessage(
             //           "Socket server - CALL_EVENT - call out going with sessionId: $sessionId");
             //       _callEventController.add(
             //           CallEventSocketRecv.fromJson(data as Map<String, dynamic>));
             //       _currentCallEventSocketData =
             //           CallEventSocketRecv.fromJson(data);
             //     } else {
-            //        print(
+            //       _logger.logMessage(
             //           "Socket server - CALL_EVENT - callEventController is closed");
             //     }
             //   }
-            //    print("Socket server - CALL_EVENT - data has no extraInfo");
+            //   _logger.logMessage("Socket server - CALL_EVENT - data has no extraInfo");
           }
         } else {
-          print("Socket server - CALL_EVENT - data has no agentId");
+          _logger
+              .logMessage("Socket server - CALL_EVENT - data has no agentId");
         }
       }
 
@@ -700,21 +715,22 @@ class MptSocketSocketServer {
 
     // Generic event handler for any other messages
     socket!.on("message", (data) {
-      print("Received generic message: $data");
+      _logger.logMessage("Received generic message: $data");
       if (onMessageReceived != null) {
         onMessageReceived!(data);
       }
     });
 
     socket!.on("AGENT_STATUS_CHANGED", (data) {
-      print("Socket server - AGENT_STATUS_CHANGED - Received message: $data");
+      _logger.logMessage(
+          "Socket server - AGENT_STATUS_CHANGED - Received message: $data");
       _handleAgentStatusMessage(data);
     });
   }
 
   /// Handle agent status messages
   void _handleAgentStatusMessage(dynamic data) {
-    print("Processing agent status message: $data");
+    _logger.logMessage("Processing agent status message: $data");
 
     Map<dynamic, dynamic>? statusData;
     try {
@@ -725,13 +741,13 @@ class MptSocketSocketServer {
         if (dataStr.isNotEmpty) {
           statusData = Map<String, dynamic>.from(jsonDecode(dataStr));
         } else {
-          print(
+          _logger.logMessage(
               "Socket server - AGENT_STATUS_CHANGED - Received empty string for agent status message");
           return;
         }
       }
     } catch (e) {
-      print(
+      _logger.logMessage(
           "Socket server - AGENT_STATUS_CHANGED - Error parsing message data: $e");
       return;
     }
@@ -740,21 +756,21 @@ class MptSocketSocketServer {
       final statusName = statusData['statusName'] as String?;
       if (statusName != null) {
         if (!_agentStatusController.isClosed) {
-          print(
+          _logger.logMessage(
               "Socket server - AGENT_STATUS_CHANGED - Adding status to stream: $statusName");
           _agentStatusController.add(statusName);
         } else {
-          print(
+          _logger.logMessage(
               "Socket server - AGENT_STATUS_CHANGED - Controller is closed. Creating a new one.");
           _agentStatusController = StreamController<String>.broadcast();
           _agentStatusController.add(statusName);
         }
       } else {
-        print(
+        _logger.logMessage(
             "Socket server - AGENT_STATUS_CHANGED - statusName is null in data: $statusData");
       }
     } else {
-      print(
+      _logger.logMessage(
           "Socket server - AGENT_STATUS_CHANGED - Could not parse data from message: $data");
     }
   }
@@ -762,7 +778,7 @@ class MptSocketSocketServer {
   /// Send message through socket
   Future<void> sendMessage(String eventName, dynamic data) async {
     if (socket == null || !socket!.connected) {
-      print(
+      _logger.logMessage(
           "Socket server - SEND_MESSAGE - Cannot send message: socket is null or not connected");
       return;
     }
@@ -773,11 +789,12 @@ class MptSocketSocketServer {
         "event": eventName,
         "data": data,
       }, ack: (response) {
-        print(
+        _logger.logMessage(
             "Socket server - SEND_MESSAGE - Sent message: $eventName - $data - $response");
       });
     } catch (e) {
-      print("Socket server - SEND_MESSAGE - Error sending message: $e");
+      _logger.logMessage(
+          "Socket server - SEND_MESSAGE - Error sending message: $e");
     }
   }
 
@@ -799,7 +816,7 @@ class MptSocketSocketServer {
               "rooms": _subscribedRooms.toList(),
             },
             ack: (data) {
-              print(
+              _logger.logMessage(
                   "Socket server - AGENT_LEAVE_ROOMS - Left all rooms: $data");
             },
           );
@@ -807,12 +824,13 @@ class MptSocketSocketServer {
         }
 
         socket!.disconnect();
-        print("Socket.IO disconnected");
+        _logger.logMessage("Socket.IO disconnected");
       } else {
-        print("socket is null or not connected, nothing to disconnect");
+        _logger.logMessage(
+            "socket is null or not connected, nothing to disconnect");
       }
     } catch (e) {
-      print("Error disconnecting from Socket.IO: $e");
+      _logger.logMessage("Error disconnecting from Socket.IO: $e");
     }
   }
 
@@ -840,7 +858,7 @@ class MptSocketSocketServer {
         _initialRoomsJoinedController.close();
       }
     } catch (e) {
-      print("Error disposing MptSocketSocketServer instance: $e");
+      _logger.logMessage("Error disposing MptSocketSocketServer instance: $e");
     }
   }
 
@@ -854,7 +872,8 @@ class MptSocketSocketServer {
     if (_instance != null) {
       await _instance!.releaseResources();
       _instance = null;
-      print("MptSocketSocketServer instance destroyed successfully");
+      MptCallkitLogger.instance
+          .logMessage("MptSocketSocketServer instance destroyed successfully");
     }
   }
 
@@ -937,7 +956,7 @@ class MptSocketSocketServer {
       cleanup();
       if (!completer.isCompleted) {
         completer.complete(false);
-        print(
+        MptCallkitLogger.instance.logMessage(
             "Timeout waiting for initial rooms to be joined after ${timeout.inSeconds}s");
       }
     });
@@ -948,11 +967,11 @@ class MptSocketSocketServer {
   /// Subscribe to a specific event
   void subscribeToEvent(String eventName, Function(dynamic) callback) {
     if (socket == null) {
-      print("Cannot subscribe: Socket is not initialized");
+      _logger.logMessage("Cannot subscribe: Socket is not initialized");
       return;
     }
 
-    print("Subscribing to event in socket: $eventName");
+    _logger.logMessage("Subscribing to event in socket: $eventName");
 
     // Store the room in the Set
     _subscribedRooms.add(eventName);
@@ -963,12 +982,13 @@ class MptSocketSocketServer {
         "rooms": [eventName],
       },
       ack: (data) {
-        print("Socket server - AGENT_JOIN_ROOMS - Agent join new room: $data");
+        _logger.logMessage(
+            "Socket server - AGENT_JOIN_ROOMS - Agent join new room: $data");
       },
     );
 
     socket!.on(eventName, (data) {
-      print("Received message for event $eventName: $data");
+      _logger.logMessage("Received message for event $eventName: $data");
       callback(data);
     });
   }
@@ -994,7 +1014,8 @@ class MptSocketSocketServer {
         "call_media_$sessionId",
       ],
     }, ack: (data) {
-      print("Socket server - AGENT_LEAVE_ROOMS - Agent leave room: $data");
+      MptCallkitLogger.instance.logMessage(
+          "Socket server - AGENT_LEAVE_ROOMS - Agent leave room: $data");
     });
   }
 
@@ -1004,14 +1025,15 @@ class MptSocketSocketServer {
   void _rejoinSubscribedRooms() {
     if (_subscribedRooms.isEmpty) return;
 
-    print("Rejoining subscribed rooms: $_subscribedRooms");
+    _logger.logMessage("Rejoining subscribed rooms: $_subscribedRooms");
     socket!.emitWithAck(
       "agent_join_rooms",
       {
         "rooms": _subscribedRooms.toList(),
       },
       ack: (data) {
-        print("Socket server - AGENT_JOIN_ROOMS - Rejoined rooms: $data");
+        _logger.logMessage(
+            "Socket server - AGENT_JOIN_ROOMS - Rejoined rooms: $data");
         // Consider rooms joined after successful rejoin
         _initialRoomsJoined = true;
         if (!_initialRoomsJoinedController.isClosed) {
@@ -1024,7 +1046,7 @@ class MptSocketSocketServer {
   // Add method to unsubscribe from a room
   void unsubscribeFromEvent(String eventName) {
     if (socket == null) {
-      print("Cannot unsubscribe: Socket is not initialized");
+      _logger.logMessage("Cannot unsubscribe: Socket is not initialized");
       return;
     }
 
@@ -1035,7 +1057,8 @@ class MptSocketSocketServer {
         "rooms": [eventName],
       },
       ack: (data) {
-        print("Socket server - AGENT_LEAVE_ROOMS - Left room: $data");
+        _logger
+            .logMessage("Socket server - AGENT_LEAVE_ROOMS - Left room: $data");
       },
     );
   }

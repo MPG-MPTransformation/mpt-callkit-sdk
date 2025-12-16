@@ -2362,19 +2362,19 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             return
         }
 
-        if !isConference {
-            _callManager.holdCall(sessionid: activeSessionid, onHold: true)
-            NSLog("didSelectLine... hold call on sessionId=\(activeSessionid)")
-        }
+//        if !isConference {
+//            _callManager.holdCall(sessionid: activeSessionid, onHold: true)
+//            NSLog("didSelectLine... hold call on sessionId=\(activeSessionid)")
+//        }
         _activeLine = activedline
 
         activeSessionid = lineSessions[_activeLine]
         NSLog("didSelectLine... activeSessionid=\(activeSessionid)")
 
-        if !isConference && activeSessionid != CLong(INVALID_SESSION_ID) {
-            _callManager.holdCall(sessionid: activeSessionid, onHold: false)
-            NSLog("didSelectLine... unhold call on sessionId=\(activeSessionid)")
-        }
+//        if !isConference && activeSessionid != CLong(INVALID_SESSION_ID) {
+//            _callManager.holdCall(sessionid: activeSessionid, onHold: false)
+//            NSLog("didSelectLine... unhold call on sessionId=\(activeSessionid)")
+//        }
     }
     
     func autoSelectAvailableLine()-> CLong{

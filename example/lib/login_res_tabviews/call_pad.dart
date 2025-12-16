@@ -77,6 +77,7 @@ class _CallPadState extends State<CallPad> {
                       hintText: 'Enter destination number',
                       border: OutlineInputBorder(),
                     ),
+                    keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
