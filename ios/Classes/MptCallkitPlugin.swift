@@ -2594,8 +2594,10 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     func createConference(_ conferenceVideoWindow: PortSIPVideoRenderView) {
         print("\(conferenceVideoWindow)")
         if _callManager.createConference(
-            conferenceVideoWindow: conferenceVideoWindow, videoWidth: 352, videoHeight: 288,
-            displayLocalVideoInConference: true)
+            conferenceVideoWindow: conferenceVideoWindow,
+            videoWidth: 320,
+            videoHeight: 240,
+            layout: 0)
         {
             isConference = true
         }

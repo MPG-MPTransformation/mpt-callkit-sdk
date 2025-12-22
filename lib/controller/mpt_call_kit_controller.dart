@@ -1977,6 +1977,13 @@ class MptCallKitController {
         _removeConnectedAgent(sessionId);
       }
 
+      if (!_isHostConference) {
+        _logger.logMessage(
+            "Agent is not host - reset host role and clear connected agents when call ended");
+        _resetHostRole();
+        _connectedAgents.clear();
+      }
+
       //if only one agent in connected list, destroy conference and reset host role
       bool result = await getConferenceState();
       _logger.logMessage(

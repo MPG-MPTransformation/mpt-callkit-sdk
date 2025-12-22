@@ -476,7 +476,7 @@ class CallManager: NSObject {
         sendDTMF(uuid: result.session.uuid, dtmf: Int32(tone))
     }
 
-    func createConference(conferenceVideoWindow: PortSIPVideoRenderView?, videoWidth: Int, videoHeight: Int, displayLocalVideoInConference: Bool) -> (Bool) {
+    func createConference(conferenceVideoWindow: PortSIPVideoRenderView?, videoWidth: Int, videoHeight: Int, layout: Int) -> (Bool) {
         if isConference {
             return false
         }
@@ -489,7 +489,7 @@ class CallManager: NSObject {
         
         var ret = 0
         if conferenceVideoWindow != nil, videoWidth > 0, videoHeight > 0 {
-            ret = Int(_portSIPSDK.createVideoConference(conferenceVideoWindow, videoWidth: Int32(videoWidth), videoHeight: Int32(videoHeight), layout: 0))
+            ret = Int(_portSIPSDK.createVideoConference(conferenceVideoWindow, videoWidth: Int32(videoWidth), videoHeight: Int32(videoHeight), layout: Int32(layout)))
         } else {
             ret = Int(_portSIPSDK.createAudioConference())
         }
