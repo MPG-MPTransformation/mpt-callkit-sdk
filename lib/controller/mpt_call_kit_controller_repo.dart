@@ -629,30 +629,38 @@ class MptCallKitControllerRepo {
     required String payload,
     Function(String?)? onError,
   }) async {
-    final headers = {
-      'Content-Type': 'application/json',
-    };
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+      };
 
-    final body = {
-      "tenantId": tenantId,
-      "agentId": agentId,
-      "sessionId": sessionId,
-      "timeStamp": timeStamp,
-      "payload": payload,
-    };
+      final body = {
+        "tenantId": tenantId,
+        "agentId": agentId,
+        "sessionId": sessionId,
+        "timeStamp": timeStamp,
+        "payload": payload,
+      };
 
-    final response = await http.post(
-      Uri.parse(
-          "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$_dynamicClientLogAPI"),
-      headers: headers,
-      body: convert.jsonEncode(body),
-    );
+      final response = await http.post(
+        Uri.parse(
+            "${baseUrl ?? "https://crm-dev-v2.metechvn.com"}$_dynamicClientLogAPI"),
+        headers: headers,
+        body: convert.jsonEncode(body),
+      );
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return response.statusCode;
-    } else {
-      onError?.call(
-          "[Mpt_API] - reportDynamicClientLog - failed with status code: ${response.statusCode}");
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return response.statusCode;
+      } else {
+        onError?.call(
+            "[Mpt_API] - reportDynamicClientLog - failed with status code: ${response.statusCode}");
+        return -1;
+      }
+    } catch (e) {
+      // Silently handle network errors (DNS lookup, connection issues, etc.)
+      // This can happen when app is in background or has no network connection
+      debugPrint("[Mpt_API] - reportDynamicClientLog - Error: $e");
+      onError?.call("[Mpt_API] - reportDynamicClientLog - Error: $e");
       return -1;
     }
   }
