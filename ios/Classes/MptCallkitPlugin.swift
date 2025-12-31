@@ -2862,9 +2862,17 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
                         code: "INVALID_ARGUMENT", message: "Destination is required for transfer",
                         details: nil))
             }
-        case "switchCamera":
-            let switchResult = switchCamera()
-            result(switchResult)
+        case "setCamera":
+            if let args = call.arguments as? [String: Any], 
+                let useFrontCamera = args["useFrontCamera"] as? Bool {
+                let switchResult = switchCamera(useFrontCamera: useFrontCamera)
+                result(switchResult)
+            } else {
+                result(
+                    FlutterError(
+                        code: "INVALID_ARGUMENTS",
+                        message: "Missing or invalid arguments for switchCamera", details: nil))
+            }
         case "setSpeaker":
             if let args = call.arguments as? [String: Any] {
                 if let state = args["state"] as? String {
@@ -3434,22 +3442,22 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
     // REMOVED: No shared view controller instances in Android pattern
 
-    func switchCamera() -> Bool {
+    func switchCamera(useFrontCamera: Bool) -> Bool {
         NSLog("switchCamera() called")
 
-        // Safety check: ensure there's an active session
-        guard activeSessionid != CLong(INVALID_SESSION_ID) else {
-            NSLog("switchCamera() failed - no active session")
-            return false
-        }
-
-        // Safety check: ensure it's a video call
-        guard let result = _callManager.findCallBySessionID(activeSessionid),
-            result.session.videoState
-        else {
-            NSLog("switchCamera() failed - not a video call or session not found")
-            return false
-        }
+//        // Safety check: ensure there's an active session
+//        guard activeSessionid != CLong(INVALID_SESSION_ID) else {
+//            NSLog("switchCamera() failed - no active session")
+//            return false
+//        }
+//
+//        // Safety check: ensure it's a video call
+//        guard let result = _callManager.findCallBySessionID(activeSessionid),
+//            result.session.videoState
+//        else {
+//            NSLog("switchCamera() failed - not a video call or session not found")
+//            return false
+//        }
 
         // Safety check: ensure SDK is initialized
         guard let sdk = portSIPSDK else {
@@ -3458,9 +3466,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         }
 
         // 🔥 ANDROID PATTERN: Just update SIP and send state notification
-        let newUseFrontCamera = !mUseFrontCamera
-        setCamera(useFrontCamera: newUseFrontCamera)
-        mUseFrontCamera = newUseFrontCamera
+        setCamera(useFrontCamera: useFrontCamera)
+        mUseFrontCamera = useFrontCamera
         stopSession()
         // Wait for stop to complete, then start session (which will reconfigure)
 //        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -3474,15 +3481,15 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             sessionId: Int64(activeSessionid),
             isVideoEnabled: true,
             isCameraOn: true,
-            useFrontCamera: newUseFrontCamera,
+            useFrontCamera: useFrontCamera,
             conference: self.isConference
         )
         PortSIPStateManager.shared.updateVideoState(videoState)
 
         NSLog(
-            "SDK-iOS: Camera switched to \(newUseFrontCamera ? "front" : "back") via state notification"
+            "SDK-iOS: Camera switched to \(useFrontCamera ? "front" : "back") via state notification"
         )
-        return true
+        return useFrontCamera
     }
 
     // REMOVED: No direct view controller calls in Android pattern

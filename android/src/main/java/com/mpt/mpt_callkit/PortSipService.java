@@ -78,6 +78,7 @@ public class PortSipService extends Service
     public static final String SRTP = "srtp type";
     public static final String INSTANCE_ID = "instanceid";
     public static final String REGISTER_CHANGE_ACTION = "PortSip.AndroidSample.Test.RegisterStatusChagnge";
+    public static final String SIP_REGISTERED = "PortSip.AndroidSample.Test.SipRegistered";
     public static final String CALL_CHANGE_ACTION = "PortSip.AndroidSample.Test.CallStatusChagnge";
     public static final String PRESENCE_CHANGE_ACTION = "PortSip.AndroidSample.Test.PRESENCEStatusChagnge";
     public static final String EXTRA_REGISTER_STATE = "RegisterStatus";
@@ -479,6 +480,10 @@ public class PortSipService extends Service
 
                     // Then cleanup
                     // engine.destroyConference();
+
+                    Engine.Instance().mUseFrontCamera = true;
+                    engine.setVideoDeviceId(1);
+                    
                     int result = engine.unRegisterServer(100);
                     logWithTimestamp("SDK-Android: unRegisterServer done: " + result);
                     
@@ -1135,9 +1140,9 @@ public class PortSipService extends Service
         MptCallkitPlugin.sendToFlutter("isRemoteVideoReceived", false);
         isRemoteVideoReceived = false;
 
-        // Reset camera to front camera when call ends
-        Engine.Instance().mUseFrontCamera = true;
-        Engine.Instance().getEngine().setVideoDeviceId(1);
+        // // Reset camera to front camera when call ends
+        // Engine.Instance().mUseFrontCamera = true;
+        // Engine.Instance().getEngine().setVideoDeviceId(1);
     }
 
     @Override

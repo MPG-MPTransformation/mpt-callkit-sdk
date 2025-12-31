@@ -524,6 +524,7 @@ class MptSocketSocketServer {
 
           if (ani ==
               MptCallKitController().currentUserInfo?["user"]["extension"]) {
+            // Out going call.
             var listAddAgentToConfRequests = MptCallKitController()
                 .listAddAgentToConfRequests
                 .where((element) => element.destExt == dnis)
@@ -533,6 +534,13 @@ class MptSocketSocketServer {
                 data['state'] == CallEventSocketConstants.REJECT_CALL) {
               isAgentAnswered =
                   data['state'] == CallEventSocketConstants.ANSWER_CALL;
+
+              if (isAgentAnswered) {
+                MptCallKitController().addConnectedAgent(
+                    MptCallKitController().currentSipActiveSessionId,
+                    data["agentId"],
+                    ani ?? "10000");
+              }
               for (var addAgentToConfRequest in listAddAgentToConfRequests) {
                 await MptCallKitController().sendSipMessage(
                     addAgentToConfRequest.sipSessionId,
@@ -601,6 +609,12 @@ class MptSocketSocketServer {
 
             //reInvite call if state is ANSWER_CALL
             if (data['state'] == CallEventSocketConstants.ANSWER_CALL) {
+              // Incoming call
+              MptCallKitController().addConnectedAgent(
+                  MptCallKitController().currentSipActiveSessionId,
+                  null,
+                  data['ani']);
+
               if (data.containsKey('extraInfo')) {
                 var extraInfo;
                 if (data['extraInfo'] is String) {
@@ -621,9 +635,6 @@ class MptSocketSocketServer {
                 } else {
                   extraInfo = data['extraInfo'];
                 }
-
-                MptCallKitController().addConnectedAgent(
-                    MptCallKitController().currentSipActiveSessionId, agentId);
 
                 if (extraInfo != null && extraInfo.containsKey('type')) {
                   if (extraInfo['type'].toString() ==

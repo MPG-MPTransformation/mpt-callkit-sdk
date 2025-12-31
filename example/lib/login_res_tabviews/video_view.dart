@@ -24,6 +24,7 @@ class _VideoViewState extends State<VideoView> {
   bool _isCameraOn = true;
   bool _isOnHold = false;
   final bool _isConference = false;
+  final bool _useFrontCamera = true;
 
   // Media states using the controller's values
   bool _localCamState = true;
@@ -219,10 +220,14 @@ class _VideoViewState extends State<VideoView> {
     return Scaffold(
       body: Stack(
         children: [
-          // Remote view - Full screen
-          const Positioned.fill(
-            child: RemoteView(),
-          ),
+          // Remote view
+          Positioned.fill(
+              child: Center(
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: const RemoteView(),
+            ),
+          )),
 
           // Local view - Draggable
           Positioned(

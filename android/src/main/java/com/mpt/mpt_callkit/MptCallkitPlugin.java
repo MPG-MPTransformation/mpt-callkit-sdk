@@ -561,8 +561,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 int answerResult = answerCall(false);
                 result.success(answerResult);
                 break;
-            case "switchCamera":
-                boolean switchResult = switchCamera();
+            case "setCamera":
+                boolean useFrontCamera = call.argument("useFrontCamera");
+                boolean switchResult = switchCamera(useFrontCamera);
                 result.success(switchResult);
                 break;
             case "reject":
@@ -916,6 +917,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         filter.addAction(PortSipService.ACTION_HANGOUT_SUCCESS);
         filter.addAction(PortSipService.CONFERENCE_STATE_CHANGE_ACTION);
         filter.addAction("CAMERA_SWITCH_ACTION");
+        filter.addAction(PortSipService.SIP_REGISTERED);
         System.out.println("SDK-Android: Registering broadcast receiver for call actions");
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -1472,23 +1474,23 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
-    boolean switchCamera() {
-        boolean value = !Engine.Instance().mUseFrontCamera;
-        setCamera(Engine.Instance().getEngine(), value);
-        Engine.Instance().mUseFrontCamera = value;
+    boolean switchCamera(boolean useFrontCamera) {
+        // boolean value = !Engine.Instance().mUseFrontCamera;
+        setCamera(Engine.Instance().getEngine(), useFrontCamera);
+        Engine.Instance().mUseFrontCamera = useFrontCamera;
 
         // Gửi broadcast để thông báo LocalView cập nhật mirror
         // Camera trước: mirror = true, Camera sau: mirror = false
         if (context != null) {
             Intent updateMirrorIntent = new Intent("CAMERA_SWITCH_ACTION");
-            updateMirrorIntent.putExtra("useFrontCamera", value);
+            updateMirrorIntent.putExtra("useFrontCamera", useFrontCamera);
             context.sendBroadcast(updateMirrorIntent);
-            System.out.println("SDK-Android: Sent broadcast to update camera mirror: " + value);
+            System.out.println("SDK-Android: Sent broadcast to update camera mirror: " + useFrontCamera);
         }
 
         // Log để debug
-        System.out.println("SDK-Android: Camera switched to " + (value ? "front" : "back") + " with mirror: " + value);
-        return value;
+        System.out.println("SDK-Android: Camera switched to " + (useFrontCamera ? "front" : "back") + " with mirror: " + useFrontCamera);
+        return useFrontCamera;
     }
 
     private void setCamera(PortSipSdk portSipLib, boolean userFront) {

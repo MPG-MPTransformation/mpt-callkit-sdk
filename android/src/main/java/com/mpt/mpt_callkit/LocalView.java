@@ -66,7 +66,6 @@ public class LocalView implements PlatformView {
             // Giải phóng tài nguyên video
             PortSipSdk portSipLib = Engine.Instance().getEngine();
             if (portSipLib != null) {
-                Engine.Instance().mUseFrontCamera = true;
                 portSipLib.displayLocalVideo(false, Engine.Instance().mUseFrontCamera, null);
             }
 
@@ -100,7 +99,7 @@ public class LocalView implements PlatformView {
                     // Nếu video bị mute, ẩn local view
                     System.out.println("SDK-Android: Video is muted, hiding local view");
                     if (localRenderVideoView != null) {
-                        localRenderVideoView.setVisibility(View.GONE);
+                        localRenderVideoView.setVisibility(View.VISIBLE);
                     }
                     // Vẫn có thể tiếp tục gửi video nếu cần, nhưng không hiển thị
                     portSipLib.displayLocalVideo(false, Engine.Instance().mUseFrontCamera, null);
@@ -115,11 +114,11 @@ public class LocalView implements PlatformView {
                 }
             } else {
                 // Không có cuộc gọi đang diễn ra, tắt video
-                System.out.println("SDK-Android: No active call, hide local view");
+                System.out.println("SDK-Android: No active call, keep showing local view");
                 if (localRenderVideoView != null) {
-                    localRenderVideoView.setVisibility(View.GONE);
+                    localRenderVideoView.setVisibility(View.VISIBLE);
                 }
-                portSipLib.displayLocalVideo(false, Engine.Instance().mUseFrontCamera, null);
+                // portSipLib.displayLocalVideo(false, Engine.Instance().mUseFrontCamera, null);
             }
         }
     }
@@ -188,6 +187,8 @@ public class LocalView implements PlatformView {
             System.out.println(
                     "SDK-Android: LocalView received camera switch broadcast - useFrontCamera: " + useFrontCamera);
             setCameraMirror();
+        } else {
+            System.out.println("SDK-Android: LocalView received unknown broadcast - action: " + action);
         }
     }
 }

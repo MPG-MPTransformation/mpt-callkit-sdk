@@ -222,6 +222,9 @@ class MptCallKitController {
   String? _sipServerUrl;
   bool _isPinging = false;
 
+  bool _useFrontCamera = true;
+  bool get useFrontCamera => _useFrontCamera;
+
   /// callback functions
   Function(bool)? onRegisterSIP;
 
@@ -1722,11 +1725,18 @@ class MptCallKitController {
   }
 
   Future<bool> switchCamera() async {
+    return await setCamera(useFrontCamera: !_useFrontCamera);
+  }
+
+  Future<bool> setCamera({required bool useFrontCamera}) async {
     try {
-      final result = await channel.invokeMethod('switchCamera');
-      return result ?? false;
+      final result = await channel.invokeMethod('setCamera', {
+        "useFrontCamera": useFrontCamera,
+      });
+      _useFrontCamera = useFrontCamera;
+      return result;
     } catch (e) {
-      _logger.logMessage('Error switching camera: $e');
+      _logger.logMessage('Error setting use front camera: $e');
       return false;
     }
   }
@@ -2614,10 +2624,10 @@ class MptCallKitController {
       }
     }
 
-    // Thêm agent vào connected list khi answered, nếu đó là cuộc gọi đi
-    if (isAnswered && agentId != null) {
-      addConnectedAgent(sipSessionId, agentId);
-    }
+    // // Thêm agent vào connected list khi answered, nếu đó là cuộc gọi đi
+    // if (isAnswered) {
+    //   addConnectedAgent(sipSessionId, agentId, extension);
+    // }
 
     if (payload.containsKey("existsVideo")) {
       final bool existsVideo = payload['existsVideo'] as bool;
@@ -2951,12 +2961,11 @@ class MptCallKitController {
     _logger.logMessage("Resetting host role - was host: $_isHostConference");
     _isHostConference = false;
     _hostExtension = null;
-
     listAddAgentToConfRequests.clear();
   }
 
   /// Thêm agent vào danh sách connected agents
-  void addConnectedAgent(int sipSessionId, int agentId) {
+  void addConnectedAgent(int sipSessionId, int? agentId, String extension) {
     // Kiểm tra xem agent đã tồn tại chưa
     final exists = _connectedAgents.any((e) => e.sipSessionId == sipSessionId);
     if (!exists) {
@@ -2964,11 +2973,12 @@ class MptCallKitController {
         sipSessionId: sipSessionId,
         agentId: agentId,
         uuid: null,
+        extension: extension,
       );
       _connectedAgents.add(agentData);
       _logger.logMessage(
-          'Added agent to connected list: sipSessionId=$sipSessionId, agentId=$agentId');
-      _logger.logMessage('Total connected agents: ${_connectedAgents.length}');
+          'Added agent to connected list: sipSessionId=$sipSessionId, agentId=$agentId, extension=$extension');
+      _logger.logMessage('List agents: ${_connectedAgents.toString()}');
     } else {
       _logger.logMessage(
           'Agent already in connected list: sipSessionId=$sipSessionId');
@@ -2989,6 +2999,8 @@ class MptCallKitController {
       _logger.logMessage(
           'Agent not found in connected list: sipSessionId=$sipSessionId');
     }
+
+    _logger.logMessage('List agents: ${_connectedAgents.toString()}');
   }
 
   /// Broadcast conference status tới tất cả các line đang kết nối
