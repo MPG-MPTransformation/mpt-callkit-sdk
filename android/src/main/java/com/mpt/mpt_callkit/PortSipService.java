@@ -433,6 +433,7 @@ public class PortSipService extends Service
         Engine.Instance().getEngine().enableAudioManager(true);
         Engine.Instance().getEngine().setAudioDevice(PortSipEnumDefine.AudioDevice.SPEAKER_PHONE);
         Engine.Instance().getEngine().setVideoDeviceId(1);
+        Engine.Instance().mUseFrontCamera = true;
 
         Engine.Instance().getEngine().setSrtpPolicy(srtpType);
         ConfigPreferences(this, Engine.Instance().getEngine());
@@ -480,9 +481,6 @@ public class PortSipService extends Service
 
                     // Then cleanup
                     // engine.destroyConference();
-
-                    Engine.Instance().mUseFrontCamera = true;
-                    engine.setVideoDeviceId(1);
                     
                     int result = engine.unRegisterServer(100);
                     logWithTimestamp("SDK-Android: unRegisterServer done: " + result);
@@ -1139,10 +1137,6 @@ public class PortSipService extends Service
         sendCallTypeToFlutter("ENDED");
         MptCallkitPlugin.sendToFlutter("isRemoteVideoReceived", false);
         isRemoteVideoReceived = false;
-
-        // // Reset camera to front camera when call ends
-        // Engine.Instance().mUseFrontCamera = true;
-        // Engine.Instance().getEngine().setVideoDeviceId(1);
     }
 
     @Override
@@ -1484,8 +1478,8 @@ public class PortSipService extends Service
         sdk.setVideoFrameRate(-1, prefFrameRate);
         sdk.setAudioSamples(20, 60);
 
-        // 1 - FrontCamra 0 - BackCamra
-        sdk.setVideoDeviceId(1);
+        // // 1 - FrontCamra 0 - BackCamra
+        // sdk.setVideoDeviceId(1);
 
         sdk.setVideoNackStatus(true);
 

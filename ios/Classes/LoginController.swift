@@ -148,9 +148,6 @@ class LoginViewController {
         portSIPSDK.setVideoResolution(Int32(width), height: Int32(height))
         portSIPSDK.setAudioSamples(20, maxPtime: 60)
         
-        // 1 - FrontCamra 0 - BackCamra
-        portSIPSDK.setVideoDeviceId(1)
-        
         // enable video RTCP nack
         portSIPSDK.setVideoNackStatus(true)
     

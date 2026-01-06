@@ -3,8 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../controller/mpt_call_kit_controller.dart';
+
 class LocalView extends StatefulWidget {
-  const LocalView({Key? key}) : super(key: key);
+  final Future<void> Function(int id)? onViewCreated;
+  const LocalView({Key? key, this.onViewCreated}) : super(key: key);
 
   @override
   State<LocalView> createState() => _LocalViewState();
@@ -30,5 +33,9 @@ class _LocalViewState extends State<LocalView> {
     }
   }
 
-  void _onPlatformViewCreated(int id) {}
+  void _onPlatformViewCreated(int id) {
+    print('Flutter - LocalView - _onPlatformViewCreated');
+    MptCallKitController().setCamera(useFrontCamera: true);
+    widget.onViewCreated?.call(id);
+  }
 }

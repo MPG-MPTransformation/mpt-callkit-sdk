@@ -160,7 +160,7 @@ public class Engine {
 
         // 1 - FrontCamra 0 - BackCamra
         mEngine.setVideoDeviceId(1);
-
+        mUseFrontCamera = true;
 
         mEngine.setVideoNackStatus(true);
 

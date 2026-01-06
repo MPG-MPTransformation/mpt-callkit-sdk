@@ -563,7 +563,7 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 break;
             case "setCamera":
                 boolean useFrontCamera = call.argument("useFrontCamera");
-                boolean switchResult = switchCamera(useFrontCamera);
+                int switchResult = switchCamera(useFrontCamera);
                 result.success(switchResult);
                 break;
             case "reject":
@@ -1474,9 +1474,9 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
         }
     }
 
-    boolean switchCamera(boolean useFrontCamera) {
+    int switchCamera(boolean useFrontCamera) {
         // boolean value = !Engine.Instance().mUseFrontCamera;
-        setCamera(Engine.Instance().getEngine(), useFrontCamera);
+        int res = setCamera(Engine.Instance().getEngine(), useFrontCamera);
         Engine.Instance().mUseFrontCamera = useFrontCamera;
 
         // Gửi broadcast để thông báo LocalView cập nhật mirror
@@ -1490,12 +1490,12 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
 
         // Log để debug
         System.out.println("SDK-Android: Camera switched to " + (useFrontCamera ? "front" : "back") + " with mirror: " + useFrontCamera);
-        return useFrontCamera;
+        return res;
     }
 
-    private void setCamera(PortSipSdk portSipLib, boolean userFront) {
+    private int setCamera(PortSipSdk portSipLib, boolean userFront) {
         int deviceId = userFront ? 1 : 0;
-        portSipLib.setVideoDeviceId(deviceId);
+        return portSipLib.setVideoDeviceId(deviceId);
     }
 
     void setSpeaker(String state) {

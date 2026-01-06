@@ -241,6 +241,8 @@ class MptCallKitController {
           onRegisterSIP?.call(call.arguments as bool);
           _logger.logMessage("onlineStatus: ${call.arguments}");
 
+          _useFrontCamera = call.arguments as bool;
+
           // Handle SIP ping based on registration status
           if (call.arguments as bool) {
           } else {
@@ -1724,11 +1726,11 @@ class MptCallKitController {
     }
   }
 
-  Future<bool> switchCamera() async {
+  Future<int> switchCamera() async {
     return await setCamera(useFrontCamera: !_useFrontCamera);
   }
 
-  Future<bool> setCamera({required bool useFrontCamera}) async {
+  Future<int> setCamera({required bool useFrontCamera}) async {
     try {
       final result = await channel.invokeMethod('setCamera', {
         "useFrontCamera": useFrontCamera,
@@ -1737,7 +1739,7 @@ class MptCallKitController {
       return result;
     } catch (e) {
       _logger.logMessage('Error setting use front camera: $e');
-      return false;
+      return -1;
     }
   }
 

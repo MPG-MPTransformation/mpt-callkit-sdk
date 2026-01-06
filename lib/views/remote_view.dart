@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class RemoteView extends StatefulWidget {
-  const RemoteView({Key? key}) : super(key: key);
+  final Future<void> Function(int id)? onViewCreated;
+  const RemoteView({Key? key, this.onViewCreated}) : super(key: key);
 
   @override
   State<RemoteView> createState() => _RemoteViewState();
@@ -30,5 +31,8 @@ class _RemoteViewState extends State<RemoteView> {
     }
   }
 
-  void _onPlatformViewCreated(int id) {}
+  void _onPlatformViewCreated(int id) {
+    print('Flutter - RemoteView - _onPlatformViewCreated');
+    widget.onViewCreated?.call(id);
+  }
 }

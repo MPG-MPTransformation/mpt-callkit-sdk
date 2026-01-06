@@ -3442,7 +3442,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
 
     // REMOVED: No shared view controller instances in Android pattern
 
-    func switchCamera(useFrontCamera: Bool) -> Bool {
+    func switchCamera(useFrontCamera: Bool) -> Int32 {
         NSLog("switchCamera() called")
 
 //        // Safety check: ensure there's an active session
@@ -3462,11 +3462,11 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         // Safety check: ensure SDK is initialized
         guard let sdk = portSIPSDK else {
             NSLog("switchCamera() failed - portSIPSDK is nil")
-            return false
+            return -1
         }
 
         // 🔥 ANDROID PATTERN: Just update SIP and send state notification
-        setCamera(useFrontCamera: useFrontCamera)
+        let res = setCamera(useFrontCamera: useFrontCamera)
         mUseFrontCamera = useFrontCamera
         stopSession()
         // Wait for stop to complete, then start session (which will reconfigure)
@@ -3489,18 +3489,18 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
         NSLog(
             "SDK-iOS: Camera switched to \(useFrontCamera ? "front" : "back") via state notification"
         )
-        return useFrontCamera
+        return res
     }
 
     // REMOVED: No direct view controller calls in Android pattern
 
-    public func setCamera(useFrontCamera: Bool) {
+    public func setCamera(useFrontCamera: Bool) -> Int32 {
         if useFrontCamera {
             print("SDK-iOS: Setting front camera (ID 1)")
-            portSIPSDK.setVideoDeviceId(1)
+            return portSIPSDK.setVideoDeviceId(1)
         } else {
             print("SDK-iOS: Setting back camera (ID 0)")
-            portSIPSDK.setVideoDeviceId(0)
+            return portSIPSDK.setVideoDeviceId(0)
         }
     }
 
