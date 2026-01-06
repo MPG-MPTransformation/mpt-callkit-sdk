@@ -265,7 +265,12 @@ class _VideoViewState extends State<VideoView> {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: const LocalView(),
+                      child: LocalView(
+                        onViewCreated: (id) async {
+                          MptCallKitController()
+                              .setCamera(useFrontCamera: true);
+                        },
+                      ),
                     ),
                   ),
                   // Switch camera button

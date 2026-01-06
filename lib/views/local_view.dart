@@ -35,7 +35,6 @@ class _LocalViewState extends State<LocalView> {
 
   void _onPlatformViewCreated(int id) {
     print('Flutter - LocalView - _onPlatformViewCreated');
-    MptCallKitController().setCamera(useFrontCamera: true);
     widget.onViewCreated?.call(id);
   }
 }
