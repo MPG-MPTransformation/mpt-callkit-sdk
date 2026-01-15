@@ -839,6 +839,8 @@ public class MptCallkitPlugin implements FlutterPlugin, MethodCallHandler, Activ
                 break;
             case "hangUpAllCalls":
                 currentLine = CallManager.Instance().getCurrentSession();
+                Ring.getInstance(MainActivity.activity).stopRingTone();
+                Ring.getInstance(MainActivity.activity).stopRingBackTone();
                 CallManager.Instance().hangupAllCalls(Engine.Instance().getEngine());
                 java.util.Map<String, Object> _m_callState = new java.util.HashMap<>();
                 _m_callState.put("sessionId", (int) currentLine.sessionID);

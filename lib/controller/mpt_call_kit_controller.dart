@@ -2931,6 +2931,12 @@ class MptCallKitController {
     await channel.invokeMethod("hangUpAllCalls");
   }
 
+  Future<int> hangUpCurrentCall() async {
+    final result = await channel.invokeMethod("hangup");
+    _logger.logMessage("hangUpCurrentCall result: $result");
+    return result;
+  }
+
 // only host conference send this method
   Future<void> sendConferenceMessage({
     required int? sipSessionId,

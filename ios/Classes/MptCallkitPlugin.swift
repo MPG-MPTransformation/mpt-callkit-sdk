@@ -2279,6 +2279,7 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
     
     func hangUpAllCalls(){
         _callManager.hangUpAllCalls()
+        
         self.isConference = false
     }
     
@@ -3077,6 +3078,8 @@ public class MptCallkitPlugin: FlutterAppDelegate, FlutterPlugin, PKPushRegistry
             result(sendMsgRes)
         case "hangUpAllCalls":
             self.hangUpAllCalls()
+            _ = mSoundService.stopRingTone()
+            _ = mSoundService.stopRingBackTone()
             result(true)
         case "holdAllCalls":
             if let args = call.arguments as? [String: Any],

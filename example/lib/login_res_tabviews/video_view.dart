@@ -266,10 +266,7 @@ class _VideoViewState extends State<VideoView> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: LocalView(
-                        onViewCreated: (id) async {
-                          MptCallKitController()
-                              .setCamera(useFrontCamera: true);
-                        },
+                        onViewCreated: (id) async {},
                       ),
                     ),
                   ),

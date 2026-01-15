@@ -33,8 +33,9 @@ class _LocalViewState extends State<LocalView> {
     }
   }
 
-  void _onPlatformViewCreated(int id) {
-    print('Flutter - LocalView - _onPlatformViewCreated');
-    widget.onViewCreated?.call(id);
+  Future<void> _onPlatformViewCreated(int id) async {
+    print('LocalView - _onPlatformViewCreated');
+    await MptCallKitController().setCamera(useFrontCamera: true);
+    await widget.onViewCreated?.call(id);
   }
 }
