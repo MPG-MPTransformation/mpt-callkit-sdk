@@ -229,6 +229,12 @@ class MptSocketSocketServer {
   Stream<CallEventSocketRecv> get callEventStream =>
       _callEventController.stream;
 
+  // Stream for all call events
+  final StreamController<CallEventSocketRecv> _callEventAllController =
+      StreamController<CallEventSocketRecv>.broadcast();
+  Stream<CallEventSocketRecv> get callEventAllStream =>
+      _callEventAllController.stream;
+
   CallEventSocketRecv? _currentCallEventSocketData;
   CallEventSocketRecv? get currentCallEventSocketData =>
       _currentCallEventSocketData;
@@ -594,6 +600,12 @@ class MptSocketSocketServer {
 
         if (data.containsKey('agentId')) {
           var agentId = data['agentId'];
+
+          // Add call event to all call events stream
+          if (!_callEventAllController.isClosed) {
+            _callEventAllController.add(
+                CallEventSocketRecv.fromJson(data as Map<String, dynamic>));
+          }
 
           if (agentId ==
               MptCallKitController().currentUserInfo?["user"]["id"]) {

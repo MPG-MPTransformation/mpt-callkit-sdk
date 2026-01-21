@@ -50,6 +50,8 @@ class MptCallKitController {
   final List<AddAgentToConfReq> listAddAgentToConfRequests =
       <AddAgentToConfReq>[];
 
+  List<AgentDataOnConf> get connectedAgentsList => _connectedAgents;
+
   static const MethodChannel channel = MethodChannel('mpt_callkit');
   static const eventChannel = EventChannel('native_events');
   static final MptCallKitController _instance =
