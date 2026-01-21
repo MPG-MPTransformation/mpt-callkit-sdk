@@ -2602,6 +2602,7 @@ class MptCallKitController {
     bool isAnswered = false;
     int? agentId;
 
+    /// Thông báo callee đã trả lời cuộc gọi
     if (payload.containsKey(SIPMessageTypeConstants.ANSWERED)) {
       isAnswered =
           (payload[SIPMessageTypeConstants.ANSWERED] as bool?) ?? false;
@@ -2611,6 +2612,7 @@ class MptCallKitController {
       }
     }
 
+    /// Nếu là makeCallByGuest, gửi log lên server
     if (payload.containsKey(SIPMessageTypeConstants.AGENT_INFO)) {
       final Map<String, dynamic> agentInfo =
           payload[SIPMessageTypeConstants.AGENT_INFO] as Map<String, dynamic>;
@@ -2631,15 +2633,22 @@ class MptCallKitController {
     //   addConnectedAgent(sipSessionId, agentId, extension);
     // }
 
+    /// update call thành video call, đồng thời join conference nếu như nó đang tồn tại
     if (payload.containsKey("existsVideo")) {
       final bool existsVideo = payload['existsVideo'] as bool;
       _logger.logMessage(
           'Remote party send request reinvite video call state: $existsVideo');
       if (!existsVideo && isAnswered) {
+        if (MptSocketSocketServer.instance.currentInitCall != null &&
+            MptSocketSocketServer.instance.currentInitCall!.extraInfo?.type ==
+                CallType.VIDEO.toString()) {
+          _logger.logMessage(
+              "Update video call to true because currentInitCall is not null and extraInfo type is VIDEO");
+          await Future.delayed(const Duration(milliseconds: 2500), () {
+            updateVideoCall(isVideo: true);
+          });
+        }
         // Update video call after 2.5 seconds in the agent side
-        await Future.delayed(const Duration(milliseconds: 2500), () {
-          updateVideoCall(isVideo: true);
-        });
 
         final isConferenceMode = await getConferenceState();
 

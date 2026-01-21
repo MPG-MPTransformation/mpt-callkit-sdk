@@ -233,6 +233,9 @@ class MptSocketSocketServer {
   CallEventSocketRecv? get currentCallEventSocketData =>
       _currentCallEventSocketData;
 
+  CallEventSocketRecv? _currentInitCall;
+  CallEventSocketRecv? get currentInitCall => _currentInitCall;
+
   // Track whether initial rooms have been joined
   bool _initialRoomsJoined = false;
   // Stream for initial rooms joined state
@@ -605,6 +608,11 @@ class MptSocketSocketServer {
             } else {
               _logger.logMessage(
                   "Socket server - CALL_EVENT - callEventController is closed");
+            }
+
+            if (data['state'] == CallEventSocketConstants.INIT) {
+              _currentInitCall =
+                  CallEventSocketRecv.fromJson(data as Map<String, dynamic>);
             }
 
             //reInvite call if state is ANSWER_CALL
