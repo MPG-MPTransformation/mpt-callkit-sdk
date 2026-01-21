@@ -232,8 +232,8 @@ class MptSocketSocketServer {
   // Stream for all call events
   final StreamController<CallEventSocketRecv> _callEventAllController =
       StreamController<CallEventSocketRecv>.broadcast();
-  Stream<CallEventSocketRecv> get callEventAllStream =>
-      _callEventAllController.stream;
+  static Stream<CallEventSocketRecv> get callEventAllStream =>
+      instance._callEventAllController.stream;
 
   CallEventSocketRecv? _currentCallEventSocketData;
   CallEventSocketRecv? get currentCallEventSocketData =>
